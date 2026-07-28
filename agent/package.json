@@ -1,6 +1,6 @@
 {
   "name": "@monitoria/agent",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "MonitorIA Agent local para câmeras RTSP.",
@@ -8,7 +8,7 @@
     "dev": "tsx src/index.ts",
     "check": "tsc --noEmit",
     "build:js": "tsc",
-    "build:win": "bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile ./dist/monitoria-agent.exe"
+    "build:win": "bun build ./src/index.ts --compile --target=bun-windows-x64-baseline --outfile ./dist/monitoria-agent.exe"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

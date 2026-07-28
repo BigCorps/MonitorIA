@@ -1,6 +1,16 @@
-# MonitorIA Agent v0.5
+# MonitorIA Agent v0.5.1
 
 Primeira versão executável do Agent local para Windows.
+
+## Compatibilidade de CPU
+
+O executável Windows é compilado com:
+
+```text
+bun-windows-x64-baseline
+```
+
+Essa variante é destinada a computadores x64 sem AVX2. Ela exige SSE4.2.
 
 ## O que esta versão faz
 
@@ -31,16 +41,6 @@ A configuração é salva, nesta ordem, em:
 
 O token e a URL RTSP não são salvos em texto aberto. A proteção usa DPAPI
 com escopo do usuário do Windows que executou o pareamento.
-
-## Teste sem executável
-
-Com Node.js 22 instalado:
-
-```powershell
-cd agent
-npm install
-npm run dev
-```
 
 ## Compilação local
 

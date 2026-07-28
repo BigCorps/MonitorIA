@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Windows x64
+    name: Windows x64 baseline
     runs-on: windows-latest
     timeout-minutes: 15
 
@@ -39,13 +39,13 @@ jobs:
       - name: Verificar TypeScript
         run: bun run check
 
-      - name: Gerar executável
+      - name: Gerar executável compatível
         run: bun run build:win
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: monitoria-agent-windows-x64-v0.5.0
+          name: monitoria-agent-windows-x64-baseline-v0.5.1
           path: agent/dist/monitoria-agent.exe
           if-no-files-found: error
           retention-days: 30
