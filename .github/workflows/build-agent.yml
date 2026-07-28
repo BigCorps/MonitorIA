@@ -1,0 +1,51 @@
+name: Build MonitorIA Agent
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "agent/**"
+      - "app/api/agent/cameras/**"
+      - "src/lib/agent-camera.ts"
+      - ".github/workflows/build-agent.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: agent
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependências
+        run: bun install
+
+      - name: Verificar TypeScript
+        run: bun run check
+
+      - name: Gerar executável
+        run: bun run build:win
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoria-agent-windows-x64-v0.5.0
+          path: agent/dist/monitoria-agent.exe
+          if-no-files-found: error
+          retention-days: 30
