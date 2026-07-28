@@ -36,7 +36,7 @@ jobs:
       - name: Instalar dependências
         run: bun install
 
-      - name: Verificar TypeScript
+      - name: Verificar TypeScript do Agent
         run: bun run check
 
       - name: Gerar executável compatível
@@ -45,7 +45,7 @@ jobs:
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: monitoria-agent-windows-x64-baseline-v0.5.1
+          name: monitoria-agent-windows-x64-baseline-v0.5.2
           path: agent/dist/monitoria-agent.exe
           if-no-files-found: error
           retention-days: 30
