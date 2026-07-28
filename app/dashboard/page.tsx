@@ -2,19 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization, getDashboardData, getOrganizationSites } from "@/src/lib/dashboard-data";
+import { DashboardSidebar } from "./dashboard-sidebar";
 
 export const metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
-
-function SmallLogo() {
-  return (
-    <span className="dashboard-logo-mark" aria-hidden="true">
-      <img src="/favicon.svg" alt="" width={22} height={22} />
-    </span>
-  );
-}
 
 function greeting(timeZone: string) {
   const hour = Number(new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(new Date()));
@@ -66,21 +59,7 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   return (
     <main className="dashboard-shell">
-      <aside className="dashboard-sidebar">
-        <Link href="/" className="dashboard-brand"><SmallLogo /><span>Monitor<span>IA</span></span></Link>
-        <nav>
-          <a className="active" href="#visao-geral"><span>⌂</span> Visão geral</a>
-          <a href="#cameras"><span>◉</span> Câmeras</a>
-          <a href="#eventos"><span>≋</span> Eventos</a>
-          <a href="#pesquisa"><span>⌕</span> Pesquisa</a>
-          <a href="#agentes"><span>◆</span> Agentes</a>
-        </nav>
-        <div className="sidebar-account">
-          <span>{organization.name}</span>
-          <small>{user.email ?? "Usuário autenticado"}</small>
-          <form action="/auth/signout" method="post"><button type="submit">Sair</button></form>
-        </div>
-      </aside>
+      <DashboardSidebar organizationName={organization.name} userEmail={user.email} active="overview" />
 
       <section className="dashboard-content" id="visao-geral">
         <header className="dashboard-header">
@@ -118,7 +97,7 @@ export default async function DashboardPage({ searchParams }: Props) {
                 </article>
               ))}
             </div>
-            <button type="button" disabled>Cadastro de câmera disponível na próxima entrega</button>
+            <Link href="/dashboard/cameras/new" className="panel-primary-action">Cadastrar primeira câmera</Link>
           </section>
 
           <section className="health-panel" id="agentes">

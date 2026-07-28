@@ -24,6 +24,7 @@ export async function GET() {
     publishableKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
     openAIConfigured: Boolean(process.env.OPENAI_API_KEY),
     groqConfigured: Boolean(process.env.GROQ_API_KEY),
+    agentSecretConfigured: Boolean(process.env.MONITORIA_AGENT_SECRET),
   };
 
   const ok = Object.values(checks).every(Boolean);
