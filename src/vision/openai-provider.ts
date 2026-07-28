@@ -4,19 +4,29 @@ import {
   AnalyzedEventSchema,
   AnalyzedEventTransportSchema,
 } from "../contracts/analyzed-event.js";
+import { CameraProfileDraftSchema } from "../contracts/camera-profile-draft.js";
 import { buildVisionContext, buildVisionInstructions } from "./prompt.js";
+import {
+  buildCameraProfileContext,
+  buildCameraProfileInstructions,
+} from "./profile-prompt.js";
 import type {
+  AnalyzeCameraProfileInput,
   AnalyzeEventInput,
+  CameraProfileAnalysisResult,
   VisionAnalysisResult,
   VisionImageDetail,
   VisionProvider,
+  VisionUsage,
 } from "./types.js";
 
 export interface OpenAIVisionProviderOptions {
   apiKey?: string;
   model?: string;
   detail?: VisionImageDetail;
+  profileDetail?: VisionImageDetail;
   maxOutputTokens?: number;
+  profileMaxOutputTokens?: number;
   store?: boolean;
   client?: OpenAI;
 }
@@ -26,11 +36,30 @@ function envBoolean(value: string | undefined, fallback: boolean): boolean {
   return value.toLowerCase() === "true";
 }
 
+function responseUsage(
+  usage:
+    | {
+        input_tokens?: number;
+        output_tokens?: number;
+        total_tokens?: number;
+      }
+    | null
+    | undefined,
+): VisionUsage {
+  return {
+    inputTokens: usage?.input_tokens ?? 0,
+    outputTokens: usage?.output_tokens ?? 0,
+    totalTokens: usage?.total_tokens ?? 0,
+  };
+}
+
 export class OpenAIVisionProvider implements VisionProvider {
   private readonly client: OpenAI;
   private readonly model: string;
   private readonly detail: VisionImageDetail;
+  private readonly profileDetail: VisionImageDetail;
   private readonly maxOutputTokens: number;
+  private readonly profileMaxOutputTokens: number;
   private readonly store: boolean;
 
   constructor(options: OpenAIVisionProviderOptions = {}) {
@@ -44,9 +73,16 @@ export class OpenAIVisionProvider implements VisionProvider {
       options.detail ??
       (process.env.VISION_DETAIL as VisionImageDetail | undefined) ??
       "low";
+    this.profileDetail =
+      options.profileDetail ??
+      (process.env.VISION_PROFILE_DETAIL as VisionImageDetail | undefined) ??
+      "high";
     this.maxOutputTokens =
       options.maxOutputTokens ??
       Number(process.env.VISION_MAX_OUTPUT_TOKENS ?? "700");
+    this.profileMaxOutputTokens =
+      options.profileMaxOutputTokens ??
+      Number(process.env.VISION_PROFILE_MAX_OUTPUT_TOKENS ?? "1600");
     this.store =
       options.store ?? envBoolean(process.env.VISION_STORE_RESPONSES, false);
   }
@@ -92,18 +128,63 @@ export class OpenAIVisionProvider implements VisionProvider {
     }
 
     const event = AnalyzedEventSchema.parse(response.output_parsed);
-    const usage = response.usage;
 
     return {
       event,
       provider: "openai",
       model: this.model,
       responseId: response.id,
-      usage: {
-        inputTokens: usage?.input_tokens ?? 0,
-        outputTokens: usage?.output_tokens ?? 0,
-        totalTokens: usage?.total_tokens ?? 0,
+      usage: responseUsage(response.usage),
+      latencyMs,
+    };
+  }
+
+  async analyzeCameraProfile(
+    input: AnalyzeCameraProfileInput,
+  ): Promise<CameraProfileAnalysisResult> {
+    const started = performance.now();
+    const response = await this.client.responses.parse({
+      model: this.model,
+      store: this.store,
+      max_output_tokens: this.profileMaxOutputTokens,
+      instructions: buildCameraProfileInstructions(),
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Crie o perfil inicial usando este contexto:\n${buildCameraProfileContext(input)}`,
+            },
+            {
+              type: "input_image",
+              image_url: input.imageUrl,
+              detail: this.profileDetail,
+            },
+          ],
+        },
+      ],
+      text: {
+        format: zodTextFormat(
+          CameraProfileDraftSchema,
+          "monitoria_camera_profile_draft",
+        ),
       },
+    });
+    const latencyMs = Math.round(performance.now() - started);
+
+    if (!response.output_parsed) {
+      throw new Error(
+        `A OpenAI não retornou perfil estruturado. Status: ${response.status}`,
+      );
+    }
+
+    return {
+      profile: CameraProfileDraftSchema.parse(response.output_parsed),
+      provider: "openai",
+      model: this.model,
+      responseId: response.id,
+      usage: responseUsage(response.usage),
       latencyMs,
     };
   }

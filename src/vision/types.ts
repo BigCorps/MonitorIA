@@ -1,5 +1,6 @@
 import type { AnalyzedEvent } from "../contracts/analyzed-event.js";
 import type { CameraProfile } from "../contracts/camera-profile.js";
+import type { CameraProfileDraft } from "../contracts/camera-profile-draft.js";
 
 export type VisionImageDetail = "low" | "high" | "auto";
 
@@ -23,6 +24,18 @@ export interface AnalyzeEventInput {
   };
 }
 
+export interface AnalyzeCameraProfileInput {
+  organizationId: string;
+  cameraId: string;
+  cameraName: string;
+  cameraDescription: string;
+  siteName: string;
+  timezone: string;
+  capturedAt: string;
+  initialMonitoringGoals: string[];
+  imageUrl: string;
+}
+
 export interface VisionUsage {
   inputTokens: number;
   outputTokens: number;
@@ -38,6 +51,18 @@ export interface VisionAnalysisResult {
   latencyMs: number;
 }
 
+export interface CameraProfileAnalysisResult {
+  profile: CameraProfileDraft;
+  provider: string;
+  model: string;
+  responseId: string;
+  usage: VisionUsage;
+  latencyMs: number;
+}
+
 export interface VisionProvider {
   analyzeEvent(input: AnalyzeEventInput): Promise<VisionAnalysisResult>;
+  analyzeCameraProfile?(
+    input: AnalyzeCameraProfileInput,
+  ): Promise<CameraProfileAnalysisResult>;
 }

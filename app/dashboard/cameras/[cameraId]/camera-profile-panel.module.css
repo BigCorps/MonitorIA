@@ -1,0 +1,415 @@
+.shell {
+  margin-top: 16px;
+  padding: 24px;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 31, 52, 0.035);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.heading > div:first-child > span,
+.descriptionBlock > span,
+.detailColumns span,
+.zoneList > span,
+.emptyProfile > span {
+  color: #2bad92;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heading h2 {
+  margin: 6px 0 7px;
+  color: #142033;
+  font-size: 21px;
+  letter-spacing: -0.035em;
+}
+
+.heading p {
+  max-width: 720px;
+  margin: 0;
+  color: #77879a;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.activeBadge,
+.reviewBadge,
+.emptyBadge {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.activeBadge {
+  color: #08745f;
+  background: #e8faf4;
+}
+
+.reviewBadge {
+  color: #9a6500;
+  background: #fff7df;
+}
+
+.emptyBadge {
+  color: #718197;
+  background: #f1f4f8;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.9fr);
+  gap: 20px;
+  margin-top: 22px;
+}
+
+.previewColumn,
+.contentColumn {
+  min-width: 0;
+}
+
+.preview {
+  position: relative;
+  min-height: 340px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #091522;
+}
+
+.preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  object-fit: contain;
+  background: #091522;
+}
+
+.preview svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: calc(100% - 32px);
+  pointer-events: none;
+}
+
+.preview polygon {
+  fill: rgba(87, 230, 199, 0.12);
+  stroke: #57e6c7;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.preview polygon:nth-child(even) {
+  fill: rgba(79, 140, 255, 0.12);
+  stroke: #4f8cff;
+}
+
+.frameMeta {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #c9d6e5;
+  background: rgba(5, 13, 23, 0.78);
+  font: 9px ui-monospace, monospace;
+  backdrop-filter: blur(8px);
+}
+
+.noFrame {
+  min-height: 340px;
+  display: grid;
+  place-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.noFrame strong {
+  color: #e7eef7;
+  font-size: 15px;
+}
+
+.noFrame p {
+  max-width: 350px;
+  color: #71839a;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 9px;
+  overflow: hidden;
+  border: 1px solid #e5eaf0;
+  border-radius: 10px;
+  background: #e5eaf0;
+}
+
+.summaryBar > div {
+  min-width: 0;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.summaryBar span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8a98aa;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.summaryBar strong {
+  display: block;
+  overflow: hidden;
+  color: #2c4057;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contentColumn {
+  max-height: 570px;
+  overflow: auto;
+  padding-right: 5px;
+}
+
+.profileDetails {
+  display: grid;
+  gap: 17px;
+}
+
+.descriptionBlock {
+  padding: 16px;
+  border: 1px solid #e6ebf1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.descriptionBlock p,
+.detailColumns p,
+.zoneList p {
+  margin: 7px 0 0;
+  color: #63748a;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.detailColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.detailColumns > div {
+  padding: 15px;
+  border: 1px solid #e6ebf1;
+  border-radius: 12px;
+}
+
+.detailColumns ul {
+  margin: 10px 0 0;
+  padding-left: 17px;
+  color: #607188;
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.detailColumns li + li {
+  margin-top: 5px;
+}
+
+.muted {
+  color: #98a4b2 !important;
+}
+
+.zoneList > div {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.zoneList article {
+  padding: 12px;
+  border: 1px solid #e6ebf1;
+  border-radius: 10px;
+}
+
+.zoneList strong {
+  display: block;
+  color: #24374e;
+  font-size: 10px;
+}
+
+.zoneList small {
+  display: inline-flex;
+  margin-top: 5px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #187e69;
+  background: #eaf9f5;
+  font-size: 7px;
+}
+
+.emptyProfile {
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 30px;
+  border: 1px dashed #d8e1ea;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.emptyProfile h3 {
+  margin: 9px 0 9px;
+  color: #1b2d43;
+  font-size: 19px;
+  letter-spacing: -0.03em;
+}
+
+.emptyProfile p,
+.emptyProfile ol {
+  color: #74859a;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.emptyProfile ol {
+  margin: 14px 0 0;
+  padding-left: 18px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 21px;
+  padding-top: 18px;
+  border-top: 1px solid #e9edf2;
+}
+
+.permissionNote {
+  margin: 0;
+  color: #8492a4;
+  font-size: 9px;
+}
+
+.successMessage,
+.errorMessage {
+  margin: 8px 0 0;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.successMessage {
+  color: #08745f;
+}
+
+.errorMessage {
+  color: #b4233d;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 0;
+  color: #061712;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+}
+
+.secondaryButton {
+  border: 1px solid #d9e2eb;
+  color: #3d5875;
+  background: #f6f8fb;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 1060px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contentColumn {
+    max-height: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .shell {
+    padding: 17px;
+  }
+
+  .heading,
+  .actions {
+    display: grid;
+  }
+
+  .heading > div:last-child {
+    justify-self: start;
+  }
+
+  .preview,
+  .preview img,
+  .noFrame {
+    min-height: 240px;
+  }
+
+  .summaryBar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .detailColumns,
+  .zoneList > div {
+    grid-template-columns: 1fr;
+  }
+
+  .actionButtons {
+    display: grid;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+}
