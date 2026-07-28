@@ -28,11 +28,7 @@ const timeline = [
 function LogoMark() {
   return (
     <span className="logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 48 48" role="img">
-        <path d="M24 6c8.7 0 15.9 6.1 18 14.2-2.1 8.1-9.3 14.2-18 14.2S8.1 28.3 6 20.2C8.1 12.1 15.3 6 24 6Z" />
-        <circle cx="24" cy="20.2" r="6.6" />
-        <path d="M18 38h12M24 34.4V42" />
-      </svg>
+      <img src="/favicon.svg" alt="" width={25} height={25} />
     </span>
   );
 }

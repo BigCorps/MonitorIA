@@ -58,6 +58,7 @@ svg { display: block; }
 .brand > span:last-child > span, .dashboard-brand > span:last-child > span { color: var(--green); }
 .logo-mark { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid rgba(87,230,199,.32); border-radius: 12px; background: linear-gradient(145deg, rgba(87,230,199,.12), rgba(79,140,255,.09)); box-shadow: inset 0 0 18px rgba(87,230,199,.05); }
 .logo-mark svg { width: 25px; height: 25px; fill: none; stroke: var(--green); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.logo-mark img { width: 25px; height: 25px; display: block; }
 .header-nav { display: flex; align-items: center; gap: 31px; color: #a8b6c9; font-size: 14px; }
 .header-nav > a:not(.button):hover { color: white; }
 
@@ -168,7 +169,7 @@ svg { display: block; }
 .site-footer > span:last-child { justify-self: end; }
 .footer-brand { opacity: .75; font-size: 16px; }
 .footer-brand .logo-mark { width: 29px; height: 29px; border-radius: 9px; }
-.footer-brand .logo-mark svg { width: 18px; height: 18px; }
+.footer-brand .logo-mark svg, .footer-brand .logo-mark img { width: 18px; height: 18px; }
 
 /* Dashboard */
 .dashboard-shell { min-height: 100vh; display: grid; grid-template-columns: 245px 1fr; background: #f2f5f9; color: #142033; }
