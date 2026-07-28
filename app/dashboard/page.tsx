@@ -11,7 +11,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 function SmallLogo() {
   return (
     <span className="dashboard-logo-mark" aria-hidden="true">
-      <svg viewBox="0 0 48 48"><path d="M24 6c8.7 0 15.9 6.1 18 14.2-2.1 8.1-9.3 14.2-18 14.2S8.1 28.3 6 20.2C8.1 12.1 15.3 6 24 6Z" /><circle cx="24" cy="20.2" r="6.6" /></svg>
+      <img src="/favicon.svg" alt="" width={22} height={22} />
     </span>
   );
 }

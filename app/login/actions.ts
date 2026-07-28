@@ -23,8 +23,20 @@ function readCredentials(formData: FormData) {
   };
 }
 
-function authError(message: string, next: string) {
+function authError(message: string, next: string): never {
   redirect(`/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`);
+}
+
+function isEmailDeliveryError(message: string) {
+  return /authentication credentials invalid|error sending|confirmation email|magic link|smtp|unexpected failure/i.test(message);
+}
+
+function reportAuthError(context: string, error: { message: string; status?: number; code?: string }) {
+  console.error(`[MonitorIA Auth] ${context}`, {
+    message: error.message,
+    status: error.status,
+    code: error.code,
+  });
 }
 
 export async function loginWithPassword(formData: FormData) {
@@ -63,7 +75,14 @@ export async function createAccount(formData: FormData) {
   });
 
   if (error) {
-    authError(error.message.includes("registered") ? "Este e-mail já está cadastrado." : "Não foi possível criar a conta.", next);
+    reportAuthError("signUp", error);
+    if (error.message.toLowerCase().includes("registered")) {
+      authError("Este e-mail já está cadastrado.", next);
+    }
+    if (isEmailDeliveryError(error.message) || error.status === 500) {
+      authError("A conta não pôde ser concluída porque o serviço de e-mail está indisponível. Verifique a configuração SMTP.", next);
+    }
+    authError("Não foi possível criar a conta.", next);
   }
 
   if (data.session) {
@@ -89,7 +108,13 @@ export async function sendMagicLink(formData: FormData) {
     },
   });
 
-  if (error) authError("Não foi possível enviar o link de acesso.", next);
+  if (error) {
+    reportAuthError("magicLink", error);
+    if (isEmailDeliveryError(error.message) || error.status === 500) {
+      authError("O serviço de e-mail não conseguiu enviar o link. Verifique a configuração SMTP.", next);
+    }
+    authError("Não foi possível enviar o link de acesso.", next);
+  }
 
   redirect(`/login?message=${encodeURIComponent("Enviamos um link de acesso para o seu e-mail.")}`);
 }

@@ -154,7 +154,7 @@ export default function HomePage() {
       <section className="cta-section container">
         <div>
           <span>MonitorIA · Fundação do MVP</span>
-          <h2>A base está pronta.<br />Agora vamos ligar a primeira câmera.</h2>
+          <h2>Suas câmeras já estão conectadas?<br />Agora vamos conectar o MonitorIA.</h2>
         </div>
         <Link className="button button-light" href="/dashboard">Acessar painel inicial</Link>
       </section>
