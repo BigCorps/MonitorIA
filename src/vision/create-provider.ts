@@ -1,5 +1,5 @@
-import { OpenAIVisionProvider } from "./openai-provider.js";
-import type { VisionProvider } from "./types.js";
+import { OpenAIVisionProvider } from "./openai-provider";
+import type { VisionProvider } from "./types";
 
 export function createVisionProvider(): VisionProvider {
   const provider = (process.env.VISION_PROVIDER ?? "openai").toLowerCase();

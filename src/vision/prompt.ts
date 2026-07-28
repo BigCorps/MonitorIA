@@ -1,4 +1,4 @@
-import type { AnalyzeEventInput } from "./types.js";
+import type { AnalyzeEventInput } from "./types";
 
 export function buildVisionInstructions(): string {
   return [

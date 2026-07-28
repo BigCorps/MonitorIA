@@ -3,13 +3,13 @@ import { zodTextFormat } from "openai/helpers/zod";
 import {
   AnalyzedEventSchema,
   AnalyzedEventTransportSchema,
-} from "../contracts/analyzed-event.js";
-import { CameraProfileDraftSchema } from "../contracts/camera-profile-draft.js";
-import { buildVisionContext, buildVisionInstructions } from "./prompt.js";
+} from "../contracts/analyzed-event";
+import { CameraProfileDraftSchema } from "../contracts/camera-profile-draft";
+import { buildVisionContext, buildVisionInstructions } from "./prompt";
 import {
   buildCameraProfileContext,
   buildCameraProfileInstructions,
-} from "./profile-prompt.js";
+} from "./profile-prompt";
 import type {
   AnalyzeCameraProfileInput,
   AnalyzeEventInput,
@@ -18,7 +18,7 @@ import type {
   VisionImageDetail,
   VisionProvider,
   VisionUsage,
-} from "./types.js";
+} from "./types";
 
 export interface OpenAIVisionProviderOptions {
   apiKey?: string;
@@ -124,7 +124,9 @@ export class OpenAIVisionProvider implements VisionProvider {
     const latencyMs = Math.round(performance.now() - started);
 
     if (!response.output_parsed) {
-      throw new Error(`A OpenAI não retornou evento estruturado. Status: ${response.status}`);
+      throw new Error(
+        `A OpenAI não retornou evento estruturado. Status: ${response.status}`,
+      );
     }
 
     const event = AnalyzedEventSchema.parse(response.output_parsed);

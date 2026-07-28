@@ -1,4 +1,4 @@
-import type { AnalyzeCameraProfileInput } from "./types.js";
+import type { AnalyzeCameraProfileInput } from "./types";
 
 export function buildCameraProfileInstructions() {
   return [

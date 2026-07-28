@@ -1,6 +1,6 @@
-import type { AnalyzedEvent } from "../contracts/analyzed-event.js";
-import type { CameraProfile } from "../contracts/camera-profile.js";
-import type { CameraProfileDraft } from "../contracts/camera-profile-draft.js";
+import type { AnalyzedEvent } from "../contracts/analyzed-event";
+import type { CameraProfile } from "../contracts/camera-profile";
+import type { CameraProfileDraft } from "../contracts/camera-profile-draft";
 
 export type VisionImageDetail = "low" | "high" | "auto";
 
