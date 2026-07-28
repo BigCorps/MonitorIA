@@ -25,7 +25,7 @@ import type {
   StoredAgentConfig,
 } from "./types.js";
 
-const AGENT_VERSION = "0.5.3";
+const AGENT_VERSION = "0.5.4";
 const DEFAULT_API_URL = "https://monitoria.bigcorps.com.br";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;

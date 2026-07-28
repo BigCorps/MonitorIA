@@ -1,4 +1,4 @@
-# MonitorIA Agent v0.5.3
+# MonitorIA Agent v0.5.4
 
 Agent local para Windows responsável por parear a câmera, proteger o token e a
 URL RTSP com DPAPI, capturar o primeiro frame com FFmpeg e manter heartbeat.
