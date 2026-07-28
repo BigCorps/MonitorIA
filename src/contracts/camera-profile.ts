@@ -1,0 +1,39 @@
+import { z } from "zod";
+
+export const PointSchema = z
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+  })
+  .strict();
+
+export const CameraZoneSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string().trim().min(1).max(100),
+    type: z.enum([
+      "entry",
+      "exit",
+      "service",
+      "restricted",
+      "ignore",
+      "general",
+    ]),
+    polygon: z.array(PointSchema).min(3).max(50),
+    description: z.string().trim().max(500),
+  })
+  .strict();
+
+export const CameraProfileSchema = z
+  .object({
+    cameraId: z.string().uuid(),
+    profileVersion: z.number().int().positive(),
+    environmentDescription: z.string().trim().min(1).max(2000),
+    monitoringGoals: z.array(z.string().trim().min(1).max(300)).min(1).max(30),
+    ignoreInstructions: z.array(z.string().trim().min(1).max(300)).max(30),
+    zones: z.array(CameraZoneSchema).max(50),
+    timezone: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
+export type CameraProfile = z.infer<typeof CameraProfileSchema>;
