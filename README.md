@@ -1,19 +1,28 @@
-# MonitorIA — Sua câmera vê. A IA lembra.
+# MonitorIA v0.3
 
-Fundação do MVP do MonitorIA: aplicação web em Next.js, contratos de análise visual, provedor OpenAI substituível e schema Supabase multiempresa.
+Sua câmera vê. A IA lembra.
 
-## O que já existe
+Esta versão transforma a fundação visual da v0.2 em uma aplicação autenticada e ligada ao Supabase real.
 
-- landing page responsiva;
-- painel inicial em `/dashboard`;
-- endpoint de saúde em `/api/health`;
-- contrato Zod do evento visual;
-- perfil e zonas da câmera;
-- adaptador `VisionProvider` com `gpt-5-mini` configurável;
-- migrations do Supabase com RLS e retenção;
-- placas tratadas apenas como sugestões.
+## Entregue nesta versão
 
-## Rodar localmente
+- autenticação SSR com Supabase e cookies;
+- login por e-mail/senha;
+- criação de conta;
+- link mágico;
+- recuperação e redefinição de senha;
+- proteção de `/dashboard`, `/onboarding` e `/reset-password`;
+- onboarding de empresa e primeiro local;
+- organização, proprietário e retenção criados automaticamente pelo banco;
+- dashboard com contagens reais de câmeras, agentes, eventos e COGS;
+- linha do tempo lendo a tabela `events`;
+- endpoint público `/api/health`;
+- endpoint autenticado `/api/health/deep`;
+- arquitetura visual continua usando `gpt-5-mini` configurado por variável;
+- privilégios do Data API reduzidos ao mínimo necessário;
+- plano e propriedade da organização protegidos contra alteração direta pelo navegador.
+
+## Instalação
 
 ```bash
 npm install
@@ -29,50 +38,72 @@ npm install
 npm run dev
 ```
 
-Abra `http://localhost:3000`.
-
-## Validar antes de publicar
-
-```bash
-npm run check
-npm test
-npm run build
-```
-
-## Vercel
-
-O projeto usa Next.js App Router. O arquivo `vercel.json` apenas fixa o preset `nextjs`; o deploy funciona sem configurações especiais quando os arquivos estão na raiz do repositório.
-
-Cadastre em **Vercel → Settings → Environment Variables**:
+## Variáveis obrigatórias
 
 ```env
 NEXT_PUBLIC_APP_URL=https://monitoria.bigcorps.com.br
 NEXT_PUBLIC_SUPABASE_URL=https://xwejfayeackbrilipgrj.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 OPENAI_API_KEY=...
-VISION_PROVIDER=openai
-VISION_MODEL=gpt-5-mini
-VISION_DETAIL=low
-VISION_MAX_OUTPUT_TOKENS=700
-VISION_STORE_RESPONSES=false
 GROQ_API_KEY=...
+VISION_MODEL=gpt-5-mini
+COST_USD_TO_BRL=6
 ```
 
-A landing e o painel inicial publicam mesmo antes das chaves serem cadastradas. O endpoint `/api/health` mostra apenas se cada variável existe, sem revelar valores.
+`SUPABASE_SERVICE_ROLE_KEY` permanece reservada para os futuros endpoints do Agent. A autenticação e o dashboard desta versão usam a chave publicável com RLS.
 
-## Teste visual local
+## Configuração obrigatória no Supabase Auth
 
-Use de uma a quatro imagens do mesmo evento:
+No painel do projeto MonitorIA:
 
-```bash
-npm run analyze -- frame-inicial.jpg frame-pico.jpg frame-final.jpg
+1. Authentication → URL Configuration
+2. Site URL: `https://monitoria.bigcorps.com.br`
+3. Redirect URLs:
+   - `https://monitoria.bigcorps.com.br/auth/callback`
+   - `https://monitoria.bigcorps.com.br/auth/confirm`
+   - `http://localhost:3000/auth/callback`
+   - `http://localhost:3000/auth/confirm`
+
+Para o fluxo SSR por `token_hash`, configure os modelos de e-mail:
+
+### Confirm signup
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding">Confirmar e-mail</a>
 ```
 
-## Segurança
+### Magic link
 
-- nunca versione `.env` ou `.env.local`;
-- nunca envie a URL RTSP ou a senha da câmera à OpenAI;
-- credenciais RTSP devem permanecer criptografadas no agente local;
-- `VISION_STORE_RESPONSES=false` é o padrão;
-- placas são somente sugestões, nunca confirmação ANPR.
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/dashboard">Entrar no MonitorIA</a>
+```
+
+### Reset password
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">Redefinir senha</a>
+```
+
+A rota `/auth/callback` também foi mantida para links PKCE com parâmetro `code`.
+
+## Testes após o deploy
+
+1. Abra `/login`.
+2. Crie uma conta.
+3. Confirme o e-mail.
+4. Cadastre empresa e local em `/onboarding`.
+5. Confira as tabelas `organizations`, `organization_members`, `retention_policies` e `sites`.
+6. Abra `/dashboard`.
+7. Abra `/api/health/deep` autenticado.
+8. Saia e confirme que `/dashboard` redireciona para `/login`.
+
+## Retenção padrão
+
+- frames temporários: 3 dias;
+- keyframe do evento: 365 dias;
+- metadados: 365 dias;
+- vídeo integral: local no cliente.
+
+## Próxima entrega
+
+Cadastro de câmera, perfil inicial, zonas e código temporário de pareamento do Agent.

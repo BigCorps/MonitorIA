@@ -4,5 +4,5 @@ export const appConfig = {
   description:
     "Transforme câmeras comuns em uma memória visual pesquisável, com eventos estruturados e localização rápida do trecho original.",
   domain: "monitoria.bigcorps.com.br",
-  version: "0.2.0",
+  version: "0.3.0",
 } as const;
