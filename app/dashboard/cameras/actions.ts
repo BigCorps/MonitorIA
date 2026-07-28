@@ -6,17 +6,7 @@ import { generatePairingCode, hashPairingCode } from "@/src/lib/agent-security";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createClient } from "@/src/lib/supabase/server";
 import { createAdminClient } from "@/src/lib/supabase/admin";
-
-export type CameraActionState = {
-  status: "idle" | "success" | "error";
-  message?: string;
-  cameraId?: string;
-  cameraName?: string;
-  pairingCode?: string;
-  expiresAt?: string;
-};
-
-export const initialCameraActionState: CameraActionState = { status: "idle" };
+import type { CameraActionState } from "./camera-action-state";
 
 const PLAN_SETTINGS = {
   basic: { capture: 1, consolidation: 60 },

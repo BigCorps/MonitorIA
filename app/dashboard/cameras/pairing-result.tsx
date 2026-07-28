@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { CameraActionState } from "./actions";
+import type { CameraActionState } from "./camera-action-state";
 
 type Props = {
   state: CameraActionState;
@@ -11,7 +11,13 @@ type Props = {
 export function PairingResult({ state }: Props) {
   const [copied, setCopied] = useState(false);
 
-  if (state.status !== "success" || !state.pairingCode || !state.cameraId) return null;
+  if (
+    state.status !== "success" ||
+    !state.pairingCode ||
+    !state.cameraId
+  ) {
+    return null;
+  }
 
   const expiresAt = state.expiresAt
     ? new Intl.DateTimeFormat("pt-BR", {
@@ -34,23 +40,35 @@ export function PairingResult({ state }: Props) {
           <span>CÂMERA CRIADA</span>
           <h2>{state.cameraName}</h2>
         </div>
-        <span className="online-chip"><i /> Aguardando Agent</span>
+        <span className="online-chip">
+          <i /> Aguardando Agent
+        </span>
       </div>
 
       <p>{state.message}</p>
 
       <div className="pairing-code-box">
         <code>{state.pairingCode}</code>
-        <button type="button" onClick={copyCode}>{copied ? "Copiado" : "Copiar código"}</button>
+        <button type="button" onClick={copyCode}>
+          {copied ? "Copiado" : "Copiar código"}
+        </button>
       </div>
 
       <small>
-        Válido por 15 minutos{expiresAt ? `, até ${expiresAt}` : ""}. O código legível é exibido somente agora.
+        Válido por 15 minutos{expiresAt ? `, até ${expiresAt}` : ""}. O código
+        legível é exibido somente agora.
       </small>
 
       <div className="pairing-result-actions">
-        <Link href={`/dashboard/cameras/${state.cameraId}`} className="panel-primary-action">Abrir câmera</Link>
-        <Link href="/dashboard/cameras" className="panel-secondary-action">Ver todas</Link>
+        <Link
+          href={`/dashboard/cameras/${state.cameraId}`}
+          className="panel-primary-action"
+        >
+          Abrir câmera
+        </Link>
+        <Link href="/dashboard/cameras" className="panel-secondary-action">
+          Ver todas
+        </Link>
       </div>
     </section>
   );
