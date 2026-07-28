@@ -25,7 +25,7 @@ import type {
   StoredAgentConfig,
 } from "./types.js";
 
-const AGENT_VERSION = "0.5.4";
+const AGENT_VERSION = "0.5.5";
 const DEFAULT_API_URL = "https://monitoria.bigcorps.com.br";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
@@ -41,6 +41,9 @@ function errorMessage(error: unknown) {
 
 async function setupAgent(): Promise<StoredAgentConfig> {
   console.log("\nMonitorIA Agent — configuração inicial\n");
+
+  log("Verificando proteção segura do Windows...");
+  await runSelfTest();
 
   const apiBaseUrl = await promptText("Endereço do MonitorIA", DEFAULT_API_URL);
   const code = await promptText("Código de pareamento");
@@ -311,8 +314,26 @@ async function showStatus(config: StoredAgentConfig) {
   }
 }
 
+
+async function runSelfTest() {
+  const sample = "MonitorIA DPAPI autoteste: çã 🔐";
+  const protectedValue = await protectSecret(sample);
+  const restoredValue = await unprotectSecret(protectedValue);
+
+  if (restoredValue !== sample) {
+    throw new Error("O autoteste do DPAPI devolveu um valor diferente do original.");
+  }
+
+  console.log("Autoteste do DPAPI concluído com sucesso.");
+}
+
 async function main() {
   const command = process.argv[2]?.toLowerCase() ?? "run";
+
+  if (command === "self-test") {
+    await runSelfTest();
+    return;
+  }
 
   if (command === "reset") {
     await removeConfig();
@@ -344,6 +365,7 @@ async function main() {
     console.log("  monitoria-agent run       Inicia o Agent");
     console.log("  monitoria-agent status    Mostra a configuração remota");
     console.log("  monitoria-agent reset     Remove a configuração local");
+    console.log("  monitoria-agent self-test Testa a proteção DPAPI do Windows");
     return;
   }
 
