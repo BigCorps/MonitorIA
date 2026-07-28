@@ -15,7 +15,7 @@ function safeTimezone(value: string) {
   }
 }
 
-function onboardingError(message: string) {
+function onboardingError(message: string): never {
   redirect(`/onboarding?error=${encodeURIComponent(message)}`);
 }
 
@@ -63,8 +63,10 @@ export async function createWorkspace(formData: FormData) {
     onboardingError("Não foi possível criar a empresa. Tente novamente.");
   }
 
+  const organizationId = organization.id;
+
   const { error: siteError } = await supabase.from("sites").insert({
-    organization_id: organization.id,
+    organization_id: organizationId,
     name: siteName,
     timezone,
   });
