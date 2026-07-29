@@ -1,33 +1,169 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { sanitizeFfmpegError } from "./ffmpeg.js";
+import type { NormalizedPoint } from "./types.js";
 
-const MOTION_WIDTH = 160;
-const MOTION_HEIGHT = 90;
+export const MOTION_WIDTH = 160;
+export const MOTION_HEIGHT = 90;
 const MOTION_FRAME_BYTES = MOTION_WIDTH * MOTION_HEIGHT;
+const GRID_COLUMNS = 16;
+const GRID_ROWS = 9;
+const CELL_WIDTH = MOTION_WIDTH / GRID_COLUMNS;
+const CELL_HEIGHT = MOTION_HEIGHT / GRID_ROWS;
 
 export type MotionSample = {
   capturedAt: string;
   changedPixelPercent: number;
+  rawChangedPixelPercent: number;
   meanAbsoluteDifference: number;
+  ignoredPixelPercent: number;
+  autoIgnoredCellCount: number;
 };
+
+export type MotionCalculation = {
+  changedPixelPercent: number;
+  meanAbsoluteDifference: number;
+  analyzedPixels: number;
+  changedPixels: number;
+};
+
+function pointInPolygon(
+  x: number,
+  y: number,
+  polygon: NormalizedPoint[],
+) {
+  let inside = false;
+
+  for (
+    let current = 0, previous = polygon.length - 1;
+    current < polygon.length;
+    previous = current, current += 1
+  ) {
+    const currentPoint = polygon[current];
+    const previousPoint = polygon[previous];
+    if (!currentPoint || !previousPoint) continue;
+
+    const intersects =
+      currentPoint.y > y !== previousPoint.y > y &&
+      x <
+        ((previousPoint.x - currentPoint.x) *
+          (y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y || Number.EPSILON) +
+          currentPoint.x;
+
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
+function overlayPolygon(
+  overlay:
+    | "auto"
+    | "none"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right",
+): NormalizedPoint[] | null {
+  const width = 0.38;
+  const height = 0.16;
+
+  if (overlay === "top-left") {
+    return [
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height },
+    ];
+  }
+
+  if (overlay === "top-right") {
+    return [
+      { x: 1 - width, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: height },
+      { x: 1 - width, y: height },
+    ];
+  }
+
+  if (overlay === "bottom-left") {
+    return [
+      { x: 0, y: 1 - height },
+      { x: width, y: 1 - height },
+      { x: width, y: 1 },
+      { x: 0, y: 1 },
+    ];
+  }
+
+  if (overlay === "bottom-right") {
+    return [
+      { x: 1 - width, y: 1 - height },
+      { x: 1, y: 1 - height },
+      { x: 1, y: 1 },
+      { x: 1 - width, y: 1 },
+    ];
+  }
+
+  return null;
+}
+
+export function buildMotionMask(
+  polygons: NormalizedPoint[][],
+  overlay:
+    | "auto"
+    | "none"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right",
+) {
+  const mask = new Uint8Array(MOTION_FRAME_BYTES);
+  const allPolygons = [...polygons];
+  const fixedOverlay = overlayPolygon(overlay);
+  if (fixedOverlay) allPolygons.push(fixedOverlay);
+
+  for (let y = 0; y < MOTION_HEIGHT; y += 1) {
+    for (let x = 0; x < MOTION_WIDTH; x += 1) {
+      const normalizedX = (x + 0.5) / MOTION_WIDTH;
+      const normalizedY = (y + 0.5) / MOTION_HEIGHT;
+
+      if (
+        allPolygons.some(
+          (polygon) =>
+            polygon.length >= 3 &&
+            pointInPolygon(normalizedX, normalizedY, polygon),
+        )
+      ) {
+        mask[y * MOTION_WIDTH + x] = 1;
+      }
+    }
+  }
+
+  return mask;
+}
 
 export function calculateMotion(
   previous: Uint8Array,
   current: Uint8Array,
   pixelDifferenceThreshold = 20,
-) {
+  ignoredPixels?: Uint8Array,
+): MotionCalculation {
   if (previous.length !== current.length || current.length === 0) {
     throw new Error("Os quadros de movimento precisam ter o mesmo tamanho.");
   }
 
   let changedPixels = 0;
+  let analyzedPixels = 0;
   let absoluteDifferenceTotal = 0;
 
   for (let index = 0; index < current.length; index += 1) {
+    if (ignoredPixels?.[index]) continue;
+
     const difference = Math.abs(
       Number(current[index]) - Number(previous[index]),
     );
 
+    analyzedPixels += 1;
     absoluteDifferenceTotal += difference;
 
     if (difference >= pixelDifferenceThreshold) {
@@ -35,14 +171,149 @@ export function calculateMotion(
     }
   }
 
+  if (!analyzedPixels) {
+    return {
+      changedPixelPercent: 0,
+      meanAbsoluteDifference: 0,
+      analyzedPixels: 0,
+      changedPixels: 0,
+    };
+  }
+
   return {
     changedPixelPercent: Number(
-      ((changedPixels / current.length) * 100).toFixed(4),
+      ((changedPixels / analyzedPixels) * 100).toFixed(4),
     ),
     meanAbsoluteDifference: Number(
-      (absoluteDifferenceTotal / current.length).toFixed(4),
+      (absoluteDifferenceTotal / analyzedPixels).toFixed(4),
     ),
+    analyzedPixels,
+    changedPixels,
   };
+}
+
+function cellIndexForPixel(index: number) {
+  const y = Math.floor(index / MOTION_WIDTH);
+  const x = index % MOTION_WIDTH;
+  const column = Math.min(
+    GRID_COLUMNS - 1,
+    Math.floor(x / CELL_WIDTH),
+  );
+  const row = Math.min(
+    GRID_ROWS - 1,
+    Math.floor(y / CELL_HEIGHT),
+  );
+  return row * GRID_COLUMNS + column;
+}
+
+function isBorderCell(index: number) {
+  const row = Math.floor(index / GRID_COLUMNS);
+  const column = index % GRID_COLUMNS;
+
+  return (
+    row <= 1 ||
+    row === GRID_ROWS - 1 ||
+    column === 0 ||
+    column === GRID_COLUMNS - 1
+  );
+}
+
+class BorderNoiseSuppressor {
+  private samples = 0;
+  private readonly activeCounts = new Array(
+    GRID_COLUMNS * GRID_ROWS,
+  ).fill(0);
+  private readonly activitySums = new Array(
+    GRID_COLUMNS * GRID_ROWS,
+  ).fill(0);
+  private autoIgnoredCells = new Set<number>();
+
+  observe(
+    previous: Uint8Array,
+    current: Uint8Array,
+    staticMask: Uint8Array,
+    pixelDifferenceThreshold: number,
+  ) {
+    this.samples += 1;
+
+    const changed = new Array(
+      GRID_COLUMNS * GRID_ROWS,
+    ).fill(0);
+    const totals = new Array(
+      GRID_COLUMNS * GRID_ROWS,
+    ).fill(0);
+
+    for (let index = 0; index < current.length; index += 1) {
+      if (staticMask[index]) continue;
+
+      const cell = cellIndexForPixel(index);
+      totals[cell] += 1;
+
+      if (
+        Math.abs(
+          Number(current[index]) - Number(previous[index]),
+        ) >= pixelDifferenceThreshold
+      ) {
+        changed[cell] += 1;
+      }
+    }
+
+    for (let cell = 0; cell < changed.length; cell += 1) {
+      if (!isBorderCell(cell) || !totals[cell]) continue;
+
+      const percent = (changed[cell] / totals[cell]) * 100;
+      this.activitySums[cell] =
+        (this.activitySums[cell] ?? 0) + percent;
+
+      if (percent >= 1) {
+        this.activeCounts[cell] =
+          (this.activeCounts[cell] ?? 0) + 1;
+      }
+    }
+
+    if (this.samples >= 30 && this.samples % 15 === 0) {
+      const candidates = this.activeCounts
+        .map((count, cell) => ({
+          cell,
+          ratio: count / this.samples,
+          mean: (this.activitySums[cell] ?? 0) / this.samples,
+        }))
+        .filter(
+          (candidate) =>
+            isBorderCell(candidate.cell) &&
+            candidate.ratio >= 0.7 &&
+            candidate.mean >= 1,
+        )
+        .sort(
+          (left, right) =>
+            right.ratio * right.mean -
+            left.ratio * left.mean,
+        )
+        .slice(0, 12);
+
+      this.autoIgnoredCells = new Set(
+        candidates.map((candidate) => candidate.cell),
+      );
+    }
+  }
+
+  apply(mask: Uint8Array) {
+    if (!this.autoIgnoredCells.size) return mask;
+
+    const combined = Uint8Array.from(mask);
+
+    for (let index = 0; index < combined.length; index += 1) {
+      if (this.autoIgnoredCells.has(cellIndexForPixel(index))) {
+        combined[index] = 1;
+      }
+    }
+
+    return combined;
+  }
+
+  count() {
+    return this.autoIgnoredCells.size;
+  }
 }
 
 export type MotionSampler = {
@@ -54,13 +325,28 @@ export function startMotionSampler(options: {
   ffmpegPath: string;
   rtspUrl: string;
   captureIntervalSeconds: number;
+  ignorePolygons?: NormalizedPoint[][];
+  overlayMask?:
+    | "auto"
+    | "none"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right";
   onSample: (sample: MotionSample) => void;
   onError: (error: Error) => void;
 }): MotionSampler {
   const interval = Math.max(
-    1,
-    Math.min(60, Math.floor(options.captureIntervalSeconds || 1)),
+    0.2,
+    Math.min(60, Number(options.captureIntervalSeconds || 1)),
   );
+
+  const overlay = options.overlayMask ?? "auto";
+  const staticMask = buildMotionMask(
+    options.ignorePolygons ?? [],
+    overlay,
+  );
+  const borderNoise = new BorderNoiseSuppressor();
 
   const args = [
     "-hide_banner",
@@ -113,14 +399,58 @@ export function startMotionSampler(options: {
 
       if (previous) {
         try {
-          const motion = calculateMotion(previous, frame);
+          if (overlay === "auto") {
+            borderNoise.observe(
+              previous,
+              frame,
+              staticMask,
+              20,
+            );
+          }
+
+          const raw = calculateMotion(
+            previous,
+            frame,
+            20,
+            staticMask,
+          );
+
+          const combinedMask =
+            overlay === "auto"
+              ? borderNoise.apply(staticMask)
+              : staticMask;
+
+          const effective = calculateMotion(
+            previous,
+            frame,
+            20,
+            combinedMask,
+          );
+
+          const ignoredPixels = combinedMask.reduce(
+            (total, value) => total + (value ? 1 : 0),
+            0,
+          );
+
           options.onSample({
             capturedAt: new Date().toISOString(),
-            ...motion,
+            changedPixelPercent: effective.changedPixelPercent,
+            rawChangedPixelPercent: raw.changedPixelPercent,
+            meanAbsoluteDifference:
+              effective.meanAbsoluteDifference,
+            ignoredPixelPercent: Number(
+              (
+                (ignoredPixels / combinedMask.length) *
+                100
+              ).toFixed(4),
+            ),
+            autoIgnoredCellCount: borderNoise.count(),
           });
         } catch (error) {
           options.onError(
-            error instanceof Error ? error : new Error(String(error)),
+            error instanceof Error
+              ? error
+              : new Error(String(error)),
           );
         }
       }
@@ -134,14 +464,12 @@ export function startMotionSampler(options: {
     stderr = `${stderr}${chunk}`.slice(-4000);
   });
 
-  child.on("error", (error) => {
+  child.on("error", (error: Error) => {
     running = false;
-    if (!intentionalStop) {
-      options.onError(error);
-    }
+    if (!intentionalStop) options.onError(error);
   });
 
-  child.on("close", (code) => {
+  child.on("close", (code: number | null) => {
     running = false;
 
     if (!intentionalStop) {
@@ -165,7 +493,7 @@ export function startMotionSampler(options: {
         const timer = setTimeout(() => {
           if (running) child.kill();
           resolve();
-        }, 5_000);
+        }, 5000);
 
         child.once("close", () => {
           clearTimeout(timer);

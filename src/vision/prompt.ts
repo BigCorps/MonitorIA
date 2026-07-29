@@ -1,28 +1,54 @@
-import type { AnalyzeEventInput } from "./types";
+import type {
+  AnalyzeEventInput,
+  VisionAnalysisMode,
+} from "./types";
 
-export function buildVisionInstructions(): string {
+function modeInstructions(mode: VisionAnalysisMode) {
+  if (mode === "economic") {
+    return [
+      "Modo Econômico: seja extremamente conciso.",
+      "Use no máximo uma observação principal e até cinco tags.",
+      "Só descreva entidades quando forem necessárias para sustentar o evento.",
+      "Mantenha o resumo preferencialmente abaixo de 220 caracteres.",
+    ];
+  }
+
+  if (mode === "detailed") {
+    return [
+      "Modo Detalhado: use todos os quadros para reconstruir a sequência temporal.",
+      "Diferencie início, mudança principal, pico e encerramento quando visíveis.",
+      "Registre entidades e objetos relevantes sem extrapolar o que aparece.",
+      "Mantenha o resumo objetivo, mesmo com maior riqueza de detalhes.",
+    ];
+  }
+
+  return [
+    "Modo Equilibrado: descreva o acontecimento com contexto suficiente e sem redundância.",
+    "Use até três observações principais.",
+    "Registre pessoas, veículos e objetos somente quando contribuírem para a pesquisa futura.",
+  ];
+}
+
+export function buildVisionInstructions(
+  mode: VisionAnalysisMode = "balanced",
+): string {
   return [
     "Você analisa eventos de câmeras estáticas para o MonitorIA.",
     "Descreva somente fatos visualmente sustentados pelos quadros e pelo contexto fornecido.",
     "Não faça reconhecimento facial e não tente identificar pessoas reais.",
     "Para pessoas, use apenas roupas, cores, objetos carregados, movimento e zonas.",
     "Leitura de placas está desativada nesta versão. Use plateSuggestion=null para todos os veículos.",
-    "Não afirme crime, roubo, agressão ou intenção. Use 'possível atividade incomum' e marque requiresReview quando necessário.",
-    "Use os IDs exatos das zonas fornecidas. Não invente IDs.",
+    "Não afirme crime, roubo, agressão ou intenção. Use possível atividade incomum e marque requiresReview quando necessário.",
+    "Use somente IDs de zonas presentes no perfil. Não invente IDs.",
     "Se não houver mudança relevante, use primaryEventType=no_relevant_change.",
-    "Retorne dados objetivos, curtos e consistentes com o esquema.",
+    ...modeInstructions(mode),
+    "Retorne dados objetivos e consistentes com o esquema estruturado.",
   ].join("\n");
 }
 
-export function buildVisionContext(input: AnalyzeEventInput): string {
+export function buildVisionStableContext(input: AnalyzeEventInput): string {
   return JSON.stringify(
     {
-      event: {
-        id: input.eventId,
-        startedAt: input.startedAt,
-        endedAt: input.endedAt,
-        localMetrics: input.localMetrics,
-      },
       cameraProfile: {
         cameraId: input.profile.cameraId,
         profileVersion: input.profile.profileVersion,
@@ -37,6 +63,22 @@ export function buildVisionContext(input: AnalyzeEventInput): string {
           description: zone.description,
         })),
       },
+      analysisMode: input.analysisMode ?? "balanced",
+    },
+    null,
+    2,
+  );
+}
+
+export function buildVisionEventContext(input: AnalyzeEventInput): string {
+  return JSON.stringify(
+    {
+      event: {
+        id: input.eventId,
+        startedAt: input.startedAt,
+        endedAt: input.endedAt,
+        localMetrics: input.localMetrics,
+      },
       frameOrder: input.frames.map((frame) => ({
         label: frame.label,
         capturedAt: frame.capturedAt,
@@ -45,4 +87,9 @@ export function buildVisionContext(input: AnalyzeEventInput): string {
     null,
     2,
   );
+}
+
+// Compatibilidade com exemplos anteriores.
+export function buildVisionContext(input: AnalyzeEventInput): string {
+  return `${buildVisionStableContext(input)}\n${buildVisionEventContext(input)}`;
 }

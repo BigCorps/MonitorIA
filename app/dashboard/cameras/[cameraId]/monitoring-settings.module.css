@@ -1,0 +1,210 @@
+.shell {
+  margin-top: 16px;
+  padding: 24px;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.heading span,
+.shell legend,
+.shell label > span:first-child {
+  color: #2bad92;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.heading h2 {
+  margin: 6px 0;
+  color: #142033;
+  font-size: 21px;
+}
+
+.heading p,
+.footer p {
+  margin: 0;
+  color: #7c8b9d;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.heading a {
+  color: #2b67d6;
+  font-size: 10px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.shell fieldset {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.shell legend {
+  margin-bottom: 10px;
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.plans label {
+  cursor: pointer;
+}
+
+.plans input {
+  position: absolute;
+  opacity: 0;
+}
+
+.plans label > span {
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 14px;
+  border: 1px solid #dfe6ee;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.plans input:checked + span {
+  border-color: #39cdb0;
+  background: #edfbf7;
+  box-shadow: 0 0 0 2px rgba(57, 205, 176, 0.1);
+}
+
+.plans strong {
+  color: #20344b;
+  font-size: 11px;
+}
+
+.plans small,
+.toggle small {
+  color: #79899b;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.grid label {
+  display: grid;
+  gap: 7px;
+}
+
+.grid input,
+.grid select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dce4ec;
+  border-radius: 9px;
+  color: #273a50;
+  background: #fff;
+  font-size: 10px;
+}
+
+.toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 11px !important;
+  padding: 12px;
+  border: 1px solid #dfe6ee;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.toggle > span {
+  display: grid;
+  gap: 3px;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.toggle strong {
+  color: #263a51;
+  font-size: 10px;
+}
+
+.scheduleMode,
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scheduleMode label,
+.weekdays label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid #e1e7ee;
+  border-radius: 8px;
+  color: #53657a;
+  background: #f8fafc;
+  font-size: 9px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 17px;
+  border-top: 1px solid #e8edf2;
+}
+
+.footer button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  color: #071711;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.success {
+  color: #08745f !important;
+}
+
+.error {
+  color: #b4233d !important;
+}
+
+@media (max-width: 800px) {
+  .plans,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .heading,
+  .footer {
+    display: grid;
+  }
+}

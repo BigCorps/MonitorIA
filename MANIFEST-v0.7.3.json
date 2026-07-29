@@ -1,0 +1,236 @@
+{
+  "version": "0.7.3",
+  "fileCount": 46,
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 1614,
+      "sha256": "1a00a078df0d55252080f008a15b8f2a5eb861be7dcbc2268afde30b94c419cb"
+    },
+    {
+      "path": ".github/workflows/build-agent.yml",
+      "bytes": 2256,
+      "sha256": "88dac14a015e9072efccebdcbe10b1f13b34ce2c075d823c8c2fdb2f1d1550bd"
+    },
+    {
+      "path": "APPLY-v0.7.3.md",
+      "bytes": 2808,
+      "sha256": "d2a87b2e076225314174f863550088cda25f545e5a523f2b344cc50e260d672c"
+    },
+    {
+      "path": "CHANGES-v0.7.3.md",
+      "bytes": 1314,
+      "sha256": "eb0706e6783c2fcb51f583ef91d11e83b7845ec4471e4c5eb4474a6c95ab1bc4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1895,
+      "sha256": "e427b0073b316a97c62e3f5289474936f158ef0edd0a387e2b42b78a72b57e2e"
+    },
+    {
+      "path": "agent/README.md",
+      "bytes": 993,
+      "sha256": "868281ce5af71d13db9eb06bd990f1d2b7663ebe3bd692e0b5dda10440b540f2"
+    },
+    {
+      "path": "agent/package.json",
+      "bytes": 627,
+      "sha256": "431b52103e97b362ff9cff652d227010fad2ec941a240e620602fdfefde64326"
+    },
+    {
+      "path": "agent/src/api.ts",
+      "bytes": 7332,
+      "sha256": "ad5a29139816ac3e77950150127d4b6d34b201a1d6de444d8b230931d717bd63"
+    },
+    {
+      "path": "agent/src/event-monitor.ts",
+      "bytes": 14875,
+      "sha256": "c5104fc3aad61c638b78507fae287148b6e15cc3b1b15a56ab9408049a14ec9d"
+    },
+    {
+      "path": "agent/src/index.ts",
+      "bytes": 19073,
+      "sha256": "751cf118e50b079e588066af0137f341603bfe23daf3c63694c7c71bb639462c"
+    },
+    {
+      "path": "agent/src/motion-calibration.ts",
+      "bytes": 2975,
+      "sha256": "64e5bd5165c82b5100e58bcc7a2827a96c5cf99e07388cbfe5d665ebd56d1368"
+    },
+    {
+      "path": "agent/src/motion.ts",
+      "bytes": 11791,
+      "sha256": "3f30b0e746c047d8d5d3d3db68a4cdfefb313c7a1006f11b921c05243d361f5c"
+    },
+    {
+      "path": "agent/src/plans.ts",
+      "bytes": 926,
+      "sha256": "d0578337caeb7343dbc09fccb47a183e7e482eca8facd2c545c7315b12241735"
+    },
+    {
+      "path": "agent/src/schedule.ts",
+      "bytes": 2320,
+      "sha256": "99c3d990ade07f11f1e59bbb4b03ee0cf144a6497d2a0bd92767fbc309a5ebaa"
+    },
+    {
+      "path": "agent/src/types.ts",
+      "bytes": 3676,
+      "sha256": "fa08515044611c5209bd1bc059aefe202842cab1a1779204c75cf42a80c41982"
+    },
+    {
+      "path": "app/api/agent/cameras/[cameraId]/events/route.ts",
+      "bytes": 28690,
+      "sha256": "c5060510b472838bfacf77f15b7f7764ca64bd4e8f31bdfe927f137205fe5287"
+    },
+    {
+      "path": "app/api/agent/config/route.ts",
+      "bytes": 7673,
+      "sha256": "721e17d7e9dc477beccea0e34629acdab7776cfee0b2f3194fadef3987adf5d4"
+    },
+    {
+      "path": "app/api/cron/retention/route.ts",
+      "bytes": 4234,
+      "sha256": "b49f30f129eb9d31fdfa116b552c002d503ade50c7b4873436cbf5699f1df00d"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/monitoring-settings.module.css",
+      "bytes": 3070,
+      "sha256": "7ca2ff7b22513c808bbf0496071e4c08e3fd26f5d0d104f538a123d4391cc9b0"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/monitoring-settings.tsx",
+      "bytes": 6983,
+      "sha256": "28a5eee289e72436bf1b93c05528b9e5c20b9c055f291bffbd5c6f517d6dca64"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/page.tsx",
+      "bytes": 5298,
+      "sha256": "0dfe258e3ed9f57a12bf64f0622c534f301604b04391fcd2698e9d35826fa1e9"
+    },
+    {
+      "path": "app/dashboard/cameras/actions.ts",
+      "bytes": 6407,
+      "sha256": "4dc1e5a484e6ec54054a78d428fb75bafd88b53e6dfb4351dcdd343931b98fb6"
+    },
+    {
+      "path": "app/dashboard/cameras/camera-setup-form.tsx",
+      "bytes": 3890,
+      "sha256": "a281941f885a5f571dc314c54f079b8e91b5c98915d3d24b22af31706d2a6871"
+    },
+    {
+      "path": "app/dashboard/cameras/monitoring-action-state.ts",
+      "bytes": 206,
+      "sha256": "20ed02a09c3bbe092ec561913ea005d6c9241797d8b8d487cce11333214e00eb"
+    },
+    {
+      "path": "app/dashboard/cameras/monitoring-actions.ts",
+      "bytes": 4822,
+      "sha256": "0918b4e26732e94129ac8d99dd385afd49b0fa3ddad06b0772a7976e93bba9ad"
+    },
+    {
+      "path": "app/dashboard/vision-tests/actions.ts",
+      "bytes": 1491,
+      "sha256": "da58d38bc1e990e1d21e6121383063221e0d00d007314a4e54d0ba44e39c439d"
+    },
+    {
+      "path": "app/dashboard/vision-tests/page.tsx",
+      "bytes": 9676,
+      "sha256": "fa8891ada4fc7f9189e4dca601357de65473886fb4fd583d9c37ce05a2c8aafc"
+    },
+    {
+      "path": "app/dashboard/vision-tests/vision-tests.module.css",
+      "bytes": 2524,
+      "sha256": "7d4b68a688ac40dc8fdf2f0be8a052a17e6dd1d03d80aa7ef614390c48f3f25d"
+    },
+    {
+      "path": "docs/VALIDATION-v0.7.3.md",
+      "bytes": 1544,
+      "sha256": "020514e2f33948eea23dfaa0d5f7bec8ad0c0d207ceffc1e2bbbde1914cb0d9d"
+    },
+    {
+      "path": "package.json",
+      "bytes": 846,
+      "sha256": "199814e376508f2e5894f5f5775a6bdc33b455c22f7b3f1bface708432123521"
+    },
+    {
+      "path": "src/lib/agent-camera.ts",
+      "bytes": 1847,
+      "sha256": "53f251d49e2f9591d8a595084ab52a1b3ee3231a5e7fc742e6bdb5e27b0d866f"
+    },
+    {
+      "path": "src/lib/analysis-plans.ts",
+      "bytes": 1583,
+      "sha256": "079fbe7b6920ed64304b6e378264a48d8c6559c1015a0fa54c3783f9dc8942cd"
+    },
+    {
+      "path": "src/lib/dashboard-data.ts",
+      "bytes": 9118,
+      "sha256": "0d8fddbe895acfa2488c5c8c9832dd877a76069d7caa44aa6d792a59031bc1b8"
+    },
+    {
+      "path": "src/vision/cost.ts",
+      "bytes": 2650,
+      "sha256": "ab77b6c5069dbb21ecfdc631a32904b57b7d83251d696f3887a554f5a4084a9b"
+    },
+    {
+      "path": "src/vision/create-provider.ts",
+      "bytes": 503,
+      "sha256": "bd39c5b20d45e5c211fbae45e7d4fcbab002526c7f11d51b74651ca092dba08b"
+    },
+    {
+      "path": "src/vision/openai-provider.ts",
+      "bytes": 8724,
+      "sha256": "40e00a53a4c08bf5cb7c232397879dce00d9b35c7184293a2a6172da989a2cff"
+    },
+    {
+      "path": "src/vision/plan-runner.ts",
+      "bytes": 2317,
+      "sha256": "731121ead57fa5a54b2b89e8091c2e603992c79f2c6e3ca0b8baeec66a0be53b"
+    },
+    {
+      "path": "src/vision/plans.ts",
+      "bytes": 2228,
+      "sha256": "d5472d15003e9e7a2ca4c0968f88e28ede9ab6742ca4c89405cdecb2431a7fc0"
+    },
+    {
+      "path": "src/vision/prompt.ts",
+      "bytes": 3414,
+      "sha256": "7e6437ded8f51247f3398a84d8365a8b48e3afbdef5563174764c29d495f395b"
+    },
+    {
+      "path": "src/vision/types.ts",
+      "bytes": 2150,
+      "sha256": "41efb3d4290b33c355390142982e77974f3ee92adc48b55499935acfd493d03f"
+    },
+    {
+      "path": "supabase/migrations/20260729160000_motion_cost_plan_validation.sql",
+      "bytes": 13644,
+      "sha256": "6b9198f00bf5d4e8483a4e5076b0fd3e5adde2232d5cff9870ff45dd011f94af"
+    },
+    {
+      "path": "test/analysis-plans.test.ts",
+      "bytes": 810,
+      "sha256": "32a57bb5511d7baeac582fba09365960dd8737736cbff5c3c14513bbb609a33d"
+    },
+    {
+      "path": "test/monitoring-schedule.test.ts",
+      "bytes": 828,
+      "sha256": "70f4f682d2d0c2881b26bd9368a6c7df0ed1fe8b7e40c31eadf0c726c9720c32"
+    },
+    {
+      "path": "test/motion-calibration.test.ts",
+      "bytes": 1059,
+      "sha256": "d0584a1d1a21af71d335033021773d2b379bc0a4c291724c2380d83e357b7dde"
+    },
+    {
+      "path": "test/motion-mask.test.ts",
+      "bytes": 1092,
+      "sha256": "baff0797a266a56e9359ff3438abce4294babe828f54b16e3997c871c911e27b"
+    },
+    {
+      "path": "test/vision-cost.test.ts",
+      "bytes": 911,
+      "sha256": "1a2f2e61cbbb227bf2977bb6f4e326a72720fb5d5be192c6b4b1c2f7174d3e5c"
+    }
+  ]
+}

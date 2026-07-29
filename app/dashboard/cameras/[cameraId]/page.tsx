@@ -9,14 +9,15 @@ import { getCameraProfileWorkspace } from "@/src/lib/camera-profile-data";
 import { DashboardSidebar } from "../../dashboard-sidebar";
 import { PairingCodeGenerator } from "../pairing-code-generator";
 import { CameraProfilePanel } from "./camera-profile-panel";
+import { MonitoringSettings } from "./monitoring-settings";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const planLabels: Record<string, string> = {
-  basic: "Básico",
-  standard: "Padrão",
-  intensive: "Intensivo",
+  basic: "Econômico",
+  standard: "Equilibrado",
+  intensive: "Detalhado",
 };
 
 const pairingLabels: Record<string, string> = {
@@ -25,12 +26,17 @@ const pairingLabels: Record<string, string> = {
   paired: "Pareada",
 };
 
-type Props = { params: Promise<{ cameraId: string }> };
+type Props = {
+  params: Promise<{ cameraId: string }>;
+};
 
-export default async function CameraDetailPage({ params }: Props) {
+export default async function CameraDetailPage({
+  params,
+}: Props) {
   const { cameraId } = await params;
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
+
   if (!organization) redirect("/onboarding");
 
   const [camera, profileWorkspace] = await Promise.all([
@@ -40,7 +46,9 @@ export default async function CameraDetailPage({ params }: Props) {
 
   if (!camera) notFound();
 
-  const canManage = ["owner", "admin"].includes(organization.role);
+  const canManage = ["owner", "admin"].includes(
+    organization.role,
+  );
 
   return (
     <main className="dashboard-shell">
@@ -62,6 +70,7 @@ export default async function CameraDetailPage({ params }: Props) {
                 "A descrição visual será aprimorada após o primeiro frame."}
             </p>
           </div>
+
           <Link href="/dashboard/cameras" className="back-link">
             ← Voltar às câmeras
           </Link>
@@ -74,8 +83,10 @@ export default async function CameraDetailPage({ params }: Props) {
                 <span>CONFIGURAÇÃO</span>
                 <h2>Parâmetros atuais</h2>
               </div>
+
               <span className="status-chip">
-                {pairingLabels[camera.pairingStatus] ?? camera.pairingStatus}
+                {pairingLabels[camera.pairingStatus] ??
+                  camera.pairingStatus}
               </span>
             </div>
 
@@ -85,8 +96,11 @@ export default async function CameraDetailPage({ params }: Props) {
                 <dd>{camera.siteName}</dd>
               </div>
               <div>
-                <dt>Plano</dt>
-                <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
+                <dt>Modo visual</dt>
+                <dd>
+                  {planLabels[camera.planCode] ??
+                    camera.planCode}
+                </dd>
               </div>
               <div>
                 <dt>Observação local</dt>
@@ -94,7 +108,9 @@ export default async function CameraDetailPage({ params }: Props) {
               </div>
               <div>
                 <dt>Consolidação</dt>
-                <dd>{camera.consolidationIntervalSeconds}s</dd>
+                <dd>
+                  {camera.consolidationIntervalSeconds}s
+                </dd>
               </div>
               <div>
                 <dt>Status da câmera</dt>
@@ -106,14 +122,15 @@ export default async function CameraDetailPage({ params }: Props) {
               <span>OBJETIVOS ATUAIS</span>
               {camera.monitoringGoals.length ? (
                 <ul>
-                  {camera.monitoringGoals.map((goal: string) => (
-                    <li key={goal}>{goal}</li>
-                  ))}
+                  {camera.monitoringGoals.map(
+                    (goal: string) => (
+                      <li key={goal}>{goal}</li>
+                    ),
+                  )}
                 </ul>
               ) : (
                 <p>
-                  Nenhum objetivo específico informado. A IA poderá sugerir
-                  objetivos usando o primeiro frame.
+                  Nenhum objetivo específico informado.
                 </p>
               )}
             </div>
@@ -125,6 +142,7 @@ export default async function CameraDetailPage({ params }: Props) {
                 <span>AGENT LOCAL</span>
                 <h2>Pareamento seguro</h2>
               </div>
+
               <span
                 className={
                   camera.pairingStatus === "paired"
@@ -132,17 +150,25 @@ export default async function CameraDetailPage({ params }: Props) {
                     : "status-chip"
                 }
               >
-                {camera.pairingStatus === "paired" ? <i /> : null}
+                {camera.pairingStatus === "paired" ? (
+                  <i />
+                ) : null}
                 {pairingLabels[camera.pairingStatus] ??
                   camera.pairingStatus}
               </span>
             </div>
+
             <PairingCodeGenerator
               cameraId={camera.id}
               paired={camera.pairingStatus === "paired"}
             />
           </section>
         </div>
+
+        <MonitoringSettings
+          camera={camera}
+          canManage={canManage}
+        />
 
         <CameraProfilePanel
           cameraId={camera.id}

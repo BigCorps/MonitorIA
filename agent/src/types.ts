@@ -1,14 +1,43 @@
+export type NormalizedPoint = {
+  x: number;
+  y: number;
+};
+
+export type MonitoringSchedule = {
+  mode: "always" | "weekly";
+  weekly?: Array<{
+    day: number;
+    start: string;
+    end: string;
+  }>;
+  outsideMode?: "off" | "significant_only";
+};
+
 export type RemoteCamera = {
   id: string;
   name: string;
   description: string;
   status: string;
-  plan: string;
+  plan: "basic" | "standard" | "intensive";
+  timezone: string;
   captureIntervalSeconds: number;
   consolidationIntervalSeconds: number;
   motionStartThreshold: number;
   motionContinueThreshold: number;
   eventCloseAfterSeconds: number;
+  motionAdaptiveEnabled: boolean;
+  motionOverlayMask:
+    | "auto"
+    | "none"
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right";
+  motionStartConsecutiveFrames: number;
+  motionEndConsecutiveFrames: number;
+  motionCooldownSeconds: number;
+  monitoringSchedule: MonitoringSchedule;
+  motionIgnorePolygons: NormalizedPoint[][];
   monitoringGoals: string[];
   monitoringEnabled: boolean;
   activeProfileId: string | null;
@@ -28,6 +57,14 @@ export type PairResponse = {
     | "monitoringEnabled"
     | "activeProfileId"
     | "activeProfileVersion"
+    | "timezone"
+    | "motionAdaptiveEnabled"
+    | "motionOverlayMask"
+    | "motionStartConsecutiveFrames"
+    | "motionEndConsecutiveFrames"
+    | "motionCooldownSeconds"
+    | "monitoringSchedule"
+    | "motionIgnorePolygons"
   > & {
     organizationId: string;
     siteId: string;
@@ -81,12 +118,24 @@ export type LocalMotionEvent = {
   startedAt: string;
   endedAt: string;
   localMetrics: {
+    planCode: "basic" | "standard" | "intensive";
     peakMotionPercent: number;
     meanMotionPercent: number;
+    rawPeakMotionPercent: number;
     durationSeconds: number;
     framesObserved: number;
-    motionStartThreshold: number;
-    motionContinueThreshold: number;
+    configuredStartThreshold: number;
+    configuredContinueThreshold: number;
+    effectiveStartThreshold: number;
+    effectiveContinueThreshold: number;
+    noiseP50Percent: number;
+    noiseP90Percent: number;
+    noiseP95Percent: number;
+    ignoredPixelPercent: number;
+    autoIgnoredCellCount: number;
+    startConsecutiveFrames: number;
+    endConsecutiveFrames: number;
+    cooldownSeconds: number;
     closeReason: string;
   };
   frames: LocalEventFrame[];

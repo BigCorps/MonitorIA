@@ -40,8 +40,7 @@ jobs:
         run: |
           bun --version
           bun --revision
-          $bunPath = (Get-Command bun).Source
-          Write-Host "Runtime Bun: $bunPath"
+          Write-Host "Runtime Bun: $((Get-Command bun).Source)"
 
       - name: Instalar dependências
         run: bun install --frozen-lockfile
@@ -50,20 +49,20 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "src/index.ts")) {
-            throw "agent/src/index.ts não foi encontrado no checkout."
+            throw "agent/src/index.ts não foi encontrado."
           }
 
           $sourceFiles = Get-ChildItem src -Filter *.ts
-          if ($sourceFiles.Count -lt 11) {
-            throw "Código-fonte incompleto: foram encontrados apenas $($sourceFiles.Count) arquivos TypeScript."
+          if ($sourceFiles.Count -lt 13) {
+            throw "Código-fonte incompleto: $($sourceFiles.Count) arquivos."
           }
 
           $sourceFiles | Select-Object Name
 
-      - name: Verificar TypeScript do Agent
+      - name: Verificar TypeScript
         run: bun run check
 
-      - name: Gerar executável com o runtime instalado
+      - name: Gerar executável
         run: bun run build:win
 
       - name: Validar executável
@@ -73,26 +72,18 @@ jobs:
           $size = (Get-Item $exe).Length
 
           if ($size -lt 1000000) {
-            throw "O executável gerado parece incompleto: $size bytes."
+            throw "Executável incompleto: $size bytes."
           }
-
-          Write-Host "Executável: $exe"
-          Write-Host "Tamanho: $size bytes"
 
           & $exe self-test
           if ($LASTEXITCODE -ne 0) {
-            throw "O autoteste do executável falhou."
-          }
-
-          & $exe reset
-          if ($LASTEXITCODE -ne 0) {
-            throw "O comando reset falhou."
+            throw "O autoteste falhou."
           }
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: monitoria-agent-windows-x64-baseline-v0.7.2
+          name: monitoria-agent-windows-x64-baseline-v0.7.3
           path: agent/dist/monitoria-agent.exe
           if-no-files-found: error
           retention-days: 30

@@ -1,15 +1,31 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { CameraProfileSchema } from "@/src/contracts/camera-profile";
 import { authenticateAgentCamera } from "@/src/lib/agent-camera";
 import { normalizeAnalyzedEventZones } from "@/src/lib/event-analysis";
-import { createVisionProvider } from "@/src/vision/create-provider";
-import { estimateVisionCostUsd } from "@/src/vision/cost";
+import { normalizeAnalysisPlan } from "@/src/lib/analysis-plans";
+import {
+  estimateVisionCostBreakdown,
+  estimateVisionCostUsd,
+} from "@/src/vision/cost";
+import {
+  analyzeEventForPlan,
+  runVisionModel,
+} from "@/src/vision/plan-runner";
+import {
+  getVisionPlan,
+  otherValidationModel,
+} from "@/src/vision/plans";
+import type {
+  AnalyzeEventInput,
+  VisionAnalysisAttempt,
+} from "@/src/vision/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const MAX_REQUEST_BYTES = 4_400_000;
 const MAX_FRAME_BYTES = 2 * 1024 * 1024;
@@ -36,23 +52,39 @@ const FrameSchema = z
   })
   .strict();
 
+const LocalMetricsSchema = z
+  .object({
+    planCode: z.enum(["basic", "standard", "intensive"]).optional(),
+    peakMotionPercent: z.number().min(0).max(100),
+    meanMotionPercent: z.number().min(0).max(100),
+    rawPeakMotionPercent: z.number().min(0).max(100).optional(),
+    durationSeconds: z.number().min(0).max(900),
+    framesObserved: z.number().int().min(1).max(10000),
+    motionStartThreshold: z.number().min(0).max(100).optional(),
+    motionContinueThreshold: z.number().min(0).max(100).optional(),
+    configuredStartThreshold: z.number().min(0).max(100).optional(),
+    configuredContinueThreshold: z.number().min(0).max(100).optional(),
+    effectiveStartThreshold: z.number().min(0).max(100).optional(),
+    effectiveContinueThreshold: z.number().min(0).max(100).optional(),
+    noiseP50Percent: z.number().min(0).max(100).optional(),
+    noiseP90Percent: z.number().min(0).max(100).optional(),
+    noiseP95Percent: z.number().min(0).max(100).optional(),
+    ignoredPixelPercent: z.number().min(0).max(100).optional(),
+    autoIgnoredCellCount: z.number().int().min(0).max(144).optional(),
+    startConsecutiveFrames: z.number().int().min(1).max(60).optional(),
+    endConsecutiveFrames: z.number().int().min(1).max(120).optional(),
+    cooldownSeconds: z.number().min(0).max(3600).optional(),
+    closeReason: z.string().trim().min(1).max(80),
+  })
+  .passthrough();
+
 const EventSubmissionSchema = z
   .object({
     eventId: z.string().uuid(),
     sessionId: z.string().uuid().nullable(),
     startedAt: IsoDateSchema,
     endedAt: IsoDateSchema,
-    localMetrics: z
-      .object({
-        peakMotionPercent: z.number().min(0).max(100),
-        meanMotionPercent: z.number().min(0).max(100),
-        durationSeconds: z.number().min(0).max(900),
-        framesObserved: z.number().int().min(1).max(10000),
-        motionStartThreshold: z.number().min(0).max(100),
-        motionContinueThreshold: z.number().min(0).max(100),
-        closeReason: z.string().trim().min(1).max(80),
-      })
-      .strict(),
+    localMetrics: LocalMetricsSchema,
     frames: z.array(FrameSchema).min(1).max(4),
   })
   .strict();
@@ -71,10 +103,10 @@ function decodeBase64(value: string) {
   const normalized = value.trim();
   const buffer = Buffer.from(normalized, "base64");
 
-  const expected = normalized.replace(/=+$/, "");
-  const actual = buffer.toString("base64").replace(/=+$/, "");
-
-  if (expected !== actual) {
+  if (
+    normalized.replace(/=+$/, "") !==
+    buffer.toString("base64").replace(/=+$/, "")
+  ) {
     throw new Error("invalid_base64");
   }
 
@@ -87,8 +119,144 @@ function boundedDays(value: unknown, fallback: number, maximum: number) {
   return Math.max(1, Math.min(maximum, Math.floor(number)));
 }
 
+function boundedInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0
+    ? Math.floor(parsed)
+    : fallback;
+}
+
+function envBoolean(value: string | undefined, fallback = false) {
+  if (value === undefined) return fallback;
+  return value.toLowerCase() === "true";
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function promptCacheKey(input: {
+  cameraId: string;
+  profileVersion: number;
+  planCode: string;
+  modelGroup: string;
+}) {
+  const digest = createHash("sha256")
+    .update(
+      [
+        input.cameraId,
+        input.profileVersion,
+        input.planCode,
+        input.modelGroup,
+      ].join(":"),
+    )
+    .digest("hex")
+    .slice(0, 48);
+
+  return `mtr_${digest}`;
+}
+
+function distinctAttempts(attempts: VisionAnalysisAttempt[]) {
+  const seen = new Set<string>();
+
+  return attempts.filter((attempt) => {
+    if (seen.has(attempt.responseId)) return false;
+    seen.add(attempt.responseId);
+    return true;
+  });
+}
+
+async function shouldRunAbTest(
+  supabase: any,
+  cameraId: string,
+) {
+  if (!envBoolean(process.env.VISION_AB_TEST_ENABLED)) {
+    return false;
+  }
+
+  const samplePercent = Math.max(
+    0,
+    Math.min(
+      100,
+      boundedInteger(
+        process.env.VISION_AB_TEST_SAMPLE_PERCENT,
+        100,
+      ),
+    ),
+  );
+
+  if (Math.random() * 100 >= samplePercent) {
+    return false;
+  }
+
+  const maximum = Math.max(
+    1,
+    boundedInteger(
+      process.env.VISION_AB_TEST_MAX_PER_CAMERA,
+      50,
+    ),
+  );
+
+  const { count, error } = await supabase
+    .from("vision_model_experiments")
+    .select("id", { count: "exact", head: true })
+    .eq("camera_id", cameraId);
+
+  if (error) {
+    console.error("Falha ao contar testes A/B:", error.message);
+    return false;
+  }
+
+  return (count ?? 0) < maximum;
+}
+
+async function recordAuxiliaryUsage(
+  supabase: any,
+  input: {
+    organizationId: string;
+    cameraId: string;
+    analysisJobId: string;
+    planCode: string;
+    attempt: VisionAnalysisAttempt;
+  },
+) {
+  const cost = estimateVisionCostBreakdown(
+    input.attempt.model,
+    input.attempt.usage,
+  );
+
+  const { error } = await supabase.from("usage_events").insert({
+    organization_id: input.organizationId,
+    camera_id: input.cameraId,
+    analysis_job_id: input.analysisJobId,
+    provider: input.attempt.provider,
+    model: input.attempt.model,
+    input_tokens: input.attempt.usage.inputTokens,
+    cached_input_tokens:
+      input.attempt.usage.cachedInputTokens,
+    output_tokens: input.attempt.usage.outputTokens,
+    reasoning_tokens: input.attempt.usage.reasoningTokens,
+    analysis_plan_code: input.planCode,
+    estimated_cost_usd: cost.totalCostUsd,
+    pricing: cost.rates,
+    metadata: {
+      purpose:
+        input.attempt.role === "ab_candidate"
+          ? "vision_ab_candidate"
+          : "vision_escalation_primary",
+      role: input.attempt.role,
+      response_id: input.attempt.responseId,
+      latency_ms: input.attempt.latencyMs,
+      cost_breakdown: cost,
+    },
+  });
+
+  if (error) {
+    console.error(
+      "Falha ao registrar chamada auxiliar:",
+      error.message,
+    );
+  }
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -143,6 +311,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const input = parsed.data;
+  const planCode = normalizeAnalysisPlan(
+    authenticated.camera.analysisPlanCode,
+  );
+  const visionPlan = getVisionPlan(planCode);
+
+  if (input.frames.length > visionPlan.maximumFrames) {
+    return NextResponse.json(
+      { ok: false, error: "too_many_frames_for_plan" },
+      { status: 400 },
+    );
+  }
+
   const startedAt = new Date(input.startedAt);
   const endedAt = new Date(input.endedAt);
 
@@ -237,10 +417,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     .maybeSingle();
 
   if (existingError) {
-    console.error(
-      "Falha ao consultar idempotência do evento:",
-      existingError.message,
-    );
     return NextResponse.json(
       { ok: false, error: "event_idempotency_unavailable" },
       { status: 500 },
@@ -250,9 +426,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (existingJob?.status === "completed") {
     const { data: existingEvent } = await supabase
       .from("events")
-      .select(
-        "id,summary,primary_event_type,confidence,requires_review",
-      )
+      .select("id,summary,primary_event_type,confidence,requires_review")
       .eq("analysis_job_id", existingJob.id)
       .maybeSingle();
 
@@ -281,6 +455,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   if (existingJob?.status === "processing") {
     const updatedAt = new Date(String(existingJob.updated_at)).getTime();
+
     if (Date.now() - updatedAt < 3 * 60 * 1000) {
       return NextResponse.json(
         {
@@ -295,42 +470,37 @@ export async function POST(request: NextRequest, context: RouteContext) {
           confidence: null,
           requiresReview: false,
         },
-        {
-          status: 202,
-          headers: { "Cache-Control": "no-store" },
-        },
+        { status: 202, headers: { "Cache-Control": "no-store" } },
       );
     }
   }
 
-  const [
-    profileResult,
-    siteResult,
-    retentionResult,
-  ] = await Promise.all([
-    supabase
-      .from("camera_profiles")
-      .select(
-        "id,version,environment_description,monitoring_goals,ignore_instructions",
-      )
-      .eq("organization_id", authenticated.camera.organizationId)
-      .eq("camera_id", cameraId)
-      .eq("is_active", true)
-      .maybeSingle(),
-    supabase
-      .from("sites")
-      .select("timezone")
-      .eq("id", authenticated.camera.siteId)
-      .eq("organization_id", authenticated.camera.organizationId)
-      .maybeSingle(),
-    supabase
-      .from("retention_policies")
-      .select("temporary_frame_days,keyframe_days,metadata_days")
-      .eq("organization_id", authenticated.camera.organizationId)
-      .maybeSingle(),
-  ]);
+  const [profileResult, siteResult, retentionResult] =
+    await Promise.all([
+      supabase
+        .from("camera_profiles")
+        .select(
+          "id,version,environment_description,monitoring_goals,ignore_instructions",
+        )
+        .eq("organization_id", authenticated.camera.organizationId)
+        .eq("camera_id", cameraId)
+        .eq("is_active", true)
+        .maybeSingle(),
+      supabase
+        .from("sites")
+        .select("timezone")
+        .eq("id", authenticated.camera.siteId)
+        .eq("organization_id", authenticated.camera.organizationId)
+        .maybeSingle(),
+      supabase
+        .from("retention_policies")
+        .select("temporary_frame_days,keyframe_days,metadata_days")
+        .eq("organization_id", authenticated.camera.organizationId)
+        .maybeSingle(),
+    ]);
 
   const profile = profileResult.data;
+
   if (profileResult.error || !profile) {
     return NextResponse.json(
       { ok: false, error: "active_camera_profile_required" },
@@ -353,7 +523,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     .order("sort_order", { ascending: true });
 
   if (zonesError) {
-    console.error("Falha ao carregar zonas ativas:", zonesError.message);
     return NextResponse.json(
       { ok: false, error: "active_zones_unavailable" },
       { status: 500 },
@@ -361,6 +530,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   let cameraProfile;
+
   try {
     cameraProfile = CameraProfileSchema.parse({
       cameraId,
@@ -389,6 +559,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
   }
 
+  const localMetrics = {
+    ...input.localMetrics,
+    planCode,
+  };
+
   let analysisJobId = existingJob ? String(existingJob.id) : null;
 
   if (existingJob) {
@@ -401,7 +576,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
-        local_metrics: input.localMetrics,
+        local_metrics: localMetrics,
+        analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,
         attempt_count: Number(existingJob.attempt_count ?? 0) + 1,
         last_error: null,
@@ -410,7 +586,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .eq("id", existingJob.id);
 
     if (retryError) {
-      console.error("Falha ao reabrir análise:", retryError.message);
       return NextResponse.json(
         { ok: false, error: "analysis_job_retry_failed" },
         { status: 500 },
@@ -428,7 +603,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
-        local_metrics: input.localMetrics,
+        local_metrics: localMetrics,
+        analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,
         agent_event_id: input.eventId,
         attempt_count: 1,
@@ -437,10 +613,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .single();
 
     if (jobError || !job) {
-      console.error(
-        "Falha ao criar análise do evento:",
-        jobError?.message,
-      );
       return NextResponse.json(
         { ok: false, error: "analysis_job_create_failed" },
         { status: 500 },
@@ -465,23 +637,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
   );
   const keyframeDays = boundedDays(
     retention?.keyframe_days,
-    365,
+    90,
     3650,
   );
   const metadataDays = boundedDays(
     retention?.metadata_days,
-    365,
+    90,
     3650,
   );
 
   const temporaryExpiresAt = new Date(
-    Date.now() + temporaryDays * 24 * 60 * 60 * 1000,
+    Date.now() + temporaryDays * 86400000,
   );
   const keyframeExpiresAt = new Date(
-    Date.now() + keyframeDays * 24 * 60 * 60 * 1000,
+    Date.now() + keyframeDays * 86400000,
   );
   const eventExpiresAt = new Date(
-    Date.now() + metadataDays * 24 * 60 * 60 * 1000,
+    Date.now() + metadataDays * 86400000,
   );
 
   const year = startedAt.getUTCFullYear();
@@ -552,8 +724,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
     }
 
-    const provider = createVisionProvider();
-    const analysis = await provider.analyzeEvent({
+    const cacheKey = promptCacheKey({
+      cameraId,
+      profileVersion: Number(profile.version),
+      planCode,
+      modelGroup: visionPlan.mode,
+    });
+
+    const visionInput: AnalyzeEventInput = {
       organizationId: authenticated.camera.organizationId,
       eventId: input.eventId,
       startedAt: startedAt.toISOString(),
@@ -565,32 +743,73 @@ export async function POST(request: NextRequest, context: RouteContext) {
         meanMotionPercent: input.localMetrics.meanMotionPercent,
         durationSeconds: input.localMetrics.durationSeconds,
       },
-    });
+      planCode,
+      analysisMode: visionPlan.mode,
+      promptCacheKey: cacheKey,
+    };
 
+    const outcome = await analyzeEventForPlan(
+      visionInput,
+      planCode,
+    );
+
+    const attempts = [...outcome.attempts];
+    const runAb = await shouldRunAbTest(supabase, cameraId);
+
+    if (runAb) {
+      const validationModel = otherValidationModel(
+        outcome.final.model,
+      );
+
+      if (!attempts.some((attempt) => attempt.model === validationModel)) {
+        try {
+          attempts.push(
+            await runVisionModel(visionInput, {
+              model: validationModel,
+              detail: visionPlan.detail,
+              maxOutputTokens: Math.max(
+                visionPlan.maxOutputTokens,
+                2400,
+              ),
+              role: "ab_candidate",
+            }),
+          );
+        } catch (candidateError) {
+          console.error(
+            "A chamada experimental falhou sem afetar o evento:",
+            candidateError,
+          );
+        }
+      }
+    }
+
+    const uniqueAttempts = distinctAttempts(attempts);
+    const finalAnalysis = outcome.final;
     const allowedZones = new Set(
       cameraProfile.zones.map((zone) => zone.id),
     );
+
     const normalizedEvent = normalizeAnalyzedEventZones(
-      analysis.event,
+      finalAnalysis.event,
       allowedZones,
     );
 
-    const estimatedCostUsd = estimateVisionCostUsd(
-      analysis.model,
-      analysis.usage,
+    const finalCost = estimateVisionCostBreakdown(
+      finalAnalysis.model,
+      finalAnalysis.usage,
     );
 
     const { data: completed, error: completionError } =
       await supabase.rpc("complete_agent_analysis_job", {
         p_job_id: analysisJobId,
         p_analyzed_event: normalizedEvent,
-        p_provider: analysis.provider,
-        p_model: analysis.model,
-        p_response_id: analysis.responseId,
-        p_input_tokens: analysis.usage.inputTokens,
-        p_output_tokens: analysis.usage.outputTokens,
-        p_latency_ms: analysis.latencyMs,
-        p_estimated_cost_usd: estimatedCostUsd,
+        p_provider: finalAnalysis.provider,
+        p_model: finalAnalysis.model,
+        p_response_id: finalAnalysis.responseId,
+        p_input_tokens: finalAnalysis.usage.inputTokens,
+        p_output_tokens: finalAnalysis.usage.outputTokens,
+        p_latency_ms: finalAnalysis.latencyMs,
+        p_estimated_cost_usd: finalCost.totalCostUsd,
         p_event_expires_at: eventExpiresAt.toISOString(),
         p_keyframe_expires_at: keyframeExpiresAt.toISOString(),
       });
@@ -604,8 +823,125 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    const modelChain = uniqueAttempts.map((attempt) => ({
+      role: attempt.role,
+      model: attempt.model,
+      responseId: attempt.responseId,
+      latencyMs: attempt.latencyMs,
+      usage: attempt.usage,
+      cost: estimateVisionCostUsd(
+        attempt.model,
+        attempt.usage,
+      ),
+    }));
+
+    await supabase
+      .from("analysis_jobs")
+      .update({
+        cached_input_tokens:
+          finalAnalysis.usage.cachedInputTokens,
+        reasoning_tokens:
+          finalAnalysis.usage.reasoningTokens,
+        analysis_plan_code: planCode,
+        model_chain: modelChain,
+      })
+      .eq("id", analysisJobId);
+
+    await supabase
+      .from("usage_events")
+      .update({
+        cached_input_tokens:
+          finalAnalysis.usage.cachedInputTokens,
+        reasoning_tokens:
+          finalAnalysis.usage.reasoningTokens,
+        analysis_plan_code: planCode,
+        pricing: finalCost.rates,
+        estimated_cost_usd: finalCost.totalCostUsd,
+        metadata: {
+          purpose: "continuous_event",
+          role: "final",
+          response_id: finalAnalysis.responseId,
+          latency_ms: finalAnalysis.latencyMs,
+          plan_code: planCode,
+          analysis_mode: visionPlan.mode,
+          escalated: outcome.escalated,
+          prompt_cache_key: cacheKey,
+          cost_breakdown: finalCost,
+          model_chain: modelChain,
+        },
+      })
+      .eq("analysis_job_id", analysisJobId);
+
+    for (const attempt of uniqueAttempts) {
+      if (attempt.responseId === finalAnalysis.responseId) continue;
+
+      await recordAuxiliaryUsage(supabase, {
+        organizationId: authenticated.camera.organizationId,
+        cameraId,
+        analysisJobId,
+        planCode,
+        attempt,
+      });
+    }
+
+    const nano = uniqueAttempts.find((attempt) =>
+      attempt.model.includes("nano"),
+    );
+    const mini = uniqueAttempts.find((attempt) =>
+      attempt.model.includes("mini"),
+    );
+
+    if (nano && mini) {
+      const nanoCost = estimateVisionCostBreakdown(
+        nano.model,
+        nano.usage,
+      );
+      const miniCost = estimateVisionCostBreakdown(
+        mini.model,
+        mini.usage,
+      );
+
+      const { error: experimentError } = await supabase
+        .from("vision_model_experiments")
+        .upsert(
+          {
+            organization_id:
+              authenticated.camera.organizationId,
+            camera_id: cameraId,
+            analysis_job_id: analysisJobId,
+            plan_code: planCode,
+            nano_model: nano.model,
+            mini_model: mini.model,
+            nano_payload: normalizeAnalyzedEventZones(
+              nano.event,
+              allowedZones,
+            ),
+            mini_payload: normalizeAnalyzedEventZones(
+              mini.event,
+              allowedZones,
+            ),
+            nano_usage: nano.usage,
+            mini_usage: mini.usage,
+            nano_latency_ms: nano.latencyMs,
+            mini_latency_ms: mini.latencyMs,
+            nano_cost_usd: nanoCost.totalCostUsd,
+            mini_cost_usd: miniCost.totalCostUsd,
+          },
+          { onConflict: "analysis_job_id" },
+        );
+
+      if (experimentError) {
+        console.error(
+          "Falha ao salvar comparação A/B:",
+          experimentError.message,
+        );
+      }
+    }
+
     const relevant = Boolean(result.relevant);
-    const eventId = result.event_id ? String(result.event_id) : null;
+    const eventId = result.event_id
+      ? String(result.event_id)
+      : null;
 
     if (!relevant) {
       await supabase
@@ -629,9 +965,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         analysis_job_id: analysisJobId,
         profile_id: String(profile.id),
         profile_version: Number(profile.version),
-        provider: analysis.provider,
-        model: analysis.model,
-        response_id: analysis.responseId,
+        plan_code: planCode,
+        model: finalAnalysis.model,
+        model_chain: modelChain,
+        response_id: finalAnalysis.responseId,
         frame_count: decodedFrames.length,
         peak_motion_percent:
           input.localMetrics.peakMotionPercent,

@@ -41,13 +41,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <li>Frames temporários e metadados por até um ano</li>
           </ul>
         </div>
-        <small>Uma solução BigCorps · Sua câmera vê. A IA lembra.</small>
+        <small>Desenvolvido por BigCorps · Sua câmera vê. O MonitorIA lembra.</small>
       </section>
 
       <section className="auth-form-shell">
         <div className="auth-form-card">
           <div className="auth-form-heading">
-            <span>MonitorIA v0.3</span>
+            <span>MonitorIA</span>
             <h2>Entrar no painel</h2>
             <p>Use sua senha ou receba um link de acesso por e-mail.</p>
           </div>

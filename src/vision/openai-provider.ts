@@ -5,7 +5,11 @@ import {
   AnalyzedEventTransportSchema,
 } from "../contracts/analyzed-event";
 import { CameraProfileDraftSchema } from "../contracts/camera-profile-draft";
-import { buildVisionContext, buildVisionInstructions } from "./prompt";
+import {
+  buildVisionEventContext,
+  buildVisionInstructions,
+  buildVisionStableContext,
+} from "./prompt";
 import {
   buildCameraProfileContext,
   buildCameraProfileInstructions,
@@ -50,7 +54,9 @@ function responseUsage(
   usage:
     | {
         input_tokens?: number;
+        input_tokens_details?: { cached_tokens?: number };
         output_tokens?: number;
+        output_tokens_details?: { reasoning_tokens?: number };
         total_tokens?: number;
       }
     | null
@@ -58,7 +64,11 @@ function responseUsage(
 ): VisionUsage {
   return {
     inputTokens: usage?.input_tokens ?? 0,
+    cachedInputTokens:
+      usage?.input_tokens_details?.cached_tokens ?? 0,
     outputTokens: usage?.output_tokens ?? 0,
+    reasoningTokens:
+      usage?.output_tokens_details?.reasoning_tokens ?? 0,
     totalTokens: usage?.total_tokens ?? 0,
   };
 }
@@ -66,7 +76,11 @@ function responseUsage(
 function addUsage(left: VisionUsage, right: VisionUsage): VisionUsage {
   return {
     inputTokens: left.inputTokens + right.inputTokens,
+    cachedInputTokens:
+      left.cachedInputTokens + right.cachedInputTokens,
     outputTokens: left.outputTokens + right.outputTokens,
+    reasoningTokens:
+      left.reasoningTokens + right.reasoningTokens,
     totalTokens: left.totalTokens + right.totalTokens,
   };
 }
@@ -87,7 +101,10 @@ export class OpenAIVisionProvider implements VisionProvider {
         apiKey: options.apiKey ?? process.env.OPENAI_API_KEY,
       });
 
-    this.model = options.model ?? process.env.VISION_MODEL ?? "gpt-5-mini";
+    this.model =
+      options.model ??
+      process.env.VISION_MODEL ??
+      "gpt-5-mini";
 
     this.detail =
       options.detail ??
@@ -99,21 +116,18 @@ export class OpenAIVisionProvider implements VisionProvider {
       (process.env.VISION_PROFILE_DETAIL as VisionImageDetail | undefined) ??
       "high";
 
-    this.maxOutputTokens = Math.max(
-      3_000,
-      positiveInteger(
-        options.maxOutputTokens ??
-          process.env.VISION_MAX_OUTPUT_TOKENS,
-        3_000,
-      ),
+    this.maxOutputTokens = positiveInteger(
+      options.maxOutputTokens ??
+        process.env.VISION_MAX_OUTPUT_TOKENS,
+      3000,
     );
 
     this.profileMaxOutputTokens = Math.max(
-      5_000,
+      5000,
       positiveInteger(
         options.profileMaxOutputTokens ??
           process.env.VISION_PROFILE_MAX_OUTPUT_TOKENS,
-        5_000,
+        5000,
       ),
     );
 
@@ -133,17 +147,24 @@ export class OpenAIVisionProvider implements VisionProvider {
         model: this.model,
         store: this.store,
         max_output_tokens: maxOutputTokens,
+        prompt_cache_key: input.promptCacheKey,
         reasoning: {
           effort: "minimal",
         },
-        instructions: buildVisionInstructions(),
+        instructions: buildVisionInstructions(
+          input.analysisMode ?? "balanced",
+        ),
         input: [
           {
             role: "user",
             content: [
               {
                 type: "input_text",
-                text: `Analise o evento usando este contexto:\n${buildVisionContext(input)}`,
+                text: `Contexto estável da câmera:\n${buildVisionStableContext(input)}`,
+              },
+              {
+                type: "input_text",
+                text: `Contexto variável do evento:\n${buildVisionEventContext(input)}`,
               },
               ...input.frames.map((frame) => ({
                 type: "input_image" as const,
@@ -169,7 +190,10 @@ export class OpenAIVisionProvider implements VisionProvider {
       response.status === "incomplete" &&
       response.incomplete_details?.reason === "max_output_tokens"
     ) {
-      const retryLimit = Math.max(6_000, this.maxOutputTokens * 2);
+      const retryLimit = Math.max(
+        this.maxOutputTokens * 2,
+        3200,
+      );
 
       console.warn(
         `Evento interrompido por max_output_tokens (${this.maxOutputTokens}). Repetindo com ${retryLimit}.`,
@@ -192,10 +216,8 @@ export class OpenAIVisionProvider implements VisionProvider {
       );
     }
 
-    const event = AnalyzedEventSchema.parse(response.output_parsed);
-
     return {
-      event,
+      event: AnalyzedEventSchema.parse(response.output_parsed),
       provider: "openai",
       model: this.model,
       responseId: response.id,
@@ -207,13 +229,19 @@ export class OpenAIVisionProvider implements VisionProvider {
   async analyzeCameraProfile(
     input: AnalyzeCameraProfileInput,
   ): Promise<CameraProfileAnalysisResult> {
+    const model =
+      process.env.VISION_PROFILE_MODEL ??
+      process.env.VISION_MODEL ??
+      this.model;
+
     const started = performance.now();
 
     const requestProfile = (maxOutputTokens: number) =>
       this.client.responses.parse({
-        model: this.model,
+        model,
         store: this.store,
         max_output_tokens: maxOutputTokens,
+        prompt_cache_key: `monitoria-profile-${input.cameraId}`,
         reasoning: {
           effort: "minimal",
         },
@@ -251,12 +279,8 @@ export class OpenAIVisionProvider implements VisionProvider {
       response.incomplete_details?.reason === "max_output_tokens"
     ) {
       const retryLimit = Math.max(
-        10_000,
+        10000,
         this.profileMaxOutputTokens * 2,
-      );
-
-      console.warn(
-        `Perfil interrompido por max_output_tokens (${this.profileMaxOutputTokens}). Repetindo com ${retryLimit}.`,
       );
 
       const retry = await requestProfile(retryLimit);
@@ -279,7 +303,7 @@ export class OpenAIVisionProvider implements VisionProvider {
     return {
       profile: CameraProfileDraftSchema.parse(response.output_parsed),
       provider: "openai",
-      model: this.model,
+      model,
       responseId: response.id,
       usage: combinedUsage,
       latencyMs,

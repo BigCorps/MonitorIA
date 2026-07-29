@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
-import { authenticateAgent, type AuthenticatedAgent } from "@/src/lib/agent-auth";
+import {
+  authenticateAgent,
+  type AuthenticatedAgent,
+} from "@/src/lib/agent-auth";
 import { createAdminClient } from "@/src/lib/supabase/admin";
+import type { AnalysisPlanCode } from "@/src/lib/analysis-plans";
 
 export type AuthenticatedAgentCamera = {
   agent: AuthenticatedAgent;
@@ -10,6 +14,7 @@ export type AuthenticatedAgentCamera = {
     organizationId: string;
     siteId: string;
     status: string;
+    analysisPlanCode: AnalysisPlanCode;
   };
   supabase: ReturnType<typeof createAdminClient>;
 };
@@ -35,13 +40,21 @@ export async function authenticateAgentCamera(
 
   const { data: camera, error: cameraError } = await supabase
     .from("cameras")
-    .select("id,name,organization_id,site_id,status")
+    .select(
+      "id,name,organization_id,site_id,status,analysis_plan_code",
+    )
     .eq("id", cameraId)
     .eq("organization_id", agent.organizationId)
     .eq("site_id", agent.siteId)
     .maybeSingle();
 
   if (cameraError || !camera) return null;
+
+  const plan =
+    camera.analysis_plan_code === "basic" ||
+    camera.analysis_plan_code === "intensive"
+      ? camera.analysis_plan_code
+      : "standard";
 
   return {
     agent,
@@ -51,6 +64,7 @@ export async function authenticateAgentCamera(
       organizationId: String(camera.organization_id),
       siteId: String(camera.site_id),
       status: String(camera.status),
+      analysisPlanCode: plan,
     },
     supabase,
   };

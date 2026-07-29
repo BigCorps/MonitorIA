@@ -13,21 +13,24 @@ type Props = {
 const planOptions = [
   {
     value: "basic",
-    name: "Básico",
-    interval: "Consolidação em até 60 segundos",
-    description: "Menos detalhes enviados, mantendo observação local frequente.",
+    name: "Econômico",
+    interval: "Um quadro principal",
+    description:
+      "Menor custo para entradas, balcões e movimento geral.",
   },
   {
     value: "standard",
-    name: "Padrão",
-    interval: "Consolidação em até 10 segundos",
-    description: "Equilíbrio entre precisão temporal, custo e riqueza dos eventos.",
+    name: "Equilibrado",
+    interval: "Até três quadros",
+    description:
+      "Equilíbrio entre contexto, precisão temporal e custo.",
   },
   {
     value: "intensive",
-    name: "Intensivo",
-    interval: "Consolidação em até 1 segundo",
-    description: "Maior precisão para áreas com eventos rápidos ou críticos.",
+    name: "Detalhado",
+    interval: "Até quatro quadros",
+    description:
+      "Maior granularidade para eventos rápidos ou críticos.",
   },
 ];
 
@@ -61,7 +64,11 @@ export function CameraSetupForm({ sites }: Props) {
 
         <label>
           <span>Local</span>
-          <select name="site_id" required defaultValue={sites[0]?.id ?? ""}>
+          <select
+            name="site_id"
+            required
+            defaultValue={sites[0]?.id ?? ""}
+          >
             {sites.map((site) => (
               <option value={site.id} key={site.id}>
                 {site.name}
@@ -81,7 +88,7 @@ export function CameraSetupForm({ sites }: Props) {
       </label>
 
       <fieldset className="plan-selector">
-        <legend>Precisão do plano</legend>
+        <legend>Modo de análise visual</legend>
         <div>
           {planOptions.map((plan) => (
             <label key={plan.value}>
@@ -109,26 +116,31 @@ export function CameraSetupForm({ sites }: Props) {
           placeholder={[
             "Registrar entrada e saída de pessoas",
             "Identificar veículos e suas cores",
-            "Sugerir placas quando estiverem visíveis",
             "Detectar retirada de objetos do balcão",
           ].join("\n")}
         />
         <small className="field-help">
-          Digite um objetivo por linha. A IA poderá aprimorar isso depois do
-          primeiro frame.
+          Digite um objetivo por linha. A IA poderá aprimorar isso
+          depois do primeiro frame.
         </small>
       </label>
 
       <div className="camera-security-note">
         <strong>A URL RTSP não será informada aqui.</strong>
         <p>
-          O endereço, usuário e senha da câmera ficarão somente no computador
-          onde o MonitorIA Agent será instalado.
+          O endereço, usuário e senha da câmera ficarão somente no
+          computador onde o MonitorIA Agent será instalado.
         </p>
       </div>
 
-      <button className="auth-submit" type="submit" disabled={pending}>
-        {pending ? "Criando câmera..." : "Criar câmera e gerar código"}
+      <button
+        className="auth-submit"
+        type="submit"
+        disabled={pending}
+      >
+        {pending
+          ? "Criando câmera..."
+          : "Criar câmera e gerar código"}
       </button>
     </form>
   );

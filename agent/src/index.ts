@@ -26,13 +26,14 @@ import {
 } from "./event-monitor.js";
 import { captureFrame, resolveFfmpeg } from "./ffmpeg.js";
 import { calculateMotion } from "./motion.js";
+import { AdaptiveMotionCalibration } from "./motion-calibration.js";
 import { platformMetadata, systemMetrics } from "./system.js";
 import type {
   RemoteCamera,
   StoredAgentConfig,
 } from "./types.js";
 
-const AGENT_VERSION = "0.7.2";
+const AGENT_VERSION = "0.7.3";
 const DEFAULT_API_URL = "https://monitoria.bigcorps.com.br";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
@@ -55,14 +56,23 @@ function errorMessage(error: unknown) {
 }
 
 function cameraSignature(camera: RemoteCamera) {
-  return [
-    camera.activeProfileId,
-    camera.activeProfileVersion,
-    camera.captureIntervalSeconds,
-    camera.motionStartThreshold,
-    camera.motionContinueThreshold,
-    camera.eventCloseAfterSeconds,
-  ].join(":");
+  return JSON.stringify({
+    profile: camera.activeProfileId,
+    profileVersion: camera.activeProfileVersion,
+    plan: camera.plan,
+    capture: camera.captureIntervalSeconds,
+    consolidation: camera.consolidationIntervalSeconds,
+    start: camera.motionStartThreshold,
+    continue: camera.motionContinueThreshold,
+    close: camera.eventCloseAfterSeconds,
+    adaptive: camera.motionAdaptiveEnabled,
+    overlay: camera.motionOverlayMask,
+    startFrames: camera.motionStartConsecutiveFrames,
+    endFrames: camera.motionEndConsecutiveFrames,
+    cooldown: camera.motionCooldownSeconds,
+    schedule: camera.monitoringSchedule,
+    ignore: camera.motionIgnorePolygons,
+  });
 }
 
 async function setupAgent(): Promise<StoredAgentConfig> {
@@ -104,21 +114,18 @@ async function setupAgent(): Promise<StoredAgentConfig> {
     throw new Error("A URL precisa começar com rtsp://");
   }
 
-  const protectedAgentToken = await protectSecret(
-    paired.agent.token,
-  );
-  const protectedRtsp = await protectSecret(rtspUrl);
-
   const config: StoredAgentConfig = {
     schemaVersion: 1,
     apiBaseUrl: apiBaseUrl.replace(/\/+$/, ""),
     agentId: paired.agent.id,
     agentName,
-    protectedAgentToken,
+    protectedAgentToken: await protectSecret(
+      paired.agent.token,
+    ),
     pairedAt: new Date().toISOString(),
     cameras: {
       [paired.camera.id]: {
-        protectedRtsp,
+        protectedRtsp: await protectSecret(rtspUrl),
         configuredAt: new Date().toISOString(),
       },
     },
@@ -163,9 +170,7 @@ async function ensureCameraSecrets(
     changed = true;
   }
 
-  if (changed) {
-    await saveConfig(config);
-  }
+  if (changed) await saveConfig(config);
 }
 
 async function checkCamera(
@@ -246,9 +251,7 @@ async function checkCamera(
       );
     }
   } finally {
-    if (framePath) {
-      await rm(framePath, { force: true });
-    }
+    if (framePath) await rm(framePath, { force: true });
   }
 }
 
@@ -405,14 +408,17 @@ async function runAgent(config: StoredAgentConfig) {
             agentVersion: AGENT_VERSION,
             profileId: camera.activeProfileId,
             profileVersion: camera.activeProfileVersion,
+            planCode: camera.plan,
             captureIntervalSeconds:
               camera.captureIntervalSeconds,
-            motionStartThreshold:
-              camera.motionStartThreshold,
-            motionContinueThreshold:
-              camera.motionContinueThreshold,
-            eventCloseAfterSeconds:
-              camera.eventCloseAfterSeconds,
+            consolidationIntervalSeconds:
+              camera.consolidationIntervalSeconds,
+            motionAdaptiveEnabled:
+              camera.motionAdaptiveEnabled,
+            motionOverlayMask:
+              camera.motionOverlayMask,
+            monitoringSchedule:
+              camera.monitoringSchedule,
           },
         );
 
@@ -437,9 +443,7 @@ async function runAgent(config: StoredAgentConfig) {
                 errorCode: "continuous_monitor_failed",
                 errorMessage: error.message,
               },
-            ).catch(() => {
-              // O próximo ciclo tentará novamente.
-            });
+            ).catch(() => {});
           },
         });
 
@@ -450,7 +454,7 @@ async function runAgent(config: StoredAgentConfig) {
         });
 
         log(
-          `Monitoramento contínuo iniciado em "${camera.name}" · perfil v${camera.activeProfileVersion}.`,
+          `Monitoramento ${camera.plan} iniciado em "${camera.name}" · perfil v${camera.activeProfileVersion}. Calibração inicial em andamento.`,
         );
       } catch (error) {
         log(
@@ -468,7 +472,7 @@ async function runAgent(config: StoredAgentConfig) {
   );
 
   log(
-    "Agent online. Heartbeat a cada 60 segundos e detecção local de movimento ativa.",
+    "Agent online. Heartbeat a cada 60 segundos e segmentação adaptativa ativa.",
   );
 
   let heartbeatRunning = false;
@@ -507,6 +511,9 @@ async function runAgent(config: StoredAgentConfig) {
         const runtime = runtimes.get(camera.id);
 
         if (runtime?.monitor.isRunning()) {
+          const calibration =
+            runtime.monitor.calibrationSnapshot();
+
           await sendCameraStatus(
             config.apiBaseUrl,
             token,
@@ -518,8 +525,10 @@ async function runAgent(config: StoredAgentConfig) {
                 continuousMonitoring: true,
                 activeProfileVersion:
                   camera.activeProfileVersion,
+                planCode: camera.plan,
                 framesObserved:
                   runtime.monitor.framesObserved(),
+                calibration,
               },
             },
           );
@@ -591,9 +600,7 @@ async function runAgent(config: StoredAgentConfig) {
             metadata: { reason: "agent_shutdown" },
           },
         );
-      } catch {
-        // O encerramento não deve ficar preso por falha de rede.
-      }
+      } catch {}
     }
 
     closePrompt();
@@ -603,9 +610,7 @@ async function runAgent(config: StoredAgentConfig) {
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
 
-  await new Promise(() => {
-    // Mantém o processo em execução.
-  });
+  await new Promise(() => {});
 }
 
 async function showStatus(config: StoredAgentConfig) {
@@ -632,7 +637,7 @@ async function showStatus(config: StoredAgentConfig) {
           : "ausente"
       }, monitoramento=${
         camera.monitoringEnabled
-          ? `ativo (perfil v${camera.activeProfileVersion})`
+          ? `ativo (${camera.plan}, perfil v${camera.activeProfileVersion})`
           : "aguardando perfil"
       }`,
     );
@@ -663,8 +668,38 @@ async function runSelfTest() {
     );
   }
 
+  const mask = Buffer.alloc(100, 0);
+  mask.fill(1, 0, 25);
+  const masked = calculateMotion(previous, current, 20, mask);
+
+  if (masked.changedPixelPercent !== 0) {
+    throw new Error(
+      "O autoteste da máscara de movimento falhou.",
+    );
+  }
+
+  const calibration = new AdaptiveMotionCalibration();
+  for (let index = 0; index < 40; index += 1) {
+    calibration.observe(1.2, 1, true);
+  }
+
+  const calibrated = calibration.snapshot(
+    1,
+    0.25,
+    true,
+  );
+
+  if (
+    !calibrated.ready ||
+    calibrated.effectiveStartThreshold <= 1
+  ) {
+    throw new Error(
+      "O autoteste da calibração adaptativa falhou.",
+    );
+  }
+
   console.log(
-    "Autoteste do DPAPI e da detecção de movimento concluído com sucesso.",
+    "Autoteste do DPAPI, máscara e calibração de movimento concluído com sucesso.",
   );
 }
 
@@ -706,21 +741,11 @@ async function main() {
 
   if (command !== "run" && command !== "setup") {
     console.log("Uso:");
-    console.log(
-      "  monitoria-agent           Inicia ou configura o Agent",
-    );
-    console.log(
-      "  monitoria-agent run       Inicia o Agent",
-    );
-    console.log(
-      "  monitoria-agent status    Mostra a configuração remota",
-    );
-    console.log(
-      "  monitoria-agent reset     Remove a configuração local",
-    );
-    console.log(
-      "  monitoria-agent self-test Testa DPAPI e detecção de movimento",
-    );
+    console.log("  monitoria-agent           Inicia ou configura o Agent");
+    console.log("  monitoria-agent run       Inicia o Agent");
+    console.log("  monitoria-agent status    Mostra a configuração remota");
+    console.log("  monitoria-agent reset     Remove a configuração local");
+    console.log("  monitoria-agent self-test Testa DPAPI e segmentação");
     return;
   }
 

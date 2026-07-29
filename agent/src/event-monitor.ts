@@ -6,6 +6,12 @@ import {
   type MotionSample,
   type MotionSampler,
 } from "./motion.js";
+import {
+  AdaptiveMotionCalibration,
+  type MotionCalibrationSnapshot,
+} from "./motion-calibration.js";
+import { getAgentPlan } from "./plans.js";
+import { monitoringScheduleState } from "./schedule.js";
 import type {
   CapturedFrame,
   LocalEventFrame,
@@ -21,6 +27,7 @@ type ActiveEvent = {
   startedMs: number;
   lastMotionMs: number;
   peakMotionPercent: number;
+  rawPeakMotionPercent: number;
   motionSum: number;
   samples: number;
   framesObserved: number;
@@ -28,19 +35,33 @@ type ActiveEvent = {
   frames: Partial<Record<EventLabel, CapturedFrame>>;
   pendingCaptures: Set<Promise<void>>;
   closing: boolean;
+  quietFrames: number;
+  extraCaptured: boolean;
+  thresholds: MotionCalibrationSnapshot;
+  ignoredPixelPercent: number;
+  autoIgnoredCellCount: number;
 };
 
 export type CameraEventMonitor = {
   stop: (reason?: string) => Promise<void>;
   isRunning: () => boolean;
   framesObserved: () => number;
+  calibrationSnapshot: () => MotionCalibrationSnapshot;
 };
 
 const MAX_EVENT_DURATION_MS = 5 * 60 * 1000;
-const PEAK_CAPTURE_INTERVAL_MS = 5_000;
 
 function rounded(value: number) {
   return Number(value.toFixed(4));
+}
+
+function uniqueFrames(frames: LocalEventFrame[]) {
+  const seen = new Set<string>();
+  return frames.filter(({ frame }) => {
+    if (seen.has(frame.path)) return false;
+    seen.add(frame.path);
+    return true;
+  });
 }
 
 export function startCameraEventMonitor(options: {
@@ -52,16 +73,35 @@ export function startCameraEventMonitor(options: {
   log: (message: string) => void;
   onFatalError: (error: Error) => void;
 }): CameraEventMonitor {
-  const startThreshold = Math.max(
+  const plan = getAgentPlan(options.camera.plan);
+  const calibration = new AdaptiveMotionCalibration();
+
+  const configuredStartThreshold = Math.max(
     0.05,
     Math.min(100, options.camera.motionStartThreshold),
   );
 
-  const continueThreshold = Math.max(
+  const configuredContinueThreshold = Math.max(
     0.01,
     Math.min(
-      startThreshold,
+      configuredStartThreshold,
       options.camera.motionContinueThreshold,
+    ),
+  );
+
+  const startConsecutiveFrames = Math.max(
+    1,
+    Math.min(
+      20,
+      Math.floor(options.camera.motionStartConsecutiveFrames || 3),
+    ),
+  );
+
+  const endConsecutiveFrames = Math.max(
+    2,
+    Math.min(
+      60,
+      Math.floor(options.camera.motionEndConsecutiveFrames || 6),
     ),
   );
 
@@ -71,10 +111,37 @@ export function startCameraEventMonitor(options: {
       Math.min(300, options.camera.eventCloseAfterSeconds),
     ) * 1000;
 
+  const cooldownMs =
+    Math.max(
+      0,
+      Math.min(300, options.camera.motionCooldownSeconds),
+    ) * 1000;
+
+  const consolidationMs =
+    Math.max(
+      1,
+      Math.min(3600, options.camera.consolidationIntervalSeconds),
+    ) * 1000;
+
   let activeEvent: ActiveEvent | null = null;
   let totalFramesObserved = 0;
   let stopped = false;
   let captureChain = Promise.resolve();
+  let startCandidateFrames = 0;
+  let cooldownUntilMs = 0;
+  let requireQuietBeforeRestart = false;
+  let quietRecoveryFrames = 0;
+  let lastSnapshot = calibration.snapshot(
+    configuredStartThreshold,
+    configuredContinueThreshold,
+    options.camera.motionAdaptiveEnabled,
+  );
+  let calibrationLogged = false;
+
+  const captureOptions = {
+    maxWidth: plan.maxWidth,
+    quality: plan.jpegQuality,
+  };
 
   const scheduleCapture = (
     event: ActiveEvent,
@@ -82,7 +149,7 @@ export function startCameraEventMonitor(options: {
   ) => {
     const task = captureChain
       .catch(() => {
-        // A próxima captura ainda deve ser tentada.
+        // Mantém a fila local viva após uma captura que falhou.
       })
       .then(async () => {
         if (stopped && label !== "end") return;
@@ -93,8 +160,7 @@ export function startCameraEventMonitor(options: {
             options.rtspUrl,
             options.camera.id,
             {
-              maxWidth: 1280,
-              quality: 4,
+              ...captureOptions,
               prefix: `${event.id}-${label}`,
             },
           );
@@ -122,6 +188,61 @@ export function startCameraEventMonitor(options: {
     });
   };
 
+  const selectFrames = async (event: ActiveEvent) => {
+    const all = Object.entries(event.frames).flatMap(
+      ([label, frame]) =>
+        frame
+          ? [
+              {
+                label: label as EventLabel,
+                frame,
+              },
+            ]
+          : [],
+    );
+
+    let selected: LocalEventFrame[];
+
+    if (plan.code === "basic") {
+      const best =
+        event.frames.peak ??
+        event.frames.start ??
+        event.frames.end;
+
+      selected = best
+        ? [{ label: "peak", frame: best }]
+        : [];
+    } else if (plan.code === "intensive") {
+      selected = uniqueFrames(
+        (["start", "extra", "peak", "end"] as EventLabel[])
+          .flatMap((label) => {
+            const frame = event.frames[label];
+            return frame ? [{ label, frame }] : [];
+          }),
+      ).slice(0, 4);
+    } else {
+      selected = uniqueFrames(
+        (["start", "peak", "end"] as EventLabel[])
+          .flatMap((label) => {
+            const frame = event.frames[label];
+            return frame ? [{ label, frame }] : [];
+          }),
+      ).slice(0, 3);
+    }
+
+    const selectedPaths = new Set(
+      selected.map(({ frame }) => frame.path),
+    );
+
+    await Promise.allSettled(
+      all
+        .filter(({ frame }) => !selectedPaths.has(frame.path))
+        .map(({ frame }) => rm(frame.path, { force: true })),
+    );
+
+    return selected;
+  };
+
   const finalizeEvent = async (
     event: ActiveEvent,
     endedAt: string,
@@ -130,18 +251,27 @@ export function startCameraEventMonitor(options: {
     if (event.closing) return;
 
     event.closing = true;
+
     if (activeEvent?.id === event.id) {
       activeEvent = null;
     }
 
-    scheduleCapture(event, "end");
+    startCandidateFrames = 0;
+
+    if (closeReason === "maximum_duration") {
+      requireQuietBeforeRestart = true;
+      quietRecoveryFrames = 0;
+    } else {
+      cooldownUntilMs = Date.now() + cooldownMs;
+    }
+
+    if (plan.code !== "basic") {
+      scheduleCapture(event, "end");
+    }
+
     await Promise.allSettled([...event.pendingCaptures]);
 
-    const labelOrder: EventLabel[] = ["start", "peak", "end"];
-    const frames: LocalEventFrame[] = labelOrder.flatMap((label) => {
-      const frame = event.frames[label];
-      return frame ? [{ label, frame }] : [];
-    });
+    const frames = await selectFrames(event);
 
     if (!frames.length) {
       options.log(
@@ -164,14 +294,36 @@ export function startCameraEventMonitor(options: {
       startedAt: event.startedAt,
       endedAt,
       localMetrics: {
+        planCode: plan.code,
         peakMotionPercent: rounded(event.peakMotionPercent),
         meanMotionPercent: rounded(
           event.samples ? event.motionSum / event.samples : 0,
         ),
+        rawPeakMotionPercent: rounded(
+          event.rawPeakMotionPercent,
+        ),
         durationSeconds: rounded(durationSeconds),
         framesObserved: event.framesObserved,
-        motionStartThreshold: rounded(startThreshold),
-        motionContinueThreshold: rounded(continueThreshold),
+        configuredStartThreshold: rounded(
+          configuredStartThreshold,
+        ),
+        configuredContinueThreshold: rounded(
+          configuredContinueThreshold,
+        ),
+        effectiveStartThreshold:
+          event.thresholds.effectiveStartThreshold,
+        effectiveContinueThreshold:
+          event.thresholds.effectiveContinueThreshold,
+        noiseP50Percent: event.thresholds.p50,
+        noiseP90Percent: event.thresholds.p90,
+        noiseP95Percent: event.thresholds.p95,
+        ignoredPixelPercent: rounded(
+          event.ignoredPixelPercent,
+        ),
+        autoIgnoredCellCount: event.autoIgnoredCellCount,
+        startConsecutiveFrames,
+        endConsecutiveFrames,
+        cooldownSeconds: cooldownMs / 1000,
         closeReason,
       },
       frames,
@@ -179,7 +331,7 @@ export function startCameraEventMonitor(options: {
 
     if (queued) {
       options.log(
-        `Evento local fechado em "${options.camera.name}": pico ${event.peakMotionPercent.toFixed(2)}%, duração ${durationSeconds.toFixed(1)}s.`,
+        `Evento ${plan.label} fechado em "${options.camera.name}": motivo=${closeReason}, pico=${event.peakMotionPercent.toFixed(2)}%, duração=${durationSeconds.toFixed(1)}s, quadros=${frames.length}.`,
       );
     }
   };
@@ -187,13 +339,97 @@ export function startCameraEventMonitor(options: {
   const handleSample = (sample: MotionSample) => {
     if (stopped) return;
 
-    const sampleMs = new Date(sample.capturedAt).getTime();
+    const sampleDate = new Date(sample.capturedAt);
+    const sampleMs = sampleDate.getTime();
     totalFramesObserved += 1;
 
+    const schedule = monitoringScheduleState(
+      options.camera.monitoringSchedule,
+      options.camera.timezone,
+      sampleDate,
+    );
+
+    if (!schedule.enabled) {
+      startCandidateFrames = 0;
+
+      if (activeEvent) {
+        void finalizeEvent(
+          activeEvent,
+          sample.capturedAt,
+          "schedule_ended",
+        );
+      }
+
+      return;
+    }
+
+    calibration.observe(
+      sample.changedPixelPercent,
+      configuredStartThreshold,
+      !activeEvent &&
+        !requireQuietBeforeRestart &&
+        sampleMs >= cooldownUntilMs,
+    );
+
+    lastSnapshot = calibration.snapshot(
+      configuredStartThreshold,
+      configuredContinueThreshold,
+      options.camera.motionAdaptiveEnabled,
+      schedule.thresholdMultiplier,
+    );
+
+    if (lastSnapshot.ready && !calibrationLogged) {
+      calibrationLogged = true;
+      options.log(
+        `Calibração de "${options.camera.name}" concluída: ruído p95=${lastSnapshot.p95.toFixed(2)}%, início=${lastSnapshot.effectiveStartThreshold.toFixed(2)}%, continuação=${lastSnapshot.effectiveContinueThreshold.toFixed(2)}%, células automáticas ignoradas=${sample.autoIgnoredCellCount}.`,
+      );
+    }
+
+    if (!lastSnapshot.ready) {
+      return;
+    }
+
+    if (requireQuietBeforeRestart) {
+      if (
+        sample.changedPixelPercent <
+        lastSnapshot.effectiveContinueThreshold
+      ) {
+        quietRecoveryFrames += 1;
+      } else {
+        quietRecoveryFrames = 0;
+      }
+
+      if (quietRecoveryFrames >= endConsecutiveFrames) {
+        requireQuietBeforeRestart = false;
+        quietRecoveryFrames = 0;
+        cooldownUntilMs = sampleMs + cooldownMs;
+        options.log(
+          `Câmera "${options.camera.name}" voltou ao estado de repouso após o limite máximo.`,
+        );
+      }
+
+      return;
+    }
+
+    if (sampleMs < cooldownUntilMs) {
+      return;
+    }
+
     if (!activeEvent) {
-      if (sample.changedPixelPercent < startThreshold) {
+      if (
+        sample.changedPixelPercent >=
+        lastSnapshot.effectiveStartThreshold
+      ) {
+        startCandidateFrames += 1;
+      } else {
+        startCandidateFrames = 0;
+      }
+
+      if (startCandidateFrames < startConsecutiveFrames) {
         return;
       }
+
+      startCandidateFrames = 0;
 
       activeEvent = {
         id: randomUUID(),
@@ -201,6 +437,7 @@ export function startCameraEventMonitor(options: {
         startedMs: sampleMs,
         lastMotionMs: sampleMs,
         peakMotionPercent: sample.changedPixelPercent,
+        rawPeakMotionPercent: sample.rawChangedPixelPercent,
         motionSum: sample.changedPixelPercent,
         samples: 1,
         framesObserved: 1,
@@ -208,10 +445,15 @@ export function startCameraEventMonitor(options: {
         frames: {},
         pendingCaptures: new Set(),
         closing: false,
+        quietFrames: 0,
+        extraCaptured: false,
+        thresholds: lastSnapshot,
+        ignoredPixelPercent: sample.ignoredPixelPercent,
+        autoIgnoredCellCount: sample.autoIgnoredCellCount,
       };
 
       options.log(
-        `Movimento iniciado em "${options.camera.name}": ${sample.changedPixelPercent.toFixed(2)}%.`,
+        `Movimento iniciado em "${options.camera.name}": ${sample.changedPixelPercent.toFixed(2)}% · início efetivo ${lastSnapshot.effectiveStartThreshold.toFixed(2)}%.`,
       );
 
       scheduleCapture(activeEvent, "start");
@@ -222,18 +464,43 @@ export function startCameraEventMonitor(options: {
     event.framesObserved += 1;
     event.samples += 1;
     event.motionSum += sample.changedPixelPercent;
+    event.rawPeakMotionPercent = Math.max(
+      event.rawPeakMotionPercent,
+      sample.rawChangedPixelPercent,
+    );
+    event.ignoredPixelPercent = sample.ignoredPixelPercent;
+    event.autoIgnoredCellCount = sample.autoIgnoredCellCount;
 
-    if (sample.changedPixelPercent >= continueThreshold) {
+    if (
+      sample.changedPixelPercent >=
+      lastSnapshot.effectiveContinueThreshold
+    ) {
       event.lastMotionMs = sampleMs;
+      event.quietFrames = 0;
+    } else {
+      event.quietFrames += 1;
     }
 
-    const peakImprovement = Math.max(0.25, startThreshold * 0.2);
+    const ageMs = sampleMs - event.startedMs;
+
+    if (
+      plan.code === "intensive" &&
+      !event.extraCaptured &&
+      ageMs >= consolidationMs
+    ) {
+      event.extraCaptured = true;
+      scheduleCapture(event, "extra");
+    }
+
+    const peakImprovement = Math.max(
+      0.25,
+      lastSnapshot.effectiveStartThreshold * 0.15,
+    );
 
     if (
       sample.changedPixelPercent >=
         event.peakMotionPercent + peakImprovement &&
-      sampleMs - event.lastPeakCaptureMs >=
-        PEAK_CAPTURE_INTERVAL_MS
+      sampleMs - event.lastPeakCaptureMs >= consolidationMs
     ) {
       event.peakMotionPercent = sample.changedPixelPercent;
       event.lastPeakCaptureMs = sampleMs;
@@ -245,16 +512,21 @@ export function startCameraEventMonitor(options: {
       );
     }
 
-    if (
-      sampleMs - event.lastMotionMs >= closeAfterMs ||
-      sampleMs - event.startedMs >= MAX_EVENT_DURATION_MS
-    ) {
+    const quietLongEnough =
+      event.quietFrames >= endConsecutiveFrames &&
+      sampleMs - event.lastMotionMs >= closeAfterMs;
+
+    if (quietLongEnough || ageMs >= MAX_EVENT_DURATION_MS) {
       const closeReason =
-        sampleMs - event.startedMs >= MAX_EVENT_DURATION_MS
+        ageMs >= MAX_EVENT_DURATION_MS
           ? "maximum_duration"
           : "motion_stopped";
 
-      void finalizeEvent(event, sample.capturedAt, closeReason);
+      void finalizeEvent(
+        event,
+        sample.capturedAt,
+        closeReason,
+      );
     }
   };
 
@@ -263,6 +535,8 @@ export function startCameraEventMonitor(options: {
     rtspUrl: options.rtspUrl,
     captureIntervalSeconds:
       options.camera.captureIntervalSeconds,
+    ignorePolygons: options.camera.motionIgnorePolygons,
+    overlayMask: options.camera.motionOverlayMask,
     onSample: handleSample,
     onError: (error) => {
       if (stopped) return;
@@ -273,6 +547,7 @@ export function startCameraEventMonitor(options: {
   return {
     isRunning: () => !stopped && sampler.isRunning(),
     framesObserved: () => totalFramesObserved,
+    calibrationSnapshot: () => lastSnapshot,
     stop: async (reason = "agent_stopped") => {
       if (stopped) return;
 

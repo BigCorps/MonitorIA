@@ -1,62 +1,33 @@
-# MonitorIA Agent v0.7.2
+# MonitorIA Agent v0.7.3
 
-Agent local para Windows responsável por acessar a câmera RTSP, proteger as
-credenciais com DPAPI e transformar movimento em eventos visuais estruturados.
+O Agent mantém o vídeo contínuo no computador local e envia somente quadros
+selecionados de eventos.
 
-## Privacidade por arquitetura
+## Segmentação adaptativa
 
-O vídeo contínuo permanece no computador local. O Agent usa uma conexão FFmpeg
-em baixa resolução e escala de cinza para medir movimento. Somente quando um
-evento é formado são capturados até três JPEGs completos:
+- calibração inicial do ruído da câmera;
+- percentis p50, p90 e p95;
+- limiares efetivos próprios por câmera;
+- máscara de zonas `ignore`;
+- supressão automática de relógios e overlays nas bordas;
+- vários quadros consecutivos para iniciar e encerrar;
+- cooldown entre eventos;
+- bloqueio de reabertura após `maximum_duration` até a cena repousar;
+- agenda semanal e modo significativo fora do expediente.
 
-1. início;
-2. maior pico de movimento;
-3. encerramento.
+## Modos
 
-Esses quadros são enviados ao MonitorIA para análise com o perfil aprovado.
+- Econômico: um quadro, largura máxima de 960 px;
+- Equilibrado: até três quadros, largura máxima de 960 px;
+- Detalhado: até quatro quadros, largura máxima de 1280 px.
 
-## Compatibilidade
+## Atualização
 
-O executável é compilado com `bun-windows-x64-baseline`, destinado a CPUs x64
-sem AVX2 que possuam SSE4.2.
-
-## Comandos
+A configuração v0.7.2 é compatível. Feche o executável antigo e abra a v0.7.3.
+Não execute `reset`.
 
 ```powershell
-.\monitoria-agent.exe
-.\monitoria-agent.exe status
-.\monitoria-agent.exe reset
 .\monitoria-agent.exe self-test
+.\monitoria-agent.exe status
+.\monitoria-agent.exe
 ```
-
-## Funcionamento contínuo
-
-- sincroniza a configuração a cada 5 minutos;
-- observa a câmera no intervalo configurado;
-- inicia um evento quando o percentual de pixels alterados supera o limite;
-- mantém o evento aberto enquanto houver movimento;
-- fecha após o período de silêncio configurado;
-- mantém uma fila em memória de até 10 eventos;
-- envia eventos sequencialmente, com até 3 tentativas;
-- informa o tamanho da fila no heartbeat;
-- não cria evento de timeline quando a IA retorna `no_relevant_change`.
-
-## Configuração local
-
-A configuração é salva preferencialmente em:
-
-```text
-%PROGRAMDATA%\MonitorIA\agent.json
-```
-
-Caso a pasta exija permissão administrativa:
-
-```text
-%LOCALAPPDATA%\MonitorIA\agent.json
-```
-
-## Atualização da v0.5.5
-
-A configuração e o pareamento existentes são compatíveis. Basta fechar o
-executável antigo e executar o `monitoria-agent.exe` v0.7.2. Não é necessário
-gerar um novo código de pareamento.
