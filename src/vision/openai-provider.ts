@@ -99,13 +99,15 @@ export class OpenAIVisionProvider implements VisionProvider {
       (process.env.VISION_PROFILE_DETAIL as VisionImageDetail | undefined) ??
       "high";
 
-    this.maxOutputTokens = positiveInteger(
-      options.maxOutputTokens ?? process.env.VISION_MAX_OUTPUT_TOKENS,
-      700,
+    this.maxOutputTokens = Math.max(
+      3_000,
+      positiveInteger(
+        options.maxOutputTokens ??
+          process.env.VISION_MAX_OUTPUT_TOKENS,
+        3_000,
+      ),
     );
 
-    // Um perfil contém descrição, listas e polígonos. Mantemos um piso seguro
-    // mesmo quando a Vercel ainda possui o valor antigo de 1.600 tokens.
     this.profileMaxOutputTokens = Math.max(
       5_000,
       positiveInteger(
@@ -125,34 +127,61 @@ export class OpenAIVisionProvider implements VisionProvider {
     }
 
     const started = performance.now();
-    const response = await this.client.responses.parse({
-      model: this.model,
-      store: this.store,
-      max_output_tokens: this.maxOutputTokens,
-      instructions: buildVisionInstructions(),
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: `Analise o evento usando este contexto:\n${buildVisionContext(input)}`,
-            },
-            ...input.frames.map((frame) => ({
-              type: "input_image" as const,
-              image_url: frame.imageUrl,
-              detail: this.detail,
-            })),
-          ],
+
+    const requestEvent = (maxOutputTokens: number) =>
+      this.client.responses.parse({
+        model: this.model,
+        store: this.store,
+        max_output_tokens: maxOutputTokens,
+        reasoning: {
+          effort: "minimal",
         },
-      ],
-      text: {
-        format: zodTextFormat(
-          AnalyzedEventTransportSchema,
-          "monitoria_analyzed_event",
-        ),
-      },
-    });
+        instructions: buildVisionInstructions(),
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: `Analise o evento usando este contexto:\n${buildVisionContext(input)}`,
+              },
+              ...input.frames.map((frame) => ({
+                type: "input_image" as const,
+                image_url: frame.imageUrl,
+                detail: this.detail,
+              })),
+            ],
+          },
+        ],
+        text: {
+          format: zodTextFormat(
+            AnalyzedEventTransportSchema,
+            "monitoria_analyzed_event",
+          ),
+        },
+      });
+
+    let response = await requestEvent(this.maxOutputTokens);
+    let combinedUsage = responseUsage(response.usage);
+
+    if (
+      !response.output_parsed &&
+      response.status === "incomplete" &&
+      response.incomplete_details?.reason === "max_output_tokens"
+    ) {
+      const retryLimit = Math.max(6_000, this.maxOutputTokens * 2);
+
+      console.warn(
+        `Evento interrompido por max_output_tokens (${this.maxOutputTokens}). Repetindo com ${retryLimit}.`,
+      );
+
+      const retry = await requestEvent(retryLimit);
+      combinedUsage = addUsage(
+        combinedUsage,
+        responseUsage(retry.usage),
+      );
+      response = retry;
+    }
 
     const latencyMs = Math.round(performance.now() - started);
 
@@ -170,7 +199,7 @@ export class OpenAIVisionProvider implements VisionProvider {
       provider: "openai",
       model: this.model,
       responseId: response.id,
-      usage: responseUsage(response.usage),
+      usage: combinedUsage,
       latencyMs,
     };
   }
@@ -185,14 +214,9 @@ export class OpenAIVisionProvider implements VisionProvider {
         model: this.model,
         store: this.store,
         max_output_tokens: maxOutputTokens,
-
-        // GPT-5 mini é um modelo de raciocínio. Para esta tarefa visual
-        // estruturada, esforço mínimo reduz latência e evita consumir o limite
-        // antes de terminar o JSON.
         reasoning: {
           effort: "minimal",
         },
-
         instructions: buildCameraProfileInstructions(),
         input: [
           {
@@ -221,28 +245,26 @@ export class OpenAIVisionProvider implements VisionProvider {
     let response = await requestProfile(this.profileMaxOutputTokens);
     let combinedUsage = responseUsage(response.usage);
 
-    const firstIncompleteReason = response.incomplete_details?.reason;
-
     if (
       !response.output_parsed &&
       response.status === "incomplete" &&
-      firstIncompleteReason === "max_output_tokens"
+      response.incomplete_details?.reason === "max_output_tokens"
     ) {
-      const retryMaxOutputTokens = Math.max(
+      const retryLimit = Math.max(
         10_000,
         this.profileMaxOutputTokens * 2,
       );
 
       console.warn(
-        `Perfil interrompido por max_output_tokens (${this.profileMaxOutputTokens}). Repetindo com ${retryMaxOutputTokens}.`,
+        `Perfil interrompido por max_output_tokens (${this.profileMaxOutputTokens}). Repetindo com ${retryLimit}.`,
       );
 
-      const retryResponse = await requestProfile(retryMaxOutputTokens);
+      const retry = await requestProfile(retryLimit);
       combinedUsage = addUsage(
         combinedUsage,
-        responseUsage(retryResponse.usage),
+        responseUsage(retry.usage),
       );
-      response = retryResponse;
+      response = retry;
     }
 
     const latencyMs = Math.round(performance.now() - started);

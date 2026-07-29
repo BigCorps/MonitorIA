@@ -1,5 +1,10 @@
 import { spawn } from "node:child_process";
-import { readdir, readFile, stat } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  stat,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { CapturedFrame } from "./types.js";
@@ -22,9 +27,11 @@ async function runExecutable(
 
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");
+
       child.stdout.on("data", (chunk) => {
         stdout += chunk;
       });
+
       child.stderr.on("data", (chunk) => {
         stderr += chunk;
       });
@@ -41,6 +48,7 @@ async function runExecutable(
 
       child.on("close", (code) => {
         clearTimeout(timer);
+
         if (timedOut) {
           reject(new Error("O FFmpeg excedeu o tempo limite."));
           return;
@@ -74,14 +82,19 @@ async function findInWingetDirectory() {
     });
 
     for (const entry of entries) {
-      if (!entry.isFile() || entry.name.toLowerCase() !== "ffmpeg.exe") {
+      if (
+        !entry.isFile() ||
+        entry.name.toLowerCase() !== "ffmpeg.exe"
+      ) {
         continue;
       }
 
       const parentPath =
-        "parentPath" in entry && typeof entry.parentPath === "string"
+        "parentPath" in entry &&
+        typeof entry.parentPath === "string"
           ? entry.parentPath
           : base;
+
       return path.join(parentPath, entry.name);
     }
   } catch {
@@ -101,8 +114,16 @@ export async function resolveFfmpeg() {
 
   for (const candidate of candidates) {
     try {
-      const result = await runExecutable(candidate, ["-version"], 8_000);
-      if (result.code === 0 && result.stdout.toLowerCase().includes("ffmpeg version")) {
+      const result = await runExecutable(
+        candidate,
+        ["-version"],
+        8_000,
+      );
+
+      if (
+        result.code === 0 &&
+        result.stdout.toLowerCase().includes("ffmpeg version")
+      ) {
         return candidate;
       }
     } catch {
@@ -115,7 +136,7 @@ export async function resolveFfmpeg() {
   );
 }
 
-function sanitizeFfmpegError(value: string) {
+export function sanitizeFfmpegError(value: string) {
   return value
     .replace(/rtsp:\/\/[^\s'"]+/gi, "[URL RTSP ocultada]")
     .replace(/\s+/g, " ")
@@ -158,19 +179,38 @@ function jpegDimensions(buffer: Buffer) {
   return { width: null, height: null };
 }
 
+function safePrefix(value: string | undefined) {
+  return String(value ?? "frame")
+    .replace(/[^A-Za-z0-9_-]/g, "-")
+    .slice(0, 100);
+}
+
 export async function captureFrame(
   ffmpegPath: string,
   rtspUrl: string,
   cameraId: string,
+  options: {
+    maxWidth?: number;
+    quality?: number;
+    prefix?: string;
+  } = {},
 ): Promise<CapturedFrame> {
   const directory = path.join(os.tmpdir(), "MonitorIA", "frames");
-  await import("node:fs/promises").then(({ mkdir }) =>
-    mkdir(directory, { recursive: true }),
+  await mkdir(directory, { recursive: true });
+
+  const maxWidth = Math.max(
+    320,
+    Math.min(1920, Math.floor(options.maxWidth ?? 1280)),
+  );
+
+  const quality = Math.max(
+    2,
+    Math.min(12, Math.floor(options.quality ?? 3)),
   );
 
   const output = path.join(
     directory,
-    `${cameraId}-${Date.now()}.jpg`,
+    `${cameraId}-${safePrefix(options.prefix)}-${Date.now()}.jpg`,
   );
 
   const args = [
@@ -187,14 +227,15 @@ export async function captureFrame(
     "1",
     "-an",
     "-vf",
-    "scale=1280:-2:force_original_aspect_ratio=decrease",
+    `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease`,
     "-q:v",
-    "3",
+    String(quality),
     "-y",
     output,
   ];
 
   const result = await runExecutable(ffmpegPath, args, 30_000);
+
   if (result.code !== 0) {
     throw new Error(
       sanitizeFfmpegError(result.stderr) ||
@@ -208,6 +249,7 @@ export async function captureFrame(
   }
 
   const bytes = await readFile(output);
+
   if (
     bytes[0] !== 0xff ||
     bytes[1] !== 0xd8 ||

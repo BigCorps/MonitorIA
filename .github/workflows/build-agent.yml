@@ -8,6 +8,7 @@ on:
     paths:
       - "agent/**"
       - "app/api/agent/cameras/**"
+      - "app/api/agent/config/**"
       - "src/lib/agent-camera.ts"
       - ".github/workflows/build-agent.yml"
 
@@ -53,7 +54,7 @@ jobs:
           }
 
           $sourceFiles = Get-ChildItem src -Filter *.ts
-          if ($sourceFiles.Count -lt 8) {
+          if ($sourceFiles.Count -lt 11) {
             throw "Código-fonte incompleto: foram encontrados apenas $($sourceFiles.Count) arquivos TypeScript."
           }
 
@@ -78,15 +79,20 @@ jobs:
           Write-Host "Executável: $exe"
           Write-Host "Tamanho: $size bytes"
 
+          & $exe self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "O autoteste do executável falhou."
+          }
+
           & $exe reset
           if ($LASTEXITCODE -ne 0) {
-            throw "O executável foi criado, mas não iniciou corretamente."
+            throw "O comando reset falhou."
           }
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: monitoria-agent-windows-x64-baseline-v0.5.5
+          name: monitoria-agent-windows-x64-baseline-v0.7.2
           path: agent/dist/monitoria-agent.exe
           if-no-files-found: error
           retention-days: 30

@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import type {
   CapturedFrame,
+  CaptureSessionResponse,
   ConfigResponse,
+  EventSubmissionResponse,
+  LocalMotionEvent,
   PairResponse,
 } from "./types.js";
 
@@ -42,23 +45,30 @@ async function requestJson<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${normalizeBaseUrl(baseUrl)}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        Accept: "application/json",
-        ...(init.headers ?? {}),
+    const response = await fetch(
+      `${normalizeBaseUrl(baseUrl)}${path}`,
+      {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          ...(init.headers ?? {}),
+        },
       },
-    });
+    );
 
     const data = await parseJsonResponse(response);
+
     if (!response.ok) {
       const code =
         data && typeof data.error === "string"
           ? data.error
           : null;
+
       throw new ApiError(
-        `A API retornou HTTP ${response.status}${code ? ` (${code})` : ""}.`,
+        `A API retornou HTTP ${response.status}${
+          code ? ` (${code})` : ""
+        }.`,
         response.status,
         code,
       );
@@ -90,13 +100,20 @@ export async function pairAgent(
   });
 }
 
-export async function fetchAgentConfig(baseUrl: string, token: string) {
-  return requestJson<ConfigResponse>(baseUrl, "/api/agent/config", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
+export async function fetchAgentConfig(
+  baseUrl: string,
+  token: string,
+) {
+  return requestJson<ConfigResponse>(
+    baseUrl,
+    "/api/agent/config",
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 }
 
 export async function sendHeartbeat(
@@ -129,14 +146,18 @@ export async function sendCameraStatus(
     cameraId: string;
     status: string;
     serverTime: string;
-  }>(baseUrl, `/api/agent/cameras/${encodeURIComponent(cameraId)}/status`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json; charset=utf-8",
+  }>(
+    baseUrl,
+    `/api/agent/cameras/${encodeURIComponent(cameraId)}/status`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+  );
 }
 
 export async function uploadSnapshot(
@@ -166,12 +187,153 @@ export async function uploadSnapshot(
         Authorization: `Bearer ${token}`,
         "Content-Type": "image/jpeg",
         "X-MonitorIA-Captured-At": frame.capturedAt,
-        ...(frame.width ? { "X-MonitorIA-Width": String(frame.width) } : {}),
-        ...(frame.height ? { "X-MonitorIA-Height": String(frame.height) } : {}),
-        ...(streamLabel ? { "X-MonitorIA-Stream-Label": streamLabel } : {}),
+        ...(frame.width
+          ? { "X-MonitorIA-Width": String(frame.width) }
+          : {}),
+        ...(frame.height
+          ? { "X-MonitorIA-Height": String(frame.height) }
+          : {}),
+        ...(streamLabel
+          ? { "X-MonitorIA-Stream-Label": streamLabel }
+          : {}),
       },
       body: bytes,
     },
     30_000,
+  );
+}
+
+export async function startCaptureSession(
+  baseUrl: string,
+  token: string,
+  cameraId: string,
+  metadata: JsonObject,
+) {
+  return requestJson<CaptureSessionResponse>(
+    baseUrl,
+    `/api/agent/cameras/${encodeURIComponent(cameraId)}/session`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        action: "start",
+        startedAt: new Date().toISOString(),
+        metadata,
+      }),
+    },
+  );
+}
+
+export async function closeCaptureSession(
+  baseUrl: string,
+  token: string,
+  cameraId: string,
+  sessionId: string,
+  endedReason: string,
+) {
+  return requestJson<CaptureSessionResponse>(
+    baseUrl,
+    `/api/agent/cameras/${encodeURIComponent(cameraId)}/session`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        action: "end",
+        sessionId,
+        endedReason,
+      }),
+    },
+  );
+}
+
+async function eventFrames(event: LocalMotionEvent) {
+  const maximumFrameBytes = 2 * 1024 * 1024;
+  const maximumTotalBytes = 3 * 1024 * 1024;
+
+  const loaded = [];
+
+  for (const item of event.frames) {
+    const bytes = await readFile(item.frame.path);
+
+    if (
+      bytes.length < 1024 ||
+      bytes.length > maximumFrameBytes
+    ) {
+      continue;
+    }
+
+    loaded.push({
+      label: item.label,
+      capturedAt: item.frame.capturedAt,
+      imageBase64: bytes.toString("base64"),
+      width: item.frame.width,
+      height: item.frame.height,
+      byteSize: bytes.length,
+    });
+  }
+
+  const priority = ["peak", "start", "end", "extra"];
+  loaded.sort(
+    (left, right) =>
+      priority.indexOf(left.label) -
+      priority.indexOf(right.label),
+  );
+
+  const selected = [];
+  let total = 0;
+
+  for (const frame of loaded) {
+    if (total + frame.byteSize > maximumTotalBytes) continue;
+    selected.push(frame);
+    total += frame.byteSize;
+  }
+
+  selected.sort(
+    (left, right) =>
+      ["start", "peak", "end", "extra"].indexOf(left.label) -
+      ["start", "peak", "end", "extra"].indexOf(right.label),
+  );
+
+  if (!selected.length) {
+    throw new Error(
+      "Nenhum quadro do evento cabe no limite seguro de envio.",
+    );
+  }
+
+  return selected;
+}
+
+export async function submitCameraEvent(
+  baseUrl: string,
+  token: string,
+  event: LocalMotionEvent,
+) {
+  const frames = await eventFrames(event);
+
+  return requestJson<EventSubmissionResponse>(
+    baseUrl,
+    `/api/agent/cameras/${encodeURIComponent(event.cameraId)}/events`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        eventId: event.eventId,
+        sessionId: event.sessionId,
+        startedAt: event.startedAt,
+        endedAt: event.endedAt,
+        localMetrics: event.localMetrics,
+        frames,
+      }),
+    },
+    120_000,
   );
 }

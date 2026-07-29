@@ -4,7 +4,11 @@ import { statfs } from "node:fs/promises";
 function cpuSnapshot() {
   return os.cpus().reduce(
     (accumulator, cpu) => {
-      const total = Object.values(cpu.times).reduce((sum, value) => sum + value, 0);
+      const total = Object.values(cpu.times).reduce(
+        (sum, value) => sum + value,
+        0,
+      );
+
       return {
         idle: accumulator.idle + cpu.times.idle,
         total: accumulator.total + total,
@@ -23,15 +27,25 @@ export async function cpuPercent() {
   const idle = after.idle - before.idle;
   if (total <= 0) return null;
 
-  return Math.max(0, Math.min(100, Number(((1 - idle / total) * 100).toFixed(2))));
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Number(((1 - idle / total) * 100).toFixed(2)),
+    ),
+  );
 }
 
-export async function systemMetrics(directory: string) {
+export async function systemMetrics(
+  directory: string,
+  queuedEvents = 0,
+) {
   let diskFreeBytes: number | null = null;
 
   try {
     const stats = await statfs(directory);
-    diskFreeBytes = Number(stats.bavail) * Number(stats.bsize);
+    diskFreeBytes =
+      Number(stats.bavail) * Number(stats.bsize);
   } catch {
     diskFreeBytes = null;
   }
@@ -40,7 +54,7 @@ export async function systemMetrics(directory: string) {
     cpuPercent: await cpuPercent(),
     memoryBytes: os.totalmem() - os.freemem(),
     diskFreeBytes,
-    queuedEvents: 0,
+    queuedEvents: Math.max(0, Math.floor(queuedEvents)),
   };
 }
 

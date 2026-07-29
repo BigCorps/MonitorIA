@@ -6,7 +6,7 @@ export function buildVisionInstructions(): string {
     "Descreva somente fatos visualmente sustentados pelos quadros e pelo contexto fornecido.",
     "Não faça reconhecimento facial e não tente identificar pessoas reais.",
     "Para pessoas, use apenas roupas, cores, objetos carregados, movimento e zonas.",
-    "Placas são apenas sugestões: preencha text somente quando houver caracteres visualmente plausíveis; nunca trate como confirmação.",
+    "Leitura de placas está desativada nesta versão. Use plateSuggestion=null para todos os veículos.",
     "Não afirme crime, roubo, agressão ou intenção. Use 'possível atividade incomum' e marque requiresReview quando necessário.",
     "Use os IDs exatos das zonas fornecidas. Não invente IDs.",
     "Se não houver mudança relevante, use primaryEventType=no_relevant_change.",
