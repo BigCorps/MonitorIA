@@ -8,42 +8,149 @@ import type { CameraProfileDraft } from "@/src/contracts/camera-profile-draft";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createVisionProvider } from "@/src/vision/create-provider";
-import { estimateVisionCostUsd } from "@/src/vision/cost";
+import {
+  estimateVisionCostBreakdown,
+} from "@/src/vision/cost";
 import type { CameraProfileActionState } from "./profile-action-state";
 
 const IdSchema = z.string().uuid();
 
-function uniqueStrings(values: unknown[], maximum: number) {
+const PointSchema = z
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+  })
+  .strict();
+
+const ManualZoneSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    type: z.enum([
+      "entry",
+      "exit",
+      "service",
+      "restricted",
+      "ignore",
+      "general",
+    ]),
+    personRoleHint: z.enum([
+      "none",
+      "staff",
+      "customer",
+      "delivery_person",
+      "visitor",
+      "shared",
+    ]),
+    description: z.string().trim().max(500),
+    polygon: z.array(PointSchema).min(3).max(50),
+  })
+  .strict();
+
+const ManualProfileSchema = z
+  .object({
+    environmentDescription: z
+      .string()
+      .trim()
+      .min(20)
+      .max(2000),
+    monitoringGoals: z
+      .array(z.string().trim().min(1).max(300))
+      .min(1)
+      .max(30),
+    ignoreInstructions: z
+      .array(z.string().trim().min(1).max(300))
+      .max(30),
+    zones: z.array(ManualZoneSchema).min(1).max(50),
+    sceneType: z.enum([
+      "indoor",
+      "outdoor",
+      "mixed",
+      "unknown",
+    ]),
+    fixedElements: z
+      .array(z.string().trim().min(1).max(250))
+      .max(15),
+    privacyNotes: z
+      .array(z.string().trim().min(1).max(300))
+      .max(10),
+    imageQuality: z
+      .object({
+        overall: z.enum([
+          "good",
+          "usable",
+          "limited",
+          "poor",
+          "unknown",
+        ]),
+        lighting: z.string().max(300),
+        visibility: z.string().max(300),
+        limitations: z
+          .array(z.string().trim().min(1).max(300))
+          .max(10),
+      })
+      .nullable(),
+    confidence: z.number().min(0).max(1).nullable(),
+    basedOnProfileId: z.string().uuid().nullable(),
+  })
+  .strict();
+
+function uniqueStrings(
+  values: unknown[],
+  maximum: number,
+) {
   const result: string[] = [];
   const seen = new Set<string>();
 
   for (const value of values) {
-    const text = String(value ?? "").trim().slice(0, 300);
+    const text = String(value ?? "")
+      .trim()
+      .slice(0, 300);
     const key = text.toLocaleLowerCase("pt-BR");
+
     if (!text || seen.has(key)) continue;
+
     seen.add(key);
     result.push(text);
+
     if (result.length >= maximum) break;
   }
 
   return result;
 }
 
-function relationValue<T>(value: T | T[] | null): T | null {
-  return Array.isArray(value) ? (value[0] ?? null) : value;
+function relationValue<T>(
+  value: T | T[] | null,
+): T | null {
+  return Array.isArray(value)
+    ? value[0] ?? null
+    : value;
+}
+
+function actionError(
+  message: string,
+): CameraProfileActionState {
+  return { status: "error", message };
 }
 
 async function authorizeCamera(cameraId: string) {
   const user = await requireAuthenticatedUser();
-  const organization = await getCurrentOrganization(user.id);
+  const organization =
+    await getCurrentOrganization(user.id);
 
-  if (!organization || !["owner", "admin"].includes(organization.role)) {
+  if (
+    !organization ||
+    !["owner", "admin"].includes(
+      organization.role,
+    )
+  ) {
     return {
-      error: "Sua conta não tem permissão para alterar o perfil da câmera.",
+      error:
+        "Sua conta não tem permissão para alterar o perfil da câmera.",
     } as const;
   }
 
   const supabase = createAdminClient();
+
   const { data: camera, error } = await supabase
     .from("cameras")
     .select(`
@@ -59,18 +166,26 @@ async function authorizeCamera(cameraId: string) {
     .maybeSingle();
 
   if (error || !camera) {
-    return { error: "Câmera não encontrada." } as const;
+    return {
+      error: "Câmera não encontrada.",
+    } as const;
   }
 
   const site = relationValue(
     camera.site as
       | { name: string; timezone: string }
-      | Array<{ name: string; timezone: string }>
+      | Array<{
+          name: string;
+          timezone: string;
+        }>
       | null,
   );
 
   if (!site) {
-    return { error: "O local da câmera não foi encontrado." } as const;
+    return {
+      error:
+        "O local da câmera não foi encontrado.",
+    } as const;
   }
 
   return {
@@ -80,9 +195,15 @@ async function authorizeCamera(cameraId: string) {
     camera: {
       id: String(camera.id),
       name: String(camera.name),
-      description: String(camera.description ?? ""),
-      monitoringGoals: Array.isArray(camera.monitoring_goals)
-        ? camera.monitoring_goals.map((goal: unknown) => String(goal))
+      description: String(
+        camera.description ?? "",
+      ),
+      monitoringGoals: Array.isArray(
+        camera.monitoring_goals,
+      )
+        ? camera.monitoring_goals.map(
+            (goal: unknown) => String(goal),
+          )
         : [],
       status: String(camera.status),
       siteName: String(site.name),
@@ -91,63 +212,214 @@ async function authorizeCamera(cameraId: string) {
   } as const;
 }
 
-export async function analyzeCameraProfileAction(
-  _previousState: CameraProfileActionState,
-  formData: FormData,
-): Promise<CameraProfileActionState> {
-  const cameraId = String(formData.get("camera_id") ?? "");
-  if (!IdSchema.safeParse(cameraId).success) {
-    return { status: "error", message: "Identificador da câmera inválido." };
-  }
-
-  const authorized = await authorizeCamera(cameraId);
-  if ("error" in authorized) {
-    return {
-      status: "error",
-      message: authorized.error ?? "Não foi possível autorizar esta operação.",
-    };
-  }
-
-  if (!process.env.OPENAI_API_KEY?.trim()) {
-    return {
-      status: "error",
-      message: "A chave OPENAI_API_KEY ainda não está configurada na Vercel.",
-    };
-  }
-
-  const { data: asset, error: assetError } = await authorized.supabase
+async function loadSourceAsset(
+  authorized: Exclude<
+    Awaited<ReturnType<typeof authorizeCamera>>,
+    { error: string }
+  >,
+  cameraId: string,
+  requestedAssetId: string,
+) {
+  let query = authorized.supabase
     .from("storage_assets")
-    .select("id,bucket,storage_path,mime_type,byte_size,captured_at")
-    .eq("organization_id", authorized.organization.id)
+    .select(
+      "id,bucket,storage_path,kind,mime_type,byte_size,captured_at,width,height",
+    )
+    .eq(
+      "organization_id",
+      authorized.organization.id,
+    )
     .eq("camera_id", cameraId)
-    .eq("kind", "analysis_frame")
     .eq("status", "ready")
     .is("deleted_at", null)
-    .order("captured_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .in("kind", [
+      "analysis_frame",
+      "event_keyframe",
+    ]);
 
-  if (assetError || !asset) {
+  query = IdSchema.safeParse(
+    requestedAssetId,
+  ).success
+    ? query.eq("id", requestedAssetId)
+    : query
+        .order("captured_at", {
+          ascending: false,
+        })
+        .limit(1);
+
+  const { data: rows, error } = await query;
+  const asset = rows?.[0];
+
+  if (error || !asset) {
     return {
-      status: "error",
-      message: "Nenhum primeiro frame está disponível para análise.",
-    };
+      error:
+        "A imagem selecionada não está mais disponível.",
+    } as const;
   }
 
   if (String(asset.mime_type) !== "image/jpeg") {
     return {
-      status: "error",
-      message: "O frame disponível não está no formato JPEG esperado.",
-    };
+      error:
+        "A imagem selecionada não está no formato JPEG.",
+    } as const;
   }
 
-  const declaredSize = Number(asset.byte_size ?? 0);
-  if (declaredSize > 5 * 1024 * 1024) {
+  const declaredSize = Number(
+    asset.byte_size ?? 0,
+  );
+
+  if (
+    declaredSize < 1024 ||
+    declaredSize > 5 * 1024 * 1024
+  ) {
     return {
-      status: "error",
-      message: "O frame é grande demais para a análise inicial.",
-    };
+      error:
+        "A imagem selecionada tem tamanho inválido.",
+    } as const;
   }
+
+  return { asset } as const;
+}
+
+async function createDraft(
+  authorized: Exclude<
+    Awaited<ReturnType<typeof authorizeCamera>>,
+    { error: string }
+  >,
+  input: {
+    cameraId: string;
+    sourceAssetId: string;
+    environmentDescription: string;
+    monitoringGoals: string[];
+    ignoreInstructions: string[];
+    zones: Array<{
+      name: string;
+      type: string;
+      personRoleHint: string;
+      description: string;
+      polygon: Array<{
+        x: number;
+        y: number;
+      }>;
+    }>;
+    provider: string | null;
+    model: string | null;
+    responseId: string | null;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const zones = input.zones.map(
+    (zone, index) => ({
+      ...zone,
+      sortOrder: index,
+    }),
+  );
+
+  const { data, error } =
+    await authorized.supabase.rpc(
+      "create_camera_profile_draft",
+      {
+        p_organization_id:
+          authorized.organization.id,
+        p_camera_id: input.cameraId,
+        p_source_asset_id:
+          input.sourceAssetId,
+        p_environment_description:
+          input.environmentDescription,
+        p_monitoring_goals:
+          input.monitoringGoals,
+        p_ignore_instructions:
+          input.ignoreInstructions,
+        p_zones: zones,
+        p_provider: input.provider,
+        p_model: input.model,
+        p_response_id: input.responseId,
+        p_profile_metadata: input.metadata,
+        p_created_by: authorized.user.id,
+      },
+    );
+
+  const created = Array.isArray(data)
+    ? data[0]
+    : data;
+
+  if (error || !created) {
+    console.error(
+      "Falha ao criar rascunho do perfil:",
+      error?.message,
+    );
+    return null;
+  }
+
+  await authorized.supabase
+    .from("storage_assets")
+    .update({ expires_at: null })
+    .eq("id", input.sourceAssetId)
+    .eq(
+      "organization_id",
+      authorized.organization.id,
+    );
+
+  return {
+    id: String(created.profile_id),
+    version: Number(created.profile_version),
+  };
+}
+
+function revalidateCamera(cameraId: string) {
+  revalidatePath(
+    `/dashboard/cameras/${cameraId}`,
+  );
+  revalidatePath("/dashboard/cameras");
+  revalidatePath("/dashboard");
+}
+
+export async function analyzeCameraProfileAction(
+  _previousState: CameraProfileActionState,
+  formData: FormData,
+): Promise<CameraProfileActionState> {
+  const cameraId = String(
+    formData.get("camera_id") ?? "",
+  );
+  const sourceAssetId = String(
+    formData.get("source_asset_id") ?? "",
+  );
+  const userGuidance = String(
+    formData.get("user_guidance") ?? "",
+  )
+    .trim()
+    .slice(0, 2000);
+
+  if (!IdSchema.safeParse(cameraId).success) {
+    return actionError(
+      "Identificador da câmera inválido.",
+    );
+  }
+
+  const authorized =
+    await authorizeCamera(cameraId);
+
+  if ("error" in authorized) {
+    return actionError(authorized.error);
+  }
+
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    return actionError(
+      "A chave OPENAI_API_KEY ainda não está configurada na Vercel.",
+    );
+  }
+
+  const loaded = await loadSourceAsset(
+    authorized,
+    cameraId,
+    sourceAssetId,
+  );
+
+  if ("error" in loaded) {
+    return actionError(loaded.error);
+  }
+
+  const asset = loaded.asset;
 
   const { data: file, error: downloadError } =
     await authorized.supabase.storage
@@ -155,277 +427,470 @@ export async function analyzeCameraProfileAction(
       .download(String(asset.storage_path));
 
   if (downloadError || !file) {
-    console.error("Falha ao baixar frame para perfil:", downloadError?.message);
-    return {
-      status: "error",
-      message: "Não foi possível carregar o primeiro frame.",
-    };
+    console.error(
+      "Falha ao baixar imagem para perfil:",
+      downloadError?.message,
+    );
+    return actionError(
+      "Não foi possível carregar a imagem selecionada.",
+    );
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (bytes.length < 1024 || bytes.length > 5 * 1024 * 1024) {
-    return {
-      status: "error",
-      message: "O conteúdo do primeiro frame é inválido.",
-    };
+  const bytes = Buffer.from(
+    await file.arrayBuffer(),
+  );
+
+  if (
+    bytes.length < 1024 ||
+    bytes.length > 5 * 1024 * 1024
+  ) {
+    return actionError(
+      "O conteúdo da imagem selecionada é inválido.",
+    );
   }
 
   try {
     const provider = createVisionProvider();
+
     if (!provider.analyzeCameraProfile) {
-      return {
-        status: "error",
-        message: "O provedor de visão atual não cria perfis de câmera.",
-      };
+      return actionError(
+        "O provedor atual não cria perfis de câmera.",
+      );
     }
 
-    const analysis = await provider.analyzeCameraProfile({
-      organizationId: authorized.organization.id,
-      cameraId,
-      cameraName: authorized.camera.name,
-      cameraDescription: authorized.camera.description,
-      siteName: authorized.camera.siteName,
-      timezone: authorized.camera.timezone,
-      capturedAt: String(asset.captured_at ?? new Date().toISOString()),
-      initialMonitoringGoals: authorized.camera.monitoringGoals,
-      imageUrl: `data:image/jpeg;base64,${bytes.toString("base64")}`,
-    });
+    const analysis =
+      await provider.analyzeCameraProfile({
+        organizationId:
+          authorized.organization.id,
+        cameraId,
+        cameraName: authorized.camera.name,
+        cameraDescription:
+          authorized.camera.description,
+        siteName: authorized.camera.siteName,
+        timezone: authorized.camera.timezone,
+        capturedAt: String(
+          asset.captured_at ??
+            new Date().toISOString(),
+        ),
+        initialMonitoringGoals:
+          authorized.camera.monitoringGoals,
+        userGuidance,
+        imageUrl: `data:image/jpeg;base64,${bytes.toString(
+          "base64",
+        )}`,
+      });
 
     const monitoringGoals = uniqueStrings(
       [
         ...authorized.camera.monitoringGoals,
         ...analysis.profile.monitoringGoals,
       ],
-      20,
+      30,
     );
 
     const ignoreInstructions = uniqueStrings(
       analysis.profile.ignoreInstructions,
-      20,
+      30,
     );
 
-    const zones = analysis.profile.zones.map((zone: CameraProfileDraft["zones"][number], index: number) => ({
-      name: zone.name,
-      type: zone.type,
-      description: zone.description,
-      polygon: zone.polygon,
-      sortOrder: index,
-    }));
-
-    const profileMetadata = {
-      sceneType: analysis.profile.sceneType,
-      fixedElements: analysis.profile.fixedElements,
-      privacyNotes: analysis.profile.privacyNotes,
-      imageQuality: analysis.profile.imageQuality,
-      confidence: analysis.profile.confidence,
-      sourceCapturedAt: String(asset.captured_at ?? ""),
-      latencyMs: analysis.latencyMs,
-      usage: analysis.usage,
-    };
-
-    const { data: created, error: createError } =
-      await authorized.supabase.rpc("create_camera_profile_draft", {
-        p_organization_id: authorized.organization.id,
-        p_camera_id: cameraId,
-        p_source_asset_id: String(asset.id),
-        p_environment_description:
-          analysis.profile.environmentDescription,
-        p_monitoring_goals: monitoringGoals,
-        p_ignore_instructions: ignoreInstructions,
-        p_zones: zones,
-        p_provider: analysis.provider,
-        p_model: analysis.model,
-        p_response_id: analysis.responseId,
-        p_profile_metadata: profileMetadata,
-        p_created_by: authorized.user.id,
-      });
-
-    const createdProfile = Array.isArray(created) ? created[0] : created;
-    if (createError || !createdProfile) {
-      console.error(
-        "Falha ao gravar perfil inteligente:",
-        createError?.message,
-      );
-      return {
-        status: "error",
-        message: "A análise foi concluída, mas o perfil não pôde ser salvo.",
-      };
-    }
-
-    const estimatedCostUsd = estimateVisionCostUsd(
-      analysis.model,
-      analysis.usage,
-    );
-
-    const { error: usageError } = await authorized.supabase
-      .from("usage_events")
-      .insert({
-        organization_id: authorized.organization.id,
-        camera_id: cameraId,
-        analysis_job_id: null,
+    const created = await createDraft(
+      authorized,
+      {
+        cameraId,
+        sourceAssetId: String(asset.id),
+        environmentDescription:
+          analysis.profile
+            .environmentDescription,
+        monitoringGoals,
+        ignoreInstructions,
+        zones: analysis.profile.zones.map(
+          (
+            zone: CameraProfileDraft["zones"][number],
+          ) => ({
+            name: zone.name,
+            type: zone.type,
+            personRoleHint:
+              zone.personRoleHint,
+            description: zone.description,
+            polygon: zone.polygon,
+          }),
+        ),
         provider: analysis.provider,
         model: analysis.model,
-        input_tokens: analysis.usage.inputTokens,
-        output_tokens: analysis.usage.outputTokens,
-        estimated_cost_usd: estimatedCostUsd,
+        responseId: analysis.responseId,
         metadata: {
-          purpose: "camera_profile",
-          profile_id: String(createdProfile.profile_id),
-          profile_version: Number(createdProfile.profile_version),
-          response_id: analysis.responseId,
-          latency_ms: analysis.latencyMs,
-          source_asset_id: String(asset.id),
+          sceneType:
+            analysis.profile.sceneType,
+          fixedElements:
+            analysis.profile.fixedElements,
+          privacyNotes:
+            analysis.profile.privacyNotes,
+          imageQuality:
+            analysis.profile.imageQuality,
+          confidence:
+            analysis.profile.confidence,
+          sourceCapturedAt: String(
+            asset.captured_at ?? "",
+          ),
+          sourceKind: String(asset.kind),
+          userGuidance,
+          latencyMs: analysis.latencyMs,
+          usage: analysis.usage,
+          profileSchemaVersion: "2.0",
         },
-      });
+      },
+    );
 
-    if (usageError) {
-      console.error("Falha ao registrar custo do perfil:", usageError.message);
-    }
-
-    const preserveUntil = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-
-    const { error: assetUpdateError } = await authorized.supabase
-      .from("storage_assets")
-      .update({ expires_at: preserveUntil })
-      .eq("id", asset.id)
-      .lt("expires_at", preserveUntil);
-
-    if (assetUpdateError) {
-      console.error(
-        "Falha ao estender retenção do frame de perfil:",
-        assetUpdateError.message,
+    if (!created) {
+      return actionError(
+        "A análise foi concluída, mas o perfil não pôde ser salvo.",
       );
     }
 
-    const { error: auditError } = await authorized.supabase
-      .from("audit_logs")
-      .insert({
-        organization_id: authorized.organization.id,
-        actor_user_id: authorized.user.id,
-        action: "camera.profile_generated",
-        entity_type: "camera_profile",
-        entity_id: String(createdProfile.profile_id),
-        metadata: {
+    const cost =
+      estimateVisionCostBreakdown(
+        analysis.model,
+        analysis.usage,
+      );
+
+    const { error: usageError } =
+      await authorized.supabase
+        .from("usage_events")
+        .insert({
+          organization_id:
+            authorized.organization.id,
           camera_id: cameraId,
-          version: Number(createdProfile.profile_version),
+          analysis_job_id: null,
           provider: analysis.provider,
           model: analysis.model,
-          response_id: analysis.responseId,
-          source_asset_id: String(asset.id),
+          input_tokens:
+            analysis.usage.inputTokens,
+          cached_input_tokens:
+            analysis.usage.cachedInputTokens,
+          output_tokens:
+            analysis.usage.outputTokens,
+          reasoning_tokens:
+            analysis.usage.reasoningTokens,
+          estimated_cost_usd:
+            cost.totalCostUsd,
+          pricing: cost.rates,
+          metadata: {
+            purpose: "camera_profile_v2",
+            profile_id: created.id,
+            profile_version:
+              created.version,
+            response_id:
+              analysis.responseId,
+            latency_ms:
+              analysis.latencyMs,
+            source_asset_id:
+              String(asset.id),
+            user_guidance:
+              userGuidance,
+            cost_breakdown: cost,
+          },
+        });
+
+    if (usageError) {
+      console.error(
+        "Falha ao registrar custo do perfil:",
+        usageError.message,
+      );
+    }
+
+    await authorized.supabase
+      .from("audit_logs")
+      .insert({
+        organization_id:
+          authorized.organization.id,
+        actor_user_id: authorized.user.id,
+        action:
+          "camera.profile_generated",
+        entity_type: "camera_profile",
+        entity_id: created.id,
+        metadata: {
+          camera_id: cameraId,
+          version: created.version,
+          source_asset_id:
+            String(asset.id),
+          source_kind:
+            String(asset.kind),
+          has_user_guidance:
+            Boolean(userGuidance),
         },
       });
 
-    if (auditError) {
-      console.error("Falha ao registrar auditoria do perfil:", auditError.message);
-    }
-
-    revalidatePath(`/dashboard/cameras/${cameraId}`);
-    revalidatePath("/dashboard/cameras");
-    revalidatePath("/dashboard");
+    revalidateCamera(cameraId);
 
     return {
       status: "success",
-      message: `Perfil v${Number(createdProfile.profile_version)} criado. Revise as informações antes de aprovar.`,
-      profileId: String(createdProfile.profile_id),
+      message: `Perfil v${created.version} criado com a imagem selecionada. Revise ou edite antes de aprovar.`,
+      profileId: created.id,
     };
   } catch (error) {
-    console.error("Falha na análise do perfil da câmera:", error);
-    return {
-      status: "error",
-      message:
-        "A IA não conseguiu criar o perfil agora. Verifique a chave, o saldo e tente novamente.",
-    };
+    console.error(
+      "Falha na análise do perfil:",
+      error,
+    );
+
+    return actionError(
+      "A IA não conseguiu criar o perfil agora. Verifique a chave, o saldo e tente novamente.",
+    );
   }
+}
+
+export async function saveCameraProfileDraftAction(
+  _previousState: CameraProfileActionState,
+  formData: FormData,
+): Promise<CameraProfileActionState> {
+  const cameraId = String(
+    formData.get("camera_id") ?? "",
+  );
+  const sourceAssetId = String(
+    formData.get("source_asset_id") ?? "",
+  );
+  const rawPayload = String(
+    formData.get("profile_payload") ?? "",
+  );
+
+  if (
+    !IdSchema.safeParse(cameraId).success ||
+    !IdSchema.safeParse(
+      sourceAssetId,
+    ).success
+  ) {
+    return actionError(
+      "Câmera ou imagem de referência inválida.",
+    );
+  }
+
+  let json: unknown;
+
+  try {
+    json = JSON.parse(rawPayload);
+  } catch {
+    return actionError(
+      "Os ajustes do perfil não estão em um formato válido.",
+    );
+  }
+
+  const parsed =
+    ManualProfileSchema.safeParse(json);
+
+  if (!parsed.success) {
+    console.error(
+      "Perfil manual rejeitado:",
+      parsed.error.issues,
+    );
+    return actionError(
+      "Revise a descrição, os objetivos e as zonas antes de salvar.",
+    );
+  }
+
+  const authorized =
+    await authorizeCamera(cameraId);
+
+  if ("error" in authorized) {
+    return actionError(authorized.error);
+  }
+
+  const loaded = await loadSourceAsset(
+    authorized,
+    cameraId,
+    sourceAssetId,
+  );
+
+  if ("error" in loaded) {
+    return actionError(loaded.error);
+  }
+
+  const input = parsed.data;
+
+  const created = await createDraft(
+    authorized,
+    {
+      cameraId,
+      sourceAssetId,
+      environmentDescription:
+        input.environmentDescription,
+      monitoringGoals: uniqueStrings(
+        input.monitoringGoals,
+        30,
+      ),
+      ignoreInstructions: uniqueStrings(
+        input.ignoreInstructions,
+        30,
+      ),
+      zones: input.zones,
+      provider: "manual",
+      model: null,
+      responseId: null,
+      metadata: {
+        sceneType: input.sceneType,
+        fixedElements:
+          input.fixedElements,
+        privacyNotes:
+          input.privacyNotes,
+        imageQuality:
+          input.imageQuality,
+        confidence: input.confidence,
+        manualEdits: true,
+        basedOnProfileId:
+          input.basedOnProfileId,
+        sourceKind: String(
+          loaded.asset.kind,
+        ),
+        profileSchemaVersion: "2.0",
+      },
+    },
+  );
+
+  if (!created) {
+    return actionError(
+      "Não foi possível salvar a nova versão do perfil.",
+    );
+  }
+
+  await authorized.supabase
+    .from("audit_logs")
+    .insert({
+      organization_id:
+        authorized.organization.id,
+      actor_user_id: authorized.user.id,
+      action:
+        "camera.profile_manually_edited",
+      entity_type: "camera_profile",
+      entity_id: created.id,
+      metadata: {
+        camera_id: cameraId,
+        version: created.version,
+        based_on_profile_id:
+          input.basedOnProfileId,
+        source_asset_id:
+          sourceAssetId,
+        zones: input.zones.length,
+      },
+    });
+
+  revalidateCamera(cameraId);
+
+  return {
+    status: "success",
+    message: `Ajustes salvos como perfil v${created.version}. Aprove a nova versão para colocá-la em produção.`,
+    profileId: created.id,
+  };
 }
 
 export async function approveCameraProfileAction(
   _previousState: CameraProfileActionState,
   formData: FormData,
 ): Promise<CameraProfileActionState> {
-  const cameraId = String(formData.get("camera_id") ?? "");
-  const profileId = String(formData.get("profile_id") ?? "");
+  const cameraId = String(
+    formData.get("camera_id") ?? "",
+  );
+  const profileId = String(
+    formData.get("profile_id") ?? "",
+  );
 
   if (
     !IdSchema.safeParse(cameraId).success ||
-    !IdSchema.safeParse(profileId).success
+    !IdSchema.safeParse(
+      profileId,
+    ).success
   ) {
-    return { status: "error", message: "Perfil ou câmera inválidos." };
+    return actionError(
+      "Perfil ou câmera inválidos.",
+    );
   }
 
-  const authorized = await authorizeCamera(cameraId);
+  const authorized =
+    await authorizeCamera(cameraId);
+
   if ("error" in authorized) {
-    return {
-      status: "error",
-      message: authorized.error ?? "Não foi possível autorizar esta operação.",
-    };
+    return actionError(authorized.error);
   }
 
-  const { data: profile, error: profileError } = await authorized.supabase
-    .from("camera_profiles")
-    .select("id,version,camera_id,is_active")
-    .eq("id", profileId)
-    .eq("camera_id", cameraId)
-    .eq("organization_id", authorized.organization.id)
-    .maybeSingle();
+  const { data: profile, error } =
+    await authorized.supabase
+      .from("camera_profiles")
+      .select(
+        "id,version,camera_id,is_active",
+      )
+      .eq("id", profileId)
+      .eq("camera_id", cameraId)
+      .eq(
+        "organization_id",
+        authorized.organization.id,
+      )
+      .maybeSingle();
 
-  if (profileError || !profile) {
-    return { status: "error", message: "O perfil não foi encontrado." };
+  if (error || !profile) {
+    return actionError(
+      "O perfil não foi encontrado.",
+    );
   }
 
   if (profile.is_active) {
     return {
       status: "success",
-      message: `O perfil v${Number(profile.version)} já está ativo.`,
+      message: `O perfil v${Number(
+        profile.version,
+      )} já está ativo.`,
       profileId,
     };
   }
 
   const { data: activated, error: activateError } =
-    await authorized.supabase.rpc("activate_camera_profile", {
-      p_organization_id: authorized.organization.id,
-      p_profile_id: profileId,
-      p_reviewed_by: authorized.user.id,
-    });
+    await authorized.supabase.rpc(
+      "activate_camera_profile",
+      {
+        p_organization_id:
+          authorized.organization.id,
+        p_profile_id: profileId,
+        p_reviewed_by:
+          authorized.user.id,
+      },
+    );
 
-  const activatedProfile = Array.isArray(activated)
+  const result = Array.isArray(activated)
     ? activated[0]
     : activated;
 
-  if (activateError || !activatedProfile) {
-    console.error("Falha ao ativar perfil:", activateError?.message);
-    return {
-      status: "error",
-      message: "Não foi possível aprovar o perfil.",
-    };
+  if (activateError || !result) {
+    console.error(
+      "Falha ao ativar perfil:",
+      activateError?.message,
+    );
+    return actionError(
+      "Não foi possível ativar o perfil.",
+    );
   }
 
-  const { error: auditError } = await authorized.supabase
+  await authorized.supabase
     .from("audit_logs")
     .insert({
-      organization_id: authorized.organization.id,
+      organization_id:
+        authorized.organization.id,
       actor_user_id: authorized.user.id,
-      action: "camera.profile_activated",
+      action:
+        "camera.profile_activated",
       entity_type: "camera_profile",
       entity_id: profileId,
       metadata: {
         camera_id: cameraId,
-        version: Number(activatedProfile.active_version),
+        version: Number(
+          result.active_version,
+        ),
       },
     });
 
-  if (auditError) {
-    console.error("Falha ao registrar ativação do perfil:", auditError.message);
-  }
-
-  revalidatePath(`/dashboard/cameras/${cameraId}`);
-  revalidatePath("/dashboard/cameras");
-  revalidatePath("/dashboard");
+  revalidateCamera(cameraId);
 
   return {
     status: "success",
-    message: `Perfil v${Number(activatedProfile.active_version)} aprovado e ativado.`,
+    message: `Perfil v${Number(
+      result.active_version,
+    )} ativado. O Agent sincronizará a nova configuração.`,
     profileId,
   };
 }

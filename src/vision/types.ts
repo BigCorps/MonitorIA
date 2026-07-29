@@ -4,7 +4,10 @@ import type { CameraProfileDraft } from "../contracts/camera-profile-draft";
 import type { AnalysisPlanCode } from "../lib/analysis-plans";
 
 export type VisionImageDetail = "low" | "high" | "auto";
-export type VisionAnalysisMode = "economic" | "balanced" | "detailed";
+export type VisionAnalysisMode =
+  | "economic"
+  | "balanced"
+  | "detailed";
 
 export interface EventFrame {
   label: "start" | "peak" | "end" | "extra";
@@ -38,6 +41,7 @@ export interface AnalyzeCameraProfileInput {
   timezone: string;
   capturedAt: string;
   initialMonitoringGoals: string[];
+  userGuidance?: string;
   imageUrl: string;
 }
 
@@ -58,7 +62,8 @@ export interface VisionAnalysisResult {
   latencyMs: number;
 }
 
-export interface VisionAnalysisAttempt extends VisionAnalysisResult {
+export interface VisionAnalysisAttempt
+  extends VisionAnalysisResult {
   role: "primary" | "escalation" | "ab_candidate";
 }
 
@@ -78,7 +83,9 @@ export interface CameraProfileAnalysisResult {
 }
 
 export interface VisionProvider {
-  analyzeEvent(input: AnalyzeEventInput): Promise<VisionAnalysisResult>;
+  analyzeEvent(
+    input: AnalyzeEventInput,
+  ): Promise<VisionAnalysisResult>;
   analyzeCameraProfile?(
     input: AnalyzeCameraProfileInput,
   ): Promise<CameraProfileAnalysisResult>;

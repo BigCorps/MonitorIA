@@ -203,6 +203,7 @@ export default async function SearchPage({
       endedAt: event.endedAt,
       cameraName: event.cameraName,
       siteName: event.siteName,
+      headline: event.headline,
       eventType: event.eventType,
       eventTypeLabel: eventTypeLabel(event.eventType),
       summary: event.summary,

@@ -75,7 +75,7 @@ export function EventList({
                 <span>
                   {event.siteName} · {event.cameraName}
                 </span>
-                <h2>{eventTypeLabel(event.eventType)}</h2>
+                <h2>{event.headline}</h2>
               </div>
 
               <time>
@@ -86,6 +86,7 @@ export function EventList({
             <p>{event.summary}</p>
 
             <div className={styles.meta}>
+              <span>{eventTypeLabel(event.eventType)}</span>
               <span>◎ {event.peopleCount} pessoas</span>
               <span>◇ {event.vehicleCount} veículos</span>
               <span>◷ {durationLabel(event.durationSeconds)}</span>

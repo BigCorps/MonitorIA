@@ -1,4 +1,7 @@
-export type AgentAnalysisPlanCode = "basic" | "standard" | "intensive";
+export type AgentAnalysisPlanCode =
+  | "basic"
+  | "standard"
+  | "intensive";
 
 export type AgentPlan = {
   code: AgentAnalysisPlanCode;
@@ -6,15 +9,23 @@ export type AgentPlan = {
   maximumFrames: number;
   maxWidth: number;
   jpegQuality: number;
+  chapterMinimumSeconds: number;
+  chapterMaximumSeconds: number;
+  regionShiftThreshold: number;
 };
 
-export function normalizeAgentPlan(value: unknown): AgentAnalysisPlanCode {
-  return value === "basic" || value === "intensive"
+export function normalizeAgentPlan(
+  value: unknown,
+): AgentAnalysisPlanCode {
+  return value === "basic" ||
+    value === "intensive"
     ? value
     : "standard";
 }
 
-export function getAgentPlan(value: unknown): AgentPlan {
+export function getAgentPlan(
+  value: unknown,
+): AgentPlan {
   const code = normalizeAgentPlan(value);
 
   if (code === "basic") {
@@ -24,6 +35,9 @@ export function getAgentPlan(value: unknown): AgentPlan {
       maximumFrames: 1,
       maxWidth: 960,
       jpegQuality: 6,
+      chapterMinimumSeconds: 60,
+      chapterMaximumSeconds: 240,
+      regionShiftThreshold: 0.35,
     };
   }
 
@@ -34,6 +48,9 @@ export function getAgentPlan(value: unknown): AgentPlan {
       maximumFrames: 4,
       maxWidth: 1280,
       jpegQuality: 4,
+      chapterMinimumSeconds: 15,
+      chapterMaximumSeconds: 90,
+      regionShiftThreshold: 0.22,
     };
   }
 
@@ -43,5 +60,8 @@ export function getAgentPlan(value: unknown): AgentPlan {
     maximumFrames: 3,
     maxWidth: 960,
     jpegQuality: 5,
+    chapterMinimumSeconds: 30,
+    chapterMaximumSeconds: 150,
+    regionShiftThreshold: 0.28,
   };
 }

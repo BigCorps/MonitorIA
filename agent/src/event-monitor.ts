@@ -40,6 +40,10 @@ type ActiveEvent = {
   thresholds: MotionCalibrationSnapshot;
   ignoredPixelPercent: number;
   autoIgnoredCellCount: number;
+  anchorCentroidX: number | null;
+  anchorCentroidY: number | null;
+  dominantRegion: string | null;
+  regionShiftFrames: number;
 };
 
 export type CameraEventMonitor = {
@@ -261,6 +265,12 @@ export function startCameraEventMonitor(options: {
     if (closeReason === "maximum_duration") {
       requireQuietBeforeRestart = true;
       quietRecoveryFrames = 0;
+    } else if (
+      closeReason === "activity_region_changed" ||
+      closeReason === "activity_resumed" ||
+      closeReason === "activity_chapter_limit"
+    ) {
+      cooldownUntilMs = Date.now() + 1000;
     } else {
       cooldownUntilMs = Date.now() + cooldownMs;
     }
@@ -324,6 +334,18 @@ export function startCameraEventMonitor(options: {
         startConsecutiveFrames,
         endConsecutiveFrames,
         cooldownSeconds: cooldownMs / 1000,
+        chapterMinimumSeconds:
+          plan.chapterMinimumSeconds,
+        chapterMaximumSeconds:
+          plan.chapterMaximumSeconds,
+        regionShiftThreshold:
+          plan.regionShiftThreshold,
+        dominantRegion:
+          event.dominantRegion,
+        motionCentroidX:
+          event.anchorCentroidX,
+        motionCentroidY:
+          event.anchorCentroidY,
         closeReason,
       },
       frames,
@@ -450,6 +472,10 @@ export function startCameraEventMonitor(options: {
         thresholds: lastSnapshot,
         ignoredPixelPercent: sample.ignoredPixelPercent,
         autoIgnoredCellCount: sample.autoIgnoredCellCount,
+        anchorCentroidX: sample.motionCentroidX,
+        anchorCentroidY: sample.motionCentroidY,
+        dominantRegion: sample.dominantRegion,
+        regionShiftFrames: 0,
       };
 
       options.log(
@@ -471,6 +497,9 @@ export function startCameraEventMonitor(options: {
     event.ignoredPixelPercent = sample.ignoredPixelPercent;
     event.autoIgnoredCellCount = sample.autoIgnoredCellCount;
 
+    const quietFramesBeforeSample =
+      event.quietFrames;
+
     if (
       sample.changedPixelPercent >=
       lastSnapshot.effectiveContinueThreshold
@@ -482,6 +511,100 @@ export function startCameraEventMonitor(options: {
     }
 
     const ageMs = sampleMs - event.startedMs;
+    const chapterMinimumMs =
+      plan.chapterMinimumSeconds * 1000;
+    const chapterMaximumMs =
+      plan.chapterMaximumSeconds * 1000;
+
+    if (
+      sample.changedPixelPercent >=
+        lastSnapshot.effectiveContinueThreshold &&
+      sample.motionCentroidX !== null &&
+      sample.motionCentroidY !== null
+    ) {
+      if (
+        event.anchorCentroidX === null ||
+        event.anchorCentroidY === null
+      ) {
+        event.anchorCentroidX =
+          sample.motionCentroidX;
+        event.anchorCentroidY =
+          sample.motionCentroidY;
+        event.dominantRegion =
+          sample.dominantRegion;
+      } else {
+        const distance = Math.hypot(
+          sample.motionCentroidX -
+            event.anchorCentroidX,
+          sample.motionCentroidY -
+            event.anchorCentroidY,
+        );
+
+        const regionChanged =
+          Boolean(sample.dominantRegion) &&
+          Boolean(event.dominantRegion) &&
+          sample.dominantRegion !==
+            event.dominantRegion &&
+          distance >=
+            plan.regionShiftThreshold;
+
+        if (regionChanged) {
+          event.regionShiftFrames += 1;
+        } else {
+          event.regionShiftFrames = 0;
+          event.anchorCentroidX =
+            event.anchorCentroidX * 0.85 +
+            sample.motionCentroidX * 0.15;
+          event.anchorCentroidY =
+            event.anchorCentroidY * 0.85 +
+            sample.motionCentroidY * 0.15;
+          event.dominantRegion =
+            sample.dominantRegion ??
+            event.dominantRegion;
+        }
+      }
+    } else {
+      event.regionShiftFrames = 0;
+    }
+
+    if (
+      ageMs >= chapterMinimumMs &&
+      quietFramesBeforeSample >= 3 &&
+      sample.changedPixelPercent >=
+        lastSnapshot.effectiveStartThreshold
+    ) {
+      void finalizeEvent(
+        event,
+        sample.capturedAt,
+        "activity_resumed",
+      );
+      return;
+    }
+
+    if (
+      ageMs >= chapterMinimumMs &&
+      event.regionShiftFrames >= 3
+    ) {
+      void finalizeEvent(
+        event,
+        sample.capturedAt,
+        "activity_region_changed",
+      );
+      return;
+    }
+
+    if (
+      ageMs >= chapterMaximumMs &&
+      sample.changedPixelPercent >=
+        lastSnapshot.effectiveStartThreshold
+    ) {
+      void finalizeEvent(
+        event,
+        sample.capturedAt,
+        "activity_chapter_limit",
+      );
+      return;
+    }
 
     if (
       plan.code === "intensive" &&

@@ -1,0 +1,205 @@
+{
+  "version": "0.8.1",
+  "backendStatus": "applied_and_validated_via_mcp",
+  "agentTypeCheck": "passed_isolated",
+  "motionCentroidRuntimeTest": "passed",
+  "frontendFullBuild": "pending_in_repository",
+  "fileCount": 39,
+  "files": [
+    {
+      "path": ".github/workflows/build-agent.yml",
+      "bytes": 2256,
+      "sha256": "175a008d0307965860ef626e09e9eff435614042e7e371bf38ff98091ba5650f"
+    },
+    {
+      "path": "APPLY-v0.8.1.md",
+      "bytes": 2059,
+      "sha256": "b7dbc047a511ab55e083d9d30a896e5b9d52c3bf51a3e4c52dc51eac21e880b4"
+    },
+    {
+      "path": "CHANGES-v0.8.1.md",
+      "bytes": 2199,
+      "sha256": "8a6435641eef77ac22aed1d30017f19bcb86142bbb65e2466e8fa521d6e1d087"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1048,
+      "sha256": "24a3dc4b40692f866fd8bc863270c11ce2011ca06eb26aef16a2cfb52e84b4f4"
+    },
+    {
+      "path": "agent/README.md",
+      "bytes": 1251,
+      "sha256": "c344966ad5173d2d322ee94127e3539209b518a66fdbd0860b5865f0c779136d"
+    },
+    {
+      "path": "agent/package.json",
+      "bytes": 627,
+      "sha256": "2946fbca870b9e3d2ddd4cd0467eaabfa64272349c133d9e6803120efb1af6e3"
+    },
+    {
+      "path": "agent/src/event-monitor.ts",
+      "bytes": 18228,
+      "sha256": "d559548f04e7b03f1c8c136e05162622edb4ed70eda5fce804a5c55ab7257fd1"
+    },
+    {
+      "path": "agent/src/index.ts",
+      "bytes": 19099,
+      "sha256": "406978609d5d789fe2042c575776b69361f6083b172f83e9a9c8ee1db8236d26"
+    },
+    {
+      "path": "agent/src/motion.ts",
+      "bytes": 13092,
+      "sha256": "8a495ed5dc9bc48cb5fd0bc96ff3ad48f64a047a8dd370fc72feeaac5d92e7bf"
+    },
+    {
+      "path": "agent/src/plans.ts",
+      "bytes": 1342,
+      "sha256": "f8716c0e2e178e06a23a887eadddb05ecc5ce640e6b21b225b2394cf2cb15f89"
+    },
+    {
+      "path": "agent/src/types.ts",
+      "bytes": 3887,
+      "sha256": "002a318d57c9dfe66ecbaacdb18839c717526b6feed530e177cf0a859ae86833"
+    },
+    {
+      "path": "app/api/agent/cameras/[cameraId]/events/route.ts",
+      "bytes": 28847,
+      "sha256": "ef863fdaab0b4c51aceed6c1a79c8e8aac725a1bad0f2205f00136f0fd28dd73"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/camera-profile-panel.module.css",
+      "bytes": 10656,
+      "sha256": "14464ae2204a86bdb981657fabaa7b676d915ea058cc3c8a8e3439592a4bf9b9"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/camera-profile-panel.tsx",
+      "bytes": 30878,
+      "sha256": "fdd98effcaf20435514573fe1f3134da83227c113a4cd2eabeb6538ddab13383"
+    },
+    {
+      "path": "app/dashboard/cameras/profile-actions.ts",
+      "bytes": 20559,
+      "sha256": "c3e202bbaef79649f10a94b5722d467a9f811923ded249eeb69ae42364725822"
+    },
+    {
+      "path": "app/dashboard/events/[eventId]/page.tsx",
+      "bytes": 19590,
+      "sha256": "f2e69ac656e77ecfd949c3c3dc58e7bec9fa95d9d38b191e0626a70194586e60"
+    },
+    {
+      "path": "app/dashboard/events/event-list.tsx",
+      "bytes": 3044,
+      "sha256": "49dec795338528a797aeef4178281e3ff0e97dcce34c5f3f7704f2f4eb01ee61"
+    },
+    {
+      "path": "app/dashboard/page.tsx",
+      "bytes": 10309,
+      "sha256": "324f18027266254a39b86ffa1bfb4368242df3def68677867b93470ae0b13c2a"
+    },
+    {
+      "path": "app/dashboard/search/page.tsx",
+      "bytes": 14637,
+      "sha256": "97cbddb8ae12a6ac7749975ba4f68330471862a6793b7deb7e816eba84e610e3"
+    },
+    {
+      "path": "docs/VALIDATION-v0.8.1.md",
+      "bytes": 1459,
+      "sha256": "b030eb06ade774ec7ef7b0bbe1fec5884252d2fe877bcf3a133aa11a9cb64c8e"
+    },
+    {
+      "path": "package.json",
+      "bytes": 846,
+      "sha256": "f475b3af6b60747394f71f195b23459d35633907eb92edd978eaf22c4e5d0392"
+    },
+    {
+      "path": "src/contracts/analyzed-event.ts",
+      "bytes": 5089,
+      "sha256": "45cab1f0f6838f60b8d5925cdc2783c4fb6b3a946a7d56dc59d944b6ad291644"
+    },
+    {
+      "path": "src/contracts/camera-profile-draft.ts",
+      "bytes": 1855,
+      "sha256": "7054e5a3188e170b1c065d0e31ad5a943ea8301fffa7d9b1199503da5891af40"
+    },
+    {
+      "path": "src/contracts/camera-profile.ts",
+      "bytes": 1268,
+      "sha256": "760a36e54645f85ec3d48b80ab56ffaa4a6245e382b1fd1819061aaaeea95d5b"
+    },
+    {
+      "path": "src/lib/camera-profile-data.ts",
+      "bytes": 9145,
+      "sha256": "0dbe928a767b76c549dbd71f7b1f06271afbcf2ead8ee3758185bca866a160d3"
+    },
+    {
+      "path": "src/lib/dashboard-data.ts",
+      "bytes": 12035,
+      "sha256": "1dc470ef264ff5dd230dedfad6a30bf5be3c3a81e7603f3a69ae7c8898ffd1d0"
+    },
+    {
+      "path": "src/lib/event-export.ts",
+      "bytes": 3042,
+      "sha256": "6a8acdfb753b66960fd8147106fe03e0222090739a312771ff0f6a0ea54104e9"
+    },
+    {
+      "path": "src/lib/event-labels.ts",
+      "bytes": 1654,
+      "sha256": "ebf0574e95f7ad21f06a61b6ac9fe021cc1b23bf2c9a0d685e0d12f5587c2f45"
+    },
+    {
+      "path": "src/lib/event-search-data.ts",
+      "bytes": 17704,
+      "sha256": "dbd6a785ce8c3e60409eebe1fb325a2c69abf5a67f60f15bb2a71259acd6baac"
+    },
+    {
+      "path": "src/vision/profile-prompt.ts",
+      "bytes": 3228,
+      "sha256": "b0b43d295768597ff2390c3ae6b9702fb405182e63ce70cbb82fdd43ba0e1313"
+    },
+    {
+      "path": "src/vision/prompt.ts",
+      "bytes": 4759,
+      "sha256": "0f1a9ca63832b5e5ffa0c98e7a8608fcc1a139e47cc375336558cbc164614db2"
+    },
+    {
+      "path": "src/vision/types.ts",
+      "bytes": 2194,
+      "sha256": "24f847258df0bf24d51950193fe3fd742294b7e64f6649459c25dc71c254c1bc"
+    },
+    {
+      "path": "supabase/migrations/20260729184500_profile_editor_headlines_roles.sql",
+      "bytes": 10876,
+      "sha256": "04324885ecbf6dc432b46ae5d16be2996c799f6493c7869a13894e2ddf733f4e"
+    },
+    {
+      "path": "supabase/migrations/20260729185500_search_headlines.sql",
+      "bytes": 7138,
+      "sha256": "6d11d01c4a1871ee8fe0e4cb8566735adb1e396ca0b1166b402f437c0fb6c356"
+    },
+    {
+      "path": "test/agent-chapter-plans.test.ts",
+      "bytes": 562,
+      "sha256": "2f8a7001abbc2014b0f24bd9ab9da6c98252091bb3c59d8e78989c3af06703e3"
+    },
+    {
+      "path": "test/analyzed-event-v1.1.test.ts",
+      "bytes": 1438,
+      "sha256": "cebb4d4875d6b4811dc43964f16b9cbdf33c82e45c3a35b657761e6a29693ef0"
+    },
+    {
+      "path": "test/camera-profile-role-hints.test.ts",
+      "bytes": 1023,
+      "sha256": "963c365fd269453fe394b65ea39b2c56bbfe06c612b4de1b42a0f0c9d5c2d03d"
+    },
+    {
+      "path": "test/event-export.test.ts",
+      "bytes": 1467,
+      "sha256": "e646c329196927d58155453400ffb1878bd087344290965afb691a2148c078da"
+    },
+    {
+      "path": "test/motion-centroid.test.ts",
+      "bytes": 710,
+      "sha256": "89bbf777e94fdfd6d45ff203e967cd045aaffc188ed7ee3a1d9124259f5bc172"
+    }
+  ]
+}

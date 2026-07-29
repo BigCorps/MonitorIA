@@ -517,7 +517,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const { data: zoneRows, error: zonesError } = await supabase
     .from("camera_zones")
-    .select("id,name,zone_type,polygon,description")
+    .select("id,name,zone_type,person_role_hint,polygon,description")
     .eq("organization_id", authenticated.camera.organizationId)
     .eq("camera_profile_id", profile.id)
     .order("sort_order", { ascending: true });
@@ -547,6 +547,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         id: String(zone.id),
         name: String(zone.name),
         type: String(zone.zone_type),
+        personRoleHint: String(
+          zone.person_role_hint ?? "none",
+        ),
         polygon: zone.polygon,
         description: String(zone.description ?? ""),
       })),
@@ -576,6 +579,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
+        prompt_version: 2,
         local_metrics: localMetrics,
         analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,
@@ -603,6 +607,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
+        prompt_version: 2,
         local_metrics: localMetrics,
         analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,

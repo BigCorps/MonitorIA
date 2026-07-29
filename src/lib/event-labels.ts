@@ -41,3 +41,16 @@ export function reviewLabel(value: string | null) {
   if (!value) return "Sem avaliação";
   return REVIEW_LABELS[value] ?? value.replaceAll("_", " ");
 }
+
+
+export const PERSON_ROLE_LABELS: Record<string, string> = {
+  staff: "Funcionário",
+  customer: "Cliente",
+  delivery_person: "Entregador",
+  visitor: "Visitante",
+  unknown: "Papel não determinado",
+};
+
+export function personRoleLabel(value: string) {
+  return PERSON_ROLE_LABELS[value] ?? value.replaceAll("_", " ");
+}

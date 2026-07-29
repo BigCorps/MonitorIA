@@ -37,6 +37,7 @@ export type CameraSummary = {
 export type EventSummary = {
   id: string;
   startedAt: string;
+  headline: string;
   summary: string;
   type: string;
   confidence: number;
@@ -233,7 +234,7 @@ export async function getDashboardData(
     supabase
       .from("events")
       .select(
-        "id,started_at,summary,primary_event_type,corrected_event_type,confidence,requires_review",
+        "id,started_at,headline,summary,primary_event_type,corrected_event_type,confidence,requires_review",
       )
       .eq("organization_id", organization.id)
       .eq("site_id", site.id)
@@ -264,6 +265,7 @@ export async function getDashboardData(
   ).map((event: any) => ({
     id: String(event.id),
     startedAt: String(event.started_at),
+    headline: String(event.headline ?? event.summary),
     summary: String(event.summary),
     type: String(
       event.corrected_event_type ?? event.primary_event_type,

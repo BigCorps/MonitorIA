@@ -7,6 +7,7 @@ import {
 
 const input = {
   generatedAt: "2026-07-29T17:00:00.000Z",
+  timeZone: "America/Sao_Paulo",
   filters: {
     Período: "29/07/2026",
     Câmera: "Entrada da Loja",
@@ -19,32 +20,43 @@ const input = {
       endedAt: "2026-07-29T17:24:44.954Z",
       cameraName: "Entrada da Loja",
       siteName: "Casa Verde",
-      eventType: "person_entered",
-      eventTypeLabel: "Pessoa entrou",
-      summary: "Duas pessoas se aproximaram do balcão.",
+      headline: "Cliente entregou um pacote",
+      eventType: "person_present",
+      eventTypeLabel: "Pessoa presente",
+      summary:
+        "Cliente aproximou-se do balcão e entregou um pacote.",
       confidence: 0.9,
       requiresReview: true,
       humanVerdict: null,
       peopleCount: 2,
       vehicleCount: 0,
-      tags: ["entrada", "balcão"],
+      tags: ["entrega", "balcão"],
     },
   ],
 };
 
-test("exporta relatório Markdown legível", () => {
+test("usa o título específico no Markdown", () => {
   const markdown = buildEventsMarkdown(input);
 
-  assert.match(markdown, /# Relatório MonitorIA/);
-  assert.match(markdown, /Pessoa entrou/);
-  assert.match(markdown, /Entrada da Loja/);
+  assert.match(
+    markdown,
+    /Cliente entregou um pacote/,
+  );
+  assert.match(
+    markdown,
+    /Tipo técnico:\\*\\* Pessoa presente/,
+  );
   assert.match(markdown, /90%/);
 });
 
-test("exporta JSON estruturado e válido", () => {
-  const json = JSON.parse(buildEventsJson(input));
+test("exporta JSON estruturado v1.1", () => {
+  const json = JSON.parse(
+    buildEventsJson(input),
+  );
 
-  assert.equal(json.schemaVersion, "1.0");
-  assert.equal(json.summary.totalFound, 1);
-  assert.equal(json.events[0].peopleCount, 2);
+  assert.equal(json.schemaVersion, "1.1");
+  assert.equal(
+    json.events[0].headline,
+    "Cliente entregou um pacote",
+  );
 });

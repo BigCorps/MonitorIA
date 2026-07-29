@@ -136,6 +136,12 @@ export type LocalMotionEvent = {
     startConsecutiveFrames: number;
     endConsecutiveFrames: number;
     cooldownSeconds: number;
+    chapterMinimumSeconds: number;
+    chapterMaximumSeconds: number;
+    regionShiftThreshold: number;
+    dominantRegion: string | null;
+    motionCentroidX: number | null;
+    motionCentroidY: number | null;
     closeReason: string;
   };
   frames: LocalEventFrame[];

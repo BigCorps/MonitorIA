@@ -33,7 +33,7 @@ import type {
   StoredAgentConfig,
 } from "./types.js";
 
-const AGENT_VERSION = "0.7.3";
+const AGENT_VERSION = "0.8.1";
 const DEFAULT_API_URL = "https://monitoria.bigcorps.com.br";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
@@ -472,7 +472,7 @@ async function runAgent(config: StoredAgentConfig) {
   );
 
   log(
-    "Agent online. Heartbeat a cada 60 segundos e segmentação adaptativa ativa.",
+    "Agent online. Heartbeat a cada 60 segundos, segmentação adaptativa e capítulos de atividade ativos.",
   );
 
   let heartbeatRunning = false;

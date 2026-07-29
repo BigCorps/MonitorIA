@@ -10,6 +10,7 @@ export type CameraProfileZoneSummary = {
   id: string;
   name: string;
   type: string;
+  personRoleHint: string;
   description: string;
   polygon: ProfilePoint[];
 };
@@ -42,10 +43,12 @@ export type CameraProfileSummary = {
 export type CameraProfileFrameSummary = {
   id: string;
   url: string;
+  kind: string;
   capturedAt: string | null;
   width: number | null;
   height: number | null;
   byteSize: number | null;
+  isCurrentSource: boolean;
 };
 
 export type CameraProfileWorkspace = {
@@ -53,16 +56,23 @@ export type CameraProfileWorkspace = {
   activeProfileVersion: number | null;
   historyCount: number;
   frame: CameraProfileFrameSummary | null;
+  referenceFrames: CameraProfileFrameSummary[];
 };
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)
-    ? value.map((item) => String(item).trim()).filter(Boolean)
+    ? value
+        .map((item) => String(item).trim())
+        .filter(Boolean)
     : [];
 }
 
-function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
+function objectValue(
+  value: unknown,
+): Record<string, unknown> {
+  return value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
 }
@@ -102,143 +112,261 @@ function imageQualityValue(value: unknown) {
   };
 }
 
+async function signFrames(
+  assets: any[],
+  currentSourceAssetId: string | null,
+): Promise<CameraProfileFrameSummary[]> {
+  const admin = createAdminClient();
+
+  const signed = await Promise.all(
+    assets.map(async (asset) => {
+      const result = await admin.storage
+        .from(String(asset.bucket))
+        .createSignedUrl(
+          String(asset.storage_path),
+          20 * 60,
+        );
+
+      if (result.error || !result.data?.signedUrl) {
+        console.error(
+          "Falha ao assinar frame de referência:",
+          result.error?.message,
+        );
+        return null;
+      }
+
+      return {
+        id: String(asset.id),
+        url: result.data.signedUrl,
+        kind: String(asset.kind),
+        capturedAt: asset.captured_at
+          ? String(asset.captured_at)
+          : null,
+        width:
+          asset.width === null
+            ? null
+            : Number(asset.width),
+        height:
+          asset.height === null
+            ? null
+            : Number(asset.height),
+        byteSize:
+          asset.byte_size === null
+            ? null
+            : Number(asset.byte_size),
+        isCurrentSource:
+          String(asset.id) === currentSourceAssetId,
+      } satisfies CameraProfileFrameSummary;
+    }),
+  );
+
+  return signed.filter(
+    (
+      item,
+    ): item is CameraProfileFrameSummary =>
+      item !== null,
+  );
+}
+
 export async function getCameraProfileWorkspace(
   organizationId: string,
   cameraId: string,
 ): Promise<CameraProfileWorkspace> {
   const supabase = await createClient();
 
-  const { data: profileRows, error: profilesError } = await supabase
-    .from("camera_profiles")
-    .select(`
-      id,
-      version,
-      environment_description,
-      monitoring_goals,
-      ignore_instructions,
-      is_active,
-      provider,
-      model,
-      source_asset_id,
-      profile_metadata,
-      created_at,
-      reviewed_at
-    `)
-    .eq("organization_id", organizationId)
-    .eq("camera_id", cameraId)
-    .order("version", { ascending: false })
-    .limit(20);
+  const { data: profileRows, error: profilesError } =
+    await supabase
+      .from("camera_profiles")
+      .select(`
+        id,
+        version,
+        environment_description,
+        monitoring_goals,
+        ignore_instructions,
+        is_active,
+        provider,
+        model,
+        source_asset_id,
+        profile_metadata,
+        created_at,
+        reviewed_at
+      `)
+      .eq("organization_id", organizationId)
+      .eq("camera_id", cameraId)
+      .order("version", { ascending: false })
+      .limit(20);
 
   if (profilesError) {
-    console.error("Falha ao carregar perfis da câmera:", profilesError.message);
+    console.error(
+      "Falha ao carregar perfis da câmera:",
+      profilesError.message,
+    );
   }
 
   const profiles = profileRows ?? [];
-  const profileIds = profiles.map((profile: any) => String(profile.id));
+  const profileIds = profiles.map((profile: any) =>
+    String(profile.id),
+  );
 
   const zonesResult = profileIds.length
     ? await supabase
         .from("camera_zones")
-        .select("id,camera_profile_id,name,zone_type,polygon,description,sort_order")
+        .select(
+          "id,camera_profile_id,name,zone_type,person_role_hint,polygon,description,sort_order",
+        )
         .eq("organization_id", organizationId)
         .in("camera_profile_id", profileIds)
         .order("sort_order", { ascending: true })
     : { data: [], error: null };
 
   if (zonesResult.error) {
-    console.error("Falha ao carregar zonas da câmera:", zonesResult.error.message);
+    console.error(
+      "Falha ao carregar zonas da câmera:",
+      zonesResult.error.message,
+    );
   }
 
-  const zonesByProfile = new Map<string, CameraProfileZoneSummary[]>();
+  const zonesByProfile = new Map<
+    string,
+    CameraProfileZoneSummary[]
+  >();
+
   for (const zone of zonesResult.data ?? []) {
-    const profileId = String((zone as any).camera_profile_id);
+    const profileId = String(
+      (zone as any).camera_profile_id,
+    );
     const list = zonesByProfile.get(profileId) ?? [];
+
     list.push({
       id: String((zone as any).id),
       name: String((zone as any).name),
       type: String((zone as any).zone_type),
-      description: String((zone as any).description ?? ""),
+      personRoleHint: String(
+        (zone as any).person_role_hint ?? "none",
+      ),
+      description: String(
+        (zone as any).description ?? "",
+      ),
       polygon: polygonValue((zone as any).polygon),
     });
+
     zonesByProfile.set(profileId, list);
   }
 
-  const mappedProfiles: CameraProfileSummary[] = profiles.map((row: any) => {
-    const metadata = objectValue(row.profile_metadata);
-    const confidence = Number(metadata.confidence);
+  const mappedProfiles: CameraProfileSummary[] =
+    profiles.map((row: any) => {
+      const metadata = objectValue(
+        row.profile_metadata,
+      );
+      const confidence = Number(metadata.confidence);
 
-    return {
-      id: String(row.id),
-      version: Number(row.version),
-      environmentDescription: String(row.environment_description),
-      monitoringGoals: stringArray(row.monitoring_goals),
-      ignoreInstructions: stringArray(row.ignore_instructions),
-      isActive: Boolean(row.is_active),
-      provider: row.provider ? String(row.provider) : null,
-      model: row.model ? String(row.model) : null,
-      sourceAssetId: row.source_asset_id ? String(row.source_asset_id) : null,
-      createdAt: String(row.created_at),
-      reviewedAt: row.reviewed_at ? String(row.reviewed_at) : null,
-      sceneType: String(metadata.sceneType ?? "unknown"),
-      fixedElements: stringArray(metadata.fixedElements),
-      privacyNotes: stringArray(metadata.privacyNotes),
-      imageQuality: imageQualityValue(metadata.imageQuality),
-      confidence: Number.isFinite(confidence) ? confidence : null,
-      zones: zonesByProfile.get(String(row.id)) ?? [],
-    };
-  });
+      return {
+        id: String(row.id),
+        version: Number(row.version),
+        environmentDescription: String(
+          row.environment_description,
+        ),
+        monitoringGoals: stringArray(
+          row.monitoring_goals,
+        ),
+        ignoreInstructions: stringArray(
+          row.ignore_instructions,
+        ),
+        isActive: Boolean(row.is_active),
+        provider: row.provider
+          ? String(row.provider)
+          : null,
+        model: row.model ? String(row.model) : null,
+        sourceAssetId: row.source_asset_id
+          ? String(row.source_asset_id)
+          : null,
+        createdAt: String(row.created_at),
+        reviewedAt: row.reviewed_at
+          ? String(row.reviewed_at)
+          : null,
+        sceneType: String(
+          metadata.sceneType ?? "unknown",
+        ),
+        fixedElements: stringArray(
+          metadata.fixedElements,
+        ),
+        privacyNotes: stringArray(
+          metadata.privacyNotes,
+        ),
+        imageQuality: imageQualityValue(
+          metadata.imageQuality,
+        ),
+        confidence: Number.isFinite(confidence)
+          ? confidence
+          : null,
+        zones:
+          zonesByProfile.get(String(row.id)) ?? [],
+      };
+    });
 
   const latestProfile = mappedProfiles[0] ?? null;
   const activeProfile =
-    mappedProfiles.find((profile) => profile.isActive) ?? null;
+    mappedProfiles.find(
+      (profile) => profile.isActive,
+    ) ?? null;
+  const sourceAssetId =
+    latestProfile?.sourceAssetId ?? null;
 
-  let assetQuery = supabase
-    .from("storage_assets")
-    .select("id,bucket,storage_path,captured_at,width,height,byte_size")
-    .eq("organization_id", organizationId)
-    .eq("camera_id", cameraId)
-    .eq("kind", "analysis_frame")
-    .eq("status", "ready")
-    .is("deleted_at", null);
+  const { data: assets, error: assetsError } =
+    await supabase
+      .from("storage_assets")
+      .select(
+        "id,bucket,storage_path,kind,captured_at,width,height,byte_size",
+      )
+      .eq("organization_id", organizationId)
+      .eq("camera_id", cameraId)
+      .eq("status", "ready")
+      .is("deleted_at", null)
+      .in("kind", [
+        "analysis_frame",
+        "event_keyframe",
+      ])
+      .order("captured_at", { ascending: false })
+      .limit(24);
 
-  if (latestProfile?.sourceAssetId) {
-    assetQuery = assetQuery.eq("id", latestProfile.sourceAssetId);
-  } else {
-    assetQuery = assetQuery.order("captured_at", { ascending: false }).limit(1);
+  if (assetsError) {
+    console.error(
+      "Falha ao carregar galeria de referência:",
+      assetsError.message,
+    );
   }
 
-  const { data: assetRows, error: assetError } = await assetQuery;
-  if (assetError) {
-    console.error("Falha ao carregar frame de referência:", assetError.message);
-  }
+  const orderedAssets = [...(assets ?? [])].sort(
+    (left: any, right: any) => {
+      if (String(left.id) === sourceAssetId) return -1;
+      if (String(right.id) === sourceAssetId) return 1;
+      return (
+        new Date(
+          String(right.captured_at ?? 0),
+        ).getTime() -
+        new Date(
+          String(left.captured_at ?? 0),
+        ).getTime()
+      );
+    },
+  );
 
-  const asset = assetRows?.[0] as any | undefined;
-  let frame: CameraProfileFrameSummary | null = null;
-
-  if (asset) {
-    const admin = createAdminClient();
-    const { data: signed, error: signedError } = await admin.storage
-      .from(String(asset.bucket))
-      .createSignedUrl(String(asset.storage_path), 15 * 60);
-
-    if (signedError) {
-      console.error("Falha ao assinar frame de referência:", signedError.message);
-    } else if (signed?.signedUrl) {
-      frame = {
-        id: String(asset.id),
-        url: signed.signedUrl,
-        capturedAt: asset.captured_at ? String(asset.captured_at) : null,
-        width: asset.width === null ? null : Number(asset.width),
-        height: asset.height === null ? null : Number(asset.height),
-        byteSize: asset.byte_size === null ? null : Number(asset.byte_size),
-      };
-    }
-  }
+  const referenceFrames = await signFrames(
+    orderedAssets,
+    sourceAssetId,
+  );
 
   return {
     latestProfile,
-    activeProfileVersion: activeProfile?.version ?? null,
+    activeProfileVersion:
+      activeProfile?.version ?? null,
     historyCount: mappedProfiles.length,
-    frame,
+    frame:
+      referenceFrames.find(
+        (item) => item.isCurrentSource,
+      ) ??
+      referenceFrames[0] ??
+      null,
+    referenceFrames,
   };
 }

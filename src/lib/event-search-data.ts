@@ -13,6 +13,7 @@ export type SearchEventRow = {
   cameraName: string;
   siteId: string;
   siteName: string;
+  headline: string;
   eventType: string;
   originalEventType: string;
   summary: string;
@@ -67,6 +68,8 @@ export type EventObject = {
 export type EventPerson = {
   id: string;
   localTrackId: string | null;
+  role: string;
+  roleConfidence: number;
   upperClothingColor: string | null;
   lowerClothingColor: string | null;
   accessories: string[];
@@ -121,6 +124,7 @@ export type EventDetail = {
   cameraName: string;
   startedAt: string;
   endedAt: string;
+  headline: string;
   eventType: string;
   originalEventType: string;
   summary: string;
@@ -201,6 +205,7 @@ function mapSearchRows(data: unknown[]): SearchEventRow[] {
     cameraName: String(row.camera_name),
     siteId: String(row.site_id),
     siteName: String(row.site_name),
+    headline: String(row.headline ?? row.summary ?? "Acontecimento registrado"),
     eventType: String(row.event_type),
     originalEventType: String(row.original_event_type),
     summary: String(row.summary),
@@ -323,6 +328,7 @@ export async function getEventDetail(
       ended_at,
       primary_event_type,
       corrected_event_type,
+      headline,
       summary,
       confidence,
       requires_review,
@@ -369,7 +375,7 @@ export async function getEventDetail(
     supabase
       .from("event_people")
       .select(
-        "id,local_track_id,upper_clothing_color,lower_clothing_color,accessories,carrying,zone_ids,confidence",
+        "id,local_track_id,role,role_confidence,upper_clothing_color,lower_clothing_color,accessories,carrying,zone_ids,confidence",
       )
       .eq("organization_id", organizationId)
       .eq("event_id", eventId)
@@ -462,6 +468,7 @@ export async function getEventDetail(
     ),
     startedAt: String(eventRow.started_at),
     endedAt: String(eventRow.ended_at),
+    headline: String(eventRow.headline ?? eventRow.summary),
     eventType: String(
       eventRow.corrected_event_type ??
         eventRow.primary_event_type,
@@ -491,6 +498,8 @@ export async function getEventDetail(
       localTrackId: row.local_track_id
         ? String(row.local_track_id)
         : null,
+      role: String(row.role ?? "unknown"),
+      roleConfidence: Number(row.role_confidence ?? 0),
       upperClothingColor: row.upper_clothing_color
         ? String(row.upper_clothing_color)
         : null,

@@ -1,33 +1,46 @@
-# MonitorIA Agent v0.7.3
+# MonitorIA Agent v0.8.1
 
-O Agent mantém o vídeo contínuo no computador local e envia somente quadros
-selecionados de eventos.
+O Agent mantém o vídeo contínuo no computador local e envia
+somente quadros selecionados de acontecimentos.
 
-## Segmentação adaptativa
+## Novidade: capítulos de atividade
 
-- calibração inicial do ruído da câmera;
-- percentis p50, p90 e p95;
-- limiares efetivos próprios por câmera;
-- máscara de zonas `ignore`;
-- supressão automática de relógios e overlays nas bordas;
-- vários quadros consecutivos para iniciar e encerrar;
-- cooldown entre eventos;
-- bloqueio de reabertura após `maximum_duration` até a cena repousar;
-- agenda semanal e modo significativo fora do expediente.
+Ambientes comerciais podem permanecer em movimento por vários
+minutos sem atingir silêncio completo. A v0.8.1 divide esse fluxo
+em capítulos quando:
 
-## Modos
+- a região predominante do movimento muda de forma sustentada;
+- o capítulo chega ao limite próprio do modo;
+- o movimento realmente termina.
 
-- Econômico: um quadro, largura máxima de 960 px;
-- Equilibrado: até três quadros, largura máxima de 960 px;
-- Detalhado: até quatro quadros, largura máxima de 1280 px.
+Limites iniciais:
+
+| Modo | Mínimo antes de dividir | Limite do capítulo |
+|---|---:|---:|
+| Econômico | 60 s | 240 s |
+| Equilibrado | 30 s | 150 s |
+| Detalhado | 15 s | 90 s |
+
+O limite rígido de cinco minutos permanece apenas como proteção.
 
 ## Atualização
 
-A configuração v0.7.2 é compatível. Feche o executável antigo e abra a v0.7.3.
-Não execute `reset`.
+A configuração local é compatível. Feche o executável anterior,
+substitua o arquivo e não execute `reset`.
 
 ```powershell
-.\monitoria-agent.exe self-test
-.\monitoria-agent.exe status
-.\monitoria-agent.exe
+Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+
+& "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
+& "$env:USERPROFILE\Downloads\monitoria-agent.exe" status
+& "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+```
+
+Nos logs, os novos motivos podem aparecer como:
+
+```text
+activity_region_changed
+activity_resumed
+activity_chapter_limit
+motion_stopped
 ```

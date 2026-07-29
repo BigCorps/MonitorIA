@@ -83,7 +83,7 @@ jobs:
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
         with:
-          name: monitoria-agent-windows-x64-baseline-v0.7.3
+          name: monitoria-agent-windows-x64-baseline-v0.8.1
           path: agent/dist/monitoria-agent.exe
           if-no-files-found: error
           retention-days: 30

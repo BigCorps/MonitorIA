@@ -8,6 +8,7 @@ import { getEventDetail } from "@/src/lib/event-search-data";
 import {
   EVENT_TYPE_OPTIONS,
   eventTypeLabel,
+  personRoleLabel,
   reviewLabel,
 } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "../../dashboard-sidebar";
@@ -175,7 +176,7 @@ export default async function EventDetailPage({
             <span className="dashboard-eyebrow">
               EVENTO · {event.cameraName.toUpperCase()}
             </span>
-            <h1>{eventTypeLabel(event.eventType)}</h1>
+            <h1>{event.headline}</h1>
             <p>
               {formatDate(event.startedAt, event.timezone)} ·{" "}
               {durationLabel(event.startedAt, event.endedAt)}
@@ -202,6 +203,7 @@ export default async function EventDetailPage({
             <h2>{event.summary}</h2>
 
             <div className={styles.heroMeta}>
+              <span>{eventTypeLabel(event.eventType)}</span>
               <span>{event.siteName}</span>
               <span>{event.cameraName}</span>
               <span>{percent(event.confidence)} de confiança</span>
@@ -327,7 +329,13 @@ export default async function EventDetailPage({
                   <ul>
                     {event.people.map((person, index) => (
                       <li key={person.id}>
-                        <strong>Pessoa {index + 1}</strong>
+                        <strong>
+                          {personRoleLabel(person.role)} {index + 1}
+                        </strong>
+                        <span>
+                          Papel operacional: {personRoleLabel(person.role)} ·{" "}
+                          {Math.round(person.roleConfidence * 100)}%
+                        </span>
                         <span>
                           Parte superior:{" "}
                           {person.upperClothingColor ??

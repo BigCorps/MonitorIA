@@ -1,26 +1,26 @@
-# MonitorIA v0.8.0
+# MonitorIA v0.8.1
 
 **Sua câmera vê. A IA lembra.**
 
-O MonitorIA transforma câmeras RTSP comuns em uma linha do tempo
-estruturada e pesquisável. O vídeo contínuo permanece no local;
-somente quadros selecionados de eventos são enviados para análise.
+O vídeo contínuo permanece no local. Somente quadros selecionados de
+acontecimentos são enviados para análise.
 
-## Estado atual
+## Recursos atuais
 
-- Agent Windows v0.7.3;
-- segmentação adaptativa;
+- Agent Windows;
+- detecção local adaptativa;
+- capítulos de atividade;
 - modos Econômico, Equilibrado e Detalhado;
-- GPT-5 nano e GPT-5 mini;
-- telemetria de custo;
-- linha do tempo de eventos;
-- detalhe visual do evento;
-- revisão humana;
-- pesquisa textual;
-- comparação entre períodos;
+- perfil inteligente versionado e editável;
+- seleção da imagem de referência;
+- zonas de funcionários e clientes;
+- títulos específicos dos acontecimentos;
+- pessoas com papel operacional estruturado;
+- eventos e pesquisa;
+- comparação de períodos;
 - exportação Markdown e JSON;
-- thumbnails reais das câmeras;
-- retenção e auditoria.
+- revisão humana;
+- auditoria e retenção.
 
 ## Rotas principais
 
@@ -45,10 +45,9 @@ npm run build
 Consulte:
 
 ```text
-APPLY-v0.8.0.md
-CHANGES-v0.8.0.md
+APPLY-v0.8.1.md
+CHANGES-v0.8.1.md
 docs/ROADMAP-MONITORIA-V1.md
 ```
 
-O Assistente IA será construído somente após a validação final da
-fase 7.
+O Assistente IA continua adiado até a validação final da fase 7.

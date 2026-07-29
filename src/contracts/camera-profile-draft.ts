@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PersonRoleHintSchema } from "./camera-profile";
 
 export const ProfilePointSchema = z
   .object({
@@ -18,6 +19,7 @@ export const SuggestedCameraZoneSchema = z
       "ignore",
       "general",
     ]),
+    personRoleHint: PersonRoleHintSchema,
     description: z.string().trim().min(1).max(500),
     polygon: z.array(ProfilePointSchema).min(3).max(8),
   })
@@ -25,25 +27,57 @@ export const SuggestedCameraZoneSchema = z
 
 export const CameraImageQualitySchema = z
   .object({
-    overall: z.enum(["good", "usable", "limited", "poor"]),
+    overall: z.enum([
+      "good",
+      "usable",
+      "limited",
+      "poor",
+    ]),
     lighting: z.string().trim().min(1).max(300),
     visibility: z.string().trim().min(1).max(300),
-    limitations: z.array(z.string().trim().min(1).max(300)).max(8),
+    limitations: z
+      .array(z.string().trim().min(1).max(300))
+      .max(8),
   })
   .strict();
 
 export const CameraProfileDraftSchema = z
   .object({
-    environmentDescription: z.string().trim().min(30).max(2000),
-    sceneType: z.enum(["indoor", "outdoor", "mixed", "unknown"]),
-    fixedElements: z.array(z.string().trim().min(1).max(250)).min(1).max(15),
-    monitoringGoals: z.array(z.string().trim().min(1).max(300)).min(2).max(10),
-    ignoreInstructions: z.array(z.string().trim().min(1).max(300)).max(10),
-    zones: z.array(SuggestedCameraZoneSchema).min(1).max(6),
-    privacyNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(6),
+    environmentDescription: z
+      .string()
+      .trim()
+      .min(30)
+      .max(2000),
+    sceneType: z.enum([
+      "indoor",
+      "outdoor",
+      "mixed",
+      "unknown",
+    ]),
+    fixedElements: z
+      .array(z.string().trim().min(1).max(250))
+      .min(1)
+      .max(15),
+    monitoringGoals: z
+      .array(z.string().trim().min(1).max(300))
+      .min(2)
+      .max(12),
+    ignoreInstructions: z
+      .array(z.string().trim().min(1).max(300))
+      .max(12),
+    zones: z
+      .array(SuggestedCameraZoneSchema)
+      .min(1)
+      .max(10),
+    privacyNotes: z
+      .array(z.string().trim().min(1).max(300))
+      .min(1)
+      .max(6),
     imageQuality: CameraImageQualitySchema,
     confidence: z.number().min(0).max(1),
   })
   .strict();
 
-export type CameraProfileDraft = z.infer<typeof CameraProfileDraftSchema>;
+export type CameraProfileDraft = z.infer<
+  typeof CameraProfileDraftSchema
+>;

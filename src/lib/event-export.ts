@@ -4,6 +4,7 @@ export type ExportableEvent = {
   endedAt: string;
   cameraName: string;
   siteName: string;
+  headline: string;
   eventType: string;
   eventTypeLabel: string;
   summary: string;
@@ -44,7 +45,8 @@ export function buildEventsMarkdown(input: EventExportInput) {
     .map(([key, value]) => `- **${key}:** ${String(value)}`);
 
   const eventBlocks = input.events.map((event, index) => [
-    `### ${index + 1}. ${escapeMarkdown(event.eventTypeLabel)}`,
+    `### ${index + 1}. ${escapeMarkdown(event.headline)}`,
+    `- **Tipo técnico:** ${escapeMarkdown(event.eventTypeLabel)}`,
     "",
     `- **Data:** ${formatDate(event.startedAt, timeZone)}`,
     `- **Local:** ${escapeMarkdown(event.siteName)}`,
@@ -87,7 +89,7 @@ export function buildEventsMarkdown(input: EventExportInput) {
 export function buildEventsJson(input: EventExportInput) {
   return JSON.stringify(
     {
-      schemaVersion: "1.0",
+      schemaVersion: "1.1",
       source: "MonitorIA",
       generatedAt: input.generatedAt ?? new Date().toISOString(),
       filters: input.filters,

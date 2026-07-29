@@ -18,6 +18,14 @@ const EventTypeSchema = z.enum([
   "other",
 ]);
 
+const PersonRoleSchema = z.enum([
+  "staff",
+  "customer",
+  "delivery_person",
+  "visitor",
+  "unknown",
+]);
+
 const VisibilitySchema = z.enum([
   "clear",
   "partial",
@@ -44,11 +52,10 @@ const ObjectStateSchema = z.enum([
   "unknown",
 ]);
 
-// Schema deliberadamente simples para Structured Outputs.
-// Restrições de tamanho/confiança são aplicadas depois pelo schema de domínio.
 export const AnalyzedEventTransportSchema = z
   .object({
-    schemaVersion: z.literal("1.0"),
+    schemaVersion: z.literal("1.1"),
+    headline: z.string(),
     primaryEventType: EventTypeSchema,
     summary: z.string(),
     observations: z.array(
@@ -66,6 +73,8 @@ export const AnalyzedEventTransportSchema = z
       z
         .object({
           localTrackId: z.string().nullable(),
+          role: PersonRoleSchema,
+          roleConfidence: z.number(),
           upperClothingColor: z.string().nullable(),
           lowerClothingColor: z.string().nullable(),
           accessories: z.array(z.string()),
@@ -115,48 +124,95 @@ export const AnalyzedEventTransportSchema = z
   })
   .strict();
 
-export const AnalyzedEventSchema = AnalyzedEventTransportSchema.superRefine(
-  (event, context) => {
-    const confidenceValues = [
-      event.confidence,
-      ...event.observations.map((item) => item.confidence),
-      ...event.people.map((item) => item.confidence),
-      ...event.vehicles.map((item) => item.confidence),
-      ...event.vehicles.flatMap((item) =>
-        item.plateSuggestion ? [item.plateSuggestion.confidence] : [],
-      ),
-      ...event.objects.map((item) => item.confidence),
-    ];
+export const AnalyzedEventSchema =
+  AnalyzedEventTransportSchema.superRefine(
+    (event, context) => {
+      const confidenceValues = [
+        event.confidence,
+        ...event.observations.map(
+          (item) => item.confidence,
+        ),
+        ...event.people.flatMap((item) => [
+          item.confidence,
+          item.roleConfidence,
+        ]),
+        ...event.vehicles.map(
+          (item) => item.confidence,
+        ),
+        ...event.vehicles.flatMap((item) =>
+          item.plateSuggestion
+            ? [item.plateSuggestion.confidence]
+            : [],
+        ),
+        ...event.objects.map(
+          (item) => item.confidence,
+        ),
+      ];
 
-    confidenceValues.forEach((value, index) => {
-      if (value < 0 || value > 1) {
+      confidenceValues.forEach((value, index) => {
+        if (value < 0 || value > 1) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Confiança fora do intervalo 0..1 no índice ${index}.`,
+          });
+        }
+      });
+
+      if (
+        event.headline.trim().length < 3 ||
+        event.headline.length > 120
+      ) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Confiança fora do intervalo 0..1 no índice ${index}.`,
+          message:
+            "O título deve ter entre 3 e 120 caracteres.",
         });
       }
-    });
 
-    if (event.summary.trim().length < 1 || event.summary.length > 800) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "O resumo deve ter entre 1 e 800 caracteres.",
-      });
-    }
+      if (
+        event.summary.trim().length < 1 ||
+        event.summary.length > 800
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "O resumo deve ter entre 1 e 800 caracteres.",
+        });
+      }
 
-    if (event.observations.length > 80) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "Observações demais." });
-    }
-    if (event.people.length > 50 || event.vehicles.length > 50) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "Entidades demais." });
-    }
-    if (event.objects.length > 80 || event.tags.length > 30) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: "Objetos ou tags demais." });
-    }
-  },
-);
+      if (event.observations.length > 80) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Observações demais.",
+        });
+      }
+
+      if (
+        event.people.length > 50 ||
+        event.vehicles.length > 50
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Entidades demais.",
+        });
+      }
+
+      if (
+        event.objects.length > 80 ||
+        event.tags.length > 30
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Objetos ou tags demais.",
+        });
+      }
+    },
+  );
 
 export type PlateSuggestion = z.infer<
   typeof AnalyzedEventTransportSchema
 >["vehicles"][number]["plateSuggestion"];
-export type AnalyzedEvent = z.infer<typeof AnalyzedEventSchema>;
+
+export type AnalyzedEvent = z.infer<
+  typeof AnalyzedEventSchema
+>;

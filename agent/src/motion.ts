@@ -17,6 +17,9 @@ export type MotionSample = {
   meanAbsoluteDifference: number;
   ignoredPixelPercent: number;
   autoIgnoredCellCount: number;
+  motionCentroidX: number | null;
+  motionCentroidY: number | null;
+  dominantRegion: string | null;
 };
 
 export type MotionCalculation = {
@@ -24,6 +27,9 @@ export type MotionCalculation = {
   meanAbsoluteDifference: number;
   analyzedPixels: number;
   changedPixels: number;
+  motionCentroidX: number | null;
+  motionCentroidY: number | null;
+  dominantRegion: string | null;
 };
 
 function pointInPolygon(
@@ -155,6 +161,8 @@ export function calculateMotion(
   let changedPixels = 0;
   let analyzedPixels = 0;
   let absoluteDifferenceTotal = 0;
+  let changedXTotal = 0;
+  let changedYTotal = 0;
 
   for (let index = 0; index < current.length; index += 1) {
     if (ignoredPixels?.[index]) continue;
@@ -168,6 +176,8 @@ export function calculateMotion(
 
     if (difference >= pixelDifferenceThreshold) {
       changedPixels += 1;
+      changedXTotal += index % MOTION_WIDTH;
+      changedYTotal += Math.floor(index / MOTION_WIDTH);
     }
   }
 
@@ -177,8 +187,39 @@ export function calculateMotion(
       meanAbsoluteDifference: 0,
       analyzedPixels: 0,
       changedPixels: 0,
+      motionCentroidX: null,
+      motionCentroidY: null,
+      dominantRegion: null,
     };
   }
+
+  const motionCentroidX = changedPixels
+    ? Number(
+        (
+          changedXTotal /
+          changedPixels /
+          Math.max(1, MOTION_WIDTH - 1)
+        ).toFixed(4),
+      )
+    : null;
+
+  const motionCentroidY = changedPixels
+    ? Number(
+        (
+          changedYTotal /
+          changedPixels /
+          Math.max(1, MOTION_HEIGHT - 1)
+        ).toFixed(4),
+      )
+    : null;
+
+  const dominantRegion =
+    motionCentroidX === null || motionCentroidY === null
+      ? null
+      : `${Math.min(2, Math.floor(motionCentroidX * 3))}:${Math.min(
+          2,
+          Math.floor(motionCentroidY * 3),
+        )}`;
 
   return {
     changedPixelPercent: Number(
@@ -189,6 +230,9 @@ export function calculateMotion(
     ),
     analyzedPixels,
     changedPixels,
+    motionCentroidX,
+    motionCentroidY,
+    dominantRegion,
   };
 }
 
@@ -445,6 +489,9 @@ export function startMotionSampler(options: {
               ).toFixed(4),
             ),
             autoIgnoredCellCount: borderNoise.count(),
+            motionCentroidX: effective.motionCentroidX,
+            motionCentroidY: effective.motionCentroidY,
+            dominantRegion: effective.dominantRegion,
           });
         } catch (error) {
           options.onError(
