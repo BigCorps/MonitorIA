@@ -205,19 +205,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section container retention-section">
+<section className="section container retention-section">
         <div className="retention-card">
-          <span className="section-kicker">Por que 12 meses importa</span>
-          <h2>Gravação some.<br />O histórico fica.</h2>
-          <p>
-            HD de DVR se sobrescreve sozinho. Gravação em nuvem costuma guardar de 3 a 7 dias.
-            O MonitorIA guarda o registro escrito do que aconteceu por até um ano — e ocupa
-            menos espaço que duas músicas por mês.
-          </p>
-          <div className="retention-compare">
-            <div><strong>3 a 7 dias</strong><span>Gravação em nuvem</span></div>
-            <div><strong>15 a 30 dias</strong><span>HD do seu DVR</span></div>
-            <div className="highlight"><strong>12 meses</strong><span>Histórico no MonitorIA</span></div>
+          <div className="retention-copy">
+            <span className="section-kicker">Por que 12 meses importa</span>
+            <h2>Gravação some.<br />O histórico fica.</h2>
+            <p>
+              HD de DVR se sobrescreve sozinho. Gravação em nuvem costuma guardar de 3 a 7 dias.
+              O MonitorIA guarda o registro escrito do que aconteceu por até um ano — e ocupa
+              menos espaço que duas músicas por mês.
+            </p>
+          </div>
+
+          <div className="retention-scale">
+            <span className="scale-head">Quanto tempo você ainda consegue consultar</span>
+
+            <div className="scale-row">
+              <div className="scale-label"><strong>Gravação em nuvem</strong><span>3 a 7 dias</span></div>
+              <div className="scale-track is-cloud"><i /></div>
+            </div>
+
+            <div className="scale-row">
+              <div className="scale-label"><strong>HD do seu DVR</strong><span>15 a 30 dias</span></div>
+              <div className="scale-track is-dvr"><i /></div>
+            </div>
+
+            <div className="scale-row is-highlight">
+              <div className="scale-label"><strong>Histórico no MonitorIA</strong><span>12 meses</span></div>
+              <div className="scale-track is-monitoria"><i /></div>
+            </div>
+
+            <div className="scale-axis"><span>hoje</span><span>6 meses</span><span>12 meses</span></div>
+
+            <p className="scale-note">
+              O MonitorIA guarda o registro escrito e uma foto de cada acontecimento.
+              O vídeo continua no seu DVR.
+            </p>
           </div>
         </div>
       </section>

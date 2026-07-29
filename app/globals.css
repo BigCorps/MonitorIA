@@ -547,18 +547,59 @@ button, input, select, textarea { font: inherit; }
 /* ── Retenção ──────────────────────────────────────────────── */
 .retention-section .retention-card {
   padding: clamp(32px, 5vw, 58px);
+  display: grid;
+  grid-template-columns: 1.02fr .98fr;
+  gap: clamp(36px, 5vw, 68px);
+  align-items: center;
   border: 1px solid var(--line);
   border-radius: 22px;
   background: linear-gradient(145deg, rgba(17,34,55,.66), rgba(10,23,40,.5));
 }
 .retention-card h2 { margin: 15px 0 18px; font-size: clamp(32px, 4.2vw, 50px); line-height: 1.08; letter-spacing: -.05em; }
-.retention-card > p { max-width: 640px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
-.retention-compare { margin-top: 38px; padding-top: 26px; display: flex; flex-wrap: wrap; gap: 34px; border-top: 1px solid var(--line); }
-.retention-compare div { display: grid; gap: 6px; }
-.retention-compare strong { font-size: 21px; color: #7a8ca1; letter-spacing: -.035em; }
-.retention-compare span { font-size: 11px; color: #66788e; }
-.retention-compare .highlight strong { color: var(--green); }
-.retention-compare .highlight span { color: #93a6bb; }
+.retention-copy > p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
+
+.retention-scale { display: grid; gap: 17px; }
+.scale-head { color: #6f8198; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.scale-row { display: grid; gap: 8px; }
+.scale-label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.scale-label strong { color: #8d9fb4; font-size: 12px; font-weight: 650; }
+.scale-label span { color: #66788e; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.scale-track {
+  height: 34px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background-color: rgba(255,255,255,.02);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(8.3333% - 1px),
+    rgba(148,163,184,.12) calc(8.3333% - 1px),
+    rgba(148,163,184,.12) 8.3333%
+  );
+}
+.scale-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  border-radius: 8px 3px 3px 8px;
+  background: linear-gradient(90deg, rgba(148,163,184,.44), rgba(148,163,184,.2));
+}
+.scale-track.is-cloud i { width: 2%; min-width: 9px; }
+.scale-track.is-dvr i { width: 8%; min-width: 15px; }
+.scale-track.is-monitoria i {
+  width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--green) 0%, #4f8cff 100%);
+  box-shadow: 0 0 26px rgba(87,230,199,.22);
+}
+.scale-row.is-highlight .scale-label strong { color: var(--text); }
+.scale-row.is-highlight .scale-label span { color: var(--green); }
+
+.scale-axis { display: flex; justify-content: space-between; padding-top: 2px; color: #5b6c81; font-size: 9px; letter-spacing: .06em; }
+.scale-note { margin: 6px 0 0; padding-top: 15px; border-top: 1px solid var(--line); color: #6d8096; font-size: 10px; line-height: 1.6; }
 
 /* ── Planos ────────────────────────────────────────────────── */
 .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
@@ -620,6 +661,7 @@ button, input, select, textarea { font: inherit; }
   .plan-grid { grid-template-columns: 1fr; }
   .plan-items { margin-top: 4px; }
   .plans-cta { flex-direction: column; align-items: flex-start; }
+  .retention-section .retention-card { grid-template-columns: 1fr; gap: 38px; }
 }
 
 @media (max-width: 680px) {
