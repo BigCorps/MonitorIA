@@ -1,0 +1,55 @@
+{
+  "name": "MonitorIA v0.8.1 fix 1",
+  "backendChanges": false,
+  "fileCount": 8,
+  "fixes": [
+    "TypeScript union narrowing in profile actions",
+    "camera profile role hint compatibility",
+    "event schema 1.1 test fixtures",
+    "people role test fixtures",
+    "Markdown assertion",
+    "local analysis example"
+  ],
+  "files": [
+    {
+      "path": "APPLY-v0.8.1-fix1.md",
+      "bytes": 516,
+      "sha256": "2b055197f0856e66734c783d667024cfc0c77c387ea408ca2b28a4850a00090f"
+    },
+    {
+      "path": "app/dashboard/cameras/profile-actions.ts",
+      "bytes": 20887,
+      "sha256": "8cb6b023f49c498153d9d6b71802622417694b18ef939208e490347433a88aa4"
+    },
+    {
+      "path": "src/contracts/camera-profile-draft.ts",
+      "bytes": 1871,
+      "sha256": "7e28e5ab66c9a7f998214516efb970451255d6375482fa8eea75a75cc053a960"
+    },
+    {
+      "path": "src/examples/analyze-local-images.ts",
+      "bytes": 2602,
+      "sha256": "c09939a1d0234181569e37abe98ecdfe5173b1a3e8f55ff1eabc01d1dff7f708"
+    },
+    {
+      "path": "test/camera-profile-draft.test.ts",
+      "bytes": 2102,
+      "sha256": "6be7dbe3e802012f3a669f998dcea5183ed6a2f71d96a3844fe9865b7907a595"
+    },
+    {
+      "path": "test/contracts.test.ts",
+      "bytes": 1665,
+      "sha256": "d593258947b08d7a3843de8d07afae484ae5d1e20b703d0aea6b4b3fb2f6ac20"
+    },
+    {
+      "path": "test/event-export.test.ts",
+      "bytes": 1473,
+      "sha256": "2745086ee87cda56c562b57adf811818dbc1812cf269ea7eac3204de498547cd"
+    },
+    {
+      "path": "test/event-zone-normalization.test.ts",
+      "bytes": 1784,
+      "sha256": "4887964ba81b39e5e5ae4f818c8f0843bad2e7afd30f87fddfdbb6f2b6ac463c"
+    }
+  ]
+}

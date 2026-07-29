@@ -19,7 +19,7 @@ export const SuggestedCameraZoneSchema = z
       "ignore",
       "general",
     ]),
-    personRoleHint: PersonRoleHintSchema,
+    personRoleHint: PersonRoleHintSchema.default("none"),
     description: z.string().trim().min(1).max(500),
     polygon: z.array(ProfilePointSchema).min(3).max(8),
   })

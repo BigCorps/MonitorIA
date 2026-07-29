@@ -400,7 +400,9 @@ export async function analyzeCameraProfileAction(
     await authorizeCamera(cameraId);
 
   if ("error" in authorized) {
-    return actionError(authorized.error);
+    return actionError(
+      authorized.error ?? "Não foi possível autorizar esta operação.",
+    );
   }
 
   if (!process.env.OPENAI_API_KEY?.trim()) {
@@ -416,7 +418,9 @@ export async function analyzeCameraProfileAction(
   );
 
   if ("error" in loaded) {
-    return actionError(loaded.error);
+    return actionError(
+      loaded.error ?? "Não foi possível carregar a imagem selecionada.",
+    );
   }
 
   const asset = loaded.asset;
@@ -691,7 +695,9 @@ export async function saveCameraProfileDraftAction(
     await authorizeCamera(cameraId);
 
   if ("error" in authorized) {
-    return actionError(authorized.error);
+    return actionError(
+      authorized.error ?? "Não foi possível autorizar esta operação.",
+    );
   }
 
   const loaded = await loadSourceAsset(
@@ -701,7 +707,9 @@ export async function saveCameraProfileDraftAction(
   );
 
   if ("error" in loaded) {
-    return actionError(loaded.error);
+    return actionError(
+      loaded.error ?? "Não foi possível carregar a imagem selecionada.",
+    );
   }
 
   const input = parsed.data;
@@ -807,7 +815,9 @@ export async function approveCameraProfileAction(
     await authorizeCamera(cameraId);
 
   if ("error" in authorized) {
-    return actionError(authorized.error);
+    return actionError(
+      authorized.error ?? "Não foi possível autorizar esta operação.",
+    );
   }
 
   const { data: profile, error } =

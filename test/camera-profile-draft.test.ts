@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CameraProfileDraftSchema } from "../src/contracts/camera-profile-draft.js";
+import {
+  CameraProfileDraftSchema,
+} from "../src/contracts/camera-profile-draft.js";
 
 const validProfile = {
   environmentDescription:
@@ -11,12 +13,16 @@ const validProfile = {
     "registrar entrada e saída de pessoas",
     "detectar permanência incomum na entrada",
   ],
-  ignoreInstructions: ["ignorar pequenas variações de iluminação"],
+  ignoreInstructions: [
+    "ignorar pequenas variações de iluminação",
+  ],
   zones: [
     {
       name: "Entrada principal",
       type: "entry",
-      description: "Área da porta e passagem imediata.",
+      personRoleHint: "customer",
+      description:
+        "Área da porta e passagem imediata.",
       polygon: [
         { x: 0.1, y: 0.2 },
         { x: 0.5, y: 0.2 },
@@ -25,7 +31,9 @@ const validProfile = {
       ],
     },
   ],
-  privacyNotes: ["não identificar pessoas por rosto"],
+  privacyNotes: [
+    "não identificar pessoas por rosto",
+  ],
   imageQuality: {
     overall: "good",
     lighting: "iluminação uniforme",
@@ -36,8 +44,37 @@ const validProfile = {
 };
 
 test("aceita um perfil estruturado válido", () => {
-  const parsed = CameraProfileDraftSchema.parse(validProfile);
-  assert.equal(parsed.zones[0]?.type, "entry");
+  const parsed =
+    CameraProfileDraftSchema.parse(validProfile);
+
+  assert.equal(
+    parsed.zones[0]?.type,
+    "entry",
+  );
+  assert.equal(
+    parsed.zones[0]?.personRoleHint,
+    "customer",
+  );
+});
+
+test("aplica none em perfis antigos sem pista de papel", () => {
+  const legacy = {
+    ...validProfile,
+    zones: [
+      {
+        ...validProfile.zones[0],
+        personRoleHint: undefined,
+      },
+    ],
+  };
+
+  const parsed =
+    CameraProfileDraftSchema.parse(legacy);
+
+  assert.equal(
+    parsed.zones[0]?.personRoleHint,
+    "none",
+  );
 });
 
 test("rejeita coordenadas fora do quadro", () => {

@@ -44,7 +44,7 @@ test("usa o título específico no Markdown", () => {
   );
   assert.match(
     markdown,
-    /Tipo técnico:\\*\\* Pessoa presente/,
+    /\\*\\*Tipo técnico:\\*\\* Pessoa presente/,
   );
   assert.match(markdown, /90%/);
 });

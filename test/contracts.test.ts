@@ -1,20 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
-import { AnalyzedEventSchema } from "../src/contracts/analyzed-event.js";
+import {
+  AnalyzedEventSchema,
+} from "../src/contracts/analyzed-event.js";
 
 const zoneId = randomUUID();
 
 test("aceita um evento visual válido", () => {
   const parsed = AnalyzedEventSchema.parse({
-    schemaVersion: "1.0",
+    schemaVersion: "1.1",
+    headline: "Veículo branco entrou na área",
     primaryEventType: "vehicle_entered",
-    summary: "Um veículo branco entrou na área monitorada.",
+    summary:
+      "Um veículo branco entrou na área monitorada.",
     observations: [
       {
         type: "vehicle_entered",
         offsetSeconds: 0,
-        description: "Veículo cruza a entrada.",
+        description:
+          "Veículo cruza a entrada.",
         zoneIds: [zoneId],
         confidence: 0.9,
       },
@@ -25,12 +30,7 @@ test("aceita um evento visual válido", () => {
         localTrackId: "vehicle_1",
         type: "car",
         color: "branco",
-        plateSuggestion: {
-          text: "ABC1D23",
-          confidence: 0.55,
-          visibility: "partial",
-          status: "suggestion",
-        },
+        plateSuggestion: null,
         zoneIds: [zoneId],
         confidence: 0.88,
       },
@@ -43,13 +43,21 @@ test("aceita um evento visual válido", () => {
     reviewReasons: [],
   });
 
-  assert.equal(parsed.vehicles[0]?.plateSuggestion?.status, "suggestion");
+  assert.equal(
+    parsed.schemaVersion,
+    "1.1",
+  );
+  assert.equal(
+    parsed.vehicles[0]?.plateSuggestion,
+    null,
+  );
 });
 
 test("rejeita confiança fora de 0 a 1", () => {
   assert.throws(() =>
     AnalyzedEventSchema.parse({
-      schemaVersion: "1.0",
+      schemaVersion: "1.1",
+      headline: "Evento de teste",
       primaryEventType: "other",
       summary: "Teste",
       observations: [],
