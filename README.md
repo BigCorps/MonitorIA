@@ -1,65 +1,37 @@
-# MonitorIA v0.7.3
+# MonitorIA v0.8.0
 
 **Sua câmera vê. A IA lembra.**
 
-O MonitorIA transforma câmeras RTSP comuns em uma linha do tempo estruturada.
-O vídeo contínuo permanece no equipamento local; somente quadros selecionados
-de eventos são enviados para análise.
+O MonitorIA transforma câmeras RTSP comuns em uma linha do tempo
+estruturada e pesquisável. O vídeo contínuo permanece no local;
+somente quadros selecionados de eventos são enviados para análise.
 
 ## Estado atual
 
-- autenticação e organizações com RLS;
-- cadastro e pareamento de câmeras;
-- Agent Windows com DPAPI;
-- perfil visual aprovado por câmera;
-- detecção local de movimento;
-- segmentação adaptativa por ruído;
-- máscaras para relógios, overlays e zonas ignoradas;
+- Agent Windows v0.7.3;
+- segmentação adaptativa;
 - modos Econômico, Equilibrado e Detalhado;
-- análise com GPT-5 nano e GPT-5 mini;
-- telemetria de cache, raciocínio, latência e custo;
-- A/B controlado entre nano e mini;
-- retenção e expurgo diário;
-- saúde do Agent consolidada por hora.
+- GPT-5 nano e GPT-5 mini;
+- telemetria de custo;
+- linha do tempo de eventos;
+- detalhe visual do evento;
+- revisão humana;
+- pesquisa textual;
+- comparação entre períodos;
+- exportação Markdown e JSON;
+- thumbnails reais das câmeras;
+- retenção e auditoria.
 
-## Modos visuais
-
-| Modo | Quadros | Modelo inicial |
-|---|---:|---|
-| Econômico | 1 | GPT-5 nano |
-| Equilibrado | até 3 | GPT-5 nano, com escalonamento |
-| Detalhado | até 4 | GPT-5 mini |
-
-## Validação A/B
-
-O A/B fica desligado por padrão. Para coletar até 50 comparações por câmera:
-
-```env
-VISION_AB_TEST_ENABLED=true
-VISION_AB_TEST_SAMPLE_PERCENT=100
-VISION_AB_TEST_MAX_PER_CAMERA=50
-```
-
-A avaliação fica disponível em:
+## Rotas principais
 
 ```text
+/dashboard
+/dashboard/cameras
+/dashboard/events
+/dashboard/events/[eventId]
+/dashboard/search
 /dashboard/vision-tests
 ```
-
-Depois de coletar a amostra, volte `VISION_AB_TEST_ENABLED=false`.
-
-## Agent
-
-Baixe o artifact `monitoria-agent-windows-x64-baseline-v0.7.3`.
-
-```powershell
-Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe" status
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-```
-
-A configuração da v0.7.2 é compatível. Não execute `reset`.
 
 ## Validação
 
@@ -70,4 +42,13 @@ npm test
 npm run build
 ```
 
-Consulte `docs/VALIDATION-v0.7.3.md` e `docs/ROADMAP-MONITORIA-V1.md`.
+Consulte:
+
+```text
+APPLY-v0.8.0.md
+CHANGES-v0.8.0.md
+docs/ROADMAP-MONITORIA-V1.md
+```
+
+O Assistente IA será construído somente após a validação final da
+fase 7.

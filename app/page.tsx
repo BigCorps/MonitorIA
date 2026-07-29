@@ -264,7 +264,7 @@ export default function HomePage() {
           ))}
         </div>
         <div className="plans-cta">
-          <p>Conte quantas câmeras você tem e o que precisa acompanhar. A gente monta a proposta.</p>
+          <p>Conte quantas câmeras você tem e o que precisa acompanhar.</p>
           <a className="button button-primary" href={WHATSAPP} target="_blank" rel="noopener noreferrer">
             Falar com a gente no WhatsApp
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg>
@@ -275,7 +275,7 @@ export default function HomePage() {
       <section className="cta-section container">
         <div>
           <span>MonitorIA · Para lojas, postos, oficinas e condomínios</span>
-          <h2>Suas câmeras já gravam tudo.<br />Falta alguém lembrar.</h2>
+          <h2>Suas câmeras já gravam.<br />Falta alguém lembrar.</h2>
         </div>
         <a className="button button-light" href={WHATSAPP} target="_blank" rel="noopener noreferrer">
           Falar com a gente

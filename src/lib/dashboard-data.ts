@@ -30,6 +30,7 @@ export type CameraSummary = {
   motionAdaptiveEnabled: boolean;
   motionOverlayMask: string;
   monitoringSchedule: Record<string, unknown>;
+  thumbnailAssetId: string | null;
   createdAt: string;
 };
 
@@ -222,6 +223,7 @@ export async function getDashboardData(
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organization.id)
       .eq("site_id", site.id)
+      .is("deleted_at", null)
       .gte("started_at", dayStart),
     supabase
       .from("usage_events")
@@ -231,10 +233,11 @@ export async function getDashboardData(
     supabase
       .from("events")
       .select(
-        "id,started_at,summary,primary_event_type,confidence,requires_review",
+        "id,started_at,summary,primary_event_type,corrected_event_type,confidence,requires_review",
       )
       .eq("organization_id", organization.id)
       .eq("site_id", site.id)
+      .is("deleted_at", null)
       .order("started_at", { ascending: false })
       .limit(8),
     supabase
@@ -262,7 +265,9 @@ export async function getDashboardData(
     id: String(event.id),
     startedAt: String(event.started_at),
     summary: String(event.summary),
-    type: String(event.primary_event_type),
+    type: String(
+      event.corrected_event_type ?? event.primary_event_type,
+    ),
     confidence: Number(event.confidence),
     requiresReview: Boolean(event.requires_review),
   }));
@@ -319,7 +324,93 @@ export async function getOrganizationCameras(
     return [];
   }
 
-  return (data ?? []).map((row: any) => {
+  const rows = data ?? [];
+  const cameraIds: string[] = rows.map((row: any) => String(row.id));
+  const thumbnailByCamera = new Map<string, string>();
+
+  if (cameraIds.length) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("camera_profiles")
+      .select("camera_id,source_asset_id,version,is_active")
+      .eq("organization_id", organizationId)
+      .in("camera_id", cameraIds)
+      .order("is_active", { ascending: false })
+      .order("version", { ascending: false });
+
+    if (profilesError) {
+      console.error(
+        "Falha ao carregar imagens dos perfis:",
+        profilesError.message,
+      );
+    }
+
+    const preferredAssetByCamera = new Map<string, string>();
+
+    for (const profile of profiles ?? []) {
+      const cameraId = String((profile as any).camera_id);
+      const assetId = (profile as any).source_asset_id;
+
+      if (assetId && !preferredAssetByCamera.has(cameraId)) {
+        preferredAssetByCamera.set(cameraId, String(assetId));
+      }
+    }
+
+    const preferredIds = [...preferredAssetByCamera.values()];
+
+    if (preferredIds.length) {
+      const { data: preferredAssets } = await supabase
+        .from("storage_assets")
+        .select("id,camera_id")
+        .eq("organization_id", organizationId)
+        .in("id", preferredIds)
+        .eq("status", "ready")
+        .is("deleted_at", null);
+
+      for (const asset of preferredAssets ?? []) {
+        thumbnailByCamera.set(
+          String((asset as any).camera_id),
+          String((asset as any).id),
+        );
+      }
+    }
+
+    const missingCameraIds = cameraIds.filter(
+      (cameraId) => !thumbnailByCamera.has(cameraId),
+    );
+
+    if (missingCameraIds.length) {
+      const { data: fallbackAssets, error: assetsError } =
+        await supabase
+          .from("storage_assets")
+          .select("id,camera_id,captured_at,kind")
+          .eq("organization_id", organizationId)
+          .in("camera_id", missingCameraIds)
+          .eq("status", "ready")
+          .is("deleted_at", null)
+          .in("kind", ["analysis_frame", "event_keyframe"])
+          .order("captured_at", { ascending: false });
+
+      if (assetsError) {
+        console.error(
+          "Falha ao carregar thumbnails alternativos:",
+          assetsError.message,
+        );
+      }
+
+      for (const asset of fallbackAssets ?? []) {
+        const cameraId = String((asset as any).camera_id);
+
+        if (!thumbnailByCamera.has(cameraId)) {
+          thumbnailByCamera.set(
+            cameraId,
+            String((asset as any).id),
+          );
+        }
+      }
+    }
+  }
+
+  return rows.map((row: any) => {
     const relation = row.site;
     const site = Array.isArray(relation)
       ? relation[0]
@@ -356,6 +447,8 @@ export async function getOrganizationCameras(
       monitoringSchedule: objectValue(
         row.monitoring_schedule,
       ),
+      thumbnailAssetId:
+        thumbnailByCamera.get(String(row.id)) ?? null,
       createdAt: String(row.created_at),
     };
   });

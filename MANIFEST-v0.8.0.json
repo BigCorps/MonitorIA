@@ -1,0 +1,137 @@
+{
+  "version": "0.8.0",
+  "backendStatus": "applied_via_mcp",
+  "fileCount": 26,
+  "files": [
+    {
+      "path": "APPLY-v0.8.0.md",
+      "bytes": 961,
+      "sha256": "74b85bebdb12f2ebf1be15663912ce599eae547d47e0921eb77cbc032b2aa50d"
+    },
+    {
+      "path": "CHANGES-v0.8.0.md",
+      "bytes": 1390,
+      "sha256": "81cf6dc1bec6a568de8df9903abcbdad0fc475bdf10c9eb7399e3047ac569a20"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1052,
+      "sha256": "e75f64c46e2827b6c740cc92364ef718a5ae8228748831ea77cf42744e084a9d"
+    },
+    {
+      "path": "app/api/storage-assets/[assetId]/route.ts",
+      "bytes": 1645,
+      "sha256": "a4c52376235136078e3f701cb4cb4e3f0ffb068067d7be8d33e1627c5a61f0cb"
+    },
+    {
+      "path": "app/dashboard/cameras/cameras.module.css",
+      "bytes": 491,
+      "sha256": "8135db62ff9bf8f268d3fa2e4fab8ce67ac61528542de3bb91f48dd30e13aa0e"
+    },
+    {
+      "path": "app/dashboard/cameras/page.tsx",
+      "bytes": 5050,
+      "sha256": "87b9f184067259791e58833977567871a53af3ffba54f61d28a98f66ad093811"
+    },
+    {
+      "path": "app/dashboard/dashboard-sidebar.tsx",
+      "bytes": 1966,
+      "sha256": "278147278645a3ccf72955a848b5c37f63c0541048a6caf07f13c3e9cbe252f7"
+    },
+    {
+      "path": "app/dashboard/events/[eventId]/event-detail.module.css",
+      "bytes": 7653,
+      "sha256": "a3b3b45e27965676a0077375646c2b60b0816e68430ee4143b911dc8a0fb4c2d"
+    },
+    {
+      "path": "app/dashboard/events/[eventId]/page.tsx",
+      "bytes": 19235,
+      "sha256": "d0302207109ea6c9317c3332798049208fd16ef8830d48cf4778d62aeec8c762"
+    },
+    {
+      "path": "app/dashboard/events/actions.ts",
+      "bytes": 2486,
+      "sha256": "7e82883d780e8bf13b93c13dcaf997f37fefa4d751dd64be5eefcfd05c2bc03c"
+    },
+    {
+      "path": "app/dashboard/events/event-list.tsx",
+      "bytes": 3000,
+      "sha256": "a110381e3b2d6da435c421a904c71a4800f1992d50908f15fdb99fd5234b143f"
+    },
+    {
+      "path": "app/dashboard/events/events.module.css",
+      "bytes": 4832,
+      "sha256": "49880aa9c341a869f072b8c0c9faf337566b07445be8b1cde0ff9ac0f6ed3f9b"
+    },
+    {
+      "path": "app/dashboard/events/page.tsx",
+      "bytes": 7341,
+      "sha256": "c00d009929c03d0572f8a1c32de9dc207849d138509e89ea1ff95242de4da56d"
+    },
+    {
+      "path": "app/dashboard/search/comparison-panel.tsx",
+      "bytes": 3199,
+      "sha256": "aa0e4d94059a43d1247e1b56a4f8feef8f7a9949332c4a0a6055d1952ec3ed4f"
+    },
+    {
+      "path": "app/dashboard/search/export-buttons.tsx",
+      "bytes": 2182,
+      "sha256": "da50f54fb20850d5a489e62cc7c76a071137687d64764f4f35c30a6023f4ac97"
+    },
+    {
+      "path": "app/dashboard/search/page.tsx",
+      "bytes": 14605,
+      "sha256": "95ac3afe3a11752fd4d07ab329ac0bd0e49463327e45f8cf6c0affa37baa6afc"
+    },
+    {
+      "path": "app/dashboard/search/search.module.css",
+      "bytes": 5298,
+      "sha256": "5cda7723dc14ae3f2731228b1ebd6960d348f3b1741ccf91e9815637ddcfc93d"
+    },
+    {
+      "path": "package.json",
+      "bytes": 846,
+      "sha256": "09eb3ca3643935ce1cd873e37b3ad645da67b4c68a81f8fc70f84d74e4b45b10"
+    },
+    {
+      "path": "src/lib/dashboard-data.ts",
+      "bytes": 11951,
+      "sha256": "7509dca407ec1a5839e59231ba7c4f5f50fb9c02e3733546df7a5205a9118500"
+    },
+    {
+      "path": "src/lib/event-export.ts",
+      "bytes": 2960,
+      "sha256": "472555f992fa15b9371cd1a4716a27ccfe48a6096adffa969e6ea2c2ea890402"
+    },
+    {
+      "path": "src/lib/event-labels.ts",
+      "bytes": 1329,
+      "sha256": "88c035acfbde9c32420e5424692c80eb63ffde19d91317ba37458d7e629c0350"
+    },
+    {
+      "path": "src/lib/event-search-data.ts",
+      "bytes": 17344,
+      "sha256": "cb11a53dd32858570fb0a827578048254a3c54b421bdceb1d8e930a84aca2a60"
+    },
+    {
+      "path": "supabase/migrations/20260729173041_events_search_review_comparison.sql",
+      "bytes": 19150,
+      "sha256": "af766517c20f71ca5852c7de4b672870af9dbe431005c87d395aa89db3bfaaa4"
+    },
+    {
+      "path": "supabase/migrations/20260729180000_comparison_metrics_local_timezone.sql",
+      "bytes": 3875,
+      "sha256": "33c5600a99210e3ff3552fbe3c50efc4d80c6b5a2f9928c2e8d50f4f03eb5117"
+    },
+    {
+      "path": "test/event-export.test.ts",
+      "bytes": 1358,
+      "sha256": "5f144d61e0519c97430677c16ca67db8ad2c73f5a56b380bb7b80d2852ff00f0"
+    },
+    {
+      "path": "test/event-labels.test.ts",
+      "bytes": 505,
+      "sha256": "8a1cb70967c0dab3f84cee77ee710a130d3ba467121eb69138175756c7975fa7"
+    }
+  ]
+}

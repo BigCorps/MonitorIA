@@ -1,0 +1,30 @@
+.preview {
+  min-height: 190px;
+  overflow: hidden;
+}
+
+.thumbnail {
+  width: 100% !important;
+  height: 190px !important;
+  object-fit: cover;
+  opacity: 1 !important;
+  filter: saturate(0.92) contrast(1.03);
+}
+
+.logo {
+  width: 58px !important;
+  height: 58px !important;
+}
+
+.statusOnline {
+  color: #87f0d8 !important;
+  border-color: rgba(88, 224, 195, 0.28) !important;
+}
+
+@media (max-width: 760px) {
+  .preview,
+  .thumbnail {
+    min-height: 160px;
+    height: 160px !important;
+  }
+}
