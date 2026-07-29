@@ -153,7 +153,7 @@ export default async function DashboardPage({
             </span>
             <h1>
               {greeting(site.timezone)}. O MonitorIA
-              está conectado ao Supabase.
+              está conectado!
             </h1>
             <p>
               Dados reais da organização{" "}
