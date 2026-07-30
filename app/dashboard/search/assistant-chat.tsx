@@ -51,7 +51,7 @@ const suggestions = [
   "Em quais horários houve mais movimento?",
   "Gere um gráfico de linhas do movimento por hora de ontem e hoje.",
   "Compare o movimento de hoje com ontem.",
-  "Quais veículos ficaram próximos à entrada?",
+  "O comércio foi aberto e fechado na hora correta?",
 ];
 
 const chartColors = [
