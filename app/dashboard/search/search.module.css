@@ -716,3 +716,367 @@
     animation: none;
   }
 }
+
+/* v0.8.2 fix 2 — histórico recolhível, gráfico e rolagem clara */
+.workspace {
+  position: relative;
+  display: block;
+}
+
+.chatPanel {
+  width: 100%;
+}
+
+.threadPanel {
+  width: min(320px, 88%);
+  position: absolute;
+  z-index: 22;
+  inset: 0 auto 0 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-right: 1px solid #e1e8ef;
+  background: #f8fafc;
+  box-shadow: 18px 0 46px rgba(15, 31, 52, 0.14);
+  transform: translateX(-104%);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.22s ease,
+    visibility 0.22s;
+}
+
+.threadPanelOpen {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.threadBackdrop {
+  position: absolute;
+  z-index: 21;
+  inset: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  background: rgba(19, 36, 53, 0.18);
+  backdrop-filter: blur(1.5px);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s;
+}
+
+.threadBackdropVisible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.threadPanelHeader {
+  min-height: 54px;
+  margin-bottom: 13px;
+  padding-bottom: 13px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e1e8ef;
+}
+
+.threadPanelHeader > div {
+  display: grid;
+  gap: 5px;
+}
+
+.threadPanelHeader span {
+  color: #2bad92;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.threadPanelHeader strong {
+  color: #243a52;
+  font-size: 14px;
+}
+
+.threadPanelHeader button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #dce5ec;
+  border-radius: 9px;
+  color: #657a90;
+  background: #fff;
+  cursor: pointer;
+}
+
+.threadPanelHeader svg,
+.historyToggle svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.threadHeading {
+  display: none;
+}
+
+.threadList {
+  margin-top: 12px;
+}
+
+.chatIdentity {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.chatHeaderActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.historyToggle,
+.filterToggle,
+.filtersActive {
+  min-height: 34px;
+  margin-left: 0;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  font-size: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.historyToggle {
+  color: #526a82;
+  border: 1px solid #dce5ec;
+  background: #fff;
+}
+
+.historyToggle i {
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #08745f;
+  background: #e9f8f4;
+  font-size: 7px;
+  font-style: normal;
+}
+
+.messages,
+.threadList {
+  color-scheme: light;
+  scrollbar-width: thin;
+  scrollbar-color: #d2dde7 #ffffff;
+}
+
+.messages::-webkit-scrollbar,
+.threadList::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.messages::-webkit-scrollbar-track,
+.threadList::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+.messages::-webkit-scrollbar-thumb,
+.threadList::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #d2dde7;
+}
+
+.messages::-webkit-scrollbar-thumb:hover,
+.threadList::-webkit-scrollbar-thumb:hover {
+  background: #b8c7d4;
+}
+
+.chartCard {
+  overflow: hidden;
+  border: 1px solid #dfe7ee;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 9px 24px rgba(15, 31, 52, 0.035);
+}
+
+.chartHeader {
+  min-height: 57px;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #e8edf2;
+}
+
+.chartHeader > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.chartHeader span {
+  color: #2bad92;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.chartHeader strong {
+  overflow: hidden;
+  color: #263d55;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chartHeader button {
+  flex: 0 0 auto;
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid #dce5ec;
+  border-radius: 8px;
+  color: #536b82;
+  background: #f9fbfc;
+  font-size: 7px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chartViewport {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.chartViewport svg {
+  width: 100%;
+  min-width: 580px;
+  height: auto;
+  display: block;
+}
+
+.chartLegend {
+  padding: 0 14px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 13px;
+}
+
+.chartLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #61758b;
+  font-size: 7px;
+}
+
+.chartLegend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.chartCard > small {
+  display: block;
+  padding: 9px 14px 11px;
+  color: #8795a5;
+  border-top: 1px solid #edf1f4;
+  background: #fafcfd;
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .workspace {
+    overflow: hidden;
+  }
+
+  .threadPanel {
+    width: min(330px, 91%);
+    inset: 0 auto 0 0;
+    padding: 14px;
+    display: flex;
+    border-right: 1px solid #e1e8ef;
+    background: #f8fafc;
+  }
+
+  .threadList {
+    display: grid;
+    gap: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .threadList a {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .chatPanel {
+    margin-top: 0;
+  }
+
+  .chartViewport svg {
+    width: 680px;
+  }
+}
+
+@media (max-width: 560px) {
+  .chatHeader {
+    flex-wrap: wrap;
+  }
+
+  .chatIdentity {
+    flex: 1;
+  }
+
+  .chatHeaderActions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .historyToggle,
+  .filterToggle,
+  .filtersActive {
+    flex: 1;
+  }
+
+  .messageContent {
+    max-width: calc(100% - 40px);
+  }
+
+  .chartHeader button {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .threadPanel,
+  .threadBackdrop {
+    transition: none;
+  }
+}
