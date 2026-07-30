@@ -1,352 +1,364 @@
-"use client";
+// middleware.ts
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  useEffect,
-  useId,
-  useState,
-  type ReactNode,
-} from "react";
-import styles from "./dashboard-sidebar.module.css";
-
-export type DashboardSection =
-  | "overview"
-  | "cameras"
-  | "events"
-  | "search"
-  | "agents";
-
-type Props = {
-  organizationName: string;
-  userEmail: string | null;
-  active: DashboardSection;
-};
-
-type NavigationItem = {
-  id: DashboardSection;
-  href: string;
-  label: string;
-  icon: ReactNode;
-};
-
-function OverviewIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3.5 10.5 12 3l8.5 7.5" />
-      <path d="M5.5 9.5V21h13V9.5" />
-      <path d="M9.5 21v-6h5v6" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="3" y="6" width="18" height="13" rx="3" />
-      <circle cx="12" cy="12.5" r="3.5" />
-      <path d="M8 6 9.2 3.8h5.6L16 6" />
-    </svg>
-  );
-}
-
-function EventsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 6h16M4 12h16M4 18h16" />
-      <circle cx="7" cy="6" r="1" />
-      <circle cx="14" cy="12" r="1" />
-      <circle cx="10" cy="18" r="1" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m15.5 15.5 5 5" />
-    </svg>
-  );
-}
-
-function AgentIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="14" rx="3" />
-      <path d="M8 10h8M8 14h5M9 2v3M15 2v3" />
-      <circle cx="17" cy="15" r="1.5" />
-    </svg>
-  );
-}
-
-function MenuIcon({ open }: { open: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      {open ? (
-        <>
-          <path d="m6 6 12 12" />
-          <path d="M18 6 6 18" />
-        </>
-      ) : (
-        <>
-          <path d="M4 7h16" />
-          <path d="M4 12h16" />
-          <path d="M4 17h16" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-const items: NavigationItem[] = [
-  {
-    id: "overview",
-    href: "/dashboard",
-    label: "Visão geral",
-    icon: <OverviewIcon />,
-  },
-  {
-    id: "cameras",
-    href: "/dashboard/cameras",
-    label: "Câmeras",
-    icon: <CameraIcon />,
-  },
-  {
-    id: "events",
-    href: "/dashboard/events",
-    label: "Eventos",
-    icon: <EventsIcon />,
-  },
-  {
-    id: "search",
-    href: "/dashboard/search",
-    label: "Pesquisa",
-    icon: <SearchIcon />,
-  },
-  {
-    id: "agents",
-    href: "/dashboard#agentes",
-    label: "Agents locais",
-    icon: <AgentIcon />,
-  },
+const PLAN_PROTECTED_ROUTES = [
+  '/dashboard/producao',
 ];
 
-function Brand() {
-  return (
-    <Link
-      href="/dashboard"
-      className={`dashboard-brand ${styles.brand}`}
-      aria-label="Abrir visão geral do MonitorIA"
-    >
-      <span
-        className={`dashboard-logo-mark ${styles.logoMark}`}
-        aria-hidden="true"
-      >
-        <img
-          src="/favicon.svg"
-          alt=""
-          width={24}
-          height={24}
-        />
-      </span>
+const RESERVED_SUBDOMAINS = [
+  'www', 'app', 'api', 'pay', 'admin', 'mail', 'smtp',
+  'dashboard', 'login', 'cadastro',
+  'precos', 'sobre', 'contato', 'docs', 'blog',
+  'para',
+];
 
-      <span className={styles.brandText}>
-        Monitor<span>IA</span>
-      </span>
-    </Link>
+const CRAWLER_PASSTHROUGH = ['/robots.txt', '/sitemap.xml', '/sitemap.ts'];
+
+const ARTEFINAL_DOMAINS = ['ia.artefinal.app'];
+
+const PIX_DOMAINS = ['pix.wiki', 'www.pix.wiki'];
+
+// ── Min.IA ───────────────────────────────────────────────────────────────
+const MINIA_APP_DOMAINS = ['app.min.ia.br'];
+
+// Enquanto o repo da landing (min.ia.br) não existir, redireciona quem
+// acessar o apex direto pra ferramenta. REMOVER este array e o bloco que o
+// usa quando a landing entrar no lugar (projeto Vercel separado pro apex).
+const MINIA_APEX_TEMP_REDIRECT_DOMAINS = ['min.ia.br', 'www.min.ia.br'];
+
+// ── Todos os domínios de subdomínio de cliente ─────────────────────────────
+const SUBDOMAIN_DOMAINS = [
+  { suffix: '.minhai.com.br',  pattern: /^(.+)\.minhai\.com\.br$/ },
+  { suffix: '.minhaia.app',    pattern: /^(.+)\.minhaia\.app$/ },
+  { suffix: '.nossaia.app',    pattern: /^(.+)\.nossaia\.app$/ },
+  { suffix: '.suaia.app',      pattern: /^(.+)\.suaia\.app$/ },
+  { suffix: '.minhai.app',     pattern: /^(.+)\.minhai\.app$/ },
+];
+
+function extractSlug(hostname: string): string | null {
+  // Dev local: loja.localhost
+  if (hostname.includes('.localhost')) {
+    return hostname.split('.')[0] || null;
+  }
+  for (const { pattern } of SUBDOMAIN_DOMAINS) {
+    const match = hostname.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function isSubdomainHost(hostname: string): boolean {
+  if (hostname.includes('.localhost')) return true;
+  return SUBDOMAIN_DOMAINS.some(({ suffix }) =>
+    hostname.endsWith(suffix) && !hostname.startsWith('www.')
   );
 }
 
-function Navigation({
-  active,
-  onNavigate,
-}: {
-  active: DashboardSection;
-  onNavigate?: () => void;
-}) {
-  return (
-    <nav className={styles.navigation} aria-label="Menu do dashboard">
-      {items.map((item) => (
-        <Link
-          className={
-            active === item.id
-              ? `active ${styles.activeLink}`
-              : undefined
-          }
-          href={item.href}
-          key={item.id}
-          onClick={onNavigate}
-          aria-current={
-            active === item.id ? "page" : undefined
-          }
-        >
-          <span className={styles.navIcon}>
-            {item.icon}
-          </span>
-          <span className={styles.navLabel}>
-            {item.label}
-          </span>
-          <span
-            className={styles.navArrow}
-            aria-hidden="true"
-          >
-            ›
-          </span>
-        </Link>
-      ))}
-    </nav>
-  );
+export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0].toLowerCase();
+  const pathname = request.nextUrl.pathname;
+
+// ── 0. DOMÍNIO ARTEFINAL.APP ──────────────────────────────────────────────
+if (ARTEFINAL_DOMAINS.includes(hostname)) {
+
+if (pathname === '/favicon.ico') {
+  const url = request.nextUrl.clone();
+  url.pathname = '/brands/artefinal/favicon.png';
+  return NextResponse.rewrite(url);
 }
 
-function Account({
-  organizationName,
-  userEmail,
-}: {
-  organizationName: string;
-  userEmail: string | null;
-}) {
-  const initial =
-    organizationName.trim().charAt(0).toUpperCase() || "M";
-
-  return (
-    <div className={`sidebar-account ${styles.account}`}>
-      <div className={styles.accountIdentity}>
-        <span
-          className={styles.accountAvatar}
-          aria-hidden="true"
-        >
-          {initial}
-        </span>
-        <div>
-          <span>{organizationName}</span>
-          <small>
-            {userEmail ?? "Usuário autenticado"}
-          </small>
-        </div>
-      </div>
-
-      <form action="/auth/signout" method="post">
-        <button type="submit">Sair da conta</button>
-      </form>
-    </div>
-  );
+if (pathname === '/manifest.json' || pathname === '/manifest.webmanifest') {
+  const url = request.nextUrl.clone();
+  url.pathname = '/brands/artefinal/manifest.webmanifest';
+  return NextResponse.rewrite(url);
 }
 
-export function DashboardSidebar({
-  organizationName,
-  userEmail,
-  active,
-}: Props) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const drawerId = useId();
+  // Rewrite raiz → /arte
+  if (pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/arte';
+    return NextResponse.rewrite(url);
+  }
 
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  // Evita loop: /arte não redireciona de volta para /
+  if (pathname === '/arte') {
+    // Deixa passar — será tratado abaixo com verificação de sessão
+  }
 
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
+  // Redireciona /arte/login para /arte se já estiver logado
+  if (pathname === '/arte/login') {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name) { return request.cookies.get(name)?.value; },
+          set() {},
+          remove() {},
+        },
       }
-    }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) return NextResponse.redirect(new URL('/arte', request.url));
+    return NextResponse.next();
+  }
 
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
-  return (
-    <>
-      <aside
-        className={`dashboard-sidebar ${styles.sidebar}`}
-      >
-        <div className={styles.desktopBrand}>
-          <Brand />
-        </div>
-
-        <div className={styles.desktopNavigation}>
-          <Navigation active={active} />
-        </div>
-
-        <div className={styles.desktopAccount}>
-          <Account
-            organizationName={organizationName}
-            userEmail={userEmail}
-          />
-        </div>
-
-        <div className={styles.mobileBar}>
-          <Brand />
-
-          <button
-            type="button"
-            className={styles.menuButton}
-            aria-label={
-              open
-                ? "Fechar menu do dashboard"
-                : "Abrir menu do dashboard"
-            }
-            aria-controls={drawerId}
-            aria-expanded={open}
-            onClick={() => setOpen((current) => !current)}
-          >
-            <MenuIcon open={open} />
-          </button>
-        </div>
-      </aside>
-
-      <div
-        className={`${styles.mobileOverlay} ${
-          open ? styles.overlayVisible : ""
-        }`}
-        aria-hidden={!open}
-        onClick={() => setOpen(false)}
-      />
-
-      <aside
-        id={drawerId}
-        className={`${styles.mobileDrawer} ${
-          open ? styles.drawerOpen : ""
-        }`}
-        aria-hidden={!open}
-        aria-label="Navegação mobile do MonitorIA"
-      >
-        <div className={styles.drawerHeader}>
-          <div>
-            <span>MENU PRINCIPAL</span>
-            <strong>{organizationName}</strong>
-          </div>
-
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            onClick={() => setOpen(false)}
-          >
-            <MenuIcon open />
-          </button>
-        </div>
-
-        <Navigation
-          active={active}
-          onNavigate={() => setOpen(false)}
-        />
-
-        <Account
-          organizationName={organizationName}
-          userEmail={userEmail}
-        />
-      </aside>
-    </>
-  );
+  // Protege /arte: redireciona para /arte/login se não logado
+  if (pathname === '/arte') {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name) { return request.cookies.get(name)?.value; },
+          set() {},
+          remove() {},
+        },
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.redirect(new URL('/arte/login', request.url));
+    return NextResponse.next();
+  }
 }
+
+// ── 0.05. MIN.IA — redirect temporário do apex pra ferramenta ────────────
+// min.ia.br/min.ia.br ainda não tem landing própria (repo separado não
+// existe ainda) — manda direto pra ferramenta em app.min.ia.br/min.
+// REMOVER quando o repo da landing existir e for configurado como projeto
+// Vercel próprio pro apex.
+if (MINIA_APEX_TEMP_REDIRECT_DOMAINS.includes(hostname)) {
+  const url = request.nextUrl.clone();
+  url.hostname = 'app.min.ia.br';
+  url.pathname = '/min';
+  url.search = '';
+  return NextResponse.redirect(url);
+}
+
+// ── 0.1. DOMÍNIO APP.MIN.IA.BR (Min.IA) ───────────────────────────────────
+if (MINIA_APP_DOMAINS.includes(hostname)) {
+
+  if (pathname === '/favicon.ico') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/brands/minia/favicon.png';
+    return NextResponse.rewrite(url);
+  }
+
+  if (pathname === '/manifest.json' || pathname === '/manifest.webmanifest') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/brands/minia/manifest.webmanifest';
+    return NextResponse.rewrite(url);
+  }
+
+  // Rewrite raiz → /min (igual o padrão do ArteFinal pra /arte)
+  if (pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/min';
+    return NextResponse.rewrite(url);
+  }
+
+  // /min NÃO é protegido aqui — a página mostra o carrossel sem login e só
+  // pede pra entrar quando o usuário interage com uma função. O gate fica
+  // dentro do próprio componente (handleFunctionSelect), não no middleware.
+
+  // Redireciona /min/login para /min se já estiver logado
+  if (pathname === '/min/login') {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name) { return request.cookies.get(name)?.value; },
+          set() {},
+          remove() {},
+        },
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) return NextResponse.redirect(new URL('/min', request.url));
+    return NextResponse.next();
+  }
+}
+
+// ── 0.2. DOMÍNIO PIX.WIKI ────────────────────────────────────────────────
+if (PIX_DOMAINS.includes(hostname)) {
+  // Se usar www.pix.wiki, redireciona para pix.wiki
+  if (hostname === 'www.pix.wiki') {
+    const url = request.nextUrl.clone();
+    url.hostname = 'pix.wiki';
+    return NextResponse.redirect(url);
+  }
+
+  // Importante para TWA / Bubblewrap / Play Store
+  if (pathname.startsWith('/.well-known/')) {
+    return NextResponse.next();
+  }
+
+   // Rotas de infra compartilhada (callback de OAuth, Google/Facebook) —
+   // nunca prefixar com /pix, senão o retorno do login nunca chega na
+   // rota real e a sessão nunca é criada.
+   if (pathname.startsWith('/auth/')) {
+     return NextResponse.next();
+   }
+
+  // Favicon específico do Pix
+  if (pathname === '/favicon.ico') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/brands/pix/favicon.png';
+    return NextResponse.rewrite(url);
+  }
+
+  // Manifest específico do Pix
+  if (pathname === '/manifest.json' || pathname === '/manifest.webmanifest') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/brands/pix/manifest.webmanifest';
+    return NextResponse.rewrite(url);
+  }
+
+  // Robots e sitemap continuam normais
+  if (CRAWLER_PASSTHROUGH.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Se alguém acessar pix.wiki/pix ou pix.wiki/pix/minha-loja,
+  // limpa a URL para pix.wiki ou pix.wiki/minha-loja
+  if (pathname === '/pix' || pathname.startsWith('/pix/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(/^\/pix/, '') || '/';
+    return NextResponse.redirect(url);
+  }
+
+  // pix.wiki           → /pix
+  // pix.wiki/loja      → /pix/loja
+  // pix.wiki/loja/10   → /pix/loja/10
+  const url = request.nextUrl.clone();
+  url.pathname = pathname === '/' ? '/pix' : `/pix${pathname}`;
+  return NextResponse.rewrite(url);
+}
+  
+  // ── 0. PASSTHROUGH PARA CRAWLERS ──────────────────────────────────────────
+  if (CRAWLER_PASSTHROUGH.some(p => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // ── 0.5. PASSTHROUGH PARA /pay ────────────────────────────────────────────
+  if (pathname.startsWith('/pay/')) {
+    return NextResponse.next();
+  }
+
+  // ── 1. DETECÇÃO DE SUBDOMÍNIO DE CLIENTE ──────────────────────────────────
+  if (isSubdomainHost(hostname)) {
+    const slug = extractSlug(hostname);
+
+    if (slug && !RESERVED_SUBDOMAINS.includes(slug)) {
+
+      if (pathname === '/favicon.ico') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/api/favicon';
+        url.searchParams.set('slug', slug);
+        return NextResponse.rewrite(url);
+      }
+
+      if (pathname === '/manifest.json' || pathname === '/manifest.webmanifest') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/manifest.webmanifest';
+        url.searchParams.set('slug', slug);
+        return NextResponse.rewrite(url);
+      }
+
+      if (pathname === '/sw.js') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/sw.js';
+        url.searchParams.set('slug', slug);
+        return NextResponse.rewrite(url);
+      }
+
+      const url = request.nextUrl.clone();
+      const SPECIAL_ROUTES = ['/vendas', '/fila', '/pay', '/cliente', '/link', '/site'];
+      const isSpecialRoute = SPECIAL_ROUTES.some(route => pathname.startsWith(route));
+
+      if (isSpecialRoute) {
+        const cleanPath = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname;
+        url.pathname = `${cleanPath}/${slug}`;
+      } else if (pathname === '/' || pathname === '/ia') {
+        url.pathname = `/ia/${slug}`;
+        // Sinaliza para o page.tsx se veio da raiz (deve redirecionar) ou de /ia (não redireciona)
+        const response = NextResponse.rewrite(url);
+        if (pathname === '/') {
+          response.headers.set('x-came-from-root', '1');
+        }
+        return response;
+      } else {
+        url.pathname = `/ia/${slug}${pathname}`;
+      }
+
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // ── 2. FLUXO NORMAL ────────────────────────────────────────────────────────
+  let response = NextResponse.next({ request: { headers: request.headers } });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) { return request.cookies.get(name)?.value; },
+        set(name: string, value: string, options: any) {
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({ request: { headers: request.headers } });
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          request.cookies.set({ name, value: '', ...options });
+          response = NextResponse.next({ request: { headers: request.headers } });
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const isProtectedRoute = pathname.startsWith('/dashboard');
+
+  if (isProtectedRoute && !user) {
+    const redirectUrl = new URL('/login', request.url);
+    redirectUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (user && pathname === '/login') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  const requiresPlan = PLAN_PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  if (requiresPlan && user) {
+    const { data: credits } = await supabase
+      .from('user_credits')
+      .select('has_active_plan, plan_expires_at')
+      .eq('user_id', user.id)
+      .single();
+
+    const hasActivePlan =
+      credits?.has_active_plan === true &&
+      credits?.plan_expires_at != null &&
+      new Date(credits.plan_expires_at) > new Date();
+
+    if (!hasActivePlan) {
+      const redirectUrl = new URL('/dashboard/credits', request.url);
+      redirectUrl.searchParams.set('requires_plan', '1');
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api).*)',
+  ],
+};
