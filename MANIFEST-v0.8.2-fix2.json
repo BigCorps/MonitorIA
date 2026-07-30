@@ -1,0 +1,77 @@
+{
+  "version": "0.8.2-fix2",
+  "backendStatus": "assistant_day_hour_charts_v082 applied and validated via MCP",
+  "databaseChangesRequiredByUser": false,
+  "agentUpdateRequired": false,
+  "validation": {
+    "typescriptSyntaxFilesChecked": 8,
+    "typescriptSyntaxErrors": 0,
+    "chartStrictTypeCheck": "passed",
+    "chartRuntimeCheck": "passed",
+    "supabaseByDayHourCheck": "passed",
+    "fullRepositoryCheckTestBuild": "pending_after_extraction"
+  },
+  "fileCountExcludingManifest": 12,
+  "files": [
+    {
+      "path": "APPLY-v0.8.2-fix2.md",
+      "bytes": 1126,
+      "sha256": "cb3f05b085f92e9feabfa733089000d4cc7e42486942808b1737cf37b831dc60"
+    },
+    {
+      "path": "CHANGES-v0.8.2-fix2.md",
+      "bytes": 1686,
+      "sha256": "4d6f203c716cc5dccab3287e6376c13385b0576798f8e0e8f3f985e410fe2a08"
+    },
+    {
+      "path": "app/api/assistant/query/route.ts",
+      "bytes": 20896,
+      "sha256": "c1e9fcdffad9203b3c08dec0b7d31b4997ef20cd2d71bf5e523313f54d57aa6e"
+    },
+    {
+      "path": "app/dashboard/search/assistant-chat.tsx",
+      "bytes": 24795,
+      "sha256": "cb838b51029382cbdcbe1b49c59adf778bd0a26a6c82ed5ffb473a1805a99ef5"
+    },
+    {
+      "path": "app/dashboard/search/search.module.css",
+      "bytes": 16983,
+      "sha256": "616ff2ae2cfe99093caf970b98b93229ba49a58992afce3867262c7a9a23ad6f"
+    },
+    {
+      "path": "src/assistant/chart.ts",
+      "bytes": 10630,
+      "sha256": "b429bc32266cc84206f01caecba4fadac9d6bccc81a4d06408241853c045fcb1"
+    },
+    {
+      "path": "src/assistant/contracts.ts",
+      "bytes": 2923,
+      "sha256": "a132eda802526db33b96e706e65adede2d07156446e2815fad4f8e8a4b8a28e8"
+    },
+    {
+      "path": "src/assistant/openai.ts",
+      "bytes": 9201,
+      "sha256": "95f34d208582fef3c9e24d862c867a9ac8cfb59f38cc48a341ed683a3d0744d2"
+    },
+    {
+      "path": "src/lib/assistant-data.ts",
+      "bytes": 5797,
+      "sha256": "356101546dcf344aaea48c6f4b9b1fe86bcebd363278170cbb85009ed6c42e3a"
+    },
+    {
+      "path": "supabase/migrations/20260730143000_assistant_day_hour_charts_v082.sql",
+      "bytes": 9420,
+      "sha256": "3fb189671d25c6f435fcb52115edb6e8b0e6ed382ca755f157b28f3e054f30b0"
+    },
+    {
+      "path": "test/assistant-chart.test.ts",
+      "bytes": 1642,
+      "sha256": "48ccfbb98f2ac5c5d9863c0a7b3bd541a34e5fd0ebca1eb1c629620556f4d5f9"
+    },
+    {
+      "path": "test/assistant-contracts.test.ts",
+      "bytes": 2398,
+      "sha256": "7aa2b61450d1980d09b46c453f16779db684f177f2e7ecc4dbb5c329770ee09a"
+    }
+  ]
+}
