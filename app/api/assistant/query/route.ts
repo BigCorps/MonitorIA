@@ -10,6 +10,7 @@ import type {
   AssistantHistoryItem,
   AssistantPlan,
 } from "@/src/assistant/contracts";
+import { buildAssistantChart } from "@/src/assistant/chart";
 import { getAuthenticatedUser } from "@/src/lib/auth";
 import {
   getCurrentOrganization,
@@ -599,6 +600,13 @@ export async function POST(request: Request) {
       evidenceIds = candidateEvidenceIds.slice(0, 4);
     }
 
+    const chart = buildAssistantChart({
+      plan,
+      retrievedData,
+      fromDate,
+      toDate,
+    });
+
     const combinedUsage = addAssistantUsage(
       planned.usage,
       answered.usage,
@@ -615,6 +623,7 @@ export async function POST(request: Request) {
       periodLabel: answered.answer.periodLabel,
       caution: answered.answer.caution,
       suggestions: answered.answer.suggestions,
+      chart,
       plannerResponseId: planned.responseId,
       answerResponseId: answered.responseId,
     };
@@ -694,6 +703,7 @@ export async function POST(request: Request) {
           periodLabel: null,
           caution: null,
           suggestions: [],
+          chart: null,
         },
         assistantMessage: {
           id: String(assistantMessage.id),
@@ -704,6 +714,7 @@ export async function POST(request: Request) {
           periodLabel: answered.answer.periodLabel,
           caution: answered.answer.caution,
           suggestions: answered.answer.suggestions,
+          chart,
         },
         evidence,
       },
