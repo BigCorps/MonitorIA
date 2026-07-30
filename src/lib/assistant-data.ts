@@ -1,3 +1,7 @@
+import {
+  AssistantChartSpecSchema,
+  type AssistantChartSpec,
+} from "@/src/assistant/contracts";
 import { createClient } from "@/src/lib/supabase/server";
 
 export type AssistantThreadSummary = {
@@ -26,6 +30,7 @@ export type AssistantMessageView = {
   periodLabel: string | null;
   caution: string | null;
   suggestions: string[];
+  chart: AssistantChartSpec | null;
   createdAt: string;
 };
 
@@ -128,6 +133,10 @@ export async function getAssistantWorkspace(
           : null,
         caution: plan.caution ? String(plan.caution) : null,
         suggestions: stringArray(plan.suggestions),
+        chart: (() => {
+          const parsed = AssistantChartSpecSchema.safeParse(plan.chart);
+          return parsed.success ? parsed.data : null;
+        })(),
         createdAt: String(message.created_at),
       };
     },
