@@ -6,27 +6,33 @@ import {
 } from "../src/lib/event-export.js";
 
 const input = {
-  generatedAt: "2026-07-29T17:00:00.000Z",
+  generatedAt: "2026-07-30T15:00:00.000Z",
   timeZone: "America/Sao_Paulo",
   filters: {
-    Período: "29/07/2026",
-    Câmera: "Entrada da Loja",
+    "Data inicial": "2026-07-30",
+    "Data final": "2026-07-30",
   },
   total: 1,
+  operationalSummary: [
+    {
+      label: "Aparições estimadas de clientes",
+      value: 4,
+      note: "não representa clientes únicos",
+    },
+  ],
   events: [
     {
       id: "3100141d-ef3c-4f98-ac4f-81651e4dc9e0",
-      startedAt: "2026-07-29T17:21:00.144Z",
-      endedAt: "2026-07-29T17:24:44.954Z",
+      startedAt: "2026-07-30T14:21:00.144Z",
+      endedAt: "2026-07-30T14:22:00.144Z",
       cameraName: "Entrada da Loja",
       siteName: "Casa Verde",
       headline: "Cliente entregou um pacote",
-      eventType: "person_present",
-      eventTypeLabel: "Pessoa presente",
-      summary:
-        "Cliente aproximou-se do balcão e entregou um pacote.",
+      eventType: "object_appeared",
+      eventTypeLabel: "Objeto apareceu",
+      summary: "Cliente entregou um pacote no balcão.",
       confidence: 0.9,
-      requiresReview: true,
+      requiresReview: false,
       humanVerdict: null,
       peopleCount: 2,
       vehicleCount: 0,
@@ -35,28 +41,18 @@ const input = {
   ],
 };
 
-test("usa o título específico no Markdown", () => {
+test("inclui indicadores estimados no Markdown", () => {
   const markdown = buildEventsMarkdown(input);
-
-  assert.match(
-    markdown,
-    /Cliente entregou um pacote/,
-  );
-  assert.match(
-    markdown,
-    /\\*\\*Tipo técnico:\\*\\* Pessoa presente/,
-  );
-  assert.match(markdown, /90%/);
+  assert.match(markdown, /Indicadores estimados/);
+  assert.match(markdown, /Aparições estimadas de clientes/);
+  assert.match(markdown, /Cliente entregou um pacote/);
 });
 
-test("exporta JSON estruturado v1.1", () => {
-  const json = JSON.parse(
-    buildEventsJson(input),
-  );
-
-  assert.equal(json.schemaVersion, "1.1");
+test("exporta JSON schema 1.2", () => {
+  const json = JSON.parse(buildEventsJson(input));
+  assert.equal(json.schemaVersion, "1.2");
   assert.equal(
-    json.events[0].headline,
-    "Cliente entregou um pacote",
+    json.summary.operationalIndicators[0].value,
+    4,
   );
 });
