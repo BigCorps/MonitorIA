@@ -12,10 +12,9 @@ import {
   searchEvents,
   siteTimezone,
 } from "@/src/lib/event-search-data";
-import {
-  EVENT_TYPE_OPTIONS,
-} from "@/src/lib/event-labels";
+import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { EventExportButtons } from "./event-export-buttons";
 import { EventList } from "./event-list";
 import styles from "./events.module.css";
 
@@ -26,9 +25,7 @@ type SearchParams = Promise<
   Record<string, string | string[] | undefined>
 >;
 
-function scalar(
-  value: string | string[] | undefined,
-) {
+function scalar(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
@@ -41,10 +38,7 @@ function todayInZone(timeZone: string) {
   }).format(new Date());
 }
 
-function pageHref(
-  current: Record<string, string>,
-  page: number,
-) {
+function pageHref(current: Record<string, string>, page: number) {
   const params = new URLSearchParams(current);
   params.set("page", String(page));
   return `/dashboard/events?${params.toString()}`;
@@ -57,7 +51,6 @@ export default async function EventsPage({
 }) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
-
   if (!organization) redirect("/onboarding");
 
   const [sites, cameras, rawParams] = await Promise.all([
@@ -71,7 +64,6 @@ export default async function EventsPage({
   const timeZone = siteTimezone(sites, siteId);
   const today = todayInZone(timeZone);
   const defaultFrom = addDaysToDateOnly(today, -6);
-
   const fromDate = scalar(rawParams.from) || defaultFrom;
   const toDate = scalar(rawParams.to) || today;
   const eventType = scalar(rawParams.type);
@@ -84,10 +76,7 @@ export default async function EventsPage({
 
   const result = await searchEvents(organization.id, {
     from: dateOnlyToIso(fromDate, timeZone),
-    to: dateOnlyToIso(
-      addDaysToDateOnly(toDate, 1),
-      timeZone,
-    ),
+    to: dateOnlyToIso(addDaysToDateOnly(toDate, 1), timeZone),
     cameraId,
     siteId,
     eventType,
@@ -96,11 +85,7 @@ export default async function EventsPage({
     offset: (page - 1) * limit,
   });
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(result.total / limit),
-  );
-
+  const totalPages = Math.max(1, Math.ceil(result.total / limit));
   const preserved = {
     from: fromDate,
     to: toDate,
@@ -126,8 +111,8 @@ export default async function EventsPage({
             </span>
             <h1>Linha do tempo visual</h1>
             <p>
-              Revise acontecimentos, consulte os quadros e ajude a
-              calibrar a qualidade das análises.
+              Revise os acontecimentos e exporte qualquer período para
+              usar em outra IA, integração ou relatório.
             </p>
           </div>
 
@@ -135,7 +120,7 @@ export default async function EventsPage({
             className="panel-primary-action"
             href="/dashboard/search"
           >
-            Pesquisa avançada
+            Conversar na Pesquisa
           </Link>
         </header>
 
@@ -148,22 +133,12 @@ export default async function EventsPage({
         <form className={styles.filters} method="get">
           <label>
             <span>De</span>
-            <input
-              type="date"
-              name="from"
-              defaultValue={fromDate}
-            />
+            <input type="date" name="from" defaultValue={fromDate} />
           </label>
-
           <label>
             <span>Até</span>
-            <input
-              type="date"
-              name="to"
-              defaultValue={toDate}
-            />
+            <input type="date" name="to" defaultValue={toDate} />
           </label>
-
           <label>
             <span>Local</span>
             <select name="site" defaultValue={siteId}>
@@ -175,7 +150,6 @@ export default async function EventsPage({
               ))}
             </select>
           </label>
-
           <label>
             <span>Câmera</span>
             <select name="camera" defaultValue={cameraId}>
@@ -187,22 +161,17 @@ export default async function EventsPage({
               ))}
             </select>
           </label>
-
           <label>
             <span>Tipo</span>
             <select name="type" defaultValue={eventType}>
               <option value="">Todos os tipos</option>
               {EVENT_TYPE_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                >
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
           </label>
-
           <label>
             <span>Revisão</span>
             <select name="review" defaultValue={review}>
@@ -219,16 +188,26 @@ export default async function EventsPage({
               </option>
             </select>
           </label>
-
           <button type="submit">Aplicar filtros</button>
         </form>
+
+        <EventExportButtons
+          total={result.total}
+          filters={{
+            from: fromDate,
+            to: toDate,
+            site: siteId,
+            camera: cameraId,
+            type: eventType,
+            review,
+          }}
+        />
 
         <div className={styles.resultHeading}>
           <div>
             <span>RESULTADOS</span>
             <h2>
-              {result.total} evento
-              {result.total === 1 ? "" : "s"}
+              {result.total} evento{result.total === 1 ? "" : "s"}
             </h2>
           </div>
           <small>
@@ -236,10 +215,7 @@ export default async function EventsPage({
           </small>
         </div>
 
-        <EventList
-          rows={result.rows}
-          timezone={timeZone}
-        />
+        <EventList rows={result.rows} timezone={timeZone} />
 
         {totalPages > 1 ? (
           <nav
@@ -253,11 +229,9 @@ export default async function EventsPage({
             ) : (
               <span />
             )}
-
             <span>
               {page} / {totalPages}
             </span>
-
             {page < totalPages ? (
               <Link href={pageHref(preserved, page + 1)}>
                 Próxima →

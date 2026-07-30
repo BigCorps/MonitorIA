@@ -1,0 +1,111 @@
+.shell {
+  margin-top: 13px;
+  padding: 15px 17px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #dbe7e2;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #f4fbf8, #fff);
+}
+
+.icon {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c6e9e0;
+  border-radius: 10px;
+  color: #159278;
+  background: #eaf9f5;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.copy {
+  min-width: 0;
+}
+
+.copy > span {
+  color: #239f85;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.copy strong {
+  display: block;
+  margin-top: 4px;
+  color: #294057;
+  font-size: 10px;
+}
+
+.copy p {
+  margin: 4px 0 0;
+  color: #73869b;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.copy small {
+  display: block;
+  margin-top: 5px;
+  color: #08745f;
+  font-size: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.actions button {
+  min-height: 34px;
+  padding: 0 9px;
+  color: #49647d;
+  border: 1px solid #d5e2e9;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 7px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.actions button:hover {
+  color: #08745f;
+  border-color: #aee0d4;
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: auto 1fr;
+  }
+
+  .actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .icon {
+    display: none;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
