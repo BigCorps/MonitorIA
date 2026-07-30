@@ -16,6 +16,12 @@ export type ExportableEvent = {
   tags: string[];
 };
 
+export type OperationalSummaryItem = {
+  label: string;
+  value: string | number;
+  note?: string | null;
+};
+
 export type EventExportInput = {
   title?: string;
   generatedAt?: string;
@@ -23,6 +29,8 @@ export type EventExportInput = {
   filters: Record<string, string | number | boolean | null>;
   total: number;
   events: ExportableEvent[];
+  operationalSummary?: OperationalSummaryItem[];
+  truncated?: boolean;
 };
 
 function escapeMarkdown(value: string) {
@@ -44,26 +52,41 @@ export function buildEventsMarkdown(input: EventExportInput) {
     .filter(([, value]) => value !== null && value !== "")
     .map(([key, value]) => `- **${key}:** ${String(value)}`);
 
-  const eventBlocks = input.events.map((event, index) => [
-    `### ${index + 1}. ${escapeMarkdown(event.headline)}`,
-    `- **Tipo técnico:** ${escapeMarkdown(event.eventTypeLabel)}`,
-    "",
-    `- **Data:** ${formatDate(event.startedAt, timeZone)}`,
-    `- **Local:** ${escapeMarkdown(event.siteName)}`,
-    `- **Câmera:** ${escapeMarkdown(event.cameraName)}`,
-    `- **Confiança:** ${Math.round(event.confidence * 100)}%`,
-    `- **Pessoas estruturadas:** ${event.peopleCount}`,
-    `- **Veículos estruturados:** ${event.vehicleCount}`,
-    `- **Revisão necessária:** ${event.requiresReview ? "Sim" : "Não"}`,
-    event.humanVerdict
-      ? `- **Avaliação humana:** ${escapeMarkdown(event.humanVerdict)}`
-      : null,
-    event.tags.length
-      ? `- **Tags:** ${event.tags.map(escapeMarkdown).join(", ")}`
-      : null,
-    "",
-    escapeMarkdown(event.summary),
-  ].filter(Boolean).join("\n"));
+  const operationalLines = (input.operationalSummary ?? []).map(
+    (item) =>
+      `- **${escapeMarkdown(item.label)}:** ${escapeMarkdown(
+        String(item.value),
+      )}${item.note ? ` — ${escapeMarkdown(item.note)}` : ""}`,
+  );
+
+  const eventBlocks = input.events.map((event, index) =>
+    [
+      `### ${index + 1}. ${escapeMarkdown(event.headline)}`,
+      `- **Tipo técnico:** ${escapeMarkdown(event.eventTypeLabel)}`,
+      "",
+      `- **Data:** ${formatDate(event.startedAt, timeZone)}`,
+      `- **Local:** ${escapeMarkdown(event.siteName)}`,
+      `- **Câmera:** ${escapeMarkdown(event.cameraName)}`,
+      `- **Confiança:** ${Math.round(event.confidence * 100)}%`,
+      `- **Pessoas estruturadas:** ${event.peopleCount}`,
+      `- **Veículos estruturados:** ${event.vehicleCount}`,
+      `- **Revisão necessária:** ${
+        event.requiresReview ? "Sim" : "Não"
+      }`,
+      event.humanVerdict
+        ? `- **Avaliação humana:** ${escapeMarkdown(
+            event.humanVerdict,
+          )}`
+        : null,
+      event.tags.length
+        ? `- **Tags:** ${event.tags.map(escapeMarkdown).join(", ")}`
+        : null,
+      "",
+      escapeMarkdown(event.summary),
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 
   return [
     `# ${input.title ?? "Relatório MonitorIA"}`,
@@ -72,30 +95,45 @@ export function buildEventsMarkdown(input: EventExportInput) {
     "",
     "## Filtros",
     "",
-    ...(filterLines.length ? filterLines : ["- Nenhum filtro adicional"]),
+    ...(filterLines.length
+      ? filterLines
+      : ["- Nenhum filtro adicional"]),
     "",
     "## Resumo",
     "",
     `- **Resultados encontrados:** ${input.total}`,
     `- **Resultados exportados:** ${input.events.length}`,
+    input.truncated
+      ? "- **Aviso:** a exportação atingiu o limite técnico de 5.000 eventos."
+      : null,
+    ...(operationalLines.length
+      ? ["", "### Indicadores estimados", "", ...operationalLines]
+      : []),
     "",
     "## Eventos",
     "",
-    ...(eventBlocks.length ? eventBlocks : ["Nenhum evento encontrado."]),
+    ...(eventBlocks.length
+      ? eventBlocks
+      : ["Nenhum evento encontrado."]),
     "",
-  ].join("\n");
+  ]
+    .filter((item) => item !== null)
+    .join("\n");
 }
 
 export function buildEventsJson(input: EventExportInput) {
   return JSON.stringify(
     {
-      schemaVersion: "1.1",
+      schemaVersion: "1.2",
       source: "MonitorIA",
       generatedAt: input.generatedAt ?? new Date().toISOString(),
+      timeZone: input.timeZone ?? "America/Sao_Paulo",
       filters: input.filters,
       summary: {
         totalFound: input.total,
         exported: input.events.length,
+        truncated: Boolean(input.truncated),
+        operationalIndicators: input.operationalSummary ?? [],
       },
       events: input.events,
     },
