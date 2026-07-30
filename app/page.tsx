@@ -274,7 +274,7 @@ export default function HomePage() {
 
       <section className="cta-section container">
         <div>
-          <span>MonitorIA · Para lojas, postos, oficinas e condomínios</span>
+          <span>MonitorIA.cam · Para lojas, postos, oficinas e condomínios</span>
           <h2>Suas câmeras já gravam.<br />Falta alguém lembrar.</h2>
         </div>
         <a className="button button-light" href={WHATSAPP} target="_blank" rel="noopener noreferrer">
