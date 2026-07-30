@@ -20,8 +20,52 @@ export const AssistantPlanSchema = z
     cameraId: z.string().uuid().nullable(),
     siteId: z.string().uuid().nullable(),
     evidenceLimit: z.number().int().min(1).max(12),
+    wantsChart: z.boolean(),
+    chartType: z.enum(["bar", "line"]).nullable(),
+    chartMetric: z
+      .enum([
+        "events_by_hour",
+        "roles",
+        "event_types",
+        "summary_metrics",
+      ])
+      .nullable(),
   })
   .strict();
+
+
+export const AssistantChartSpecSchema = z
+  .object({
+    type: z.enum(["bar", "line"]),
+    title: z.string().trim().min(1).max(140),
+    xLabel: z.string().trim().max(80).nullable(),
+    yLabel: z.string().trim().max(80).nullable(),
+    labels: z.array(z.string().trim().min(1).max(40)).min(1).max(24),
+    series: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(80),
+            values: z.array(z.number().finite().min(0)).min(1).max(24),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(7),
+    note: z.string().trim().max(400).nullable(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    for (const [index, series] of value.series.entries()) {
+      if (series.values.length !== value.labels.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["series", index, "values"],
+          message: "A série deve ter a mesma quantidade de valores e rótulos.",
+        });
+      }
+    }
+  });
 
 export const AssistantAnswerSchema = z
   .object({
@@ -41,6 +85,10 @@ export type AssistantPlan = z.infer<
 
 export type AssistantAnswer = z.infer<
   typeof AssistantAnswerSchema
+>;
+
+export type AssistantChartSpec = z.infer<
+  typeof AssistantChartSpecSchema
 >;
 
 export type AssistantUsage = {
