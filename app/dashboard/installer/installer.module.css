@@ -1,0 +1,350 @@
+.metrics {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.metrics article {
+  min-height: 120px;
+  padding: 17px;
+  display: grid;
+  align-content: center;
+  border: 1px solid #dfe6ee;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 9px 25px rgba(15, 31, 52, 0.035);
+}
+
+.metrics span {
+  color: #8190a2;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.metrics strong {
+  margin: 7px 0 4px;
+  color: #1e334b;
+  font-size: 24px;
+}
+
+.metrics small {
+  color: #8c99a8;
+  font-size: 8px;
+}
+
+.layout {
+  margin-top: 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 13px;
+}
+
+.installCard,
+.agentList {
+  padding: 21px;
+  border: 1px solid #dfe6ee;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 31, 52, 0.035);
+}
+
+.cardHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.cardHeading > div > span {
+  color: #28a98e;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.cardHeading h2 {
+  margin: 5px 0 0;
+  color: #1e334b;
+  font-size: 18px;
+}
+
+.windowsBadge {
+  padding: 6px 8px;
+  color: #49647d;
+  border: 1px solid #dce5ec;
+  border-radius: 7px;
+  background: #f8fafc;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.steps {
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 13px;
+  list-style: none;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 31px 1fr;
+  gap: 11px;
+  align-items: start;
+}
+
+.steps li > span {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  color: #08745f;
+  border: 1px solid #c5e8df;
+  border-radius: 9px;
+  background: #edf9f6;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.steps strong {
+  color: #2d435b;
+  font-size: 10px;
+}
+
+.steps p {
+  margin: 4px 0 0;
+  color: #71849a;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+.steps code {
+  margin-top: 6px;
+  padding: 8px;
+  display: block;
+  overflow-x: auto;
+  color: #b8eadd;
+  border-radius: 7px;
+  background: #0a1929;
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.downloadButton {
+  min-height: 42px;
+  margin-top: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #071711;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.pendingDownload {
+  margin-top: 19px;
+  padding: 12px;
+  color: #765319;
+  border: 1px solid #edd8b3;
+  border-radius: 9px;
+  background: #fff9ed;
+}
+
+.pendingDownload strong {
+  font-size: 9px;
+}
+
+.pendingDownload p {
+  margin: 4px 0 0;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.agents {
+  margin-top: 16px;
+  display: grid;
+  gap: 9px;
+}
+
+.agents article {
+  padding: 13px;
+  border: 1px solid #e1e8ee;
+  border-radius: 10px;
+  background: #f9fbfc;
+}
+
+.agents header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agents header > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.agents header i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #aeb8c3;
+  box-shadow: 0 0 0 4px rgba(174, 184, 195, 0.13);
+}
+
+.agents header i[data-online="true"] {
+  background: #37caaa;
+  box-shadow: 0 0 0 4px rgba(55, 202, 170, 0.13);
+}
+
+.agents header > div > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.agents header strong {
+  overflow: hidden;
+  color: #2b4259;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents header span {
+  color: #8291a2;
+  font-size: 7px;
+}
+
+.online,
+.offline {
+  padding: 5px 7px;
+  border-radius: 999px;
+  font-size: 7px !important;
+  font-weight: 850;
+}
+
+.online {
+  color: #08745f !important;
+  background: #eaf9f5;
+}
+
+.offline {
+  color: #7d8793 !important;
+  background: #edf1f4;
+}
+
+.agents dl {
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #e5eaf0;
+  border-radius: 8px;
+  background: #e5eaf0;
+}
+
+.agents dl div {
+  min-width: 0;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: #fff;
+}
+
+.agents dt,
+.agents dd {
+  font-size: 7px;
+}
+
+.agents dt {
+  color: #8a98a8;
+}
+
+.agents dd {
+  margin: 0;
+  overflow: hidden;
+  color: #4d647b;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.empty strong {
+  color: #324a62;
+  font-size: 12px;
+}
+
+.empty p {
+  max-width: 350px;
+  color: #7b8b9e;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    margin-top: 10px;
+  }
+
+  .installCard,
+  .agentList {
+    padding: 16px;
+  }
+
+  .cardHeading {
+    display: grid;
+  }
+
+  .windowsBadge {
+    justify-self: start;
+  }
+
+  .agents dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.currentVersion,
+.outdatedVersion {
+  display: block;
+  margin-top: 3px;
+  font-size: 7px;
+  font-weight: 750;
+}
+
+.currentVersion {
+  color: #08745f;
+}
+
+.outdatedVersion {
+  color: #a86710;
+}
