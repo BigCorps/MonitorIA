@@ -1,4 +1,4 @@
-# MonitorIA v0.8.1
+# MonitorIA v0.8.2
 
 **Sua câmera vê. A IA lembra.**
 
@@ -7,20 +7,16 @@ acontecimentos são enviados para análise.
 
 ## Recursos atuais
 
-- Agent Windows;
-- detecção local adaptativa;
-- capítulos de atividade;
+- Agent Windows e segmentação por capítulos;
 - modos Econômico, Equilibrado e Detalhado;
-- perfil inteligente versionado e editável;
-- seleção da imagem de referência;
-- zonas de funcionários e clientes;
-- títulos específicos dos acontecimentos;
-- pessoas com papel operacional estruturado;
-- eventos e pesquisa;
-- comparação de períodos;
-- exportação Markdown e JSON;
-- revisão humana;
-- auditoria e retenção.
+- perfil inteligente editável;
+- eventos estruturados e revisáveis;
+- exportação completa em Markdown e JSON;
+- Pesquisa conversacional com GPT-5 nano;
+- evidências clicáveis;
+- histórico privado de conversas;
+- página Instalador com saúde do Agent;
+- auditoria, custos e retenção.
 
 ## Rotas principais
 
@@ -30,6 +26,7 @@ acontecimentos são enviados para análise.
 /dashboard/events
 /dashboard/events/[eventId]
 /dashboard/search
+/dashboard/installer
 /dashboard/vision-tests
 ```
 
@@ -42,12 +39,5 @@ npm test
 npm run build
 ```
 
-Consulte:
-
-```text
-APPLY-v0.8.1.md
-CHANGES-v0.8.1.md
-docs/ROADMAP-MONITORIA-V1.md
-```
-
-O Assistente IA continua adiado até a validação final da fase 7.
+Consulte `APPLY-v0.8.2.md`, `CHANGES-v0.8.2.md` e
+`docs/ROADMAP-MONITORIA-V1.md`.
