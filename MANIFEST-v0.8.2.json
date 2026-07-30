@@ -1,0 +1,151 @@
+{
+  "version": "0.8.2",
+  "backendStatus": "applied_and_validated_via_mcp",
+  "backendMigrations": [
+    "assistant_monitoria_v082",
+    "assistant_service_classifier_v082",
+    "assistant_private_threads_v082"
+  ],
+  "validation": {
+    "typescriptSyntaxFilesChecked": 16,
+    "typescriptSyntaxErrors": 0,
+    "isolatedStrictTypeCheck": "passed",
+    "eventExportRuntimeCheck": "passed",
+    "supabaseSummaryRpc": "passed",
+    "supabaseRlsPolicies": "passed",
+    "fullRepositoryCheckTestBuild": "pending_after_extraction"
+  },
+  "fileCountExcludingManifest": 26,
+  "files": [
+    {
+      "path": "APPLY-v0.8.2.md",
+      "bytes": 1513,
+      "sha256": "67ca70b68cdc13c49f38033e26dfcc6e22fbda6194455dc1b5b1cabd4670f21f"
+    },
+    {
+      "path": "CHANGES-v0.8.2.md",
+      "bytes": 1778,
+      "sha256": "e9d98ebc1f9a8f92460dbe66ca215f2d45fbe625721cdda279b210ec2d1013d1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 925,
+      "sha256": "bde12197e10c950ff9fb26eed3b722d02a52e31a1455d26469471c6ece34b4b6"
+    },
+    {
+      "path": "app/api/assistant/query/route.ts",
+      "bytes": 20670,
+      "sha256": "095cdc5853a466ac09c7149d56e8ca8a8c89b22cc49447dfaa8854ae86c4bc30"
+    },
+    {
+      "path": "app/api/events/export/route.ts",
+      "bytes": 7355,
+      "sha256": "35ba39d4cc14a1f9b291f49cb5c790f4fc13107bdcb4ab7afb32695e01c98b37"
+    },
+    {
+      "path": "app/api/installer/windows/route.ts",
+      "bytes": 974,
+      "sha256": "989cdde47b66c4ea0c15b370b988d7a58d6110f4c7e9c6ff5701bcbba85a0d37"
+    },
+    {
+      "path": "app/dashboard/dashboard-sidebar.tsx",
+      "bytes": 7302,
+      "sha256": "4bc08af0450d6a1f5586eaa84186af65e031c063113b33015f0208f4334f5b1c"
+    },
+    {
+      "path": "app/dashboard/events/event-export-buttons.tsx",
+      "bytes": 2523,
+      "sha256": "4582a410e0fa32f0413b28abacc7cdde61eb08e0fb65097ac832a7debb5793c8"
+    },
+    {
+      "path": "app/dashboard/events/event-export.module.css",
+      "bytes": 1648,
+      "sha256": "754228e65506b14c392c87f7e26ea9b6d00b88f0f3e6c47955688209b53c8146"
+    },
+    {
+      "path": "app/dashboard/events/page.tsx",
+      "bytes": 7420,
+      "sha256": "baa3d800a85bf0319c0114212dcf15daf5d7d6e08f6244a581eb9e3e30c4ba35"
+    },
+    {
+      "path": "app/dashboard/installer/installer.module.css",
+      "bytes": 5194,
+      "sha256": "0890c2499c00f5bb8da3adbb93d054514a49f096d233d160acb29850de7f0fad"
+    },
+    {
+      "path": "app/dashboard/installer/page.tsx",
+      "bytes": 9294,
+      "sha256": "e0f4506a5d4199f128687dd8baf3b485068ef38a2a81a7c9a1de7397afa55f58"
+    },
+    {
+      "path": "app/dashboard/search/assistant-chat.tsx",
+      "bytes": 14980,
+      "sha256": "9ebf737911a1350e382db389b0d24e844b6218078c6821a4c6a1d73320c238d5"
+    },
+    {
+      "path": "app/dashboard/search/page.tsx",
+      "bytes": 2569,
+      "sha256": "3bebc86a70a5dc18c55e606532de6e4743881ee69962d56ebc34d9894fc2cc26"
+    },
+    {
+      "path": "app/dashboard/search/search.module.css",
+      "bytes": 11192,
+      "sha256": "666b8dd30a1218874d7996ca81f34ddd3698d896f29a2a7e8aa4eeeb6475444e"
+    },
+    {
+      "path": "package.json",
+      "bytes": 846,
+      "sha256": "9601c85371957a7eedcd299b0df806e8084f2250b5446511a75684790f24307e"
+    },
+    {
+      "path": "src/assistant/contracts.ts",
+      "bytes": 1603,
+      "sha256": "2a756121867a84d57e3977b2561ffdbdec91d3998f2f636daf601cd83bc8eb0f"
+    },
+    {
+      "path": "src/assistant/openai.ts",
+      "bytes": 8092,
+      "sha256": "a0142ff46e1c33b558f438006559ddbaef40dfd573f512230f360d6c79dee94a"
+    },
+    {
+      "path": "src/lib/assistant-data.ts",
+      "bytes": 5496,
+      "sha256": "a6ad801feea756f9f871e7e27ad2b860789576441a727f116aaa4ffedaa58fde"
+    },
+    {
+      "path": "src/lib/event-export.ts",
+      "bytes": 4023,
+      "sha256": "32f689c892648f36acd975a15c6966fa1ab616296ab79000940844da2d091f7a"
+    },
+    {
+      "path": "src/lib/installer-data.ts",
+      "bytes": 4080,
+      "sha256": "2d9542aa515230fb493c11a9328fe9629b613ff9b3daa211130bdb560ed15470"
+    },
+    {
+      "path": "supabase/migrations/20260730130000_assistant_monitoria_v082.sql",
+      "bytes": 10874,
+      "sha256": "6dc55814795291e4653929cd7d3d2b6683abfad679d577e4a694e00cf05b6fb4"
+    },
+    {
+      "path": "supabase/migrations/20260730131000_assistant_service_classifier_v082.sql",
+      "bytes": 8511,
+      "sha256": "6172b749813ba9b5669f3026557459c1faf180df6b9dc3ff9f9b703dc180667b"
+    },
+    {
+      "path": "supabase/migrations/20260730132000_assistant_private_threads_v082.sql",
+      "bytes": 842,
+      "sha256": "358137cc7b350657e3124cab9451db17ae40a8734650f5551caa9d6cf488ba7b"
+    },
+    {
+      "path": "test/assistant-contracts.test.ts",
+      "bytes": 1320,
+      "sha256": "60f04c2ae8326d3248a47b5f0e7cf994b8b9c6ac5d8c7fb933d465110ae2c156"
+    },
+    {
+      "path": "test/event-export.test.ts",
+      "bytes": 1576,
+      "sha256": "a085c29316018009b6a583fd2ec53b3af68f12f79bb34f4a3de736e1ffc54e17"
+    }
+  ]
+}
