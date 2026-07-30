@@ -53,6 +53,18 @@
   color: var(--green);
 }
 
+.desktopAccount {
+  margin-top: auto;
+}
+
+.desktopAccount .account {
+  margin-top: 0;
+}
+
+.desktopNavigation .navLabel {
+  white-space: nowrap;
+}
+
 .accountIdentity {
   min-width: 0;
   display: flex;
