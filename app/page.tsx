@@ -76,9 +76,9 @@ export default function HomePage() {
       <div className="ambient ambient-two" />
 
       <header className="site-header container">
-        <Link className="brand" href="/" aria-label="MonitorIA — página inicial">
+        <Link className="brand" href="/" aria-label="MonitorIA.cam — página inicial">
           <LogoMark />
-          <span>Monitor<span>IA</span></span>
+          <span>Monitor<span>IA</span>.cam</span>
         </Link>
         <nav className="header-nav" aria-label="Navegação principal">
           <a href="#como-funciona">Como funciona</a>
