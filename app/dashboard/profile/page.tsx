@@ -204,47 +204,104 @@ export default async function ProfilePage({
             <div className={styles.cardHeading}>
               <div>
                 <span>SEGURANÇA</span>
-                <h2>Acesso à conta</h2>
+                <h2>
+                  {profile.user.hasPassword
+                    ? "Alterar senha"
+                    : "Criar senha"}
+                </h2>
               </div>
               <small>
-                Use no mínimo 8 caracteres.
+                {profile.user.hasPassword
+                  ? "Confirme a senha atual antes de cadastrar uma nova."
+                  : "Cadastre uma senha para entrar também sem o link mágico."}
               </small>
             </div>
+
+            {!profile.user.passwordStatusReady ? (
+              <div
+                className={`${styles.notice} ${styles.warning}`}
+              >
+                A migration de controle de senha ainda
+                não foi aplicada no Supabase.
+              </div>
+            ) : null}
+
+            {!profile.user.hasPassword &&
+            profile.user.passwordStatusReady ? (
+              <div
+                className={`${styles.notice} ${styles.success}`}
+              >
+                Sua conta usa link mágico. Crie uma senha
+                para manter as duas formas de acesso.
+              </div>
+            ) : null}
 
             <form
               action={updateProfilePassword}
               className={styles.form}
             >
-              <label className={styles.field}>
-                <span>Nova senha</span>
-                <input
-                  type="password"
-                  name="password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                />
-              </label>
+              <fieldset
+                className={styles.fieldset}
+                disabled={
+                  !profile.user.passwordStatusReady
+                }
+              >
+                {profile.user.hasPassword ? (
+                  <label className={styles.field}>
+                    <span>Senha atual</span>
+                    <input
+                      type="password"
+                      name="current_password"
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                ) : null}
 
-              <label className={styles.field}>
-                <span>Confirmar nova senha</span>
-                <input
-                  type="password"
-                  name="confirmation"
-                  autoComplete="new-password"
-                  minLength={8}
-                  required
-                />
-              </label>
+                <label className={styles.field}>
+                  <span>
+                    {profile.user.hasPassword
+                      ? "Nova senha"
+                      : "Criar senha"}
+                  </span>
+                  <input
+                    type="password"
+                    name="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                  <small>
+                    Use uma senha exclusiva. Senhas muito
+                    comuns ou presentes em vazamentos são
+                    recusadas pelo sistema.
+                  </small>
+                </label>
 
-              <div className={styles.formFooter}>
-                <span>
-                  A alteração vale imediatamente.
-                </span>
-                <button type="submit">
-                  Atualizar senha
-                </button>
-              </div>
+                <label className={styles.field}>
+                  <span>Confirmar nova senha</span>
+                  <input
+                    type="password"
+                    name="confirmation"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </label>
+
+                <div className={styles.formFooter}>
+                  <span>
+                    {profile.user.hasPassword
+                      ? "A alteração vale imediatamente."
+                      : "O link mágico continuará funcionando normalmente."}
+                  </span>
+                  <button type="submit">
+                    {profile.user.hasPassword
+                      ? "Alterar senha"
+                      : "Criar senha"}
+                  </button>
+                </div>
+              </fieldset>
             </form>
 
             <div className={styles.securityDivider} />

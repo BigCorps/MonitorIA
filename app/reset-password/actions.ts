@@ -3,17 +3,74 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 
-export async function updatePassword(formData: FormData) {
-  const password = String(formData.get("password") ?? "");
-  const confirmation = String(formData.get("confirmation") ?? "");
+function resetError(message: string): never {
+  redirect(
+    `/reset-password?error=${encodeURIComponent(message)}`,
+  );
+}
 
-  if (password.length < 8 || password !== confirmation) {
-    redirect("/reset-password?error=As%20senhas%20devem%20ser%20iguais%20e%20ter%20ao%20menos%208%20caracteres.");
+function passwordErrorMessage(error: {
+  message: string;
+  code?: string;
+}) {
+  const value =
+    `${error.code ?? ""} ${error.message}`.toLowerCase();
+
+  if (
+    /weak_password|weak|easy to guess|pwned|compromised|leaked/.test(
+      value,
+    )
+  ) {
+    return "A senha escolhida é muito comum ou já apareceu em vazamentos. Use uma combinação mais forte e exclusiva.";
+  }
+
+  return "Não foi possível atualizar a senha.";
+}
+
+export async function updatePassword(
+  formData: FormData,
+) {
+  const password = String(
+    formData.get("password") ?? "",
+  );
+  const confirmation = String(
+    formData.get("confirmation") ?? "",
+  );
+
+  if (
+    password.length < 8 ||
+    password !== confirmation
+  ) {
+    resetError(
+      "As senhas devem ser iguais e ter pelo menos 8 caracteres.",
+    );
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) redirect("/reset-password?error=N%C3%A3o%20foi%20poss%C3%ADvel%20atualizar%20a%20senha.");
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
 
-  redirect("/dashboard?message=Senha%20atualizada.");
+  if (error) {
+    console.error(
+      "Falha ao redefinir senha:",
+      error.message,
+    );
+    resetError(passwordErrorMessage(error));
+  }
+
+  const { error: statusError } = await supabase.rpc(
+    "mark_current_user_password_enabled",
+  );
+
+  if (statusError) {
+    console.error(
+      "Senha redefinida, mas status não marcado:",
+      statusError.message,
+    );
+  }
+
+  redirect(
+    "/dashboard?message=Senha%20atualizada%20com%20sucesso.",
+  );
 }

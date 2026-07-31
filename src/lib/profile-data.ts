@@ -22,6 +22,8 @@ export type ProfileData = {
     phone: string;
     jobTitle: string;
     createdAt: string | null;
+    hasPassword: boolean;
+    passwordStatusReady: boolean;
   };
   organization: {
     id: string;
@@ -80,9 +82,26 @@ export async function getProfileData(
   if (!organization) return null;
 
   const supabase = await createClient();
-  const { data: authData } = await supabase.auth.getUser();
+  const [
+    { data: authData },
+    {
+      data: passwordStatus,
+      error: passwordStatusError,
+    },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc("current_user_has_password"),
+  ]);
+
   const authUser = authData.user;
   const metadata = objectValue(authUser?.user_metadata);
+
+  if (passwordStatusError) {
+    console.error(
+      "Falha ao carregar estado da senha:",
+      passwordStatusError.message,
+    );
+  }
 
   const sites = await getOrganizationSites(organization.id);
   const firstSite = sites[0] ?? null;
@@ -143,6 +162,8 @@ export async function getProfileData(
       createdAt: authUser?.created_at
         ? String(authUser.created_at)
         : null,
+      hasPassword: passwordStatus === true,
+      passwordStatusReady: !passwordStatusError,
     },
     organization: {
       id: organization.id,

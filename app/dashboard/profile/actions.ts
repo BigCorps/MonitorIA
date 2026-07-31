@@ -58,6 +58,53 @@ function normalizeWebsite(value: string) {
   }
 }
 
+
+function passwordErrorMessage(error: {
+  message: string;
+  code?: string;
+}) {
+  const value = `${error.code ?? ""} ${error.message}`.toLowerCase();
+
+  if (
+    /weak_password|weak|easy to guess|pwned|compromised|leaked/.test(
+      value,
+    )
+  ) {
+    return "A senha escolhida é muito comum ou já apareceu em vazamentos. Use uma combinação mais forte e exclusiva.";
+  }
+
+  if (/same password|different from the old/.test(value)) {
+    return "A nova senha deve ser diferente da senha atual.";
+  }
+
+  if (/reauth|nonce|recent session/.test(value)) {
+    return "Sua sessão precisa ser confirmada novamente. Entre por link mágico e tente outra vez.";
+  }
+
+  return "Não foi possível salvar a senha. Tente novamente.";
+}
+
+async function currentUserHasPassword(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
+  const { data, error } = await supabase.rpc(
+    "current_user_has_password",
+  );
+
+  if (error) {
+    console.error(
+      "Falha ao consultar estado da senha:",
+      error.message,
+    );
+    profileRedirect(
+      "error",
+      "A configuração de segurança ainda não foi aplicada no Supabase.",
+    );
+  }
+
+  return data === true;
+}
+
 async function appOrigin() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
@@ -321,8 +368,18 @@ export async function updateOrganizationProfile(
 export async function updateProfilePassword(
   formData: FormData,
 ) {
-  await requireAuthenticatedUser();
+  const user = await requireAuthenticatedUser();
 
+  if (!user.email) {
+    profileRedirect(
+      "error",
+      "Sua conta não possui um e-mail válido.",
+    );
+  }
+
+  const currentPassword = String(
+    formData.get("current_password") ?? "",
+  );
   const password = String(
     formData.get("password") ?? "",
   );
@@ -336,27 +393,83 @@ export async function updateProfilePassword(
   ) {
     profileRedirect(
       "error",
-      "As senhas devem ser iguais e ter pelo menos 8 caracteres.",
+      "A nova senha e a confirmação devem ser iguais e ter pelo menos 8 caracteres.",
     );
   }
 
   const supabase = await createClient();
+  const hasPassword =
+    await currentUserHasPassword(supabase);
+
+  if (hasPassword) {
+    if (!currentPassword) {
+      profileRedirect(
+        "error",
+        "Informe a senha atual para fazer a alteração.",
+      );
+    }
+
+    if (currentPassword === password) {
+      profileRedirect(
+        "error",
+        "A nova senha deve ser diferente da senha atual.",
+      );
+    }
+
+    const { error: currentPasswordError } =
+      await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+    if (currentPasswordError) {
+      console.error(
+        "Falha ao confirmar senha atual:",
+        currentPasswordError.message,
+      );
+      profileRedirect(
+        "error",
+        "A senha atual está incorreta.",
+      );
+    }
+  }
+
   const { error } = await supabase.auth.updateUser({
     password,
   });
 
   if (error) {
     console.error(
-      "Falha ao atualizar senha:",
+      hasPassword
+        ? "Falha ao alterar senha:"
+        : "Falha ao criar senha:",
       error.message,
     );
     profileRedirect(
       "error",
-      "Não foi possível atualizar a senha. Entre novamente e tente outra vez.",
+      passwordErrorMessage(error),
     );
   }
 
-  profileRedirect("message", "Senha atualizada.");
+  const { error: statusError } = await supabase.rpc(
+    "mark_current_user_password_enabled",
+  );
+
+  if (statusError) {
+    console.error(
+      "A senha foi salva, mas o estado não pôde ser marcado:",
+      statusError.message,
+    );
+  }
+
+  revalidatePath("/dashboard/profile");
+
+  profileRedirect(
+    "message",
+    hasPassword
+      ? "Senha alterada com sucesso."
+      : "Senha criada. Agora você pode entrar por senha ou link mágico.",
+  );
 }
 
 export async function sendProfileMagicLink() {
