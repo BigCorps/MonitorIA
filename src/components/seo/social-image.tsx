@@ -30,17 +30,23 @@ export function createSocialImage() {
             backgroundSize: "54px 54px",
           }}
         />
+
         <div
           style={{
+            width: "100%",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
             position: "relative",
-            zIndex: 1,
-            width: "100%",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 20,
+            }}
+          >
             <div
               style={{
                 width: 72,
@@ -50,37 +56,79 @@ export function createSocialImage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 34,
-                color: "#57e6c7",
                 background: "rgba(87,230,199,.08)",
               }}
             >
-              ◉
+              <div
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: "flex",
+                  borderRadius: 999,
+                  border: "5px solid #57e6c7",
+                  boxShadow: "0 0 0 8px rgba(87,230,199,.12)",
+                }}
+              />
             </div>
-            <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-2px" }}>
-              Monitor<span style={{ color: "#57e6c7" }}>IA</span>.cam
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                fontSize: 44,
+                fontWeight: 800,
+                letterSpacing: "-2px",
+              }}
+            >
+              <span>Monitor</span>
+              <span style={{ color: "#57e6c7" }}>IA</span>
+              <span>.cam</span>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 930 }}>
+          <div
+            style={{
+              maxWidth: 930,
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+            }}
+          >
             <div
               style={{
+                display: "flex",
                 fontSize: 76,
                 lineHeight: 1.02,
                 letterSpacing: "-4px",
-                fontWeight: 750,
+                fontWeight: 700,
               }}
             >
               Suas câmeras agora podem lembrar o que aconteceu.
             </div>
-            <div style={{ fontSize: 28, color: "#aebed2", lineHeight: 1.35 }}>
+
+            <div
+              style={{
+                display: "flex",
+                fontSize: 28,
+                color: "#aebed2",
+                lineHeight: 1.35,
+              }}
+            >
               Memória visual pesquisável para câmeras de segurança comuns.
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 22,
+            }}
+          >
             <span style={{ color: "#57e6c7" }}>{appConfig.domain}</span>
-            <span style={{ color: "#8294aa" }}>Desenvolvido por {appConfig.company}</span>
+            <span style={{ color: "#8294aa" }}>
+              Desenvolvido por {appConfig.company}
+            </span>
           </div>
         </div>
       </div>
