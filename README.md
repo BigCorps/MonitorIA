@@ -1,9 +1,8 @@
-# MonitorIA v0.8.2
+# MonitorIA.cam v0.8.2
 
 **Sua câmera vê. A IA lembra.**
 
-O vídeo contínuo permanece no local. Somente quadros selecionados de
-acontecimentos são enviados para análise.
+O MonitorIA.cam transforma câmeras de segurança comuns em uma memória visual pesquisável. O vídeo contínuo permanece no local; somente quadros selecionados de acontecimentos são enviados para análise.
 
 ## Recursos atuais
 
@@ -12,23 +11,25 @@ acontecimentos são enviados para análise.
 - perfil inteligente editável;
 - eventos estruturados e revisáveis;
 - exportação completa em Markdown e JSON;
-- Pesquisa conversacional com GPT-5 nano;
-- evidências clicáveis;
+- pesquisa conversacional com GPT-5 nano;
+- evidências clicáveis e gráficos;
 - histórico privado de conversas;
 - página Instalador com saúde do Agent;
 - auditoria, custos e retenção.
 
-## Rotas principais
+## SEO e GEO
 
-```text
-/dashboard
-/dashboard/cameras
-/dashboard/events
-/dashboard/events/[eventId]
-/dashboard/search
-/dashboard/installer
-/dashboard/vision-tests
-```
+A aplicação inclui:
+
+- metadados canônicos para `https://monitoria.cam`;
+- Open Graph e Twitter Image dinâmicos;
+- `robots.txt` e `sitemap.xml` gerados pelo Next.js;
+- páginas privadas marcadas como `noindex`;
+- JSON-LD de Organization, WebSite e SoftwareApplication;
+- FAQ com dados estruturados;
+- páginas institucionais e páginas focadas em intenções de busca.
+
+Consulte `SEO-GEO-APLICACAO.md` antes do deploy.
 
 ## Validação
 
@@ -38,6 +39,3 @@ npm run check
 npm test
 npm run build
 ```
-
-Consulte `APPLY-v0.8.2.md`, `CHANGES-v0.8.2.md` e
-`docs/ROADMAP-MONITORIA-V1.md`.

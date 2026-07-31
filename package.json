@@ -3,7 +3,7 @@
   "version": "0.8.2",
   "private": true,
   "type": "module",
-  "description": "MonitorIA — memória visual pesquisável para câmeras comuns.",
+  "description": "MonitorIA.cam — memória visual pesquisável para câmeras de segurança comuns.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -24,7 +24,7 @@
   "devDependencies": {
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.2.17",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
