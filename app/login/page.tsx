@@ -30,7 +30,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="auth-page">
       <section className="auth-intro">
-        <Link href="/" className="auth-brand"><Logo /><span>Monitor<span>IA</span></span></Link>
+        <Link href="/" className="auth-brand"><Logo /><span>Monitor<span>IA</span>.cam</span></Link>
         <div>
           <span className="auth-kicker">ACESSO SEGURO</span>
           <h1>Sua memória visual começa aqui.</h1>
