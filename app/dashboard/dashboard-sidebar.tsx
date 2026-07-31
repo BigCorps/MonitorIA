@@ -146,7 +146,7 @@ function Brand() {
         <img src="/favicon.svg" alt="" width={24} height={24} />
       </span>
       <span className={styles.brandText}>
-        Monitor<span>IA</span>
+        Monitor<span>IA</span>.cam
       </span>
     </Link>
   );
