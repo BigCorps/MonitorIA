@@ -212,8 +212,8 @@ export default async function ProfilePage({
               </div>
               <small>
                 {profile.user.hasPassword
-                  ? "Confirme a senha atual antes de cadastrar uma nova."
-                  : "Cadastre uma senha para entrar também sem o link mágico."}
+                  ? "Confirme a senha atual."
+                  : "Cadastre uma senha."}
               </small>
             </div>
 
@@ -231,8 +231,7 @@ export default async function ProfilePage({
               <div
                 className={`${styles.notice} ${styles.success}`}
               >
-                Sua conta usa link mágico. Crie uma senha
-                para manter as duas formas de acesso.
+                Crie uma senha.
               </div>
             ) : null}
 
@@ -272,9 +271,7 @@ export default async function ProfilePage({
                     required
                   />
                   <small>
-                    Use uma senha exclusiva. Senhas muito
-                    comuns ou presentes em vazamentos são
-                    recusadas pelo sistema.
+                    Use uma senha segura com pelo menos 8 dígitos.
                   </small>
                 </label>
 
