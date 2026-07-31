@@ -1,0 +1,394 @@
+.content {
+  padding-bottom: 80px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 28px;
+}
+
+.header h1 {
+  margin: 10px 0 8px;
+  color: #f4f8ff;
+  font-size: clamp(34px, 5vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.header p {
+  max-width: 660px;
+  margin: 0;
+  color: #91a4ba;
+  line-height: 1.7;
+}
+
+.accountSummary {
+  min-width: 180px;
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+  padding-top: 5px;
+}
+
+.accountSummary span {
+  color: #57e6c7;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.accountSummary strong {
+  color: #cbd8e8;
+  font-size: 13px;
+}
+
+.notice {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  color: #dbe8f6;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.success {
+  border-color: rgba(87, 230, 199, 0.22);
+  color: #a8f3e4;
+  background: rgba(87, 230, 199, 0.07);
+}
+
+.error {
+  border-color: rgba(251, 113, 133, 0.24);
+  color: #fecbd4;
+  background: rgba(251, 113, 133, 0.075);
+}
+
+.warning {
+  border-color: rgba(250, 204, 21, 0.22);
+  color: #f8e8a8;
+  background: rgba(250, 204, 21, 0.06);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+}
+
+.card {
+  min-width: 0;
+  padding: 25px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.038),
+      rgba(255, 255, 255, 0.017)
+    ),
+    rgba(10, 24, 41, 0.72);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+}
+
+.companyCard {
+  grid-column: 1 / -1;
+}
+
+.cardHeading {
+  min-height: 57px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 23px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.11);
+}
+
+.cardHeading > div {
+  display: grid;
+  gap: 7px;
+}
+
+.cardHeading span,
+.sectionLabel span {
+  color: #57e6c7;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+}
+
+.cardHeading h2 {
+  margin: 0;
+  color: #eef6ff;
+  font-size: 23px;
+  letter-spacing: -0.035em;
+}
+
+.cardHeading small {
+  max-width: 280px;
+  color: #71849b;
+  font-size: 10px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldset:disabled {
+  opacity: 0.66;
+}
+
+.field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.field > span {
+  color: #9aacbf;
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 13px;
+  outline: none;
+  border: 1px solid rgba(139, 164, 191, 0.16);
+  border-radius: 10px;
+  color: #e8f1fc;
+  background: rgba(4, 15, 27, 0.52);
+  font: inherit;
+  font-size: 13px;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: rgba(87, 230, 199, 0.48);
+  background: rgba(6, 21, 35, 0.78);
+  box-shadow: 0 0 0 3px rgba(87, 230, 199, 0.06);
+}
+
+.field input::placeholder {
+  color: #52667d;
+}
+
+.field input:disabled,
+.field select:disabled {
+  cursor: not-allowed;
+}
+
+.field small {
+  color: #64778e;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.readonly {
+  color: #7f93a9 !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+.twoColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.threeColumns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.addressGrid {
+  display: grid;
+  grid-template-columns: 0.65fr 1.8fr 0.55fr 1fr;
+  gap: 15px;
+}
+
+.streetField {
+  grid-column: auto;
+}
+
+.sectionLabel {
+  margin-top: 7px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.formFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.formFooter > span {
+  color: #6f8298;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.formFooter > span strong {
+  color: #9eb1c7;
+}
+
+.form button,
+.magicLink button {
+  min-height: 43px;
+  padding: 0 17px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #031511;
+  background: linear-gradient(135deg, #69efd4, #47d6b9);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 780;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.form button:hover,
+.magicLink button:hover {
+  transform: translateY(-1px);
+}
+
+.form button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.securityDivider {
+  height: 1px;
+  margin: 24px 0;
+  background: rgba(148, 163, 184, 0.11);
+}
+
+.magicLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.magicLink > div {
+  display: grid;
+  gap: 6px;
+}
+
+.magicLink strong {
+  color: #e6effa;
+  font-size: 13px;
+}
+
+.magicLink p {
+  margin: 0;
+  color: #71849b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.secondaryButton {
+  color: #dce8f6 !important;
+  border-color: rgba(139, 164, 191, 0.17) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+@media (max-width: 1120px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .companyCard {
+    grid-column: auto;
+  }
+
+  .addressGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .streetField {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    padding-bottom: 50px;
+  }
+
+  .header {
+    display: grid;
+  }
+
+  .accountSummary {
+    justify-items: start;
+  }
+
+  .card {
+    padding: 20px;
+    border-radius: 15px;
+  }
+
+  .cardHeading,
+  .formFooter,
+  .magicLink {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cardHeading {
+    display: grid;
+  }
+
+  .cardHeading small {
+    text-align: left;
+  }
+
+  .twoColumns,
+  .threeColumns,
+  .addressGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .streetField {
+    grid-column: auto;
+  }
+
+  .formFooter button,
+  .magicLink form,
+  .magicLink button {
+    width: 100%;
+  }
+}

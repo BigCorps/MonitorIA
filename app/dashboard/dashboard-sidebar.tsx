@@ -15,7 +15,8 @@ export type DashboardSection =
   | "cameras"
   | "events"
   | "search"
-  | "installer";
+  | "installer"
+  | "profile";
 
 type Props = {
   organizationName: string;
@@ -80,6 +81,15 @@ function InstallerIcon() {
   );
 }
 
+function ProfileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  );
+}
+
 function MenuIcon({ open }: { open: boolean }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -129,6 +139,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/installer",
     label: "Instalador",
     icon: <InstallerIcon />,
+  },
+  {
+    id: "profile",
+    href: "/dashboard/profile",
+    label: "Perfil",
+    icon: <ProfileIcon />,
   },
 ];
 
@@ -196,7 +212,11 @@ function Account({
 
   return (
     <div className={`sidebar-account ${styles.account}`}>
-      <div className={styles.accountIdentity}>
+      <Link
+        className={styles.accountIdentity}
+        href="/dashboard/profile"
+        aria-label="Abrir perfil e dados da empresa"
+      >
         <span className={styles.accountAvatar} aria-hidden="true">
           {initial}
         </span>
@@ -204,7 +224,7 @@ function Account({
           <span>{organizationName}</span>
           <small>{userEmail ?? "Usuário autenticado"}</small>
         </div>
-      </div>
+      </Link>
       <form action="/auth/signout" method="post">
         <button type="submit">Sair da conta</button>
       </form>
@@ -304,7 +324,10 @@ export function DashboardSidebar({
             <MenuIcon open />
           </button>
         </div>
-        <Navigation active={active} onNavigate={() => setOpen(false)} />
+        <Navigation
+          active={active}
+          onNavigate={() => setOpen(false)}
+        />
         <Account
           organizationName={organizationName}
           userEmail={userEmail}
