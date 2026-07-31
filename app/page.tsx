@@ -26,7 +26,7 @@ const steps = [
   },
   {
     number: "02",
-    title: "O MonitorIA.cam anota o que acontece",
+    title: "O MonitorIA anota o que acontece",
     text: "Enquanto está tudo parado, nada é registrado. Quando alguém entra, um carro chega ou algo sai do lugar, o sistema anota o horário e descreve o que viu.",
   },
   {
@@ -108,7 +108,7 @@ export default function HomePage() {
       <section className="hero container">
         <div className="hero-copy">
           <div className="eyebrow"><span /> Funciona com as câmeras que você já tem</div>
-          <h1>Sua câmera vê.<br /><strong>O MonitorIA.cam lembra.</strong></h1>
+          <h1>Sua câmera vê.<br /><strong>O MonitorIA lembra.</strong></h1>
           <p>
             Pergunte o que aconteceu na sua loja e receba a resposta com o horário exato.
             Sem rebobinar gravação, sem trocar de câmera e sem instalar equipamento novo.
