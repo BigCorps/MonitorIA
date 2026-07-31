@@ -2,15 +2,21 @@ import type { Metadata, Viewport } from "next";
 import { appConfig } from "@/src/lib/app-config";
 import "./globals.css";
 
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://monitoria.cam"),
+  metadataBase: new URL(appConfig.url),
   title: {
     default: `${appConfig.name} — ${appConfig.slogan}`,
     template: `%s · ${appConfig.name}`,
   },
   description: appConfig.description,
   applicationName: appConfig.name,
+  category: "technology",
+  creator: appConfig.company,
+  publisher: appConfig.company,
   manifest: "/manifest.webmanifest",
+  alternates: { canonical: "/" },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -28,9 +34,37 @@ export const metadata: Metadata = {
   openGraph: {
     title: `${appConfig.name} — ${appConfig.slogan}`,
     description: appConfig.description,
+    url: appConfig.url,
+    siteName: appConfig.name,
     type: "website",
-    locale: "pt_BR",
+    locale: appConfig.locale,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: `${appConfig.name} — ${appConfig.slogan}`,
+      },
+    ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: `${appConfig.name} — ${appConfig.slogan}`,
+    description: appConfig.description,
+    images: ["/twitter-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  verification: googleVerification ? { google: googleVerification } : undefined,
 };
 
 export const viewport: Viewport = {
@@ -40,7 +74,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
+    <html lang={appConfig.language}>
       <body>{children}</body>
     </html>
   );

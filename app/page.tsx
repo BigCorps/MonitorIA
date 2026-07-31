@@ -1,10 +1,22 @@
 import Link from "next/link";
+import { MonitoriaStructuredData } from "@/src/components/seo/monitoria-structured-data";
+import { appConfig } from "@/src/lib/app-config";
+import { createPageMetadata } from "@/src/lib/seo";
 
-const WHATSAPP =
-  "https://wa.me/5511926828418?text=" +
-  encodeURIComponent(
-    "Olá! Quero saber mais sobre o MonitorIA para as câmeras do meu negócio."
-  );
+export const metadata = createPageMetadata({
+  title: `${appConfig.name} — ${appConfig.slogan}`,
+  description: appConfig.description,
+  path: "/",
+  keywords: [
+    "inteligência artificial para câmeras",
+    "câmera de segurança com IA",
+    "pesquisa em gravações de câmeras",
+    "análise de vídeo para comércio",
+    "memória visual pesquisável",
+  ],
+});
+
+const WHATSAPP = appConfig.whatsappUrl;
 
 const steps = [
   {
@@ -14,8 +26,8 @@ const steps = [
   },
   {
     number: "02",
-    title: "O MonitorIA anota o que acontece",
-    text: "Enquanto está tudo parado, nada é registrado. Quando alguém entra, um carro chega ou algo sai do lugar, ele anota o horário e descreve o que viu.",
+    title: "O MonitorIA.cam anota o que acontece",
+    text: "Enquanto está tudo parado, nada é registrado. Quando alguém entra, um carro chega ou algo sai do lugar, o sistema anota o horário e descreve o que viu.",
   },
   {
     number: "03",
@@ -69,21 +81,26 @@ function LogoMark() {
   );
 }
 
+function BrandName() {
+  return <span>Monitor<span>IA</span>.cam</span>;
+}
+
 export default function HomePage() {
   return (
     <main className="site-shell">
+      <MonitoriaStructuredData />
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
 
       <header className="site-header container">
         <Link className="brand" href="/" aria-label="MonitorIA.cam — página inicial">
           <LogoMark />
-          <span>Monitor<span>IA</span>.cam</span>
+          <BrandName />
         </Link>
         <nav className="header-nav" aria-label="Navegação principal">
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#perguntas">O que dá para perguntar</a>
-          <a href="#planos">Planos</a>
+          <Link href="/como-funciona">Como funciona</Link>
+          <Link href="/recursos">Recursos</Link>
+          <Link href="/faq">Dúvidas</Link>
           <Link className="button button-ghost" href="/dashboard">Abrir painel</Link>
         </nav>
       </header>
@@ -91,17 +108,17 @@ export default function HomePage() {
       <section className="hero container">
         <div className="hero-copy">
           <div className="eyebrow"><span /> Funciona com as câmeras que você já tem</div>
-          <h1>Sua câmera vê.<br /><strong>O MonitorIA lembra.</strong></h1>
+          <h1>Sua câmera vê.<br /><strong>O MonitorIA.cam lembra.</strong></h1>
           <p>
             Pergunte o que aconteceu na sua loja e receba a resposta com o horário exato.
-            Sem rebobinar gravação, sem trocar de câmera, sem instalar equipamento novo.
+            Sem rebobinar gravação, sem trocar de câmera e sem instalar equipamento novo.
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href={WHATSAPP} target="_blank" rel="noopener noreferrer">
               Falar com a gente
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg>
             </a>
-            <a className="button button-secondary" href="#como-funciona">Ver como funciona</a>
+            <Link className="button button-secondary" href="/como-funciona">Ver como funciona</Link>
           </div>
           <div className="proof-row">
             <div><strong>Suas câmeras</strong><span>Não troque nada</span></div>
@@ -110,7 +127,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="hero-visual" aria-label="Exemplo da linha do tempo do MonitorIA">
+        <div className="hero-visual" aria-label="Exemplo da linha do tempo do MonitorIA.cam">
           <div className="visual-topbar">
             <div className="camera-name"><i /> Câmera · Entrada principal</div>
             <span className="live-badge">AO VIVO</span>
@@ -143,7 +160,7 @@ export default function HomePage() {
         <div className="section-heading">
           <span>Como funciona</span>
           <h2>Três passos.<br />Nenhum equipamento novo.</h2>
-          <p>O vídeo continua gravando no seu DVR, como sempre. O MonitorIA só cria um índice do que aconteceu, para você achar o momento certo em segundos.</p>
+          <p>O vídeo continua gravando no seu DVR, como sempre. O MonitorIA.cam cria um índice do que aconteceu para você achar o momento certo em segundos.</p>
         </div>
         <div className="feature-grid">
           {steps.map((step) => (
@@ -160,7 +177,7 @@ export default function HomePage() {
         <div className="section-heading">
           <span>O que dá para perguntar</span>
           <h2>Não é só para quando<br />algo dá errado.</h2>
-          <p>A rotina é o que faz você abrir o MonitorIA todo dia. A segurança é o que faz valer a pena no dia em que precisar.</p>
+          <p>A rotina é o que faz você abrir o MonitorIA.cam todo dia. A segurança é o que faz valer a pena no dia em que precisar.</p>
         </div>
         <div className="question-grid">
           {questions.map((item) => (
@@ -178,14 +195,14 @@ export default function HomePage() {
           <h2>Não procure no vídeo.<br />Procure no que aconteceu.</h2>
           <p>
             Cada acontecimento vira uma anotação com horário, descrição e uma foto.
-            Dá para filtrar por horário, por área da loja, por tipo de situação, por cor de roupa
-            ou de veículo — e conferir no seu DVR só o trecho que interessa.
+            Dá para filtrar por horário, área da loja, tipo de situação, cor de roupa ou veículo
+            e conferir no DVR somente o trecho que interessa.
           </p>
           <ul className="check-list">
-            <li>Suas gravações continuam no seu DVR, como sempre</li>
-            <li>A senha da sua câmera nunca sai da loja</li>
+            <li>Suas gravações continuam no DVR</li>
+            <li>A senha da câmera nunca sai da loja</li>
             <li>Sem reconhecimento facial: descrevemos o que aparece, não quem é</li>
-            <li>Cada empresa enxerga apenas os próprios dados</li>
+            <li>Cada empresa enxerga somente os próprios dados</li>
           </ul>
         </div>
         <div className="timeline-panel">
@@ -205,41 +222,34 @@ export default function HomePage() {
         </div>
       </section>
 
-<section className="section container retention-section">
+      <section className="section container retention-section">
         <div className="retention-card">
           <div className="retention-copy">
             <span className="section-kicker">Por que 12 meses importa</span>
             <h2>Gravação some.<br />O histórico fica.</h2>
             <p>
-              HD de DVR se sobrescreve sozinho. Gravação em nuvem costuma guardar de 3 a 7 dias.
-              O MonitorIA guarda o registro escrito do que aconteceu por até um ano — e ocupa
-              menos espaço que duas músicas por mês.
+              HD de DVR se sobrescreve sozinho. O MonitorIA.cam guarda o registro escrito do que
+              aconteceu por até um ano, enquanto o vídeo continua no equipamento local.
             </p>
           </div>
-
           <div className="retention-scale">
             <span className="scale-head">Quanto tempo você ainda consegue consultar</span>
-
             <div className="scale-row">
               <div className="scale-label"><strong>Gravação em nuvem</strong><span>3 a 7 dias</span></div>
               <div className="scale-track is-cloud"><i /></div>
             </div>
-
             <div className="scale-row">
               <div className="scale-label"><strong>HD do seu DVR</strong><span>15 a 30 dias</span></div>
               <div className="scale-track is-dvr"><i /></div>
             </div>
-
             <div className="scale-row is-highlight">
-              <div className="scale-label"><strong>Histórico no MonitorIA</strong><span>12 meses</span></div>
+              <div className="scale-label"><strong>Histórico no MonitorIA.cam</strong><span>12 meses</span></div>
               <div className="scale-track is-monitoria"><i /></div>
             </div>
-
             <div className="scale-axis"><span>hoje</span><span>6 meses</span><span>12 meses</span></div>
-
             <p className="scale-note">
-              O MonitorIA guarda o registro escrito e uma foto de cada acontecimento.
-              O vídeo continua no seu DVR.
+              O MonitorIA.cam guarda o registro escrito e uma foto de cada acontecimento.
+              O vídeo continua no DVR.
             </p>
           </div>
         </div>
@@ -249,7 +259,7 @@ export default function HomePage() {
         <div className="section-heading">
           <span>Planos</span>
           <h2>Você escolhe quais câmeras<br />merecem mais atenção.</h2>
-          <p>Nem toda câmera precisa do mesmo cuidado. A do estoque pode ficar no básico; a do caixa e a da entrada valem o detalhe. Monte com a gente o que faz sentido para o seu negócio.</p>
+          <p>Nem toda câmera precisa do mesmo nível de detalhe. A configuração pode variar por ponto de monitoramento.</p>
         </div>
         <div className="plan-grid">
           {plans.map((plan) => (
@@ -283,8 +293,10 @@ export default function HomePage() {
       </section>
 
       <footer className="site-footer container">
-        <div className="brand footer-brand"><LogoMark /><span>Monitor<span>IA</span></span></div>
-        <p>Desenvolvido por BigCorps · Sua câmera vê. O MonitorIA lembra.</p>
+        <div className="brand footer-brand"><LogoMark /><BrandName /></div>
+        <p>
+          Desenvolvido por BigCorps · <Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link>
+        </p>
         <span>© 2026</span>
       </footer>
     </main>

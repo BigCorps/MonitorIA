@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
+import { appConfig } from "@/src/lib/app-config";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MonitorIA.cam — Sua câmera vê. A MonitorIA lembra.",
-    short_name: "MonitorIA.cam",
-    description:
-      "Transforme câmeras comuns em uma memória visual pesquisável com eventos estruturados por IA.",
+    name: `${appConfig.name} — ${appConfig.slogan}`,
+    short_name: appConfig.name,
+    description: appConfig.description,
     start_url: "/",
     scope: "/",
     display: "standalone",
