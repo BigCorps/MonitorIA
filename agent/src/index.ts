@@ -34,7 +34,7 @@ import type {
 } from "./types.js";
 
 const AGENT_VERSION = "0.8.1";
-const DEFAULT_API_URL = "https://monitoria.bigcorps.com.br";
+const DEFAULT_API_URL = "https://monitoria.cam";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
 const CONFIG_SYNC_INTERVAL_MS = 5 * 60_000;
