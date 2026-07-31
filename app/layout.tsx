@@ -3,7 +3,7 @@ import { appConfig } from "@/src/lib/app-config";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://monitoria.bigcorps.com.br"),
+  metadataBase: new URL("https://monitoria.cam"),
   title: {
     default: `${appConfig.name} — ${appConfig.slogan}`,
     template: `%s · ${appConfig.name}`,
