@@ -26,6 +26,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const message = typeof params.message === "string" ? params.message : null;
   const error = typeof params.error === "string" ? params.error : null;
   const next = normalizeNextPath(typeof params.next === "string" ? params.next : "/dashboard");
+  // A landing envia /login?criar=1 no CTA "Começar o teste grátis".
+  // Sem isso o cadastro fica escondido dentro de um <details> fechado.
+  const wantsSignup = params.criar === "1";
 
   return (
     <main className="auth-page">
@@ -41,15 +44,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <li>Frames temporários e metadados por até um ano</li>
           </ul>
         </div>
-        <small>Desenvolvido por BigCorps · Sua câmera vê. O  lembra.</small>
+        <small>Desenvolvido por BigCorps · Sua câmera vê. O MonitorIA lembra.</small>
       </section>
 
       <section className="auth-form-shell">
         <div className="auth-form-card">
           <div className="auth-form-heading">
             <span>MonitorIA.cam</span>
-            <h2>Entrar no painel</h2>
-            <p>Use sua senha ou receba um link de acesso por e-mail.</p>
+            <h2>{wantsSignup ? "Criar sua conta" : "Entrar no painel"}</h2>
+            <p>
+              {wantsSignup
+                ? "O teste grátis começa depois que o Agent estiver pareado e a primeira câmera online."
+                : "Use sua senha ou receba um link de acesso por e-mail."}
+            </p>
           </div>
 
           {message ? <div className="form-alert success">{message}</div> : null}
@@ -79,7 +86,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <button type="submit">Enviar link mágico</button>
           </form>
 
-          <details className="signup-details">
+          <details className="signup-details" open={wantsSignup}>
             <summary>Criar uma nova conta</summary>
             <form action={createAccount} className="auth-form signup-form">
               <input type="hidden" name="next" value="/onboarding" />
