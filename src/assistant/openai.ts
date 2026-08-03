@@ -10,9 +10,16 @@ import {
   type AssistantUsage,
 } from "./contracts";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let client: OpenAI | null = null;
+
+function getClient(): OpenAI {
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return client;
+}
 
 const model =
   process.env.ASSISTANT_MODEL?.trim() || "gpt-5-nano";
@@ -72,7 +79,7 @@ export async function planAssistantQuery(input: {
   history: AssistantHistoryItem[];
 }) {
   const requestPlan = (maxOutputTokens: number) =>
-    client.responses.parse({
+    getClient().responses.parse({
     model,
     store: false,
     max_output_tokens: maxOutputTokens,
@@ -174,7 +181,7 @@ export async function answerAssistantQuery(input: {
   history: AssistantHistoryItem[];
 }) {
   const requestAnswer = (maxOutputTokens: number) =>
-    client.responses.parse({
+    getClient().responses.parse({
     model,
     store: false,
     max_output_tokens: maxOutputTokens,
