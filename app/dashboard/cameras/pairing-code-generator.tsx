@@ -32,6 +32,12 @@ export function PairingCodeGenerator({ cameraId, paired }: Props) {
               : "Gere um código temporário para vincular esta câmera ao computador do estabelecimento."}
           </p>
 
+          <div className="form-alert info">
+            Instale o Agent primeiro. Gere este código só quando o
+            instalador pedir — ele vale 15 minutos, e o download costuma
+            levar mais tempo que isso em conexão de estabelecimento.
+          </div>
+
           <form action={formAction}>
             <input type="hidden" name="camera_id" value={cameraId} />
             <button

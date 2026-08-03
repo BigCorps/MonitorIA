@@ -59,6 +59,7 @@ SignedUninstaller=yes
 #endif
 
 WizardStyle=modern
+SetupIconFile=monitoria.ico
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"

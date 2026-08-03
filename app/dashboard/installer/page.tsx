@@ -106,42 +106,48 @@ export default async function InstallerPage() {
               <li>
                 <span>1</span>
                 <div>
-                  <strong>Baixe o executável</strong>
+                  <strong>Baixe o instalador</strong>
                   <p>
                     Use um computador que permaneça ligado e tenha
-                    acesso à mesma rede das câmeras RTSP.
+                    acesso à mesma rede das câmeras RTSP. Prefira
+                    conexão por cabo: RTSP sobre Wi-Fi instável derruba
+                    o vídeo e gera alarme falso de câmera offline.
                   </p>
                 </div>
               </li>
               <li>
                 <span>2</span>
                 <div>
-                  <strong>Libere e teste o arquivo</strong>
-                  <code>
-                    Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-                  </code>
-                  <code>
-                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
-                  </code>
+                  <strong>Execute como administrador</strong>
+                  <p>
+                    O Windows pode exibir um aviso de proteção antes de
+                    abrir. Clique em &ldquo;Mais informações&rdquo; e
+                    depois em &ldquo;Executar assim mesmo&rdquo; — o
+                    instalador é publicado pela BigCorps.
+                  </p>
                 </div>
               </li>
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Cadastre ou pareie a câmera</strong>
+                  <strong>Gere o código quando o instalador pedir</strong>
                   <p>
-                    O endereço e a senha RTSP permanecem protegidos no
-                    computador local pelo Windows DPAPI.
+                    Só então abra a câmera no painel e gere o código de
+                    pareamento: ele expira em 15 minutos. Gerar antes de
+                    baixar costuma estourar o prazo.
                   </p>
                 </div>
               </li>
               <li>
                 <span>4</span>
                 <div>
-                  <strong>Inicie o Agent</strong>
-                  <code>
-                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-                  </code>
+                  <strong>Pronto</strong>
+                  <p>
+                    O MonitorIA passa a rodar como serviço do Windows e
+                    sobe sozinho ao ligar o computador. O endereço e a
+                    senha RTSP ficam protegidos localmente pelo DPAPI e
+                    nunca saem da máquina.
+                  </p>
                 </div>
               </li>
             </ol>

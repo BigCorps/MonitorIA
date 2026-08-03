@@ -322,8 +322,7 @@ svg { display: block; }
 .signup-form { margin-top: 18px; }
 .form-alert { margin: 0 0 17px; padding: 11px 12px; border-radius: 9px; font-size: 11px; line-height: 1.5; }
 .form-alert.success { color: #08745f; border: 1px solid #bde9dd; background: #eafaf5; }
-.form-alert.error { color: #b4233d; border: 1px solid #f4c8d0; background: #fff1f3; }
-.simple-auth-page, .auth-error-page, .onboarding-page { min-height: 100vh; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at 50% 20%, rgba(79,140,255,.14), transparent 30%), #07111f; }
+.form-alert.info { color: #0d4f6c; border: 1px solid #c2dcea; background: #eff7fb; }.simple-auth-page, .auth-error-page, .onboarding-page { min-height: 100vh; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at 50% 20%, rgba(79,140,255,.14), transparent 30%), #07111f; }
 .simple-auth-card, .onboarding-card { width: min(510px, 100%); padding: 38px; color: #17243a; border: 1px solid rgba(255,255,255,.08); border-radius: 20px; background: #f8fafc; box-shadow: var(--shadow); }
 .simple-auth-card h1, .onboarding-card h1 { margin: 10px 0 9px; font-size: 32px; letter-spacing: -.045em; }
 .simple-auth-card > p, .onboarding-card > p { margin: 0 0 25px; color: #738299; line-height: 1.65; font-size: 12px; }
