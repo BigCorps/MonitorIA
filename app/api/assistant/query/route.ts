@@ -418,7 +418,47 @@ export async function POST(request: Request) {
     let retrievedData: unknown = {};
     let candidateEvidenceIds: string[] = [];
 
-    if (plan.intent === "operating_hours") {
+    if (plan.intent === "continuity_summary") {
+      const result = await supabase.rpc(
+        "assistant_continuity_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const payload = objectValue(result.data);
+      const groups = Array.isArray(payload.groups)
+        ? payload.groups.map(objectValue)
+        : [];
+
+      candidateEvidenceIds = groups
+        .flatMap((group) =>
+          Array.isArray(group.evidenceEventIds)
+            ? group.evidenceEventIds
+            : [],
+        )
+        .filter((id): id is string => typeof id === "string");
+
+      retrievedData = {
+        continuity: result.data,
+        definitions: {
+          probableDistinctPeople:
+            "Estimativa temporária baseada em aparência não biométrica, posição e proximidade temporal.",
+          interactionGroup:
+            "Conjunto de capítulos que provavelmente pertencem à mesma visita ou atendimento.",
+          staffProfile:
+            "Perfil operacional aprovado; não é reconhecimento facial.",
+        },
+      };
+    } else if (plan.intent === "operating_hours") {
       const result = await supabase.rpc(
         "assistant_operating_hours_summary",
         {
@@ -638,6 +678,8 @@ export async function POST(request: Request) {
     } else {
       retrievedData = {
         capabilities: [
+          "estimar pessoas distintas e agrupar capítulos do mesmo atendimento",
+          "diferenciar funcionários prováveis por perfis operacionais aprovados",
           "informar abertura e fechamento visualmente confirmados",
           "consultar o estado atual de entidades configuradas",
           "localizar mudanças em caixas, armários, objetos, equipamentos e áreas",

@@ -89,6 +89,12 @@ export function EventList({
               <span>{eventTypeLabel(event.eventType)}</span>
               <span>◎ {event.peopleCount} pessoas</span>
               <span>◇ {event.vehicleCount} veículos</span>
+              {event.probableCustomerCount > 0 ? (
+                <span>≈ {event.probableCustomerCount} cliente(s) provável(is)</span>
+              ) : null}
+              {event.interactionEventCount > 1 ? (
+                <span>↻ {event.interactionEventCount} capítulos</span>
+              ) : null}
               <span>◷ {durationLabel(event.durationSeconds)}</span>
               <span
                 data-state={

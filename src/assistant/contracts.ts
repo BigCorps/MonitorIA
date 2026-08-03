@@ -9,6 +9,7 @@ export const AssistantPlanSchema = z
     intent: z.enum([
       "operating_hours",
       "visual_state",
+      "continuity_summary",
       "period_summary",
       "search_events",
       "compare_periods",

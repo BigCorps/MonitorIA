@@ -5,6 +5,7 @@ import { z } from "zod";
 import { CameraProfileSchema } from "@/src/contracts/camera-profile";
 import { authenticateAgentCamera } from "@/src/lib/agent-camera";
 import { normalizeAnalyzedEventZones } from "@/src/lib/event-analysis";
+import { persistEventPersonAppearanceAndContinuity } from "@/src/lib/event-continuity";
 import { normalizeAnalysisPlan } from "@/src/lib/analysis-plans";
 import {
   estimateVisionCostBreakdown,
@@ -560,6 +561,32 @@ export async function POST(request: NextRequest, context: RouteContext) {
     visualEntityRows = configuredVisualEntities ?? [];
   }
 
+  let staffProfileRows: Array<Record<string, unknown>> = [];
+
+  if (authenticated.camera.shortMemoryEnabled) {
+    const {
+      data: configuredStaffProfiles,
+      error: staffProfilesError,
+    } = await supabase
+      .from("camera_staff_profiles")
+      .select(
+        "id,label,description,appearance_signature,zone_ids,min_similarity",
+      )
+      .eq("organization_id", authenticated.camera.organizationId)
+      .eq("camera_id", cameraId)
+      .eq("enabled", true)
+      .order("sort_order", { ascending: true });
+
+    if (staffProfilesError) {
+      return NextResponse.json(
+        { ok: false, error: "staff_profiles_unavailable" },
+        { status: 500 },
+      );
+    }
+
+    staffProfileRows = configuredStaffProfiles ?? [];
+  }
+
   let cameraProfile;
 
   try {
@@ -584,6 +611,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
         polygon: zone.polygon,
         description: String(zone.description ?? ""),
       })),
+      staffProfiles: (staffProfileRows ?? []).map(
+        (staffProfile: any) => ({
+          id: String(staffProfile.id),
+          label: String(staffProfile.label),
+          description: String(staffProfile.description),
+          appearanceSignature:
+            staffProfile.appearance_signature ?? {},
+          zoneIds: Array.isArray(staffProfile.zone_ids)
+            ? staffProfile.zone_ids.map((id: unknown) => String(id))
+            : [],
+          minSimilarity: Number(
+            staffProfile.min_similarity ?? 0.74,
+          ),
+        }),
+      ),
       visualEntities: (visualEntityRows ?? []).map(
         (entity: any) => ({
           id: String(entity.id),
@@ -1007,6 +1049,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
       ? String(result.event_id)
       : null;
 
+    const continuity =
+      relevant &&
+      eventId &&
+      authenticated.camera.shortMemoryEnabled
+        ? await persistEventPersonAppearanceAndContinuity({
+            supabase,
+            organizationId:
+              authenticated.camera.organizationId,
+            eventId,
+            people: normalizedEvent.people,
+          })
+        : null;
+
     if (!relevant) {
       await supabase
         .from("storage_assets")
@@ -1051,6 +1106,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         type: normalizedEvent.primaryEventType,
         confidence: normalizedEvent.confidence,
         requiresReview: normalizedEvent.requiresReview,
+        continuity,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

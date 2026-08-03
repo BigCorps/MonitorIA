@@ -25,6 +25,13 @@ export type SearchEventRow = {
   tags: string[];
   peopleCount: number;
   vehicleCount: number;
+  interactionGroupId: string | null;
+  isContinuation: boolean;
+  interactionEventCount: number;
+  probablePeopleCount: number;
+  probableCustomerCount: number;
+  probableStaffCount: number;
+  continuityConfidence: number;
   thumbnailAssetId: string | null;
 };
 
@@ -221,6 +228,15 @@ function mapSearchRows(data: unknown[]): SearchEventRow[] {
     tags: stringArray(row.tags),
     peopleCount: Number(row.people_count ?? 0),
     vehicleCount: Number(row.vehicle_count ?? 0),
+    interactionGroupId: row.interaction_group_id
+      ? String(row.interaction_group_id)
+      : null,
+    isContinuation: Boolean(row.is_continuation),
+    interactionEventCount: Number(row.interaction_event_count ?? 1),
+    probablePeopleCount: Number(row.probable_people_count ?? 0),
+    probableCustomerCount: Number(row.probable_customer_count ?? 0),
+    probableStaffCount: Number(row.probable_staff_count ?? 0),
+    continuityConfidence: Number(row.continuity_confidence ?? 0),
     thumbnailAssetId: row.thumbnail_asset_id
       ? String(row.thumbnail_asset_id)
       : null,

@@ -1,0 +1,101 @@
+{
+  "package": "MonitorIA-inteligencia-etapa-2",
+  "version": "short-memory-v1",
+  "generatedAt": "2026-08-01T13:30:00-03:00",
+  "repository": "BigCorps/MonitorIA",
+  "dependsOn": "visual-state-v1",
+  "databaseApplied": false,
+  "repositoryModified": false,
+  "formalTestsIncluded": false,
+  "privacy": {
+    "facialRecognition": false,
+    "faceEmbeddings": false,
+    "customerCrossDayIdentity": false,
+    "temporaryCustomerMemoryHours": 12,
+    "approvedOperationalStaffProfiles": true
+  },
+  "checksPerformed": [
+    "Transpilação sintática dos arquivos TypeScript entregues",
+    "Validação sintática dos scripts Node.js",
+    "Dry-run, aplicação idempotente e restauração do instalador em repositório simulado",
+    "Verificação lexical de aspas, dollar quotes, blocos e parênteses dos arquivos SQL",
+    "Inspeção read-only dos eventos reais de 01/08/2026 para calibrar cores, papéis, zonas e janela temporal"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1203,
+      "sha256": "ea36fcad5279e41efff4f978b93dfbee6137a423d59b68b92dc7f9df48afdf11"
+    },
+    {
+      "path": "docs/APLICACAO.md",
+      "bytes": 5888,
+      "sha256": "db009936cf37252baec7f391933173cbb776d0f2859394ef0a682dbefbb3ef52"
+    },
+    {
+      "path": "docs/PRIVACIDADE-E-LIMITES.md",
+      "bytes": 937,
+      "sha256": "d3213f02788063cefcea4c87aedd651e002226a024ed105ddd6111fabf247f24"
+    },
+    {
+      "path": "docs/RELATORIO-COMPARACAO.md",
+      "bytes": 3602,
+      "sha256": "c6bd7d3c85ba58cbe6a9c2f844aa456f7d6cc8c7c74705265119453d69862f77"
+    },
+    {
+      "path": "scripts/apply-etapa-2.mjs",
+      "bytes": 13780,
+      "sha256": "ae7d0f71b8b5d5cea35fb20bf92988561e46d6fade6d4be9de7ecf09044f0357"
+    },
+    {
+      "path": "scripts/restore-etapa-2.mjs",
+      "bytes": 1089,
+      "sha256": "4197136049972961841bd067b04eb7cd00747873c226da1f962a0158dad48eff"
+    },
+    {
+      "path": "src/contracts/analyzed-event.ts",
+      "bytes": 6680,
+      "sha256": "f2af237087d647750c9f9f57770eec5ea1e44f10758e80c38e47abdf632c72f0"
+    },
+    {
+      "path": "src/contracts/camera-profile.ts",
+      "bytes": 1561,
+      "sha256": "13a9655e56d21452f38e0c2edfdc5a7daec8ede619229f61babd0cada889a074"
+    },
+    {
+      "path": "src/contracts/person-memory.ts",
+      "bytes": 2780,
+      "sha256": "b9ad0935509b69be62f387fe8853bdff2b96d1cb63ede5af684ecfa5316ae55c"
+    },
+    {
+      "path": "src/lib/agent-camera.ts",
+      "bytes": 2409,
+      "sha256": "85b1b71bc8b5d880aa31f1d69347124a3a972ee1578a718491ca7de9b3a0448c"
+    },
+    {
+      "path": "src/lib/event-analysis.ts",
+      "bytes": 2010,
+      "sha256": "7f8f71cee08a97426d168f38c625e3453a33717ba017e98697eff7195bdd6f33"
+    },
+    {
+      "path": "src/lib/event-continuity.ts",
+      "bytes": 3670,
+      "sha256": "a06ee80adddf47656d4c047285d0ca246864b25ba2182ec79ff1805b415e82d6"
+    },
+    {
+      "path": "src/vision/prompt.ts",
+      "bytes": 10344,
+      "sha256": "65426a08461c8d856c58bfd2476ee004d87773a78e54a7e1076a1701497ef9c5"
+    },
+    {
+      "path": "supabase/migrations/20260801131500_short_memory_continuity_v1.sql",
+      "bytes": 57347,
+      "sha256": "5b426d2046e8065f2a25b56b5b0c25c21c29c53de561b5ccfa3af6c30ec10471"
+    },
+    {
+      "path": "supabase/migrations/rollback_short_memory_continuity_v1.sql",
+      "bytes": 7902,
+      "sha256": "e63c4914ccf07809562efcb5a086a590ecc2bca484c79e35db4d8e49fe1cf946"
+    }
+  ]
+}

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  EmptyPersonAppearance,
+  PersonAppearanceSchema,
+} from "./person-memory";
 import { VisualStateObservationSchema } from "./visual-state";
 
 const EventTypeSchema = z.enum([
@@ -55,7 +59,7 @@ const ObjectStateSchema = z.enum([
 
 export const AnalyzedEventTransportSchema = z
   .object({
-    schemaVersion: z.literal("1.2"),
+    schemaVersion: z.literal("1.3"),
     headline: z.string(),
     primaryEventType: EventTypeSchema,
     summary: z.string(),
@@ -81,6 +85,7 @@ export const AnalyzedEventTransportSchema = z
           accessories: z.array(z.string()),
           carrying: z.array(z.string()),
           zoneIds: z.array(z.string()),
+          appearance: PersonAppearanceSchema,
           confidence: z.number(),
         })
         .strict(),
@@ -139,6 +144,7 @@ const ValidatedAnalyzedEventSchema =
         ...event.people.flatMap((item) => [
           item.confidence,
           item.roleConfidence,
+          item.appearance.confidence,
         ]),
         ...event.vehicles.map(
           (item) => item.confidence,
@@ -224,10 +230,32 @@ export const AnalyzedEventSchema = z.preprocess(
 
     const event = value as Record<string, unknown>;
 
-    if (event.schemaVersion === "1.1") {
+    if (
+      event.schemaVersion === "1.1" ||
+      event.schemaVersion === "1.2"
+    ) {
+      const people = Array.isArray(event.people)
+        ? event.people.map((person) => {
+            if (!person || typeof person !== "object" || Array.isArray(person)) {
+              return person;
+            }
+            const item = person as Record<string, unknown>;
+            return {
+              ...item,
+              appearance:
+                item.appearance &&
+                typeof item.appearance === "object" &&
+                !Array.isArray(item.appearance)
+                  ? item.appearance
+                  : EmptyPersonAppearance,
+            };
+          })
+        : [];
+
       return {
         ...event,
-        schemaVersion: "1.2",
+        schemaVersion: "1.3",
+        people,
         stateObservations: Array.isArray(event.stateObservations)
           ? event.stateObservations
           : [],

@@ -16,6 +16,9 @@ export type AuthenticatedAgentCamera = {
     status: string;
     analysisPlanCode: AnalysisPlanCode;
     visualStateEnabled: boolean;
+    shortMemoryEnabled: boolean;
+    shortMemoryWindowMinutes: number;
+    continuityMinSimilarity: number;
   };
   supabase: ReturnType<typeof createAdminClient>;
 };
@@ -42,7 +45,7 @@ export async function authenticateAgentCamera(
   const { data: camera, error: cameraError } = await supabase
     .from("cameras")
     .select(
-      "id,name,organization_id,site_id,status,analysis_plan_code,visual_state_enabled",
+      "id,name,organization_id,site_id,status,analysis_plan_code,visual_state_enabled,short_memory_enabled,short_memory_window_minutes,continuity_min_similarity",
     )
     .eq("id", cameraId)
     .eq("organization_id", agent.organizationId)
@@ -67,6 +70,13 @@ export async function authenticateAgentCamera(
       status: String(camera.status),
       analysisPlanCode: plan,
       visualStateEnabled: Boolean(camera.visual_state_enabled),
+      shortMemoryEnabled: Boolean(camera.short_memory_enabled),
+      shortMemoryWindowMinutes: Number(
+        camera.short_memory_window_minutes ?? 15,
+      ),
+      continuityMinSimilarity: Number(
+        camera.continuity_min_similarity ?? 0.72,
+      ),
     },
     supabase,
   };

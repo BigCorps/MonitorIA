@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PointSchema } from "./camera-profile-point";
+import { CameraStaffProfileSchema } from "./person-memory";
 import { CameraVisualEntitySchema } from "./visual-state";
 
 export { PointSchema } from "./camera-profile-point";
@@ -47,6 +48,10 @@ export const CameraProfileSchema = z
     visualEntities: z
       .array(CameraVisualEntitySchema)
       .max(30)
+      .default([]),
+    staffProfiles: z
+      .array(CameraStaffProfileSchema)
+      .max(20)
       .default([]),
     timezone: z.string().trim().min(1).max(100),
   })
