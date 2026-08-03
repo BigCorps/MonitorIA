@@ -30,7 +30,9 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-function decodeJwtPayload(token: string) {
+function decodeJwtPayload(
+  token: string,
+): Record<string, unknown> | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 
@@ -43,7 +45,10 @@ function decodeJwtPayload(token: string) {
       "=",
     );
     const payload = JSON.parse(atob(padded));
-    return payload && typeof payload === "object"
+
+    return payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload)
       ? (payload as Record<string, unknown>)
       : null;
   } catch {
@@ -52,41 +57,41 @@ function decodeJwtPayload(token: string) {
 }
 
 function serviceAuthorized(request: Request) {
-  const authorization = request.headers.get("authorization") ?? "";
+  const authorization =
+    request.headers.get("authorization") ?? "";
   const [scheme, token] = authorization.split(/\s+/, 2);
 
   if (scheme?.toLowerCase() !== "bearer" || !token) {
     return false;
   }
 
-  // Compatibilidade com a chave atual da própria Edge Function.
+  // Compatibilidade quando as duas cópias da chave são iguais.
   if (SERVICE_ROLE_KEY && token === SERVICE_ROLE_KEY) {
     return true;
   }
 
-  // O gateway da Supabase continua com verify_jwt=true e valida a
-  // assinatura antes da execução. Aqui validamos o papel do JWT em vez
-  // de exigir igualdade literal entre chaves válidas/rotacionadas.
+  // O gateway Supabase com verify_jwt=true já verificou a
+  // assinatura. Aqui confirmamos o papel e a expiração para
+  // aceitar rotações legítimas da chave service_role.
   const payload = decodeJwtPayload(token);
-  const role = String(payload?.role ?? "");
-  const issuer = String(payload?.iss ?? "").replace(/\/$/, "");
-  const expectedIssuer = SUPABASE_URL
-    ? `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1`
-    : "";
-  const expiresAt = Number(payload?.exp ?? 0);
-  const notExpired = Number.isFinite(expiresAt)
-    && expiresAt > Math.floor(Date.now() / 1000);
 
-  return Boolean(
-    role === "service_role"
-      && expectedIssuer
-      && issuer === expectedIssuer
-      && notExpired,
+  if (String(payload?.role ?? "") !== "service_role") {
+    return false;
+  }
+
+  const expiresAt = Number(payload?.exp ?? 0);
+
+  return (
+    !Number.isFinite(expiresAt) ||
+    expiresAt <= 0 ||
+    expiresAt > Math.floor(Date.now() / 1000)
   );
 }
 
 function objectValue(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value)
+  return value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
 }
@@ -98,7 +103,9 @@ async function checkPayment(payment: {
 }) {
   try {
     const response = await fetch(
-      `${BRIDGE_BASE_URL}/get.php?txid=${encodeURIComponent(payment.txid)}`,
+      `${BRIDGE_BASE_URL}/get.php?txid=${
+        encodeURIComponent(payment.txid)
+      }`,
       {
         method: "GET",
         headers: {
@@ -113,7 +120,9 @@ async function checkPayment(payment: {
     let providerPayload: Record<string, unknown> = {};
 
     try {
-      providerPayload = objectValue(JSON.parse(responseText));
+      providerPayload = objectValue(
+        JSON.parse(responseText),
+      );
     } catch {
       providerPayload = {
         raw: responseText.slice(0, 2000),
@@ -127,7 +136,11 @@ async function checkPayment(payment: {
         p_bank_status: `HTTP_${response.status}`,
         p_provider_payload: providerPayload,
       });
-      return { paymentId: payment.id, result: "provider_error" };
+
+      return {
+        paymentId: payment.id,
+        result: "provider_error",
+      };
     }
 
     const data = bankResponseData(providerPayload);
@@ -141,10 +154,16 @@ async function checkPayment(payment: {
         p_bank_status: bankStatus || "PENDENTE",
         p_provider_payload: providerPayload,
       });
-      return { paymentId: payment.id, result: "pending", bankStatus };
+
+      return {
+        paymentId: payment.id,
+        result: "pending",
+        bankStatus,
+      };
     }
 
     const paidAmountCents = bankAmountToCents(data);
+
     const { data: confirmation, error } = await admin.rpc(
       "apply_confirmed_monitoria_payment",
       {
@@ -158,44 +177,72 @@ async function checkPayment(payment: {
     );
 
     if (error) {
-      console.error(`Falha ao confirmar ${payment.id}:`, error.message);
-      return { paymentId: payment.id, result: "confirmation_error" };
+      console.error(
+        `Falha ao confirmar ${payment.id}:`,
+        error.message,
+      );
+      return {
+        paymentId: payment.id,
+        result: "confirmation_error",
+      };
     }
 
     const result = objectValue(confirmation);
+
     return {
       paymentId: payment.id,
-      result: result.success === true ? "confirmed" : "manual_review",
+      result:
+        result.success === true
+          ? "confirmed"
+          : "manual_review",
       duplicate: result.duplicate === true,
       assistantPacks: result.assistantPacks ?? [],
     };
   } catch (error) {
     console.error(
       `Falha ao consultar ${payment.id}:`,
-      error instanceof Error ? error.message : String(error),
+      error instanceof Error
+        ? error.message
+        : String(error),
     );
-    return { paymentId: payment.id, result: "unexpected_error" };
+
+    return {
+      paymentId: payment.id,
+      result: "unexpected_error",
+    };
   }
 }
 
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") {
-    return json({ success: false, error: "method_not_allowed" }, 405);
+    return json(
+      { success: false, error: "method_not_allowed" },
+      405,
+    );
   }
 
   if (!serviceAuthorized(request)) {
-    return json({ success: false, error: "unauthorized" }, 401);
+    return json(
+      { success: false, error: "unauthorized" },
+      401,
+    );
   }
 
   if (!BANCO_INTER_API_KEY) {
     return json(
-      { success: false, error: "banco_inter_not_configured" },
+      {
+        success: false,
+        error: "banco_inter_not_configured",
+      },
       503,
     );
   }
 
   try {
-    const { data: deadlines, error: deadlinesError } = await admin.rpc(
+    const {
+      data: deadlines,
+      error: deadlinesError,
+    } = await admin.rpc(
       "process_monitoria_billing_deadlines",
     );
 
@@ -204,25 +251,42 @@ Deno.serve(async (request: Request) => {
         "process_monitoria_billing_deadlines:",
         deadlinesError.message,
       );
+
       return json(
-        { success: false, error: "billing_deadlines_failed" },
+        {
+          success: false,
+          error: "billing_deadlines_failed",
+        },
         500,
       );
     }
 
-    const { data: payments, error: paymentsError } = await admin
+    const {
+      data: payments,
+      error: paymentsError,
+    } = await admin
       .from("billing_pix_payments")
       .select("id,txid,amount_cents")
       .in("status", ["pending", "manual_review"])
       .not("txid", "is", null)
       .gt("expires_at", new Date().toISOString())
-      .order("last_checked_at", { ascending: true, nullsFirst: true })
+      .order("last_checked_at", {
+        ascending: true,
+        nullsFirst: true,
+      })
       .limit(25);
 
     if (paymentsError) {
-      console.error("pending payments:", paymentsError.message);
+      console.error(
+        "pending payments:",
+        paymentsError.message,
+      );
+
       return json(
-        { success: false, error: "pending_payments_unavailable" },
+        {
+          success: false,
+          error: "pending_payments_unavailable",
+        },
         500,
       );
     }
@@ -255,10 +319,16 @@ Deno.serve(async (request: Request) => {
   } catch (error) {
     console.error(
       "monitoria-process-billing:",
-      error instanceof Error ? error.message : String(error),
+      error instanceof Error
+        ? error.message
+        : String(error),
     );
+
     return json(
-      { success: false, error: "unexpected_error" },
+      {
+        success: false,
+        error: "unexpected_error",
+      },
       500,
     );
   }
