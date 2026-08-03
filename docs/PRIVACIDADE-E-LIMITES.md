@@ -1,38 +1,24 @@
 # Privacidade e limites
 
-## O que a INT-5 faz
+A INT-6 não utiliza:
 
-- organiza ações visíveis em etapas;
-- compara a ordem observada com uma definição;
-- mede duração;
-- aponta ausência de confirmação visual;
-- mantém evidências relacionadas.
+- reconhecimento facial;
+- face embeddings;
+- nome automático;
+- documento ou identidade civil;
+- etnia, religião, saúde ou outro atributo protegido;
+- rastreamento permanente entre organizações;
+- garantia de que duas aparições são a mesma pessoa.
 
-## O que ela não deve afirmar
+Os descritores permitidos são amplos e operacionais: roupa, acessórios, óculos, cabelo em descrição genérica, silhueta aproximada, objetos carregados, zonas, horários e ações visíveis.
 
-- que uma pessoa errou intencionalmente;
-- que houve fraude;
-- que uma etapa não aconteceu fora do enquadramento;
-- que uma ação adicional é irregular;
-- que o processo foi legal, financeiro ou comercialmente concluído;
-- identidade civil de participantes.
+## Limitações
 
-## Linguagem correta
+- uniformes iguais podem gerar ambiguidade;
+- troca de roupa pode reduzir a correspondência;
+- oclusão, distância e baixa resolução prejudicam os descritores;
+- ações da sessão podem ser atribuídas ao conjunto de participantes, não necessariamente a uma pessoa específica;
+- turnos aprendidos representam horários observados, não contratos de trabalho;
+- ausência visual não prova ausência real.
 
-Preferir:
-
-> Não houve confirmação visual suficiente da etapa final.
-
-Evitar:
-
-> O funcionário não realizou a etapa final.
-
-Preferir:
-
-> A ordem visual observada foi diferente da definição ativa.
-
-Evitar:
-
-> O procedimento foi executado incorretamente.
-
-A câmera pode não mostrar todas as etapas, e o evento pode ter sido dividido ou ocluído.
+Candidatos devem expirar e perfis devem poder ser pausados ou encerrados. Recomenda-se usar rótulos como “Funcionário A”, “Equipe do caixa” ou “Operador do turno”, salvo quando o próprio cliente tiver finalidade e base legal para inserir um nome manualmente.

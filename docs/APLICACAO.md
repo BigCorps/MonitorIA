@@ -1,82 +1,33 @@
-# Aplicação da INT-5
+# Aplicação da INT-6
 
-## Dependências obrigatórias
+## Dependências
 
-Confirme no banco e no repositório:
+Confirme INT-2, INT-3, INT-3.8 e INT-5.
 
-```text
-INT-3   operational_sessions e operational_session_events
-INT-3.8 operational_insights e monitoria_capability_registry
-INT-4   camera_behavior_baselines
-```
+## Ordem
 
-## 1. Aplicar a migration
-
-Execute:
-
-```text
-005-operational-process-intelligence-v1.sql
-```
-
-A migration cria templates genéricos, mas mantém `process_intelligence_enabled=false` por padrão. Ative por câmera somente depois de revisar a configuração.
-
-Exemplo:
-
-```sql
-update public.cameras
-set process_intelligence_enabled = true
-where id = 'CAMERA_UUID';
-```
-
-## 2. Aplicar os arquivos
+1. Execute `006-staff-operational-profiles-v1.sql` no banco de homologação.
+2. Extraia o ZIP preservando caminhos.
+3. Execute o instalador em `--dry-run`.
+4. Aplique o instalador.
+5. Execute `npm run check` e `npm run build`.
+6. Configure o cron.
+7. Habilite uma câmera de homologação.
+8. Revise candidatos e correspondências antes de produção.
 
 ```bash
-node MonitorIA-inteligencia-fase-5/scripts/apply-fase-5.mjs \
-  --repo . \
-  --dry-run
-```
-
-Depois:
-
-```bash
-node MonitorIA-inteligencia-fase-5/scripts/apply-fase-5.mjs \
-  --repo .
-```
-
-## 3. Validar
-
-```bash
+node MonitorIA-inteligencia-fase-6/scripts/apply-fase-6.mjs --repo . --dry-run
+node MonitorIA-inteligencia-fase-6/scripts/apply-fase-6.mjs --repo .
 npm run check
 npm run build
 ```
 
-## 4. Processar a fila inicial
+## Habilitação inicial
 
-```text
-GET /api/cron/processes?mode=queue&limit=100
-Authorization: Bearer CRON_SECRET
+```sql
+update public.cameras
+set staff_profile_intelligence_enabled = true
+where id = 'CAMERA_UUID';
 ```
 
-Para reconstrução controlada:
-
-```text
-GET /api/cron/processes?mode=full&limit=500
-```
-
-## 5. Agendamento recomendado
-
-- fila: a cada 5 minutos;
-- reconstrução completa: uma vez por noite durante homologação;
-- após estabilização, reconstrução completa somente sob demanda.
-
-## Rollback
-
-Primeiro remova ou reverta os arquivos. Depois execute:
-
-```text
-005-operational-process-intelligence-v1-rollback.sql
-```
-
-## Definições personalizadas
-
-A migration inclui a RPC administrativa `save_operational_process_definition_v1`. Ela deve ser chamada apenas por owner/admin autenticado ou por uma futura tela administrativa. O MCP público não possui permissão de execução.
+O pacote não aplica SQL nem modifica GitHub ou Vercel automaticamente.

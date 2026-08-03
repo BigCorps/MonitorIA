@@ -1,9 +1,11 @@
 # Atualização do roadmap
 
-Com a INT-5 concluída, a próxima etapa da trilha é:
+A INT-6 passa de planejada para preparada.
+
+Próxima etapa:
 
 ```text
-INT-6 — Perfis operacionais de funcionários
+INT-7 — Saúde e drift da câmera
 ```
 
-A INT-6 utilizará pessoas prováveis da INT-2 e participações da INT-3 para melhorar correspondência contextual por turno, zona e comportamento, sem reconhecimento facial ou identidade permanente.
+A INT-7 deve reutilizar `operational_insights` com `insight_type = camera_health`, sem criar um sistema paralelo de alertas.

@@ -1,0 +1,64 @@
+.page { display: grid; gap: 24px; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.header h1 { margin: 5px 0 8px; font-size: clamp(2rem, 4vw, 3.5rem); letter-spacing: -0.05em; }
+.header p { max-width: 760px; margin: 0; color: #52606d; line-height: 1.65; }
+.eyebrow, .sectionHeader span { font-size: .72rem; font-weight: 800; letter-spacing: .14em; color: #2563eb; }
+.realtime { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #dbe3ec; border-radius: 999px; padding: 8px 12px; background: white; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.realtime > span { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.realtime.live > span { background: #16a34a; box-shadow: 0 0 0 4px rgba(22,163,74,.12); }
+.realtime.updating > span, .realtime.connecting > span { background: #f59e0b; }
+.realtime.offline > span { background: #ef4444; }
+.metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.metrics article { background: white; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px; box-shadow: 0 10px 30px rgba(15,23,42,.04); }
+.metrics strong { display: block; font-size: 1.8rem; letter-spacing: -.04em; }
+.metrics span { color: #64748b; font-size: .82rem; }
+.filters { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 0 18px; }
+.filters summary { cursor: pointer; padding: 15px 0; font-weight: 750; }
+.filters form { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; padding: 0 0 18px; }
+.filters label, .reviewForm label, .editor label { display: grid; gap: 6px; color: #475569; font-size: .78rem; font-weight: 700; }
+.filters input, .filters select, .reviewForm input, .reviewForm select, .reviewForm textarea, .editor input, .editor select, .editor textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 11px; background: #fff; color: #0f172a; font: inherit; }
+.reviewForm textarea, .editor textarea { min-height: 72px; resize: vertical; }
+.filterActions { display: flex; align-items: end; gap: 10px; }
+.filterActions button, .reviewForm button, .editor button { border: 0; border-radius: 10px; padding: 10px 14px; background: #0f172a; color: white; font-weight: 750; cursor: pointer; }
+.filterActions a { padding: 10px 14px; color: #475569; }
+.secondary { background: #e2e8f0 !important; color: #0f172a !important; }
+.danger { background: #fff1f2 !important; color: #be123c !important; border: 1px solid #fecdd3 !important; }
+.section { display: grid; gap: 14px; }
+.sectionHeader { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.sectionHeader h2 { margin: 3px 0 0; font-size: 1.35rem; }
+.sectionHeader small { color: #64748b; }
+.profileGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.profileCard, .reviewCard { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 20px; box-shadow: 0 12px 34px rgba(15,23,42,.045); }
+.profileCard > header, .reviewCard > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.profileCard header span:first-child, .reviewCard header span:first-child { color: #64748b; font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.profileCard h3, .reviewCard h3 { margin: 4px 0 0; font-size: 1.18rem; }
+.profileCard > p, .reviewCard > p { color: #52606d; line-height: 1.55; }
+.status { border-radius: 999px; padding: 6px 10px; font-size: .72rem; font-weight: 800; }
+.status.active { background: #ecfdf5; color: #047857; }
+.status.paused { background: #fffbeb; color: #b45309; }
+.status.retired { background: #f1f5f9; color: #475569; }
+.profileStats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin: 14px 0; }
+.profileStats span { border-radius: 12px; padding: 10px; background: #f8fafc; color: #64748b; font-size: .72rem; }
+.profileStats strong { display: block; color: #0f172a; font-size: 1rem; }
+.profileSection { display: grid; gap: 7px; margin-top: 14px; }
+.profileSection > strong { font-size: .8rem; color: #334155; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { border-radius: 999px; padding: 5px 9px; background: #eff6ff; color: #1d4ed8; font-size: .72rem; }
+.profileSection ul, .reviewCard ul { margin: 0; padding-left: 18px; color: #52606d; font-size: .8rem; line-height: 1.7; }
+.muted { color: #94a3b8; font-size: .78rem; }
+.profileCard footer { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eef2f7; display: flex; justify-content: space-between; gap: 10px; color: #64748b; font-size: .72rem; }
+.profileCard footer strong { color: #b45309; }
+.editor { margin-top: 14px; border-top: 1px solid #eef2f7; padding-top: 12px; }
+.editor summary { cursor: pointer; font-weight: 750; font-size: .8rem; }
+.editor form, .reviewForm { display: grid; gap: 10px; margin-top: 12px; }
+.reviewForm > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.reviewList { display: grid; gap: 12px; }
+.reviewCard { border-left: 4px solid #2563eb; }
+.reviewCard > header > strong { color: #1d4ed8; font-size: .78rem; }
+.scoreGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+.scoreGrid span { background: #f8fafc; border-radius: 10px; padding: 8px; font-size: .72rem; color: #475569; }
+.evidenceLinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.evidenceLinks a, .reviewCard > a { font-size: .76rem; color: #2563eb; font-weight: 700; }
+.empty { grid-column: 1 / -1; padding: 28px; border: 1px dashed #cbd5e1; border-radius: 16px; text-align: center; color: #64748b; background: rgba(255,255,255,.6); }
+@media (max-width: 1100px) { .metrics { grid-template-columns: repeat(3,1fr); } .profileGrid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .header { display: grid; } .metrics { grid-template-columns: repeat(2,1fr); } .filters form { grid-template-columns: 1fr; } .profileStats, .scoreGrid { grid-template-columns: repeat(2,1fr); } .profileCard, .reviewCard { padding: 16px; } }

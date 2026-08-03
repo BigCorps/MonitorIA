@@ -17,6 +17,7 @@ export type DashboardSection =
   | "sessions"
   | "routines"
   | "processes"
+  | "operational-profiles"
   | "search"
   | "trial"
   | "plans"
@@ -96,6 +97,16 @@ function ProcessesIcon() {
       <rect x="14" y="13" width="7" height="7" rx="1.5" />
       <path d="M10 7.5h4a3 3 0 0 1 3 3V13" />
       <path d="M14 5l3 2.5-3 2.5" />
+    </svg>
+  );
+}
+
+function OperationalProfilesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="8" r="3" />
+      <path d="M4 20c0-3 2.2-5 5-5s5 2 5 5" />
+      <path d="M16 5.5h5M16 9h5M16 12.5h3" />
     </svg>
   );
 }
@@ -213,6 +224,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/processes",
     label: "Processos",
     icon: <ProcessesIcon />,
+  },
+  {
+    id: "operational-profiles",
+    href: "/dashboard/operational-profiles",
+    label: "Perfis operacionais",
+    icon: <OperationalProfilesIcon />,
   },
   {
     id: "search",

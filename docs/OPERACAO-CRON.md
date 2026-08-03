@@ -1,28 +1,27 @@
-# Operação do cron de processos
+# Operação do cron
 
-## Fila
+## Fila normal
 
 ```text
-/api/cron/processes?mode=queue
+GET /api/cron/staff-profiles?mode=queue
+Authorization: Bearer CRON_SECRET
 ```
 
-Processa sessões enfileiradas por triggers. É o modo normal de produção.
+Frequência inicial: a cada 5 minutos.
 
 ## Reconstrução
 
 ```text
-/api/cron/processes?mode=full
+GET /api/cron/staff-profiles?mode=full
+Authorization: Bearer CRON_SECRET
 ```
 
-Reprocessa sessões recentes selecionadas pela função SQL. Use em homologação, mudança de template ou correção de regra.
+Usar diariamente durante homologação e depois somente para reconciliação ou correção.
 
-## Segurança
+## Configuração
 
-- exige `Authorization: Bearer CRON_SECRET`;
-- utiliza `service_role` somente no servidor;
-- nunca exponha o segredo em URL, SQL ou frontend;
-- logs não devem incluir imagens, tokens ou RTSP.
+```env
+STAFF_PROFILE_CRON_BATCH_SIZE=100
+```
 
-## Falhas
-
-A fila usa backoff e preserva `last_error`. Uma falha não remove a sessão nem os eventos originais.
+A inteligência começa desativada por câmera. Habilite somente depois de revisar os perfis existentes e os limites de privacidade.

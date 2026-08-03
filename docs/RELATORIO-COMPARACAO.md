@@ -1,19 +1,20 @@
-# Comparação antes e depois
+# Comparação
 
-## Antes da INT-5
+## Antes
 
-O MonitorIA sabe que houve uma sessão e quais capítulos compõem a história.
+- perfis estáticos com assinatura visual e zonas;
+- correspondência baseada principalmente em aparência;
+- sem histórico versionado;
+- sem candidatos formais;
+- sem correção detalhada da decisão;
+- sem propostas controladas de atualização.
 
-## Depois da INT-5
+## Depois
 
-O MonitorIA também consegue responder:
-
-- quais etapas definidas foram observadas;
-- qual é a próxima etapa esperada;
-- quais etapas obrigatórias não foram confirmadas;
-- quais ações apareceram fora da sequência;
-- quais ações adicionais ocorreram;
-- se a duração ficou fora do padrão aprendido;
-- qual evidência sustenta cada conclusão.
-
-A INT-5 preserva os eventos e sessões originais. A camada de processo é derivada e pode ser reconstruída.
+- perfil operacional com zonas, ações, sessões, dias e turnos;
+- score contextual explicável;
+- candidato temporário e aprovação humana;
+- versões imutáveis;
+- reatribuição e rejeição;
+- aprendizado apenas por proposta aprovada;
+- consulta segura pelo Assistente e MCP.
