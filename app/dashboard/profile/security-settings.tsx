@@ -39,7 +39,7 @@ type AuthSettings = {
   canManageOrganizationPolicy: boolean;
 };
 
-type Draft = Pick<
+type Draft = Pick
   AuthSettings,
   | "allowPassword"
   | "allowMagicLink"
@@ -48,6 +48,12 @@ type Draft = Pick<
   | "preferredMethod"
   | "requireMfa"
 >;
+
+type MethodContext = {
+  passwordConfigured: boolean;
+  googleLinked: boolean;
+  passkeyCount: number;
+};
 
 type PasskeyRecord = {
   id: string;
@@ -75,6 +81,13 @@ type Enrollment = {
 type Props = {
   userEmail: string;
 };
+
+const PREFERRED_FALLBACK_ORDER: PreferredMethod[] = [
+  "magic_link",
+  "password",
+  "google",
+  "passkey",
+];
 
 function recordValue(
   value: unknown,
@@ -176,6 +189,45 @@ function draftFromSettings(
     preferredMethod: settings.preferredMethod,
     requireMfa: settings.requireMfa,
   };
+}
+
+function methodAvailability(
+  values: Draft,
+  context: MethodContext,
+): Record<PreferredMethod, boolean> {
+  return {
+    password:
+      values.allowPassword &&
+      context.passwordConfigured,
+    magic_link: values.allowMagicLink,
+    google:
+      values.allowGoogle && context.googleLinked,
+    passkey:
+      values.allowPasskey &&
+      context.passkeyCount > 0,
+  };
+}
+
+function reconcilePreferred(
+  values: Draft,
+  context: MethodContext,
+): Draft {
+  const availability = methodAvailability(
+    values,
+    context,
+  );
+
+  if (availability[values.preferredMethod]) {
+    return values;
+  }
+
+  const fallback = PREFERRED_FALLBACK_ORDER.find(
+    (method) => availability[method],
+  );
+
+  return fallback
+    ? { ...values, preferredMethod: fallback }
+    : values;
 }
 
 function humanError(error: unknown) {
@@ -282,10 +334,10 @@ export function SecuritySettings({
     useState<AuthSettings | null>(null);
   const [draft, setDraft] =
     useState<Draft | null>(null);
-  const [passkeys, setPasskeys] = useState<
+  const [passkeys, setPasskeys] = useState
     PasskeyRecord[]
   >([]);
-  const [factors, setFactors] = useState<
+  const [factors, setFactors] = useState
     TotpFactor[]
   >([]);
   const [enrollment, setEnrollment] =
@@ -387,6 +439,29 @@ export function SecuritySettings({
     }
   }
 
+  function contextFrom(
+    source: AuthSettings,
+    passkeyCount = passkeys.length,
+  ): MethodContext {
+    return {
+      passwordConfigured:
+        source.passwordConfigured,
+      googleLinked: source.googleLinked,
+      passkeyCount,
+    };
+  }
+
+  function updateDraft(patch: Partial<Draft>) {
+    setDraft((current) => {
+      if (!current || !settings) return current;
+
+      return reconcilePreferred(
+        { ...current, ...patch },
+        contextFrom(settings),
+      );
+    });
+  }
+
   async function persistPreferences(
     values: Draft,
     options: {
@@ -480,7 +555,7 @@ export function SecuritySettings({
   }
 
   async function linkGoogle() {
-    if (!draft) return;
+    if (!settings) return;
 
     setBusy("google");
     setError(null);
@@ -488,7 +563,7 @@ export function SecuritySettings({
 
     try {
       const enabledDraft: Draft = {
-        ...draft,
+        ...draftFromSettings(settings),
         allowGoogle: true,
       };
 
@@ -519,7 +594,7 @@ export function SecuritySettings({
   }
 
   async function registerPasskey() {
-    if (!draft) return;
+    if (!settings) return;
 
     setBusy("register-passkey");
     setError(null);
@@ -532,7 +607,7 @@ export function SecuritySettings({
       if (registerError) throw registerError;
 
       await persistPreferences({
-        ...draft,
+        ...draftFromSettings(settings),
         allowPasskey: true,
       });
 
@@ -585,11 +660,13 @@ export function SecuritySettings({
   async function deletePasskey(
     passkey: PasskeyRecord,
   ) {
-    if (!draft) return;
+    if (!settings) return;
+
+    const savedDraft = draftFromSettings(settings);
 
     if (
-      draft.allowPasskey &&
-      enabledCount(draft) === 1 &&
+      savedDraft.allowPasskey &&
+      enabledCount(savedDraft) === 1 &&
       passkeys.length <= 2
     ) {
       setError(
@@ -613,19 +690,16 @@ export function SecuritySettings({
     try {
       const isLast = passkeys.length === 1;
 
-      if (isLast && draft.allowPasskey) {
-        await persistPreferences({
-          ...draft,
-          allowPasskey: false,
-          preferredMethod:
-            draft.preferredMethod === "passkey"
-              ? draft.allowMagicLink
-                ? "magic_link"
-                : draft.allowPassword
-                  ? "password"
-                  : "google"
-              : draft.preferredMethod,
-        });
+      if (isLast && savedDraft.allowPasskey) {
+        await persistPreferences(
+          reconcilePreferred(
+            {
+              ...savedDraft,
+              allowPasskey: false,
+            },
+            contextFrom(settings, 0),
+          ),
+        );
       }
 
       const { error: deleteError } =
@@ -650,10 +724,39 @@ export function SecuritySettings({
     setNotice(null);
 
     try {
+      const { data: factorList, error: listError } =
+        await supabase.auth.mfa.listFactors();
+
+      if (listError) throw listError;
+
+      const pendingFactors = (
+        factorList.all ?? []
+      ).filter(
+        (factor) =>
+          factor.factor_type === "totp" &&
+          factor.status !== "verified",
+      );
+
+      for (const pending of pendingFactors) {
+        await supabase.auth.mfa.unenroll({
+          factorId: pending.id,
+        });
+      }
+
+      const verifiedTotp = (
+        factorList.all ?? []
+      ).filter(
+        (factor) =>
+          factor.factor_type === "totp" &&
+          factor.status === "verified",
+      );
+
       const { data, error: enrollError } =
         await supabase.auth.mfa.enroll({
           factorType: "totp",
-          friendlyName: "MonitorIA Authenticator",
+          friendlyName: `MonitorIA Authenticator ${
+            verifiedTotp.length + 1
+          }`,
         });
 
       if (enrollError) throw enrollError;
@@ -822,6 +925,11 @@ export function SecuritySettings({
     );
   }
 
+  const availability = methodAvailability(
+    draft,
+    contextFrom(settings),
+  );
+
   const preferredOptions: Array<{
     value: PreferredMethod;
     label: string;
@@ -830,30 +938,29 @@ export function SecuritySettings({
     {
       value: "password",
       label: "Senha",
-      enabled:
-        draft.allowPassword &&
-        settings.passwordConfigured,
+      enabled: availability.password,
     },
     {
       value: "magic_link",
       label: "Link mágico",
-      enabled: draft.allowMagicLink,
+      enabled: availability.magic_link,
     },
     {
       value: "google",
       label: "Google",
-      enabled:
-        draft.allowGoogle &&
-        settings.googleLinked,
+      enabled: availability.google,
     },
     {
       value: "passkey",
       label: "Biometria / passkey",
-      enabled:
-        draft.allowPasskey &&
-        passkeys.length > 0,
+      enabled: availability.passkey,
     },
   ];
+
+  const availableOptions =
+    preferredOptions.filter(
+      (option) => option.enabled,
+    );
 
   return (
     <div className={styles.root}>
@@ -894,8 +1001,7 @@ export function SecuritySettings({
               checked={draft.allowPassword}
               disabled={!settings.passwordConfigured}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
+                updateDraft({
                   allowPassword:
                     event.target.checked,
                 })
@@ -916,8 +1022,7 @@ export function SecuritySettings({
               type="checkbox"
               checked={draft.allowMagicLink}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
+                updateDraft({
                   allowMagicLink:
                     event.target.checked,
                 })
@@ -943,8 +1048,7 @@ export function SecuritySettings({
               checked={draft.allowGoogle}
               disabled={!settings.googleLinked}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
+                updateDraft({
                   allowGoogle:
                     event.target.checked,
                 })
@@ -972,8 +1076,7 @@ export function SecuritySettings({
               checked={draft.allowPasskey}
               disabled={passkeys.length === 0}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
+                updateDraft({
                   allowPasskey:
                     event.target.checked,
                 })
@@ -995,25 +1098,32 @@ export function SecuritySettings({
             <span>Método preferido</span>
             <select
               value={draft.preferredMethod}
+              disabled={
+                availableOptions.length === 0
+              }
               onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  preferredMethod:
-                    event.target
-                      .value as PreferredMethod,
+                updateDraft({
+                  preferredMethod: event.target
+                    .value as PreferredMethod,
                 })
               }
             >
-              {preferredOptions
-                .filter((option) => option.enabled)
-                .map((option) => (
+              {availableOptions.length ? (
+                availableOptions.map((option) => (
                   <option
                     key={option.value}
                     value={option.value}
                   >
                     {option.label}
                   </option>
-                ))}
+                ))
+              ) : (
+                <option
+                  value={draft.preferredMethod}
+                >
+                  Nenhum método disponível
+                </option>
+              )}
             </select>
           </label>
 
@@ -1022,8 +1132,7 @@ export function SecuritySettings({
               type="checkbox"
               checked={draft.requireMfa}
               onChange={(event) =>
-                setDraft({
-                  ...draft,
+                updateDraft({
                   requireMfa:
                     event.target.checked,
                 })
