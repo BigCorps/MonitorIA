@@ -11,6 +11,7 @@ export const AssistantPlanSchema = z
       "visual_state",
       "continuity_summary",
       "interaction_sessions",
+      "vehicle_continuity",
       "period_summary",
       "search_events",
       "compare_periods",

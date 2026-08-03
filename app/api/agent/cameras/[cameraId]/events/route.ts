@@ -5,6 +5,8 @@ import { z } from "zod";
 import { CameraProfileSchema } from "@/src/contracts/camera-profile";
 import { authenticateAgentCamera } from "@/src/lib/agent-camera";
 import { normalizeAnalyzedEventZones } from "@/src/lib/event-analysis";
+import { persistAnalysisRoutingDecision } from "@/src/lib/analysis-routing";
+import { persistEventVehicleAppearanceAndContinuity } from "@/src/lib/event-vehicle-continuity";
 import { persistEventPersonAppearanceAndContinuity } from "@/src/lib/event-continuity";
 import { normalizeAnalysisPlan } from "@/src/lib/analysis-plans";
 import {
@@ -19,6 +21,7 @@ import {
   getVisionPlan,
   otherValidationModel,
 } from "@/src/vision/plans";
+import { VISION_PROMPT_VERSION } from "@/src/vision/prompt";
 import {
   buildVisionPromptHash,
   VISION_PROMPT_VERSION,
@@ -600,6 +603,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       ignoreInstructions: Array.isArray(profile.ignore_instructions)
         ? profile.ignore_instructions.map((item: unknown) => String(item))
         : [],
+      intelligence: {
+        mode: authenticated.camera.intelligenceMode,
+        sceneDensity: authenticated.camera.sceneDensity,
+        multiEntityEnabled: authenticated.camera.multiEntityEnabled,
+        vehicleMemoryEnabled: authenticated.camera.vehicleMemoryEnabled,
+        complexityRoutingEnabled:
+          authenticated.camera.complexityRoutingEnabled,
+        verificationEnabled: authenticated.camera.verificationEnabled,
+        strongThreshold:
+          authenticated.camera.complexityStrongThreshold,
+        verificationThreshold:
+          authenticated.camera.verificationThreshold,
+        vehicleMemoryWindowMinutes:
+          authenticated.camera.vehicleMemoryWindowMinutes,
+        vehicleSimilarityThreshold:
+          authenticated.camera.vehicleSimilarityThreshold,
+      },
       timezone: String(siteResult.data.timezone),
       zones: (zoneRows ?? []).map((zone: any) => ({
         id: String(zone.id),
@@ -841,11 +861,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       endedAt: endedAt.toISOString(),
       profile: cameraProfile,
       frames: eventFrames,
-      localMetrics: {
-        peakMotionPercent: input.localMetrics.peakMotionPercent,
-        meanMotionPercent: input.localMetrics.meanMotionPercent,
-        durationSeconds: input.localMetrics.durationSeconds,
-      },
+      localMetrics,
       planCode,
       analysisMode: visionPlan.mode,
       promptCacheKey: cacheKey,
@@ -1062,6 +1078,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
           })
         : null;
 
+    const vehicleContinuity =
+      relevant &&
+      eventId &&
+      authenticated.camera.vehicleMemoryEnabled
+        ? await persistEventVehicleAppearanceAndContinuity({
+            supabase,
+            organizationId:
+              authenticated.camera.organizationId,
+            eventId,
+            vehicles: normalizedEvent.vehicles,
+          })
+        : null;
+
+    await persistAnalysisRoutingDecision({
+      supabase,
+      organizationId: authenticated.camera.organizationId,
+      cameraId,
+      analysisJobId,
+      eventId,
+      outcome,
+    });
+
     if (!relevant) {
       await supabase
         .from("storage_assets")
@@ -1107,6 +1145,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         confidence: normalizedEvent.confidence,
         requiresReview: normalizedEvent.requiresReview,
         continuity,
+        vehicleContinuity,
+        routing: outcome.routing,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

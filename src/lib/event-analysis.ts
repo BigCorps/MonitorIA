@@ -4,6 +4,12 @@ import {
 } from "@/src/contracts/analyzed-event";
 import type { PersonAppearance } from "@/src/contracts/person-memory";
 import type {
+  EmptySceneComplexity,
+  EntityRelation,
+  SceneComplexity,
+  VehicleAppearance,
+} from "@/src/contracts/scene-intelligence";
+import type {
   CameraVisualEntity,
   VisualStateObservation,
 } from "@/src/contracts/visual-state";
@@ -23,14 +29,30 @@ type LegacyPerson = Omit<
   appearance?: PersonAppearance;
 };
 
+type LegacyVehicle = Omit<
+  AnalyzedEvent["vehicles"][number],
+  "appearance"
+> & {
+  appearance?: VehicleAppearance;
+};
+
 type LegacyAnalyzedEvent = Omit<
   AnalyzedEvent,
-  "schemaVersion" | "stateObservations" | "sessionSignals" | "people"
+  | "schemaVersion"
+  | "stateObservations"
+  | "sessionSignals"
+  | "entityRelations"
+  | "sceneComplexity"
+  | "people"
+  | "vehicles"
 > & {
-  schemaVersion: "1.1" | "1.2" | "1.3" | "1.4";
+  schemaVersion: "1.1" | "1.2" | "1.3" | "1.4" | "1.5";
   stateObservations?: VisualStateObservation[];
   sessionSignals?: AnalyzedEvent["sessionSignals"];
+  entityRelations?: EntityRelation[];
+  sceneComplexity?: SceneComplexity;
   people: LegacyPerson[];
+  vehicles: LegacyVehicle[];
 };
 
 export function normalizeAnalyzedEventZones(
@@ -52,14 +74,13 @@ export function normalizeAnalyzedEventZones(
     vehicles: event.vehicles.map((vehicle) => ({
       ...vehicle,
       zoneIds: allowedZoneIds(vehicle.zoneIds, allowed),
-      // ALPR permanece fora da v1. A tabela existe apenas como reserva futura.
       plateSuggestion: null,
     })),
     objects: event.objects.map((object) => ({
       ...object,
       zoneIds: allowedZoneIds(object.zoneIds, allowed),
     })),
-    schemaVersion: "1.4",
+    schemaVersion: "1.5",
     stateObservations: normalizeVisualStateObservations(
       event.stateObservations ?? [],
       visualEntities,
@@ -68,5 +89,10 @@ export function normalizeAnalyzedEventZones(
       ...signal,
       zoneIds: allowedZoneIds(signal.zoneIds, allowed),
     })),
+    entityRelations: (event.entityRelations ?? []).map((relation) => ({
+      ...relation,
+      zoneIds: allowedZoneIds(relation.zoneIds, allowed),
+    })),
+    sceneComplexity: event.sceneComplexity ?? EmptySceneComplexity,
   });
 }

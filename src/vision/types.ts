@@ -2,6 +2,10 @@ import type { AnalyzedEvent } from "../contracts/analyzed-event";
 import type { CameraProfile } from "../contracts/camera-profile";
 import type { CameraProfileDraft } from "../contracts/camera-profile-draft";
 import type { AnalysisPlanCode } from "../lib/analysis-plans";
+import type {
+  VisionRouteCode,
+  VisionRoutingDecision,
+} from "./complexity-router";
 
 export type VisionImageDetail = "low" | "high" | "auto";
 export type VisionAnalysisMode =
@@ -15,6 +19,27 @@ export interface EventFrame {
   imageUrl: string;
 }
 
+export interface EventLocalMetrics {
+  peakMotionPercent: number;
+  meanMotionPercent: number;
+  durationSeconds: number;
+  framesObserved?: number;
+  motionRegionCount?: number;
+  motionSpreadPercent?: number;
+  sceneChangePercent?: number;
+  candidateEntityIds?: string[];
+  outsideDeclaredHours?: boolean;
+  afterConfirmedClosing?: boolean;
+  dominantRegion?: string | null;
+  closeReason?: string;
+  deterministicDisposition?:
+    | "none"
+    | "ignore"
+    | "reuse_state"
+    | "await_more_frames";
+  [key: string]: unknown;
+}
+
 export interface AnalyzeEventInput {
   organizationId: string;
   eventId: string;
@@ -22,14 +47,12 @@ export interface AnalyzeEventInput {
   endedAt: string;
   profile: CameraProfile;
   frames: EventFrame[];
-  localMetrics: {
-    peakMotionPercent: number;
-    meanMotionPercent: number;
-    durationSeconds: number;
-  };
+  localMetrics: EventLocalMetrics;
   planCode?: AnalysisPlanCode;
   analysisMode?: VisionAnalysisMode;
   promptCacheKey?: string;
+  routingDecision?: VisionRoutingDecision;
+  verificationCandidate?: AnalyzedEvent;
 }
 
 export interface AnalyzeCameraProfileInput {
@@ -64,13 +87,16 @@ export interface VisionAnalysisResult {
 
 export interface VisionAnalysisAttempt
   extends VisionAnalysisResult {
-  role: "primary" | "escalation" | "ab_candidate";
+  role: "primary" | "escalation" | "verifier" | "ab_candidate";
+  route?: VisionRouteCode;
 }
 
 export interface VisionPlanOutcome {
   final: VisionAnalysisResult;
   attempts: VisionAnalysisAttempt[];
   escalated: boolean;
+  verified: boolean;
+  routing: VisionRoutingDecision;
 }
 
 export interface CameraProfileAnalysisResult {

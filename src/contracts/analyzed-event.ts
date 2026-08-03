@@ -4,6 +4,13 @@ import {
   PersonAppearanceSchema,
 } from "./person-memory";
 import { SessionSignalSchema } from "./interaction-session";
+import {
+  EmptySceneComplexity,
+  EmptyVehicleAppearance,
+  EntityRelationSchema,
+  SceneComplexitySchema,
+  VehicleAppearanceSchema,
+} from "./scene-intelligence";
 import { VisualStateObservationSchema } from "./visual-state";
 
 const EventTypeSchema = z.enum([
@@ -60,7 +67,7 @@ const ObjectStateSchema = z.enum([
 
 export const AnalyzedEventTransportSchema = z
   .object({
-    schemaVersion: z.literal("1.4"),
+    schemaVersion: z.literal("1.5"),
     headline: z.string(),
     primaryEventType: EventTypeSchema,
     summary: z.string(),
@@ -107,6 +114,7 @@ export const AnalyzedEventTransportSchema = z
             .strict()
             .nullable(),
           zoneIds: z.array(z.string()),
+          appearance: VehicleAppearanceSchema,
           confidence: z.number(),
         })
         .strict(),
@@ -127,6 +135,8 @@ export const AnalyzedEventTransportSchema = z
       .array(VisualStateObservationSchema)
       .max(20),
     sessionSignals: z.array(SessionSignalSchema).max(30),
+    entityRelations: z.array(EntityRelationSchema).max(80),
+    sceneComplexity: SceneComplexitySchema,
     zoneIds: z.array(z.string()),
     tags: z.array(z.string()),
     confidence: z.number(),
@@ -148,9 +158,10 @@ const ValidatedAnalyzedEventSchema =
           item.roleConfidence,
           item.appearance.confidence,
         ]),
-        ...event.vehicles.map(
-          (item) => item.confidence,
-        ),
+        ...event.vehicles.flatMap((item) => [
+          item.confidence,
+          item.appearance.confidence,
+        ]),
         ...event.vehicles.flatMap((item) =>
           item.plateSuggestion
             ? [item.plateSuggestion.confidence]
@@ -165,6 +176,11 @@ const ValidatedAnalyzedEventSchema =
         ...event.sessionSignals.map(
           (item) => item.confidence,
         ),
+        ...event.entityRelations.map(
+          (item) => item.confidence,
+        ),
+        event.sceneComplexity.actionAssignmentConfidence,
+        event.sceneComplexity.confidence,
       ];
 
       confidenceValues.forEach((value, index) => {
@@ -218,7 +234,8 @@ const ValidatedAnalyzedEventSchema =
       if (
         event.objects.length > 80 ||
         event.tags.length > 30 ||
-        event.sessionSignals.length > 30
+        event.sessionSignals.length > 30 ||
+        event.entityRelations.length > 80
       ) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -239,7 +256,8 @@ export const AnalyzedEventSchema = z.preprocess(
     if (
       event.schemaVersion === "1.1" ||
       event.schemaVersion === "1.2" ||
-      event.schemaVersion === "1.3"
+      event.schemaVersion === "1.3" ||
+      event.schemaVersion === "1.4"
     ) {
       const people = Array.isArray(event.people)
         ? event.people.map((person) => {
@@ -259,16 +277,44 @@ export const AnalyzedEventSchema = z.preprocess(
           })
         : [];
 
+      const vehicles = Array.isArray(event.vehicles)
+        ? event.vehicles.map((vehicle) => {
+            if (!vehicle || typeof vehicle !== "object" || Array.isArray(vehicle)) {
+              return vehicle;
+            }
+            const item = vehicle as Record<string, unknown>;
+            return {
+              ...item,
+              appearance:
+                item.appearance &&
+                typeof item.appearance === "object" &&
+                !Array.isArray(item.appearance)
+                  ? item.appearance
+                  : EmptyVehicleAppearance,
+            };
+          })
+        : [];
+
       return {
         ...event,
-        schemaVersion: "1.4",
+        schemaVersion: "1.5",
         people,
+        vehicles,
         stateObservations: Array.isArray(event.stateObservations)
           ? event.stateObservations
           : [],
         sessionSignals: Array.isArray(event.sessionSignals)
           ? event.sessionSignals
           : [],
+        entityRelations: Array.isArray(event.entityRelations)
+          ? event.entityRelations
+          : [],
+        sceneComplexity:
+          event.sceneComplexity &&
+          typeof event.sceneComplexity === "object" &&
+          !Array.isArray(event.sceneComplexity)
+            ? event.sceneComplexity
+            : EmptySceneComplexity,
       };
     }
 

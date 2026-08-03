@@ -2,6 +2,10 @@ import { z } from "zod";
 import { PointSchema } from "./camera-profile-point";
 import { CameraStaffProfileSchema } from "./person-memory";
 import { CameraVisualEntitySchema } from "./visual-state";
+import {
+  CameraIntelligenceConfigSchema,
+  DefaultCameraIntelligenceConfig,
+} from "./scene-intelligence";
 
 export { PointSchema } from "./camera-profile-point";
 
@@ -53,6 +57,9 @@ export const CameraProfileSchema = z
       .array(CameraStaffProfileSchema)
       .max(20)
       .default([]),
+    intelligence: CameraIntelligenceConfigSchema.default(
+      DefaultCameraIntelligenceConfig,
+    ),
     timezone: z.string().trim().min(1).max(100),
   })
   .strict();

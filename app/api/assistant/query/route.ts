@@ -418,7 +418,45 @@ export async function POST(request: Request) {
     let retrievedData: unknown = {};
     let candidateEvidenceIds: string[] = [];
 
-    if (plan.intent === "interaction_sessions") {
+    if (plan.intent === "vehicle_continuity") {
+      const result = await supabase.rpc(
+        "assistant_vehicle_continuity_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const payload = objectValue(result.data);
+      const vehicles = Array.isArray(payload.vehicles)
+        ? payload.vehicles.map(objectValue)
+        : [];
+
+      candidateEvidenceIds = vehicles
+        .flatMap((vehicle) =>
+          Array.isArray(vehicle.evidenceEventIds)
+            ? vehicle.evidenceEventIds
+            : [],
+        )
+        .filter((id): id is string => typeof id === "string");
+
+      retrievedData = {
+        vehicleContinuity: result.data,
+        definitions: {
+          probableDistinctVehicles:
+            "Estimativa temporária baseada em tipo, cor, carroceria, porte, características visíveis, zona e proximidade temporal.",
+          limitation:
+            "Veículos visualmente semelhantes podem ser indistinguíveis sem característica distintiva ou sequência suficiente.",
+        },
+      };
+    } else if (plan.intent === "interaction_sessions") {
       const result = await supabase.rpc(
         "assistant_operational_sessions_summary",
         {

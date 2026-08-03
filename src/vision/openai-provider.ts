@@ -153,6 +153,7 @@ export class OpenAIVisionProvider implements VisionProvider {
         },
         instructions: buildVisionInstructions(
           input.analysisMode ?? "balanced",
+          Boolean(input.verificationCandidate),
         ),
         input: [
           {

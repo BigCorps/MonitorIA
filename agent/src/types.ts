@@ -142,6 +142,8 @@ export type LocalMotionEvent = {
     dominantRegion: string | null;
     motionCentroidX: number | null;
     motionCentroidY: number | null;
+    motionRegionCount: number;
+    motionSpreadPercent: number;
     closeReason: string;
   };
   frames: LocalEventFrame[];

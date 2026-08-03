@@ -69,6 +69,33 @@ function sessionInstructions() {
   ];
 }
 
+
+function multiEntityInstructions() {
+  return [
+    "Quando houver várias pessoas, veículos ou objetos, mantenha localTrackId estável entre os quadros do mesmo evento somente quando a continuidade visual estiver clara.",
+    "Não reutilize o mesmo localTrackId para duas entidades visíveis ao mesmo tempo.",
+    "localTrackId vale apenas dentro deste evento; não representa identidade persistente entre eventos ou câmeras.",
+    "Preencha sceneComplexity com contagem visível, ações simultâneas, nível de oclusão e ambiguidade de associação.",
+    "Use identityAmbiguity=high quando roupas, posições, oclusões ou cruzamentos impedirem atribuir ações com segurança.",
+    "entityRelations liga uma ação ao participante ou alvo visual usando localTrackId, entityId ou zoneId já existentes.",
+    "Só crie uma relação quando sujeito, ação e alvo estiverem visualmente sustentados. Caso contrário descreva a ação sem atribuir autoria.",
+    "Em cenas concorrentes, registre relações separadas para cada ação observável; não comprima ações diferentes em uma única relação genérica.",
+    "Não inferir intenção, propriedade, vínculo entre pessoas ou identidade a partir de proximidade espacial.",
+  ];
+}
+
+function vehicleMemoryInstructions() {
+  return [
+    "Para cada veículo, preencha appearance com atributos amplos e não identificadores: família de cor, carroceria, porte, orientação e características visíveis.",
+    "Padronize colorFamily usando somente os valores do esquema; use unknown quando luz, reflexo ou infravermelho comprometerem a cor.",
+    "distinctiveVisibleFeatures pode conter bagageiro, adesivo amplo, faixa, cobertura, baú, roda visualmente distinta ou dano claramente visível, sem inventar marca ou placa.",
+    "visibleAccessories pode conter reboque, bagageiro, baú, capacete apoiado, carga externa ou acessórios claramente visíveis.",
+    "Não tente determinar placa, proprietário, marca ou modelo exato. plateSuggestion deve permanecer null.",
+    "Dois veículos parecidos podem ser indistinguíveis. Descreva apenas o veículo atual; o servidor calculará continuidade probabilística.",
+    "Não declare que veículos de mesma cor e carroceria são o mesmo veículo sem característica distintiva ou sequência temporal suficiente.",
+  ];
+}
+
 function visualStateInstructions() {
   return [
     "O campo stateObservations registra somente o estado visual de entidades configuradas em cameraProfile.visualEntities.",
@@ -92,6 +119,7 @@ function visualStateInstructions() {
 
 export function buildVisionInstructions(
   mode: VisionAnalysisMode = "balanced",
+  verification = false,
 ): string {
   return [
     "Você analisa eventos de câmeras estáticas para o MonitorIA.",
@@ -115,20 +143,25 @@ export function buildVisionInstructions(
     ...personMemoryInstructions(),
     ...visualStateInstructions(),
     ...sessionInstructions(),
+    ...multiEntityInstructions(),
+    ...vehicleMemoryInstructions(),
     ...modeInstructions(mode),
+    verification
+      ? "Esta é uma passagem verificadora: compare a hipótese anterior com os quadros, corrija contradições e retorne a análise final completa. Não confirme a hipótese por deferência."
+      : "Esta é a análise principal do evento.",
     "Retorne dados objetivos e consistentes com o esquema estruturado.",
   ].join("\n");
 }
 
 
-export const VISION_PROMPT_VERSION = 5;
+export const VISION_PROMPT_VERSION = 6;
 
 export function buildVisionPromptHash(
   profile: AnalyzeEventInput["profile"],
   mode: VisionAnalysisMode = "balanced",
 ): string {
   return createHash("sha256")
-    .update(buildVisionInstructions(mode))
+    .update(buildVisionInstructions(mode, false))
     .update("\n")
     .update(JSON.stringify(profile))
     .digest("hex");
@@ -177,6 +210,8 @@ export function buildVisionStableContext(
         ),
       },
       analysisMode: input.analysisMode ?? "balanced",
+      intelligence: input.profile.intelligence,
+      routingDecision: input.routingDecision ?? null,
     },
     null,
     2,
@@ -194,6 +229,7 @@ export function buildVisionEventContext(
         endedAt: input.endedAt,
         localMetrics: input.localMetrics,
       },
+      verificationCandidate: input.verificationCandidate ?? null,
       frameOrder: input.frames.map((frame) => ({
         label: frame.label,
         capturedAt: frame.capturedAt,

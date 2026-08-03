@@ -44,6 +44,8 @@ type ActiveEvent = {
   anchorCentroidY: number | null;
   dominantRegion: string | null;
   regionShiftFrames: number;
+  motionRegions: Set<string>;
+  maxMotionSpreadPercent: number;
 };
 
 export type CameraEventMonitor = {
@@ -346,6 +348,10 @@ export function startCameraEventMonitor(options: {
           event.anchorCentroidX,
         motionCentroidY:
           event.anchorCentroidY,
+        motionRegionCount: event.motionRegions.size,
+        motionSpreadPercent: rounded(
+          event.maxMotionSpreadPercent,
+        ),
         closeReason,
       },
       frames,
@@ -476,6 +482,10 @@ export function startCameraEventMonitor(options: {
         anchorCentroidY: sample.motionCentroidY,
         dominantRegion: sample.dominantRegion,
         regionShiftFrames: 0,
+        motionRegions: new Set(
+          sample.dominantRegion ? [sample.dominantRegion] : [],
+        ),
+        maxMotionSpreadPercent: sample.motionSpreadPercent,
       };
 
       options.log(
@@ -496,6 +506,13 @@ export function startCameraEventMonitor(options: {
     );
     event.ignoredPixelPercent = sample.ignoredPixelPercent;
     event.autoIgnoredCellCount = sample.autoIgnoredCellCount;
+    if (sample.dominantRegion) {
+      event.motionRegions.add(sample.dominantRegion);
+    }
+    event.maxMotionSpreadPercent = Math.max(
+      event.maxMotionSpreadPercent,
+      sample.motionSpreadPercent,
+    );
 
     const quietFramesBeforeSample =
       event.quietFrames;

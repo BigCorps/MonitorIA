@@ -20,6 +20,8 @@ export type MotionSample = {
   motionCentroidX: number | null;
   motionCentroidY: number | null;
   dominantRegion: string | null;
+  activeRegionCount: number;
+  motionSpreadPercent: number;
 };
 
 export type MotionCalculation = {
@@ -30,6 +32,8 @@ export type MotionCalculation = {
   motionCentroidX: number | null;
   motionCentroidY: number | null;
   dominantRegion: string | null;
+  activeRegionCount: number;
+  motionSpreadPercent: number;
 };
 
 function pointInPolygon(
@@ -163,6 +167,11 @@ export function calculateMotion(
   let absoluteDifferenceTotal = 0;
   let changedXTotal = 0;
   let changedYTotal = 0;
+  let minChangedX = MOTION_WIDTH;
+  let maxChangedX = -1;
+  let minChangedY = MOTION_HEIGHT;
+  let maxChangedY = -1;
+  const activeRegions = new Set<string>();
 
   for (let index = 0; index < current.length; index += 1) {
     if (ignoredPixels?.[index]) continue;
@@ -176,8 +185,24 @@ export function calculateMotion(
 
     if (difference >= pixelDifferenceThreshold) {
       changedPixels += 1;
-      changedXTotal += index % MOTION_WIDTH;
-      changedYTotal += Math.floor(index / MOTION_WIDTH);
+      const changedX = index % MOTION_WIDTH;
+      const changedY = Math.floor(index / MOTION_WIDTH);
+      changedXTotal += changedX;
+      changedYTotal += changedY;
+      minChangedX = Math.min(minChangedX, changedX);
+      maxChangedX = Math.max(maxChangedX, changedX);
+      minChangedY = Math.min(minChangedY, changedY);
+      maxChangedY = Math.max(maxChangedY, changedY);
+      activeRegions.add(
+        String(Math.min(2, Math.floor((changedX / MOTION_WIDTH) * 3))) +
+          ":" +
+          String(
+            Math.min(
+              2,
+              Math.floor((changedY / MOTION_HEIGHT) * 3),
+            ),
+          ),
+      );
     }
   }
 
@@ -190,6 +215,8 @@ export function calculateMotion(
       motionCentroidX: null,
       motionCentroidY: null,
       dominantRegion: null,
+      activeRegionCount: 0,
+      motionSpreadPercent: 0,
     };
   }
 
@@ -221,6 +248,17 @@ export function calculateMotion(
           Math.floor(motionCentroidY * 3),
         )}`;
 
+  const motionSpreadPercent = changedPixels
+    ? Number(
+        (
+          (((maxChangedX - minChangedX + 1) *
+            (maxChangedY - minChangedY + 1)) /
+            (MOTION_WIDTH * MOTION_HEIGHT)) *
+          100
+        ).toFixed(4),
+      )
+    : 0;
+
   return {
     changedPixelPercent: Number(
       ((changedPixels / analyzedPixels) * 100).toFixed(4),
@@ -233,6 +271,8 @@ export function calculateMotion(
     motionCentroidX,
     motionCentroidY,
     dominantRegion,
+    activeRegionCount: activeRegions.size,
+    motionSpreadPercent,
   };
 }
 
@@ -492,6 +532,8 @@ export function startMotionSampler(options: {
             motionCentroidX: effective.motionCentroidX,
             motionCentroidY: effective.motionCentroidY,
             dominantRegion: effective.dominantRegion,
+            activeRegionCount: effective.activeRegionCount,
+            motionSpreadPercent: effective.motionSpreadPercent,
           });
         } catch (error) {
           options.onError(
