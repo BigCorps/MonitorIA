@@ -10,7 +10,7 @@ export const OPERATIONAL_SESSION_TYPE_OPTIONS = [
   { value: "other", label: "Outra atividade" },
 ] as const;
 
-const typeLabels = new Map(
+const typeLabels = new Map<string, string>(
   OPERATIONAL_SESSION_TYPE_OPTIONS.map((item) => [item.value, item.label]),
 );
 
