@@ -1,660 +1,273 @@
-import { rm } from "node:fs/promises";
-import os from "node:os";
-import {
-  ApiError,
-  closeCaptureSession,
-  fetchAgentConfig,
-  pairAgent,
-  sendCameraStatus,
-  sendHeartbeat,
-  startCaptureSession,
-  uploadSnapshot,
-} from "./api.js";
 import { closePrompt, promptSecret, promptText } from "./cli.js";
-import {
-  configPath,
-  loadConfig,
-  removeConfig,
-  resolveConfigDirectory,
-  saveConfig,
-} from "./config.js";
-import { protectSecret, unprotectSecret } from "./dpapi.js";
-import { EventSubmissionQueue } from "./event-queue.js";
-import {
-  startCameraEventMonitor,
-  type CameraEventMonitor,
-} from "./event-monitor.js";
-import { captureFrame, resolveFfmpeg } from "./ffmpeg.js";
-import { calculateMotion } from "./motion.js";
+import { loadConfig, removeConfig } from "./config.js";
+import { protectSecret, revealSecret } from "./secret-store.js";
+import { callAgent } from "./ipc-client.js";
 import { AdaptiveMotionCalibration } from "./motion-calibration.js";
-import { platformMetadata, systemMetrics } from "./system.js";
-import type {
-  RemoteCamera,
-  StoredAgentConfig,
-} from "./types.js";
+import { calculateMotion } from "./motion.js";
+import { forgetPaths, resolvePaths } from "./paths.js";
+import { AGENT_VERSION, AgentService, DEFAULT_API_URL } from "./service.js";
 
-const AGENT_VERSION = "0.8.1";
-const DEFAULT_API_URL = "https://monitoria.cam";
-const HEARTBEAT_INTERVAL_MS = 60_000;
-const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
-const CONFIG_SYNC_INTERVAL_MS = 5 * 60_000;
-
-type CameraRuntime = {
-  signature: string;
-  sessionId: string;
-  monitor: CameraEventMonitor;
-};
-
-function log(message: string) {
-  console.log(
-    `[${new Date().toLocaleString("pt-BR")}] ${message}`,
-  );
-}
+/**
+ * Dois papéis num único executável.
+ *
+ * `service` é o processo longo, iniciado pelo Windows. Todos os outros
+ * comandos são a interface local: conectam ao serviço pelo canal e imprimem
+ * a resposta. Nenhum deles toca a configuração diretamente — o serviço é o
+ * único dono dos segredos, e existe um caminho de código só, tanto para o
+ * instalador quanto para o operador.
+ */
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function cameraSignature(camera: RemoteCamera) {
-  return JSON.stringify({
-    profile: camera.activeProfileId,
-    profileVersion: camera.activeProfileVersion,
-    plan: camera.plan,
-    capture: camera.captureIntervalSeconds,
-    consolidation: camera.consolidationIntervalSeconds,
-    start: camera.motionStartThreshold,
-    continue: camera.motionContinueThreshold,
-    close: camera.eventCloseAfterSeconds,
-    adaptive: camera.motionAdaptiveEnabled,
-    overlay: camera.motionOverlayMask,
-    startFrames: camera.motionStartConsecutiveFrames,
-    endFrames: camera.motionEndConsecutiveFrames,
-    cooldown: camera.motionCooldownSeconds,
-    schedule: camera.monitoringSchedule,
-    ignore: camera.motionIgnorePolygons,
-  });
+function argumentValue(flag: string) {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return null;
+  return process.argv[index + 1] ?? null;
 }
 
-async function setupAgent(): Promise<StoredAgentConfig> {
-  console.log("\nMonitorIA Agent — configuração inicial\n");
+function bytes(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
 
-  log("Verificando proteção segura do Windows...");
-  await runSelfTest();
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = value;
+  let index = 0;
 
-  const apiBaseUrl = await promptText(
-    "Endereço do MonitorIA",
-    DEFAULT_API_URL,
-  );
-  const code = await promptText("Código de pareamento");
-  const defaultName = `Agent ${os.hostname()}`;
-  const agentName = await promptText(
-    "Nome do Agent",
-    defaultName,
-  );
-
-  if (!code) {
-    throw new Error("O código de pareamento é obrigatório.");
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
   }
 
-  log("Validando código de pareamento...");
-  const paired = await pairAgent(apiBaseUrl, {
-    code,
-    agentName,
-    platform: process.platform,
-    architecture: process.arch,
-    version: AGENT_VERSION,
-    metadata: platformMetadata(),
-  });
-
-  const rtspUrl = await promptSecret(
-    `URL RTSP da câmera "${paired.camera.name}"`,
-  );
-
-  if (!rtspUrl.toLowerCase().startsWith("rtsp://")) {
-    throw new Error("A URL precisa começar com rtsp://");
-  }
-
-  const config: StoredAgentConfig = {
-    schemaVersion: 1,
-    apiBaseUrl: apiBaseUrl.replace(/\/+$/, ""),
-    agentId: paired.agent.id,
-    agentName,
-    protectedAgentToken: await protectSecret(
-      paired.agent.token,
-    ),
-    pairedAt: new Date().toISOString(),
-    cameras: {
-      [paired.camera.id]: {
-        protectedRtsp: await protectSecret(rtspUrl),
-        configuredAt: new Date().toISOString(),
-      },
-    },
-  };
-
-  const savedAt = await saveConfig(config);
-  log(`Configuração protegida salva em: ${savedAt}`);
-  return config;
+  return `${size.toFixed(index >= 3 ? 1 : 0)} ${units[index]}`;
 }
 
-async function ensureCameraSecrets(
-  config: StoredAgentConfig,
-  cameras: RemoteCamera[],
-) {
-  let changed = false;
+function usage() {
+  console.log("Uso:");
+  console.log("  monitoria-agent service              Executa o serviço (uso do Windows)");
+  console.log("  monitoria-agent pair --code 12345678 Pareia este computador");
+  console.log("  monitoria-agent camera --id <id>     Informa o endereço RTSP de uma câmera");
+  console.log("  monitoria-agent discover             Procura câmeras na rede local");
+  console.log("  monitoria-agent status               Situação do serviço");
+  console.log("  monitoria-agent diagnose             Diagnóstico local, funciona sem internet");
+  console.log("  monitoria-agent sync                 Força sincronização com o painel");
+  console.log("  monitoria-agent unpair               Remove o pareamento");
+  console.log("  monitoria-agent self-test            Testa DPAPI e segmentação de movimento");
+  console.log("  monitoria-agent reset                Apaga a configuração local");
+}
 
-  for (const camera of cameras) {
-    if (config.cameras[camera.id]?.protectedRtsp) continue;
+// ------------------------------------------------------------------ modo serviço
 
-    if (!process.stdin.isTTY) {
-      log(
-        `A câmera "${camera.name}" ainda não possui RTSP local configurado.`,
-      );
+async function runService(foreground: boolean) {
+  const service = new AgentService({ mirrorToConsole: foreground });
+  await service.start();
+
+  // O processo é mantido vivo pelos timers e pelo canal local. O
+  // encerramento acontece via SIGINT/SIGTERM, tratados dentro do serviço.
+  await new Promise<void>(() => {});
+}
+
+// -------------------------------------------------------------- interface local
+
+async function commandPair() {
+  const code = argumentValue("--code") ?? (await promptText("Código de pareamento"));
+  const apiBaseUrl = argumentValue("--url") ?? DEFAULT_API_URL;
+  const agentName = argumentValue("--name");
+
+  if (!code?.trim()) throw new Error("O código de pareamento é obrigatório.");
+
+  const payload: Record<string, unknown> = { code: code.trim(), apiBaseUrl };
+  if (agentName) payload.agentName = agentName;
+
+  const result = await callAgent("pair", payload);
+
+  console.log(`\nPareado com sucesso.`);
+  console.log(`Agent: ${String(result.agentName)}`);
+  console.log(`Câmera: ${String(result.cameraName)}`);
+  console.log(`\nInforme o endereço RTSP com:`);
+  console.log(`  monitoria-agent camera --id ${String(result.cameraId)}`);
+}
+
+async function commandCamera() {
+  const cameraId = argumentValue("--id") ?? (await promptText("ID da câmera"));
+
+  if (!cameraId?.trim()) throw new Error("O ID da câmera é obrigatório.");
+
+  const inline = argumentValue("--rtsp");
+  const rtspUrl = inline ?? (await promptSecret("URL RTSP (usuário e senha inclusos)"));
+
+  await callAgent("camera.set-rtsp", {
+    cameraId: cameraId.trim(),
+    rtspUrl: rtspUrl.trim(),
+  });
+
+  console.log("Endereço gravado e protegido. O monitoramento inicia em instantes.");
+}
+
+async function commandDiscover() {
+  const username = argumentValue("--user") ?? (await promptText("Usuário da câmera", "admin"));
+  const password = argumentValue("--password") ?? (await promptSecret("Senha da câmera"));
+
+  console.log("\nProcurando câmeras na rede local. Isso pode levar até um minuto...\n");
+
+  const result = await callAgent("discovery.scan", {
+    username: username.trim(),
+    password,
+  });
+
+  const devices = Array.isArray(result.devices) ? result.devices : [];
+
+  if (devices.length === 0) {
+    console.log("Nenhum aparelho encontrado na rede local.");
+    return;
+  }
+
+  for (const raw of devices) {
+    const device = raw as Record<string, unknown>;
+    const streams = Array.isArray(device.streams) ? device.streams : [];
+
+    console.log(`Aparelho ${String(device.host)}`);
+    console.log(`  Fabricante: ${String(device.vendor ?? "não identificado")}`);
+    console.log(`  Modelo:     ${String(device.model ?? "não identificado")}`);
+    console.log(`  ONVIF:      ${device.onvifSupported ? "sim" : "não"}`);
+    console.log(`  ID:         ${String(device.deviceId)}`);
+
+    if (streams.length === 0) {
+      const failure = device.failure as Record<string, unknown> | null;
+      console.log(`  Sem vídeo:  ${String(failure?.message ?? "nenhum stream validado")}`);
+      console.log("");
       continue;
     }
 
-    const rtspUrl = await promptSecret(
-      `URL RTSP da câmera "${camera.name}"`,
-    );
-
-    if (!rtspUrl.toLowerCase().startsWith("rtsp://")) {
-      log(
-        `URL ignorada para "${camera.name}": precisa começar com rtsp://.`,
-      );
-      continue;
-    }
-
-    config.cameras[camera.id] = {
-      protectedRtsp: await protectSecret(rtspUrl),
-      configuredAt: new Date().toISOString(),
-    };
-    changed = true;
-  }
-
-  if (changed) await saveConfig(config);
-}
-
-async function checkCamera(
-  config: StoredAgentConfig,
-  token: string,
-  ffmpegPath: string,
-  camera: RemoteCamera,
-  uploadFirstFrame: boolean,
-) {
-  const local = config.cameras[camera.id];
-  if (!local) return;
-
-  let framePath: string | null = null;
-
-  try {
-    const rtspUrl = await unprotectSecret(local.protectedRtsp);
-    log(`Testando câmera "${camera.name}"...`);
-
-    const frame = await captureFrame(
-      ffmpegPath,
-      rtspUrl,
-      camera.id,
-      { prefix: "health" },
-    );
-    framePath = frame.path;
-
-    if (uploadFirstFrame) {
-      const response = await uploadSnapshot(
-        config.apiBaseUrl,
-        token,
-        camera.id,
-        frame,
-        "stream0",
-      );
-
-      local.lastSnapshotUploadedAt = response.capturedAt;
-      await saveConfig(config);
-
-      log(
-        `Primeiro frame de "${camera.name}" enviado (${frame.width ?? "?"}x${frame.height ?? "?"}, ${frame.byteSize} bytes).`,
-      );
-    } else {
-      await sendCameraStatus(
-        config.apiBaseUrl,
-        token,
-        camera.id,
-        {
-          status: "online",
-          streamLabel: "stream0",
-          metadata: {
-            width: frame.width,
-            height: frame.height,
-            byteSize: frame.byteSize,
-          },
-        },
-      );
-
-      log(`Câmera "${camera.name}" está online.`);
-    }
-  } catch (error) {
-    const message = errorMessage(error);
-    log(`Falha na câmera "${camera.name}": ${message}`);
-
-    try {
-      await sendCameraStatus(
-        config.apiBaseUrl,
-        token,
-        camera.id,
-        {
-          status: "error",
-          errorCode: "rtsp_capture_failed",
-          errorMessage: message,
-        },
-      );
-    } catch (statusError) {
-      log(
-        `Não foi possível informar o erro ao servidor: ${errorMessage(statusError)}`,
-      );
-    }
-  } finally {
-    if (framePath) await rm(framePath, { force: true });
-  }
-}
-
-async function sendCurrentHeartbeat(
-  config: StoredAgentConfig,
-  token: string,
-  queuedEvents: number,
-) {
-  const directory = await resolveConfigDirectory();
-  const metrics = await systemMetrics(directory, queuedEvents);
-
-  await sendHeartbeat(config.apiBaseUrl, token, {
-    version: AGENT_VERSION,
-    platform: process.platform,
-    architecture: process.arch,
-    ...metrics,
-    metadata: platformMetadata(),
-  });
-}
-
-async function runAgent(config: StoredAgentConfig) {
-  const token = await unprotectSecret(
-    config.protectedAgentToken,
-  );
-  const ffmpegPath = await resolveFfmpeg();
-
-  log(`FFmpeg localizado: ${ffmpegPath}`);
-  log("Carregando configuração das câmeras...");
-
-  let remote = await fetchAgentConfig(
-    config.apiBaseUrl,
-    token,
-  );
-
-  await ensureCameraSecrets(config, remote.cameras);
-
-  for (const camera of remote.cameras) {
-    const firstFrameMissing =
-      !config.cameras[camera.id]?.lastSnapshotUploadedAt;
-
-    await checkCamera(
-      config,
-      token,
-      ffmpegPath,
-      camera,
-      firstFrameMissing,
-    );
-  }
-
-  const eventQueue = new EventSubmissionQueue({
-    baseUrl: config.apiBaseUrl,
-    token,
-    log,
-    limit: 10,
-  });
-
-  const runtimes = new Map<string, CameraRuntime>();
-
-  const stopRuntime = async (
-    cameraId: string,
-    reason: string,
-  ) => {
-    const runtime = runtimes.get(cameraId);
-    if (!runtime) return;
-
-    runtimes.delete(cameraId);
-
-    try {
-      await runtime.monitor.stop(reason);
-    } catch (error) {
-      log(
-        `Falha ao parar monitor ${cameraId}: ${errorMessage(error)}`,
+    for (const rawStream of streams) {
+      const stream = rawStream as Record<string, unknown>;
+      console.log(
+        `  [${String(stream.index)}] ${String(stream.stream)} · ` +
+          `${String(stream.codec ?? "?")} ${String(stream.width ?? "?")}x${String(stream.height ?? "?")} · ` +
+          `${String(stream.level)}`,
       );
     }
 
-    try {
-      await closeCaptureSession(
-        config.apiBaseUrl,
-        token,
-        cameraId,
-        runtime.sessionId,
-        reason,
-      );
-    } catch (error) {
-      log(
-        `Falha ao encerrar sessão ${runtime.sessionId}: ${errorMessage(error)}`,
-      );
-    }
-  };
-
-  const syncMonitoring = async (
-    cameras: RemoteCamera[],
-  ) => {
-    const configuredIds = new Set(
-      cameras.map((camera) => camera.id),
-    );
-
-    for (const cameraId of [...runtimes.keys()]) {
-      if (!configuredIds.has(cameraId)) {
-        await stopRuntime(cameraId, "camera_removed");
-      }
-    }
-
-    for (const camera of cameras) {
-      const existing = runtimes.get(camera.id);
-      const signature = cameraSignature(camera);
-
-      if (
-        !camera.monitoringEnabled ||
-        !camera.activeProfileId ||
-        !camera.activeProfileVersion
-      ) {
-        if (existing) {
-          await stopRuntime(
-            camera.id,
-            "active_profile_removed",
-          );
-        }
-
-        log(
-          `Monitoramento de "${camera.name}" aguardando perfil ativo.`,
-        );
-        continue;
-      }
-
-      const local = config.cameras[camera.id];
-      if (!local?.protectedRtsp) continue;
-
-      if (
-        existing &&
-        existing.signature === signature &&
-        existing.monitor.isRunning()
-      ) {
-        continue;
-      }
-
-      if (existing) {
-        await stopRuntime(
-          camera.id,
-          "configuration_changed",
-        );
-      }
-
-      try {
-        const rtspUrl = await unprotectSecret(
-          local.protectedRtsp,
-        );
-
-        const session = await startCaptureSession(
-          config.apiBaseUrl,
-          token,
-          camera.id,
-          {
-            agentVersion: AGENT_VERSION,
-            profileId: camera.activeProfileId,
-            profileVersion: camera.activeProfileVersion,
-            planCode: camera.plan,
-            captureIntervalSeconds:
-              camera.captureIntervalSeconds,
-            consolidationIntervalSeconds:
-              camera.consolidationIntervalSeconds,
-            motionAdaptiveEnabled:
-              camera.motionAdaptiveEnabled,
-            motionOverlayMask:
-              camera.motionOverlayMask,
-            monitoringSchedule:
-              camera.monitoringSchedule,
-          },
-        );
-
-        const monitor = startCameraEventMonitor({
-          camera,
-          ffmpegPath,
-          rtspUrl,
-          sessionId: session.sessionId,
-          enqueue: (event) => eventQueue.enqueue(event),
-          log,
-          onFatalError: (error) => {
-            log(
-              `Monitor contínuo de "${camera.name}" falhou: ${error.message}`,
-            );
-
-            void sendCameraStatus(
-              config.apiBaseUrl,
-              token,
-              camera.id,
-              {
-                status: "error",
-                errorCode: "continuous_monitor_failed",
-                errorMessage: error.message,
-              },
-            ).catch(() => {});
-          },
-        });
-
-        runtimes.set(camera.id, {
-          signature,
-          sessionId: session.sessionId,
-          monitor,
-        });
-
-        log(
-          `Monitoramento ${camera.plan} iniciado em "${camera.name}" · perfil v${camera.activeProfileVersion}. Calibração inicial em andamento.`,
-        );
-      } catch (error) {
-        log(
-          `Não foi possível iniciar o monitor de "${camera.name}": ${errorMessage(error)}`,
-        );
-      }
-    }
-  };
-
-  await syncMonitoring(remote.cameras);
-  await sendCurrentHeartbeat(
-    config,
-    token,
-    eventQueue.size(),
-  );
-
-  log(
-    "Agent online. Heartbeat a cada 60 segundos, segmentação adaptativa e capítulos de atividade ativos.",
-  );
-
-  let heartbeatRunning = false;
-  let cameraCheckRunning = false;
-  let configSyncRunning = false;
-  let shuttingDown = false;
-
-  const heartbeatTimer = setInterval(async () => {
-    if (heartbeatRunning || shuttingDown) return;
-
-    heartbeatRunning = true;
-
-    try {
-      await sendCurrentHeartbeat(
-        config,
-        token,
-        eventQueue.size(),
-      );
-      log("Heartbeat enviado.");
-    } catch (error) {
-      log(`Falha no heartbeat: ${errorMessage(error)}`);
-    } finally {
-      heartbeatRunning = false;
-    }
-  }, HEARTBEAT_INTERVAL_MS);
-
-  const cameraTimer = setInterval(async () => {
-    if (cameraCheckRunning || shuttingDown) return;
-
-    cameraCheckRunning = true;
-
-    try {
-      await syncMonitoring(remote.cameras);
-
-      for (const camera of remote.cameras) {
-        const runtime = runtimes.get(camera.id);
-
-        if (runtime?.monitor.isRunning()) {
-          const calibration =
-            runtime.monitor.calibrationSnapshot();
-
-          await sendCameraStatus(
-            config.apiBaseUrl,
-            token,
-            camera.id,
-            {
-              status: "online",
-              streamLabel: "stream0",
-              metadata: {
-                continuousMonitoring: true,
-                activeProfileVersion:
-                  camera.activeProfileVersion,
-                planCode: camera.plan,
-                framesObserved:
-                  runtime.monitor.framesObserved(),
-                calibration,
-              },
-            },
-          );
-        } else {
-          await checkCamera(
-            config,
-            token,
-            ffmpegPath,
-            camera,
-            false,
-          );
-        }
-      }
-    } finally {
-      cameraCheckRunning = false;
-    }
-  }, CAMERA_CHECK_INTERVAL_MS);
-
-  const configTimer = setInterval(async () => {
-    if (configSyncRunning || shuttingDown) return;
-
-    configSyncRunning = true;
-
-    try {
-      remote = await fetchAgentConfig(
-        config.apiBaseUrl,
-        token,
-      );
-
-      await ensureCameraSecrets(config, remote.cameras);
-      await syncMonitoring(remote.cameras);
-
-      log(
-        `Configuração sincronizada: ${remote.cameras.length} câmera(s).`,
-      );
-    } catch (error) {
-      log(
-        `Falha ao sincronizar configuração: ${errorMessage(error)}`,
-      );
-    } finally {
-      configSyncRunning = false;
-    }
-  }, CONFIG_SYNC_INTERVAL_MS);
-
-  const shutdown = async () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-
-    clearInterval(heartbeatTimer);
-    clearInterval(cameraTimer);
-    clearInterval(configTimer);
-
-    log("Encerrando o Agent...");
-
-    for (const cameraId of [...runtimes.keys()]) {
-      await stopRuntime(cameraId, "agent_shutdown");
-    }
-
-    await eventQueue.stop(20_000);
-
-    for (const camera of remote.cameras) {
-      try {
-        await sendCameraStatus(
-          config.apiBaseUrl,
-          token,
-          camera.id,
-          {
-            status: "offline",
-            metadata: { reason: "agent_shutdown" },
-          },
-        );
-      } catch {}
-    }
-
-    closePrompt();
-    process.exit(0);
-  };
-
-  process.once("SIGINT", shutdown);
-  process.once("SIGTERM", shutdown);
-
-  await new Promise(() => {});
-}
-
-async function showStatus(config: StoredAgentConfig) {
-  const token = await unprotectSecret(
-    config.protectedAgentToken,
-  );
-  const remote = await fetchAgentConfig(
-    config.apiBaseUrl,
-    token,
-  );
-
-  console.log(`\nAgent: ${remote.agent.name}`);
-  console.log(`ID: ${remote.agent.id}`);
-  console.log(`Versão local: ${AGENT_VERSION}`);
-  console.log(`API: ${config.apiBaseUrl}`);
-  console.log(`Configuração: ${await configPath()}`);
-  console.log(`Câmeras: ${remote.cameras.length}`);
-
-  for (const camera of remote.cameras) {
+    console.log("");
+    console.log("  Para vincular a uma câmera do painel:");
     console.log(
-      `- ${camera.name}: servidor=${camera.status}, RTSP local=${
-        config.cameras[camera.id]
-          ? "configurado"
-          : "ausente"
-      }, monitoramento=${
-        camera.monitoringEnabled
-          ? `ativo (${camera.plan}, perfil v${camera.activeProfileVersion})`
-          : "aguardando perfil"
-      }`,
+      `    monitoria-agent bind --device ${String(device.deviceId)} --camera <id-da-camera>`,
+    );
+    console.log("");
+  }
+}
+
+async function commandBind() {
+  const deviceId = argumentValue("--device") ?? (await promptText("ID do aparelho"));
+  const cameraId = argumentValue("--camera") ?? (await promptText("ID da câmera no painel"));
+  const streamIndex = Number(argumentValue("--stream") ?? "0");
+
+  const result = await callAgent("discovery.bind", {
+    deviceId: deviceId.trim(),
+    cameraId: cameraId.trim(),
+    streamIndex: Number.isFinite(streamIndex) ? streamIndex : 0,
+  });
+
+  console.log("Câmera vinculada.");
+  console.log(`Caminho: ${String(result.displayPath)}`);
+  console.log(
+    `Vídeo:   ${String(result.codec ?? "?")} ${String(result.width ?? "?")}x${String(result.height ?? "?")}`,
+  );
+}
+
+async function commandStatus() {
+  const status = await callAgent("status");
+  const queue = (status.queue ?? {}) as Record<string, unknown>;
+
+  console.log(`\nMonitorIA Agent v${String(status.version)}`);
+  console.log(`Serviço no ar desde: ${String(status.startedAt)}`);
+  console.log(`Pareado: ${status.paired ? "sim" : "não"}`);
+
+  if (status.unauthorized) {
+    console.log(
+      "\nATENÇÃO: o token foi recusado pelo servidor. Gere um novo código de pareamento.",
+    );
+  }
+
+  if (status.paired) {
+    console.log(`Nome: ${String(status.agentName)}`);
+    console.log(`Servidor: ${String(status.apiBaseUrl)}`);
+    console.log(`Último heartbeat: ${String(status.lastHeartbeatAt ?? "nunca")}`);
+    console.log(`Última sincronização: ${String(status.lastSyncAt ?? "nunca")}`);
+    console.log(
+      `Câmeras: ${String(status.camerasRunning)} monitorando de ${String(status.camerasKnown)}`,
+    );
+  }
+
+  console.log(`\nFila: ${String(queue.pending ?? 0)} evento(s), ${bytes(queue.totalBytes)}`);
+
+  if (Number(queue.dropped ?? 0) > 0) {
+    console.log(`Descartados por limite de disco ou idade: ${String(queue.dropped)}`);
+  }
+
+  if (Number(queue.rejected ?? 0) > 0) {
+    console.log(`Recusados pelo servidor: ${String(queue.rejected)}`);
+  }
+}
+
+async function commandDiagnose() {
+  const report = await callAgent("diagnose");
+  const queue = (report.queue ?? {}) as Record<string, unknown>;
+  const logs = (report.logs ?? {}) as Record<string, unknown>;
+
+  const ok = (value: boolean) => (value ? "OK" : "FALHA");
+
+  console.log(`\nDiagnóstico do MonitorIA Agent v${String(report.version)}\n`);
+  console.log(`Pasta de dados      ${String(report.dataDirectory)}`);
+  console.log(`Permissões da pasta ${ok(Boolean(report.aclRestricted))}`);
+  console.log(`Configuração        ${ok(Boolean(report.configPresent))}`);
+  console.log(`Token aceito        ${ok(!report.unauthorized)}`);
+  console.log(
+    `FFmpeg              ${report.ffmpeg ? `OK · ${String(report.ffmpeg)}` : `FALHA · ${String(report.ffmpegError)}`}`,
+  );
+  console.log(`Canal local         ${String(report.transport ?? "—")}`);
+  console.log(
+    `Fila                ${String(queue.pending ?? 0)} pendente(s), ${bytes(queue.totalBytes)}`,
+  );
+  console.log(
+    `Logs                ${String(logs.files ?? 0)} arquivo(s), ${bytes(logs.totalBytes)}`,
+  );
+
+  if (!report.aclRestricted) {
+    console.log(
+      "\nA pasta de dados não está protegida. Reinstale o MonitorIA como administrador.",
     );
   }
 }
+
+async function commandSync() {
+  const result = await callAgent("sync");
+  console.log(`Sincronizado. ${String(result.cameras)} câmera(s) conhecidas.`);
+}
+
+async function commandUnpair() {
+  const confirmation = await promptText(
+    'Isto apaga o pareamento deste computador. Digite "remover" para confirmar',
+  );
+
+  if (confirmation.trim().toLowerCase() !== "remover") {
+    console.log("Operação cancelada.");
+    return;
+  }
+
+  await callAgent("unpair");
+  console.log("Pareamento removido. Gere um novo código no painel para parear de novo.");
+}
+
+// ------------------------------------------------------------------- autoteste
 
 async function runSelfTest() {
   const sample = "MonitorIA DPAPI autoteste: çã 🔐";
   const protectedValue = await protectSecret(sample);
-  const restoredValue = await unprotectSecret(
-    protectedValue,
-  );
+  const restored = await revealSecret(protectedValue);
 
-  if (restoredValue !== sample) {
-    throw new Error(
-      "O autoteste do DPAPI devolveu um valor diferente do original.",
-    );
+  if (restored.value !== sample) {
+    throw new Error("O autoteste do DPAPI devolveu um valor diferente do original.");
   }
 
   const previous = Buffer.alloc(100, 0);
@@ -663,105 +276,108 @@ async function runSelfTest() {
 
   const motion = calculateMotion(previous, current);
   if (Math.abs(motion.changedPixelPercent - 25) > 0.001) {
-    throw new Error(
-      "O autoteste de movimento não calculou 25% de alteração.",
-    );
+    throw new Error("O autoteste de movimento não calculou 25% de alteração.");
   }
 
   const mask = Buffer.alloc(100, 0);
   mask.fill(1, 0, 25);
-  const masked = calculateMotion(previous, current, 20, mask);
 
-  if (masked.changedPixelPercent !== 0) {
-    throw new Error(
-      "O autoteste da máscara de movimento falhou.",
-    );
+  if (calculateMotion(previous, current, 20, mask).changedPixelPercent !== 0) {
+    throw new Error("O autoteste da máscara de movimento falhou.");
   }
 
   const calibration = new AdaptiveMotionCalibration();
-  for (let index = 0; index < 40; index += 1) {
-    calibration.observe(1.2, 1, true);
+  for (let index = 0; index < 40; index += 1) calibration.observe(1.2, 1, true);
+
+  const calibrated = calibration.snapshot(1, 0.25, true);
+
+  if (!calibrated.ready || calibrated.effectiveStartThreshold <= 1) {
+    throw new Error("O autoteste da calibração adaptativa falhou.");
   }
 
-  const calibrated = calibration.snapshot(
-    1,
-    0.25,
-    true,
-  );
+  const layout = await resolvePaths();
 
-  if (
-    !calibrated.ready ||
-    calibrated.effectiveStartThreshold <= 1
-  ) {
-    throw new Error(
-      "O autoteste da calibração adaptativa falhou.",
-    );
-  }
-
-  console.log(
-    "Autoteste do DPAPI, máscara e calibração de movimento concluído com sucesso.",
-  );
+  console.log("Autoteste concluído com sucesso.");
+  console.log(`Pasta de dados: ${layout.root}`);
+  console.log(`Permissões restritas: ${layout.restricted ? "sim" : "não"}`);
 }
 
+async function commandReset() {
+  const existing = await loadConfig();
+
+  if (!existing) {
+    console.log("Não há configuração local para remover.");
+    return;
+  }
+
+  const confirmation = await promptText(
+    'Isto apaga a configuração local. Digite "remover" para confirmar',
+  );
+
+  if (confirmation.trim().toLowerCase() !== "remover") {
+    console.log("Operação cancelada.");
+    return;
+  }
+
+  await removeConfig();
+  forgetPaths();
+  console.log("Configuração local removida.");
+}
+
+// ----------------------------------------------------------------------- main
+
 async function main() {
-  const command =
-    process.argv[2]?.toLowerCase() ?? "run";
+  const command = process.argv[2]?.toLowerCase() ?? "status";
 
-  if (command === "self-test") {
-    await runSelfTest();
-    return;
+  switch (command) {
+    case "service":
+      await runService(false);
+      return;
+    case "run":
+      // Mesmo runtime, com log espelhado no console. Para depuração local.
+      await runService(true);
+      return;
+    case "pair":
+      await commandPair();
+      return;
+    case "camera":
+      await commandCamera();
+      return;
+    case "discover":
+      await commandDiscover();
+      return;
+    case "bind":
+      await commandBind();
+      return;
+    case "status":
+      await commandStatus();
+      return;
+    case "diagnose":
+      await commandDiagnose();
+      return;
+    case "sync":
+      await commandSync();
+      return;
+    case "unpair":
+      await commandUnpair();
+      return;
+    case "self-test":
+      await runSelfTest();
+      return;
+    case "reset":
+      await commandReset();
+      return;
+    case "version":
+      console.log(AGENT_VERSION);
+      return;
+    default:
+      usage();
   }
-
-  if (command === "reset") {
-    await removeConfig();
-    console.log(
-      "Configuração local removida. Gere um novo código de pareamento.",
-    );
-    return;
-  }
-
-  let config = await loadConfig();
-
-  if (command === "setup") {
-    if (config) {
-      throw new Error(
-        'Já existe uma configuração. Execute "monitoria-agent reset" antes de parear novamente.',
-      );
-    }
-
-    config = await setupAgent();
-  } else if (!config) {
-    config = await setupAgent();
-  }
-
-  if (command === "status") {
-    await showStatus(config);
-    return;
-  }
-
-  if (command !== "run" && command !== "setup") {
-    console.log("Uso:");
-    console.log("  monitoria-agent           Inicia ou configura o Agent");
-    console.log("  monitoria-agent run       Inicia o Agent");
-    console.log("  monitoria-agent status    Mostra a configuração remota");
-    console.log("  monitoria-agent reset     Remove a configuração local");
-    console.log("  monitoria-agent self-test Testa DPAPI e segmentação");
-    return;
-  }
-
-  await runAgent(config);
 }
 
 main()
-  .catch((error) => {
-    if (error instanceof ApiError && error.status === 401) {
-      console.error(
-        "Token do Agent recusado. Gere outro código de pareamento e execute o comando reset.",
-      );
-    } else {
-      console.error(`Erro: ${errorMessage(error)}`);
-    }
-
+  .catch((error: unknown) => {
+    console.error(`Erro: ${errorMessage(error)}`);
     process.exitCode = 1;
   })
   .finally(() => {

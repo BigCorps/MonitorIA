@@ -1,0 +1,119 @@
+name: Build MonitorIA Agent (Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "agent-v*"
+
+permissions:
+  contents: write
+
+env:
+  AGENT_VERSION: "0.9.0"
+
+jobs:
+  build-linux:
+    name: Pacote Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+            bun_target: bun-linux-x64-baseline
+            ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linux64-lgpl-shared-8.1.tar.xz
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            bun_target: bun-linux-aarch64
+            ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linuxarm64-lgpl-shared-8.1.tar.xz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Instalar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+          no-cache: true
+
+      - name: Instalar dependências
+        working-directory: agent
+        run: bun install --frozen-lockfile
+
+      - name: Verificar TypeScript
+        working-directory: agent
+        run: bun run check
+
+      - name: Compilar o Agent
+        working-directory: agent
+        run: |
+          bun build ./src/index.ts --compile \
+            --no-compile-autoload-dotenv \
+            --no-compile-autoload-bunfig \
+            --target=${{ matrix.bun_target }} \
+            --outfile ./dist/monitoria-agent
+
+      - name: Autoteste
+        working-directory: agent
+        run: |
+          chmod +x dist/monitoria-agent
+          ./dist/monitoria-agent self-test
+
+      # O FFmpeg vem da mesma origem fixada do build Windows. A verificação
+      # de hash está pendente: preciso dos SHA256 dos pacotes Linux, que só
+      # consigo depois de baixá-los na primeira execução deste workflow.
+      - name: Baixar FFmpeg
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-01-13-21"
+          curl -fsSL -o ffmpeg.tar.xz "${BASE}/${{ matrix.ffmpeg_asset }}"
+          echo "SHA256 baixado: $(sha256sum ffmpeg.tar.xz | cut -d' ' -f1)"
+          mkdir -p ffmpeg-tmp && tar xf ffmpeg.tar.xz -C ffmpeg-tmp --strip-components=1
+
+      - name: Montar o pacote
+        run: |
+          set -euo pipefail
+          OUT="monitoria-agent-${AGENT_VERSION}-linux-${{ matrix.arch }}"
+          mkdir -p "$OUT"
+
+          cp agent/dist/monitoria-agent "$OUT/"
+          cp ffmpeg-tmp/bin/ffmpeg ffmpeg-tmp/bin/ffprobe "$OUT/"
+          cp packaging/linux/monitoria-agent.service "$OUT/"
+          cp packaging/linux/install.sh "$OUT/"
+          chmod +x "$OUT/install.sh" "$OUT/monitoria-agent" "$OUT/ffmpeg" "$OUT/ffprobe"
+
+          find ffmpeg-tmp -name 'LICENSE*' -maxdepth 2 -exec cp {} "$OUT/LICENSE.txt" \; || true
+
+          cat > "$OUT/FFMPEG-ORIGEM.txt" <<EOF
+          FFmpeg redistribuído sem modificação.
+
+          Origem : ${{ matrix.ffmpeg_asset }}
+          Licença: LGPL (build sem componentes GPL)
+          Fonte  : https://github.com/BtbN/FFmpeg-Builds
+          Upstream: https://git.ffmpeg.org/ffmpeg.git
+          EOF
+
+          tar czf "${OUT}.tar.gz" "$OUT"
+          echo "Pacote: $(du -h "${OUT}.tar.gz" | cut -f1)"
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoria-agent-linux-${{ matrix.arch }}
+          path: monitoria-agent-*-linux-*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publicar release
+        if: startsWith(github.ref, 'refs/tags/agent-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: monitoria-agent-*-linux-*.tar.gz
+          fail_on_unmatched_files: true

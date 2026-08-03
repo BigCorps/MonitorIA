@@ -1,0 +1,55 @@
+[Unit]
+Description=MonitorIA Agent
+Documentation=https://monitoria.cam
+# Sobe depois da rede estar utilizável. Sem isso o primeiro heartbeat falha
+# em toda reinicialização e o painel marca a loja como offline por minutos.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/monitoria/monitoria-agent service
+
+User=monitoria
+Group=monitoria
+
+# O systemd cria e mantém /var/lib/monitoria com dono correto e modo 0700.
+# É o equivalente da ACL que o icacls aplica no Windows.
+StateDirectory=monitoria
+StateDirectoryMode=0700
+
+# Watchdog. Escalonamento evita laço apertado quando a falha é persistente.
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=3600
+StartLimitBurst=10
+
+# O desligamento fecha as sessões de captura no servidor e drena o que está
+# em voo. Mesmo prazo do WinSW no Windows.
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Isolamento. Um serviço que abre streams de rede da loja não precisa de
+# nada disso, e negar por padrão reduz o estrago de uma falha no FFmpeg.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Somente o diretório de estado é gravável.
+ReadWritePaths=/var/lib/monitoria
+
+# O canal local usa loopback com porta efêmera; nenhuma porta é exposta.
+IPAddressAllow=any
+
+[Install]
+WantedBy=multi-user.target

@@ -8,6 +8,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import type { CapturedFrame } from "./types.js";
+import { bundledBinary } from "./discovery/binaries.js";
 
 async function runExecutable(
   executable: string,
@@ -108,6 +109,7 @@ export async function resolveFfmpeg() {
   const configured = process.env.MONITORIA_FFMPEG_PATH?.trim();
   const candidates = [
     configured,
+    await bundledBinary("ffmpeg"),
     "ffmpeg",
     await findInWingetDirectory(),
   ].filter((value): value is string => Boolean(value));

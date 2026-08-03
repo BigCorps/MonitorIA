@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Configuração do serviço do Windows.
+
+  O monitoria-agent.exe é compilado pelo Bun e não implementa os handlers de
+  controle do Service Control Manager. Registrado direto com "sc create", o
+  Windows devolveria erro 1053 ("o serviço não respondeu a tempo") e mataria o
+  processo. O WinSW fica entre o SCM e o executável e resolve isso.
+
+  Este arquivo precisa ter o mesmo nome do executável do WinSW, sem a extensão:
+  monitoria-service.exe procura por monitoria-service.xml na mesma pasta.
+-->
+<service>
+  <id>MonitorIAAgent</id>
+  <name>MonitorIA Agent</name>
+  <description>Monitora as câmeras do estabelecimento e envia eventos ao MonitorIA.</description>
+
+  <executable>%BASE%\monitoria-agent.exe</executable>
+  <arguments>service</arguments>
+
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <!--
+    Início atrasado. Sem isso o serviço sobe antes da pilha de rede do
+    Windows e o primeiro heartbeat falha em toda reinicialização, poluindo o
+    log e marcando o Agent como offline no painel por alguns minutos.
+  -->
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+
+  <!--
+    Watchdog. Reinício escalonado cobre desde uma queda pontual até um
+    problema persistente, sem entrar em laço apertado de reinício. O contador
+    zera após uma hora estável.
+  -->
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="300 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <!--
+    O Agent tem log próprio com rotação. Este log captura apenas o que sai
+    antes do logger inicializar — falha de FFmpeg ausente, permissão negada
+    na pasta de dados, crash de partida. É o que o suporte lê quando o
+    serviço nem sobe.
+  -->
+  <logpath>%ProgramData%\MonitorIA\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>2048</sizeThreshold>
+    <keepFiles>2</keepFiles>
+  </log>
+
+  <!--
+    O desligamento fecha as sessões de captura no servidor e drena o que
+    está em voo. 30 segundos é folgado para isso e ainda abaixo do limite
+    padrão do Windows no desligamento da máquina.
+  -->
+  <stoptimeout>30 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+
+  <!--
+    Sem <serviceaccount>: o padrão do WinSW é LocalSystem, que é exatamente
+    o que a proteção DPAPI de escopo de máquina espera.
+  -->
+</service>
