@@ -1,27 +1,14 @@
 # Operação do cron
 
-## Fila normal
+Endpoint:
 
 ```text
-GET /api/cron/staff-profiles?mode=queue
-Authorization: Bearer CRON_SECRET
+GET /api/cron/camera-health
+Authorization: Bearer $CRON_SECRET
 ```
 
-Frequência inicial: a cada 5 minutos.
+Periodicidade recomendada: a cada 5 minutos.
 
-## Reconstrução
+O cron não captura imagens. Ele apenas detecta câmeras que deveriam enviar observações e ultrapassaram o intervalo configurado multiplicado por `health_stale_multiplier`.
 
-```text
-GET /api/cron/staff-profiles?mode=full
-Authorization: Bearer CRON_SECRET
-```
-
-Usar diariamente durante homologação e depois somente para reconciliação ou correção.
-
-## Configuração
-
-```env
-STAFF_PROFILE_CRON_BATCH_SIZE=100
-```
-
-A inteligência começa desativada por câmera. Habilite somente depois de revisar os perfis existentes e os limites de privacidade.
+A recuperação é automática quando novas observações chegam.

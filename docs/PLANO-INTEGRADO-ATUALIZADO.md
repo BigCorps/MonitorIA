@@ -1827,3 +1827,22 @@ explica, roteia modelos e produz evidências.
 ```
 
 Toda nova funcionalidade deve reutilizar os contratos existentes antes de criar uma estrutura paralela.
+
+
+## Atualização INT-7 — Saúde e drift da câmera
+
+**Situação:** pacote preparado; banco, repositório e deploy não aplicados.
+
+Entregas:
+
+- observação periódica independente de eventos;
+- métricas locais de qualidade sem upload periódico de imagem;
+- referência visual aprovada por humano;
+- incidentes de iluminação, desfoque, possível obstrução, mudança de enquadramento, drift e ausência de observação;
+- integração com `operational_insights`, Assistente e MCP;
+- página `/dashboard/camera-health`;
+- coleta desativada por padrão em cada câmera;
+- cron de staleness;
+- migration e rollback.
+
+Próxima fase da trilha: `INT-8 — Captura inteligente no Agent`.

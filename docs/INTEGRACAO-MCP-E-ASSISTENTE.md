@@ -1,27 +1,14 @@
-# Integração com Assistente e MCP
+# Assistente e MCP
 
-## Assistente
+A INT-7 adiciona a intenção interna `camera_health` ao Assistente.
 
-A intenção `operational_profiles` responde perguntas como:
+Exemplos:
 
-- quais perfis operacionais estão ativos nesta câmera;
-- em quais zonas um perfil costuma aparecer;
-- quais faixas de horário foram observadas;
-- existem candidatos ou correspondências pendentes;
-- por que uma aparição foi associada a um perfil.
+- “Alguma câmera está com a imagem ruim?”
+- “A câmera do estoque mudou de posição?”
+- “Há câmeras sem observação recente?”
+- “Por que o MonitorIA considera a imagem desfocada?”
 
-As respostas devem dizer “perfil provável”, “compatível” ou “correspondência visual”, nunca “identidade confirmada”.
+O MCP público mantém as 14 ferramentas congeladas. `camera_health` entra como include opcional em `get_camera_overview` e `get_operational_summary`, e os incidentes aparecem em `search_insights` e `ask_monitoria`.
 
-## MCP
-
-Nenhuma ferramenta pública é adicionada. A capacidade `operational_profiles` passa a `available` e os dados entram em:
-
-```text
-get_monitoria_capabilities
-get_camera_overview
-get_operational_summary
-search_insights
-ask_monitoria
-```
-
-O MCP recebe apenas resumos operacionais. Aparência bruta, candidatos completos e decisões internas não são expostos pelo papel somente leitura.
+A capacidade `camera_health` muda de `planned` para `available`.

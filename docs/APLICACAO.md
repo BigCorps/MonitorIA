@@ -1,33 +1,21 @@
-# Aplicação da INT-6
+# Aplicação da INT-7
 
-## Dependências
-
-Confirme INT-2, INT-3, INT-3.8 e INT-5.
-
-## Ordem
-
-1. Execute `006-staff-operational-profiles-v1.sql` no banco de homologação.
-2. Extraia o ZIP preservando caminhos.
-3. Execute o instalador em `--dry-run`.
+1. Confirme INT-3.5, INT-3.8 e INT-6.
+2. Execute `supabase/migrations/20260802230000_camera_health_drift_v1.sql`.
+3. Faça dry-run do instalador.
 4. Aplique o instalador.
-5. Execute `npm run check` e `npm run build`.
-6. Configure o cron.
-7. Habilite uma câmera de homologação.
-8. Revise candidatos e correspondências antes de produção.
-
-```bash
-node MonitorIA-inteligencia-fase-6/scripts/apply-fase-6.mjs --repo . --dry-run
-node MonitorIA-inteligencia-fase-6/scripts/apply-fase-6.mjs --repo .
-npm run check
-npm run build
-```
-
-## Habilitação inicial
+5. Rode `npm run check`, testes e `npm run build`.
+6. Implante web e Agent juntos.
+7. Habilite uma câmera de homologação:
 
 ```sql
 update public.cameras
-set staff_profile_intelligence_enabled = true
+set health_intelligence_enabled = true,
+    health_observation_interval_seconds = 300
 where id = 'CAMERA_UUID';
 ```
 
-O pacote não aplica SQL nem modifica GitHub ou Vercel automaticamente.
+8. Aguarde observações estáveis e aprove a referência proposta no dashboard.
+9. Agende `/api/cron/camera-health` a cada 5 minutos com `Authorization: Bearer $CRON_SECRET`.
+
+Rollback: `supabase/migrations/rollback_camera_health_drift_v1.sql` e `scripts/restore-fase-7.mjs`.
