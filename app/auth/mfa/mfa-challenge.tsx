@@ -99,11 +99,14 @@ export function MfaChallenge({
         throw factorResult.error;
       }
 
-      const verified = (
+      const totpFactors = (
         factorResult.data.totp ?? []
-      ).filter(
-        (factor) => factor.status === "verified",
       ) as TotpFactor[];
+
+      const verified = totpFactors.filter(
+        (factor: TotpFactor) =>
+          factor.status === "verified",
+      );
 
       setFactors(verified);
       setSelectedFactor(verified[0]?.id ?? "");
