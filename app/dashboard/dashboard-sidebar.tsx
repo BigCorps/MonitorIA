@@ -18,6 +18,7 @@ export type DashboardSection =
   | "trial"
   | "plans"
   | "billing"
+  | "storage"
   | "installer"
   | "profile";
 
@@ -103,6 +104,16 @@ function BillingIcon() {
   );
 }
 
+function StorageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+      <path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+    </svg>
+  );
+}
+
 function InstallerIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -174,6 +185,13 @@ const items: NavigationItem[] = [
     href: "/dashboard/billing",
     label: "Cobranças",
     icon: <BillingIcon />,
+  },
+
+  {
+    id: "storage",
+    href: "/dashboard/storage",
+    label: "Armazenamento",
+    icon: <StorageIcon />,
   },
   {
     id: "installer",
