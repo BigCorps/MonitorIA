@@ -21,7 +21,6 @@ import {
   getVisionPlan,
   otherValidationModel,
 } from "@/src/vision/plans";
-import { VISION_PROMPT_VERSION } from "@/src/vision/prompt";
 import {
   buildVisionPromptHash,
   VISION_PROMPT_VERSION,

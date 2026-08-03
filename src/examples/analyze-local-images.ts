@@ -3,6 +3,7 @@ import { extname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createVisionProvider } from "../vision/create-provider.js";
 import type { EventFrame } from "../vision/types.js";
+import { DefaultCameraIntelligenceConfig } from "../contracts/scene-intelligence.js";
 
 const imagePaths = process.argv.slice(2);
 
@@ -72,6 +73,7 @@ const result = await provider.analyzeEvent({
     ignoreInstructions: [
       "ignorar variações pequenas de iluminação",
     ],
+    intelligence: DefaultCameraIntelligenceConfig,
     timezone: "America/Sao_Paulo",
     zones: [
       {

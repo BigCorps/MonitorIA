@@ -3,8 +3,8 @@ import {
   type AnalyzedEvent,
 } from "@/src/contracts/analyzed-event";
 import type { PersonAppearance } from "@/src/contracts/person-memory";
+import { EmptySceneComplexity } from "@/src/contracts/scene-intelligence";
 import type {
-  EmptySceneComplexity,
   EntityRelation,
   SceneComplexity,
   VehicleAppearance,

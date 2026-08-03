@@ -4,7 +4,7 @@ import {
   assistantBalanceLabel,
   assistantBalanceTone,
   sortAssistantPackages,
-} from "../src/assistant-commercial/format.ts";
+} from "../src/assistant-commercial/format";
 import type {
   AssistantBalance,
   AssistantCreditPackage,
