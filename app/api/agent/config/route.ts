@@ -78,6 +78,31 @@ function polygonsValue(value: unknown) {
   });
 }
 
+type EntitlementRow = {
+  camera_id: string;
+  trial_run_id: string | null;
+  access_source: string;
+  monitoring_allowed: boolean;
+  plan_code: string | null;
+  period_starts_at: string | null;
+  period_ends_at: string | null;
+  grace_ends_at: string | null;
+  capture_ends_at: string | null;
+  exploration_ends_at: string | null;
+  purge_after: string | null;
+  metadata_retention_days: number | null;
+  long_term_keyframes: number | null;
+  temporary_frame_days: number | null;
+  maximum_analysis_frames: number | null;
+  maximum_escalation_percent: number | null;
+  clip_enabled: boolean;
+  clip_duration_seconds: number | null;
+  clip_retention_days: number | null;
+  assistant_access_allowed: boolean;
+  enforcement_enabled: boolean;
+  reason: string;
+};
+
 export async function GET(request: NextRequest) {
   const agent = await authenticateAgent(request);
   if (!agent) {
@@ -134,21 +159,44 @@ export async function GET(request: NextRequest) {
 
   const cameraIds = cameraRows.map((camera: any) => String(camera.id));
 
-  const { data: profiles, error: profilesError } = cameraIds.length
-    ? await supabase
-        .from("camera_profiles")
-        .select("id,camera_id,version")
-        .in("camera_id", cameraIds)
-        .eq("is_active", true)
-    : { data: [], error: null };
+  const [profilesResult, entitlementResult] = cameraIds.length
+    ? await Promise.all([
+        supabase
+          .from("camera_profiles")
+          .select("id,camera_id,version")
+          .in("camera_id", cameraIds)
+          .eq("is_active", true),
+        supabase
+          .from("camera_entitlements")
+          .select(
+            "camera_id,trial_run_id,access_source,monitoring_allowed,plan_code,period_starts_at,period_ends_at,grace_ends_at,capture_ends_at,exploration_ends_at,purge_after,metadata_retention_days,long_term_keyframes,temporary_frame_days,maximum_analysis_frames,maximum_escalation_percent,clip_enabled,clip_duration_seconds,clip_retention_days,assistant_access_allowed,enforcement_enabled,reason",
+          )
+          .eq("organization_id", agent.organizationId)
+          .in("camera_id", cameraIds),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
 
-  if (profilesError) {
+  if (profilesResult.error) {
     console.error(
       "Falha ao carregar perfis ativos do Agent:",
-      profilesError.message,
+      profilesResult.error.message,
     );
     return NextResponse.json(
       { ok: false, error: "active_profiles_unavailable" },
+      { status: 500 },
+    );
+  }
+
+  if (entitlementResult.error) {
+    console.error(
+      "Falha ao carregar permissões comerciais do Agent:",
+      entitlementResult.error.message,
+    );
+    return NextResponse.json(
+      { ok: false, error: "entitlements_unavailable" },
       { status: 500 },
     );
   }
@@ -158,11 +206,19 @@ export async function GET(request: NextRequest) {
     { id: string; version: number }
   >();
 
-  for (const profile of profiles ?? []) {
+  for (const profile of profilesResult.data ?? []) {
     profilesByCamera.set(String((profile as any).camera_id), {
       id: String((profile as any).id),
       version: Number((profile as any).version),
     });
+  }
+
+  const entitlementsByCamera = new Map<string, EntitlementRow>();
+  for (const entitlement of entitlementResult.data ?? []) {
+    entitlementsByCamera.set(
+      String((entitlement as any).camera_id),
+      entitlement as EntitlementRow,
+    );
   }
 
   const profileIds = [...profilesByCamera.values()].map(
@@ -194,8 +250,9 @@ export async function GET(request: NextRequest) {
   }
 
   const cameras = cameraRows.map((camera: any) => {
-    const activeProfile =
-      profilesByCamera.get(String(camera.id)) ?? null;
+    const cameraId = String(camera.id);
+    const activeProfile = profilesByCamera.get(cameraId) ?? null;
+    const entitlement = entitlementsByCamera.get(cameraId);
     const siteRelation = camera.site;
     const site = Array.isArray(siteRelation)
       ? siteRelation[0]
@@ -210,16 +267,27 @@ export async function GET(request: NextRequest) {
         ? camera.motion_overlay_mask
         : "auto";
 
+    const effectivePlan =
+      entitlement?.plan_code === "basic" ||
+      entitlement?.plan_code === "intensive"
+        ? entitlement.plan_code
+        : entitlement?.plan_code === "standard"
+          ? "standard"
+          : camera.analysis_plan_code === "basic" ||
+              camera.analysis_plan_code === "intensive"
+            ? camera.analysis_plan_code
+            : "standard";
+
+    const monitoringAllowed = Boolean(
+      entitlement?.monitoring_allowed,
+    );
+
     return {
-      id: String(camera.id),
+      id: cameraId,
       name: String(camera.name),
       description: String(camera.description ?? ""),
       status: String(camera.status),
-      plan:
-        camera.analysis_plan_code === "basic" ||
-        camera.analysis_plan_code === "intensive"
-          ? camera.analysis_plan_code
-          : "standard",
+      plan: effectivePlan,
       timezone: String(site?.timezone ?? "America/Sao_Paulo"),
       captureIntervalSeconds: Number(
         camera.capture_interval_seconds,
@@ -227,17 +295,14 @@ export async function GET(request: NextRequest) {
       consolidationIntervalSeconds: Number(
         camera.consolidation_interval_seconds,
       ),
-      motionStartThreshold: Number(
-        camera.motion_start_threshold,
-      ),
+      motionStartThreshold: Number(camera.motion_start_threshold),
       motionContinueThreshold: Number(
         camera.motion_continue_threshold,
       ),
       eventCloseAfterSeconds: Number(
         camera.event_close_after_seconds,
       ),
-      motionAdaptiveEnabled:
-        camera.motion_adaptive_enabled !== false,
+      motionAdaptiveEnabled: camera.motion_adaptive_enabled !== false,
       motionOverlayMask: overlay,
       motionStartConsecutiveFrames: Number(
         camera.motion_start_consecutive_frames ?? 3,
@@ -248,28 +313,53 @@ export async function GET(request: NextRequest) {
       motionCooldownSeconds: Number(
         camera.motion_cooldown_seconds ?? 10,
       ),
-      monitoringSchedule: scheduleValue(
-        camera.monitoring_schedule,
-      ),
+      monitoringSchedule: scheduleValue(camera.monitoring_schedule),
       motionIgnorePolygons: activeProfile
-        ? polygonsValue(
-            ignoreByProfile.get(activeProfile.id) ?? [],
-          )
+        ? polygonsValue(ignoreByProfile.get(activeProfile.id) ?? [])
         : [],
       monitoringGoals: Array.isArray(camera.monitoring_goals)
-        ? camera.monitoring_goals.map((goal: unknown) =>
-            String(goal),
-          )
+        ? camera.monitoring_goals.map((goal: unknown) => String(goal))
         : [],
-      monitoringEnabled: Boolean(activeProfile),
+      monitoringEnabled: Boolean(activeProfile) && monitoringAllowed,
       activeProfileId: activeProfile?.id ?? null,
       activeProfileVersion: activeProfile?.version ?? null,
+      accessSource: entitlement?.access_source ?? "blocked",
+      monitoringAllowed,
+      entitlementReason:
+        entitlement?.reason ?? "entitlement_unavailable",
+      enforcementEnabled:
+        entitlement?.enforcement_enabled ?? true,
+      trialRunId: entitlement?.trial_run_id ?? null,
+      periodStartsAt: entitlement?.period_starts_at ?? null,
+      periodEndsAt: entitlement?.period_ends_at ?? null,
+      graceEndsAt: entitlement?.grace_ends_at ?? null,
+      captureEndsAt: entitlement?.capture_ends_at ?? null,
+      explorationEndsAt: entitlement?.exploration_ends_at ?? null,
+      purgeAfter: entitlement?.purge_after ?? null,
+      metadataRetentionDays:
+        entitlement?.metadata_retention_days ?? null,
+      longTermKeyframes:
+        entitlement?.long_term_keyframes ?? null,
+      temporaryFrameDays:
+        entitlement?.temporary_frame_days ?? null,
+      maximumAnalysisFrames:
+        entitlement?.maximum_analysis_frames ?? null,
+      maximumEscalationPercent:
+        entitlement?.maximum_escalation_percent ?? null,
+      clipEnabled: entitlement?.clip_enabled ?? false,
+      clipDurationSeconds:
+        entitlement?.clip_duration_seconds ?? null,
+      clipRetentionDays:
+        entitlement?.clip_retention_days ?? null,
+      assistantAccessAllowed:
+        entitlement?.assistant_access_allowed ?? false,
     };
   });
 
   return NextResponse.json(
     {
       ok: true,
+      configVersion: 3,
       agent: { id: agent.id, name: agent.name },
       cameras,
       serverTime: new Date().toISOString(),

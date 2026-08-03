@@ -15,6 +15,7 @@ export type DashboardSection =
   | "cameras"
   | "events"
   | "search"
+  | "trial"
   | "plans"
   | "billing"
   | "installer"
@@ -69,6 +70,16 @@ function BotIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="4" y="6" width="16" height="13" rx="4" />
       <path d="M12 3v3M8 11h.01M16 11h.01M8 15h8" />
+    </svg>
+  );
+}
+
+function TrialIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 3h6" />
+      <path d="M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3" />
+      <path d="M7.5 15h9" />
     </svg>
   );
 }
@@ -145,6 +156,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/search",
     label: "Pesquisa",
     icon: <BotIcon />,
+  },
+  {
+    id: "trial",
+    href: "/dashboard/trial",
+    label: "Teste grátis",
+    icon: <TrialIcon />,
   },
   {
     id: "plans",
