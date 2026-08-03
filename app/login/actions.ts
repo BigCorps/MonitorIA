@@ -9,6 +9,7 @@ async function appOrigin() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   }
+
   const headerStore = await headers();
   const host =
     headerStore.get("x-forwarded-host") ??
@@ -17,6 +18,7 @@ async function appOrigin() {
   const protocol =
     headerStore.get("x-forwarded-proto") ??
     (host.includes("localhost") ? "http" : "https");
+
   return `${protocol}://${host}`;
 }
 
@@ -36,6 +38,13 @@ function authError(message: string, next: string): never {
   );
 }
 
+function errorText(error: {
+  message: string;
+  code?: string;
+}) {
+  return `${error.code ?? ""} ${error.message}`.toLowerCase();
+}
+
 function isEmailDeliveryError(message: string) {
   return /authentication credentials invalid|error sending|confirmation email|magic link|smtp|unexpected failure/i.test(
     message,
@@ -47,7 +56,16 @@ function isWeakPasswordError(error: {
   code?: string;
 }) {
   return /weak_password|weak|easy to guess|pwned|compromised|leaked/i.test(
-    `${error.code ?? ""} ${error.message}`,
+    errorText(error),
+  );
+}
+
+function isMethodDisabledError(error: {
+  message: string;
+  code?: string;
+}) {
+  return /auth_method_disabled|oauth_provider_not_allowed|method disabled/i.test(
+    errorText(error),
   );
 }
 
@@ -87,6 +105,15 @@ export async function loginWithPassword(
     });
 
   if (error) {
+    reportAuthError("signInWithPassword", error);
+
+    if (isMethodDisabledError(error)) {
+      authError(
+        "Esta forma de acesso não está disponível para esta conta. Use outro método autorizado.",
+        next,
+      );
+    }
+
     authError("E-mail ou senha incorretos.", next);
   }
 

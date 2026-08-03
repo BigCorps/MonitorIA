@@ -97,6 +97,10 @@
   grid-column: 1 / -1;
 }
 
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
 .cardHeading {
   min-height: 57px;
   display: flex;
@@ -347,6 +351,10 @@
   }
 
   .companyCard {
+    grid-column: auto;
+  }
+  
+  .fullWidth {
     grid-column: auto;
   }
 

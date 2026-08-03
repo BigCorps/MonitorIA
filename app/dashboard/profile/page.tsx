@@ -8,6 +8,7 @@ import {
   updatePersonalProfile,
   updateProfilePassword,
 } from "./actions";
+import { SecuritySettings } from "./security-settings";
 import styles from "./profile.module.css";
 
 export const metadata = {
@@ -17,7 +18,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<
+  searchParams: Promise
     Record<string, string | string[] | undefined>
   >;
 };
@@ -320,6 +321,25 @@ export default async function ProfilePage({
                 </button>
               </form>
             </div>
+          </section>
+
+          <section
+            className={`${styles.card} ${styles.fullWidth}`}
+          >
+            <div className={styles.cardHeading}>
+              <div>
+                <span>ACESSO E AUTENTICAÇÃO</span>
+                <h2>Métodos de login e 2FA</h2>
+              </div>
+              <small>
+                Passkeys, Google e verificação em duas
+                etapas.
+              </small>
+            </div>
+
+            <SecuritySettings
+              userEmail={profile.user.email}
+            />
           </section>
 
           <section
