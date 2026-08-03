@@ -16,7 +16,10 @@ import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { EventExportButtons } from "./event-export-buttons";
 import { EventList } from "./event-list";
+import { EventsRealtimeRefresh } from "./events-realtime-refresh";
 import styles from "./events.module.css";
+import disclosureStyles from "./mobile-disclosure.module.css";
+import realtimeStyles from "./events-realtime-refresh.module.css";
 
 export const metadata = { title: "Eventos" };
 export const dynamic = "force-dynamic";
@@ -36,6 +39,11 @@ function todayInZone(timeZone: string) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+}
+
+function compactDate(value: string) {
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
 function pageHref(current: Record<string, string>, page: number) {
@@ -95,6 +103,13 @@ export default async function EventsPage({
     ...(review !== "all" ? { review } : {}),
   };
 
+  const optionalFilterCount = [
+    siteId,
+    cameraId,
+    eventType,
+    review !== "all" ? review : "",
+  ].filter(Boolean).length;
+
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
@@ -130,66 +145,109 @@ export default async function EventsPage({
           </div>
         ) : null}
 
-        <form className={styles.filters} method="get">
-          <label>
-            <span>De</span>
-            <input type="date" name="from" defaultValue={fromDate} />
-          </label>
-          <label>
-            <span>Até</span>
-            <input type="date" name="to" defaultValue={toDate} />
-          </label>
-          <label>
-            <span>Local</span>
-            <select name="site" defaultValue={siteId}>
-              <option value="">Todos os locais</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Câmera</span>
-            <select name="camera" defaultValue={cameraId}>
-              <option value="">Todas as câmeras</option>
-              {cameras.map((camera) => (
-                <option key={camera.id} value={camera.id}>
-                  {camera.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Tipo</span>
-            <select name="type" defaultValue={eventType}>
-              <option value="">Todos os tipos</option>
-              {EVENT_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Revisão</span>
-            <select name="review" defaultValue={review}>
-              <option value="all">Todos</option>
-              <option value="pending">Pendentes</option>
-              <option value="required">Exigem revisão</option>
-              <option value="reviewed">Já revisados</option>
-              <option value="useful">Marcados como úteis</option>
-              <option value="irrelevant">
-                Marcados como irrelevantes
-              </option>
-              <option value="incorrect">
-                Classificação corrigida
-              </option>
-            </select>
-          </label>
-          <button type="submit">Aplicar filtros</button>
-        </form>
+        <details
+          className={`${disclosureStyles.disclosure} ${disclosureStyles.filterDisclosure}`}
+        >
+          <summary className={disclosureStyles.summary}>
+            <span className={disclosureStyles.summaryCopy}>
+              <span>FILTROS</span>
+              <strong>
+                {compactDate(fromDate)} até {compactDate(toDate)}
+              </strong>
+              <small>
+                {optionalFilterCount
+                  ? `${optionalFilterCount} filtro${
+                      optionalFilterCount === 1 ? "" : "s"
+                    } adicional${
+                      optionalFilterCount === 1 ? "" : "is"
+                    } ativo${
+                      optionalFilterCount === 1 ? "" : "s"
+                    }`
+                  : "Todos os locais, câmeras e tipos"}
+              </small>
+            </span>
+            <span
+              className={disclosureStyles.chevron}
+              aria-hidden="true"
+            >
+              ⌄
+            </span>
+          </summary>
+
+          <div className={disclosureStyles.content}>
+            <form
+              className={`${styles.filters} ${disclosureStyles.filterForm}`}
+              method="get"
+            >
+              <label>
+                <span>De</span>
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={fromDate}
+                />
+              </label>
+              <label>
+                <span>Até</span>
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={toDate}
+                />
+              </label>
+              <label>
+                <span>Local</span>
+                <select name="site" defaultValue={siteId}>
+                  <option value="">Todos os locais</option>
+                  {sites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Câmera</span>
+                <select name="camera" defaultValue={cameraId}>
+                  <option value="">Todas as câmeras</option>
+                  {cameras.map((camera) => (
+                    <option key={camera.id} value={camera.id}>
+                      {camera.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Tipo</span>
+                <select name="type" defaultValue={eventType}>
+                  <option value="">Todos os tipos</option>
+                  {EVENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Revisão</span>
+                <select name="review" defaultValue={review}>
+                  <option value="all">Todos</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="required">Exigem revisão</option>
+                  <option value="reviewed">Já revisados</option>
+                  <option value="useful">Marcados como úteis</option>
+                  <option value="irrelevant">
+                    Marcados como irrelevantes
+                  </option>
+                  <option value="incorrect">
+                    Classificação corrigida
+                  </option>
+                </select>
+              </label>
+              <button type="submit">Aplicar filtros</button>
+            </form>
+          </div>
+        </details>
 
         <EventExportButtons
           total={result.total}
@@ -210,9 +268,15 @@ export default async function EventsPage({
               {result.total} evento{result.total === 1 ? "" : "s"}
             </h2>
           </div>
-          <small>
-            Página {page} de {totalPages}
-          </small>
+
+          <div className={realtimeStyles.headingMeta}>
+            <small>
+              Página {page} de {totalPages}
+            </small>
+            <EventsRealtimeRefresh
+              organizationId={organization.id}
+            />
+          </div>
         </div>
 
         <EventList rows={result.rows} timezone={timeZone} />

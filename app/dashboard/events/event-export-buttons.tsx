@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import styles from "./event-export.module.css";
+import disclosureStyles from "./mobile-disclosure.module.css";
 
 type Props = {
   filters: {
@@ -57,43 +58,65 @@ export function EventExportButtons({ filters, total }: Props) {
   }
 
   return (
-    <section className={styles.shell}>
-      <div className={styles.icon} aria-hidden="true">
-        ⇩
-      </div>
-      <div className={styles.copy}>
-        <span>EXPORTAR O PERÍODO FILTRADO</span>
-        <strong>
-          {total} evento{total === 1 ? "" : "s"} em Markdown ou JSON
-        </strong>
-        <p>
-          Inclui todos os resultados do período, indicadores estimados e
-          avisos para uso em qualquer IA — não apenas a página atual.
-        </p>
-        {status ? <small>{status}</small> : null}
-      </div>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => void copy("md")}
+    <details className={disclosureStyles.disclosure}>
+      <summary className={disclosureStyles.summary}>
+        <span className={disclosureStyles.summaryCopy}>
+          <span>EXPORTAR PERÍODO</span>
+          <strong>
+            {total} evento{total === 1 ? "" : "s"} em Markdown ou JSON
+          </strong>
+          <small>Toque para ver as opções de copiar e baixar</small>
+        </span>
+        <span
+          className={disclosureStyles.chevron}
+          aria-hidden="true"
         >
-          Copiar Markdown
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => void copy("json")}
+         ⌄
+        </span>
+      </summary>
+
+      <div className={disclosureStyles.content}>
+        <section
+          className={`${styles.shell} ${disclosureStyles.exportShell}`}
         >
-          Copiar JSON
-        </button>
-        <button type="button" onClick={() => download("md")}>
-          Baixar .md
-        </button>
-        <button type="button" onClick={() => download("json")}>
-          Baixar .json
-        </button>
+          <div className={styles.icon} aria-hidden="true">
+            ⇩
+          </div>
+          <div className={styles.copy}>
+            <span>EXPORTAR O PERÍODO FILTRADO</span>
+            <strong>
+              {total} evento{total === 1 ? "" : "s"} em Markdown ou JSON
+            </strong>
+            <p>
+              Inclui todos os resultados do período, indicadores estimados e
+              avisos para uso em qualquer IA — não apenas a página atual.
+            </p>
+            {status ? <small>{status}</small> : null}
+          </div>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void copy("md")}
+            >
+              Copiar Markdown
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => void copy("json")}
+            >
+              Copiar JSON
+            </button>
+            <button type="button" onClick={() => download("md")}>
+              Baixar .md
+            </button>
+            <button type="button" onClick={() => download("json")}>
+              Baixar .json
+            </button>
+          </div>
+        </section>
       </div>
-    </section>
+    </details>
   );
 }
