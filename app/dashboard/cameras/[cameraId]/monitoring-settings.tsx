@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { CameraSummary } from "@/src/lib/dashboard-data";
+import { CAMERA_ANALYSIS_PLANS } from "@/src/lib/analysis-plans";
 import { updateMonitoringSettingsAction } from "../monitoring-actions";
 import { initialMonitoringActionState } from "../monitoring-action-state";
 import styles from "./monitoring-settings.module.css";
@@ -11,24 +12,6 @@ type Props = {
   camera: CameraSummary;
   canManage: boolean;
 };
-
-const plans = [
-  {
-    code: "basic",
-    name: "Econômico",
-    detail: "1 quadro · GPT-5 nano · menor custo",
-  },
-  {
-    code: "standard",
-    name: "Equilibrado",
-    detail: "até 3 quadros · nano com escalonamento",
-  },
-  {
-    code: "intensive",
-    name: "Detalhado",
-    detail: "até 4 quadros · GPT-5 mini",
-  },
-];
 
 const weekdays = [
   ["1", "Seg"],
@@ -71,48 +54,38 @@ export function MonitoringSettings({
   );
 
   const schedule = scheduleDefaults(camera.monitoringSchedule);
+  const plan =
+    CAMERA_ANALYSIS_PLANS[
+      camera.planCode as keyof typeof CAMERA_ANALYSIS_PLANS
+    ] ?? CAMERA_ANALYSIS_PLANS.basic;
 
   return (
     <section className={styles.shell}>
       <div className={styles.heading}>
         <div>
-          <span>CALIBRAÇÃO · V0.7.3</span>
-          <h2>Modo e segmentação</h2>
+          <span>OBSERVAÇÃO LOCAL</span>
+          <h2>Segmentação e agenda</h2>
           <p>
             O Agent calibra o ruído localmente e só envia acontecimentos
             que ultrapassam os limites efetivos da câmera.
           </p>
         </div>
 
-        <Link href="/dashboard/vision-tests">
-          Comparar nano × mini →
+        <Link href="/dashboard/plans">
+          Alterar plano da câmera →
         </Link>
       </div>
 
       <form action={action}>
         <input type="hidden" name="camera_id" value={camera.id} />
 
-        <fieldset disabled={!canManage || pending}>
-          <legend>Modo visual</legend>
-          <div className={styles.plans}>
-            {plans.map((plan) => (
-              <label key={plan.code}>
-                <input
-                  type="radio"
-                  name="plan"
-                  value={plan.code}
-                  defaultChecked={camera.planCode === plan.code}
-                />
-                <span>
-                  <strong>{plan.name}</strong>
-                  <small>{plan.detail}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
         <div className={styles.grid}>
+          <div>
+            <span>Plano atual</span>
+            <strong>{plan.label}</strong>
+            <small>{plan.description}</small>
+          </div>
+
           <label className={styles.toggle}>
             <input
               type="checkbox"
@@ -232,8 +205,9 @@ export function MonitoringSettings({
               </p>
             ) : (
               <p>
-                O vídeo contínuo permanece local. Os limites efetivos
-                aparecem nos logs após a calibração.
+                O vídeo contínuo permanece local. A troca de plano é
+                feita na página Planos e não pode ser contornada por
+                esta configuração técnica.
               </p>
             )}
           </div>

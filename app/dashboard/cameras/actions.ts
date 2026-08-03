@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
-import {
-  CAMERA_ANALYSIS_PLANS,
-  normalizeAnalysisPlan,
-} from "@/src/lib/analysis-plans";
+import { CAMERA_ANALYSIS_PLANS } from "@/src/lib/analysis-plans";
 import {
   generatePairingCode,
   hashPairingCode,
@@ -78,7 +75,6 @@ export async function createCameraAction(
     .trim()
     .slice(0, 500);
   const siteId = String(formData.get("site_id") ?? "").trim();
-  const plan = normalizeAnalysisPlan(formData.get("plan"));
   const monitoringGoals = parseGoals(
     formData.get("monitoring_goals"),
   );
@@ -105,6 +101,10 @@ export async function createCameraAction(
     };
   }
 
+  // Câmeras novas nascem no perfil técnico mais econômico.
+  // A seleção comercial definitiva acontece em /dashboard/plans
+  // e só será ativada depois da confirmação do pagamento/trial.
+  const plan = "basic" as const;
   const settings = CAMERA_ANALYSIS_PLANS[plan];
 
   const { data: camera, error: cameraError } = await supabase
@@ -160,11 +160,12 @@ export async function createCameraAction(
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/cameras");
+    revalidatePath("/dashboard/plans");
 
     return {
       status: "success",
       message:
-        "Câmera criada. Use o código abaixo para instalar o Agent.",
+        "Câmera criada. Use o código abaixo para instalar o Agent e depois escolha o plano.",
       cameraId: String(camera.id),
       cameraName: String(camera.name),
       pairingCode: pairing.code,

@@ -13,9 +13,9 @@ export const metadata = { title: "Câmeras" };
 export const dynamic = "force-dynamic";
 
 const planLabels: Record<string, string> = {
-  basic: "Econômico",
-  standard: "Equilibrado",
-  intensive: "Detalhado",
+  basic: "Essencial",
+  standard: "Atenta",
+  intensive: "Detalhada",
 };
 
 const pairingLabels: Record<string, string> = {
@@ -117,7 +117,7 @@ export default async function CamerasPage() {
 
                   <dl>
                     <div>
-                      <dt>Modo visual</dt>
+                      <dt>Plano configurado</dt>
                       <dd>
                         {planLabels[camera.planCode] ??
                           camera.planCode}

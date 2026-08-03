@@ -1,8 +1,9 @@
 export const CAMERA_ANALYSIS_PLANS = {
   basic: {
     code: "basic",
-    label: "Econômico",
-    description: "Menor custo, um quadro principal e resposta compacta.",
+    label: "Essencial",
+    description:
+      "Um quadro principal e análise compacta para áreas de menor movimento.",
     captureIntervalSeconds: 3,
     consolidationIntervalSeconds: 60,
     motionStartThreshold: 1.5,
@@ -14,8 +15,9 @@ export const CAMERA_ANALYSIS_PLANS = {
   },
   standard: {
     code: "standard",
-    label: "Equilibrado",
-    description: "Três quadros e equilíbrio entre contexto, precisão e custo.",
+    label: "Atenta",
+    description:
+      "Até três quadros e equilíbrio entre contexto, precisão e custo.",
     captureIntervalSeconds: 1,
     consolidationIntervalSeconds: 10,
     motionStartThreshold: 1.25,
@@ -27,8 +29,9 @@ export const CAMERA_ANALYSIS_PLANS = {
   },
   intensive: {
     code: "intensive",
-    label: "Detalhado",
-    description: "Até quatro quadros para acontecimentos rápidos ou críticos.",
+    label: "Detalhada",
+    description:
+      "Até quatro quadros para reconstruir acontecimentos rápidos ou críticos.",
     captureIntervalSeconds: 1,
     consolidationIntervalSeconds: 1,
     motionStartThreshold: 1,
@@ -43,8 +46,8 @@ export const CAMERA_ANALYSIS_PLANS = {
 export type AnalysisPlanCode = keyof typeof CAMERA_ANALYSIS_PLANS;
 
 export function normalizeAnalysisPlan(value: unknown): AnalysisPlanCode {
-  const candidate = String(value ?? "standard");
+  const candidate = String(value ?? "basic");
   return candidate in CAMERA_ANALYSIS_PLANS
     ? (candidate as AnalysisPlanCode)
-    : "standard";
+    : "basic";
 }

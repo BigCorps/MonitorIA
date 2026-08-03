@@ -15,6 +15,7 @@ export type DashboardSection =
   | "cameras"
   | "events"
   | "search"
+  | "plans"
   | "installer"
   | "profile";
 
@@ -67,6 +68,16 @@ function BotIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="4" y="6" width="16" height="13" rx="4" />
       <path d="M12 3v3M8 11h.01M16 11h.01M8 15h8" />
+    </svg>
+  );
+}
+
+function PlansIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="M3 10h18" />
+      <path d="M7 15h4" />
     </svg>
   );
 }
@@ -124,6 +135,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/search",
     label: "Pesquisa",
     icon: <BotIcon />,
+  },
+  {
+    id: "plans",
+    href: "/dashboard/plans",
+    label: "Planos",
+    icon: <PlansIcon />,
   },
   {
     id: "installer",

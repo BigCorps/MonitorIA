@@ -10,30 +10,6 @@ type Props = {
   sites: SiteSummary[];
 };
 
-const planOptions = [
-  {
-    value: "basic",
-    name: "Econômico",
-    interval: "Um quadro principal",
-    description:
-      "Menor custo para entradas, balcões e movimento geral.",
-  },
-  {
-    value: "standard",
-    name: "Equilibrado",
-    interval: "Até três quadros",
-    description:
-      "Equilíbrio entre contexto, precisão temporal e custo.",
-  },
-  {
-    value: "intensive",
-    name: "Detalhado",
-    interval: "Até quatro quadros",
-    description:
-      "Maior granularidade para eventos rápidos ou críticos.",
-  },
-];
-
 export function CameraSetupForm({ sites }: Props) {
   const [state, formAction, pending] = useActionState(
     createCameraAction,
@@ -87,26 +63,14 @@ export function CameraSetupForm({ sites }: Props) {
         />
       </label>
 
-      <fieldset className="plan-selector">
-        <legend>Modo de análise visual</legend>
-        <div>
-          {planOptions.map((plan) => (
-            <label key={plan.value}>
-              <input
-                type="radio"
-                name="plan"
-                value={plan.value}
-                defaultChecked={plan.value === "standard"}
-              />
-              <span>
-                <strong>{plan.name}</strong>
-                <small>{plan.interval}</small>
-                <em>{plan.description}</em>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <div className="camera-security-note">
+        <strong>O plano será escolhido depois do cadastro.</strong>
+        <p>
+          Em Planos, você poderá combinar Essencial, Atenta e
+          Detalhada e ver o desconto progressivo antes de gerar a
+          cobrança.
+        </p>
+      </div>
 
       <label>
         <span>O que essa câmera deve acompanhar?</span>

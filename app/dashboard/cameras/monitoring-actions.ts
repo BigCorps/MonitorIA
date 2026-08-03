@@ -39,8 +39,6 @@ export async function updateMonitoringSettingsAction(
     };
   }
 
-  const plan = normalizeAnalysisPlan(formData.get("plan"));
-  const settings = CAMERA_ANALYSIS_PLANS[plan];
   const adaptive = formData.get("adaptive") === "on";
 
   const overlayCandidate = String(
@@ -103,7 +101,7 @@ export async function updateMonitoringSettingsAction(
 
   const { data: camera, error: cameraError } = await supabase
     .from("cameras")
-    .select("id")
+    .select("id,analysis_plan_code")
     .eq("id", cameraId)
     .eq("organization_id", organization.id)
     .maybeSingle();
@@ -115,10 +113,16 @@ export async function updateMonitoringSettingsAction(
     };
   }
 
+  // O plano comercial não vem do formulário. Isso impede que a
+  // configuração técnica contorne a assinatura da câmera.
+  const plan = normalizeAnalysisPlan(
+    (camera as { analysis_plan_code?: unknown }).analysis_plan_code,
+  );
+  const settings = CAMERA_ANALYSIS_PLANS[plan];
+
   const { error } = await supabase
     .from("cameras")
     .update({
-      analysis_plan_code: plan,
       capture_interval_seconds:
         settings.captureIntervalSeconds,
       consolidation_interval_seconds:

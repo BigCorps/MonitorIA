@@ -15,9 +15,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const planLabels: Record<string, string> = {
-  basic: "Econômico",
-  standard: "Equilibrado",
-  intensive: "Detalhado",
+  basic: "Essencial",
+  standard: "Atenta",
+  intensive: "Detalhada",
 };
 
 const pairingLabels: Record<string, string> = {
@@ -96,7 +96,7 @@ export default async function CameraDetailPage({
                 <dd>{camera.siteName}</dd>
               </div>
               <div>
-                <dt>Modo visual</dt>
+                <dt>Plano configurado</dt>
                 <dd>
                   {planLabels[camera.planCode] ??
                     camera.planCode}
