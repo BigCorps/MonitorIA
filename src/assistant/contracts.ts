@@ -10,6 +10,7 @@ export const AssistantPlanSchema = z
       "operating_hours",
       "visual_state",
       "continuity_summary",
+      "interaction_sessions",
       "period_summary",
       "search_events",
       "compare_periods",

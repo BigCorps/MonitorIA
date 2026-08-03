@@ -418,7 +418,49 @@ export async function POST(request: Request) {
     let retrievedData: unknown = {};
     let candidateEvidenceIds: string[] = [];
 
-    if (plan.intent === "continuity_summary") {
+    if (plan.intent === "interaction_sessions") {
+      const result = await supabase.rpc(
+        "assistant_operational_sessions_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const payload = objectValue(result.data);
+      const sessions = Array.isArray(payload.sessions)
+        ? payload.sessions.map(objectValue)
+        : [];
+
+      candidateEvidenceIds = sessions
+        .flatMap((session) =>
+          Array.isArray(session.evidence_event_ids)
+            ? session.evidence_event_ids
+            : Array.isArray(session.evidenceEventIds)
+              ? session.evidenceEventIds
+              : [],
+        )
+        .filter((id): id is string => typeof id === "string");
+
+      retrievedData = {
+        operationalSessions: result.data,
+        definitions: {
+          session:
+            "História operacional formada por capítulos visualmente relacionados.",
+          outcome:
+            "Resultado visual observado; não confirma venda, pagamento ou intenção.",
+          closureByInactivity:
+            "Encerramento calculado quando não houve novo capítulo dentro da janela configurada.",
+        },
+      };
+    } else if (plan.intent === "continuity_summary") {
       const result = await supabase.rpc(
         "assistant_continuity_summary",
         {
@@ -679,6 +721,7 @@ export async function POST(request: Request) {
       retrievedData = {
         capabilities: [
           "estimar pessoas distintas e agrupar capítulos do mesmo atendimento",
+          "consolidar capítulos em sessões operacionais com duração e resultado visual",
           "diferenciar funcionários prováveis por perfis operacionais aprovados",
           "informar abertura e fechamento visualmente confirmados",
           "consultar o estado atual de entidades configuradas",

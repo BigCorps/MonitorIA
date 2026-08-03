@@ -4,6 +4,10 @@ import {
   eventTypeLabel,
   reviewLabel,
 } from "@/src/lib/event-labels";
+import {
+  operationalSessionChapterLabel,
+  operationalSessionTypeLabel,
+} from "@/src/lib/operational-session-labels";
 import styles from "./events.module.css";
 
 type Props = {
@@ -94,6 +98,14 @@ export function EventList({
               ) : null}
               {event.interactionEventCount > 1 ? (
                 <span>↻ {event.interactionEventCount} capítulos</span>
+              ) : null}
+              {event.operationalSessionId && event.sessionType ? (
+                <span>{operationalSessionTypeLabel(event.sessionType)}</span>
+              ) : null}
+              {event.sessionChapterOrder && event.sessionChapterType ? (
+                <span>
+                  Cap. {event.sessionChapterOrder}/{event.sessionChapterCount} · {operationalSessionChapterLabel(event.sessionChapterType)}
+                </span>
               ) : null}
               <span>◷ {durationLabel(event.durationSeconds)}</span>
               <span

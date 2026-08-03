@@ -32,6 +32,14 @@ export type SearchEventRow = {
   probableCustomerCount: number;
   probableStaffCount: number;
   continuityConfidence: number;
+  operationalSessionId: string | null;
+  sessionType: string | null;
+  sessionStatus: string | null;
+  sessionChapterType: string | null;
+  sessionChapterOrder: number | null;
+  sessionChapterCount: number;
+  sessionDurationSeconds: number;
+  sessionConfidence: number;
   thumbnailAssetId: string | null;
 };
 
@@ -237,6 +245,22 @@ function mapSearchRows(data: unknown[]): SearchEventRow[] {
     probableCustomerCount: Number(row.probable_customer_count ?? 0),
     probableStaffCount: Number(row.probable_staff_count ?? 0),
     continuityConfidence: Number(row.continuity_confidence ?? 0),
+    operationalSessionId: row.operational_session_id
+      ? String(row.operational_session_id)
+      : null,
+    sessionType: row.session_type ? String(row.session_type) : null,
+    sessionStatus: row.session_status ? String(row.session_status) : null,
+    sessionChapterType: row.session_chapter_type
+      ? String(row.session_chapter_type)
+      : null,
+    sessionChapterOrder:
+      row.session_chapter_order === null ||
+      row.session_chapter_order === undefined
+        ? null
+        : Number(row.session_chapter_order),
+    sessionChapterCount: Number(row.session_chapter_count ?? 0),
+    sessionDurationSeconds: Number(row.session_duration_seconds ?? 0),
+    sessionConfidence: Number(row.session_confidence ?? 0),
     thumbnailAssetId: row.thumbnail_asset_id
       ? String(row.thumbnail_asset_id)
       : null,

@@ -14,6 +14,7 @@ export type DashboardSection =
   | "overview"
   | "cameras"
   | "events"
+  | "sessions"
   | "search"
   | "trial"
   | "plans"
@@ -62,6 +63,17 @@ function EventsIcon() {
       <circle cx="7" cy="6" r="1" />
       <circle cx="14" cy="12" r="1" />
       <circle cx="10" cy="18" r="1" />
+    </svg>
+  );
+}
+
+function SessionsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 5h14v4H5z" />
+      <path d="M5 11h14v4H5z" />
+      <path d="M5 17h14v2H5z" />
+      <path d="M8 7h8M8 13h8" />
     </svg>
   );
 }
@@ -161,6 +173,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/events",
     label: "Eventos",
     icon: <EventsIcon />,
+  },
+  {
+    id: "sessions",
+    href: "/dashboard/sessions",
+    label: "Sessões",
+    icon: <SessionsIcon />,
   },
   {
     id: "search",
