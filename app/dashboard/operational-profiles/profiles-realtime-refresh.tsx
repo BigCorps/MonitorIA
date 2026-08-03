@@ -41,7 +41,7 @@ export function ProfilesRealtimeRefresh({ organizationId }: { organizationId: st
         event: "*", schema: "public", table: "staff_profile_update_proposals",
         filter: `organization_id=eq.${organizationId}`,
       }, refresh)
-      .subscribe((next) => {
+      .subscribe((next: string) => {
         if (next === "SUBSCRIBED") setStatus("live");
         if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(next)) setStatus("offline");
       });

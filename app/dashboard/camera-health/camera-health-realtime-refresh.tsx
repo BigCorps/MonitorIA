@@ -20,7 +20,7 @@ export default function CameraHealthRealtimeRefresh({ organizationId }: { organi
     const channel = supabase.channel(`camera-health-${organizationId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "camera_health_incidents", filter: `organization_id=eq.${organizationId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "camera_health_baselines", filter: `organization_id=eq.${organizationId}` }, refresh)
-      .subscribe((next) => setStatus(next === "SUBSCRIBED" ? "live" : next === "CHANNEL_ERROR" ? "offline" : "connecting"));
+      .subscribe((next: string) => setStatus(next === "SUBSCRIBED" ? "live" : next === "CHANNEL_ERROR" ? "offline" : "connecting"));
     return () => { if (timer.current) clearTimeout(timer.current); void supabase.removeChannel(channel); };
   }, [organizationId, router]);
 

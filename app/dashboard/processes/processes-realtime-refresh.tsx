@@ -49,7 +49,7 @@ export function ProcessesRealtimeRefresh({ organizationId }: Props) {
         },
         refresh,
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === "SUBSCRIBED") setState("live");
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setState("offline");

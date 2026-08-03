@@ -56,7 +56,7 @@ export function SessionsRealtimeRefresh({ organizationId }: Props) {
         },
         refreshSoon,
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (!active) return;
 
         if (status === "SUBSCRIBED") {

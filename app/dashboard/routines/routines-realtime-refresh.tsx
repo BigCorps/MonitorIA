@@ -60,7 +60,7 @@ export function RoutinesRealtimeRefresh({
         },
         scheduleRefresh,
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === "SUBSCRIBED") setState("live");
         if (
           status === "CHANNEL_ERROR" ||

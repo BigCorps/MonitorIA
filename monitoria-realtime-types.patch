@@ -1,0 +1,50 @@
+diff --git a/src/lib/supabase/client.ts b/src/lib/supabase/client.ts
+--- a/src/lib/supabase/client.ts
++++ b/src/lib/supabase/client.ts
+@@
+ import { createBrowserClient } from "@supabase/ssr";
++import type { SupabaseClient } from "@supabase/supabase-js";
+
+-let browserClient:
+-  | ReturnType<typeof createBrowserClient>
+-  | null = null;
++let browserClient: SupabaseClient | null = null;
+
+-export function createClient() {
++export function createClient(): SupabaseClient {
+diff --git a/app/dashboard/camera-health/camera-health-realtime-refresh.tsx b/app/dashboard/camera-health/camera-health-realtime-refresh.tsx
+--- a/app/dashboard/camera-health/camera-health-realtime-refresh.tsx
++++ b/app/dashboard/camera-health/camera-health-realtime-refresh.tsx
+@@
+-      .subscribe((next) => setStatus(next === "SUBSCRIBED" ? "live" : next === "CHANNEL_ERROR" ? "offline" : "connecting"));
++      .subscribe((next: string) => setStatus(next === "SUBSCRIBED" ? "live" : next === "CHANNEL_ERROR" ? "offline" : "connecting"));
+diff --git a/app/dashboard/processes/processes-realtime-refresh.tsx b/app/dashboard/processes/processes-realtime-refresh.tsx
+--- a/app/dashboard/processes/processes-realtime-refresh.tsx
++++ b/app/dashboard/processes/processes-realtime-refresh.tsx
+@@
+-      .subscribe((status) => {
++      .subscribe((status: string) => {
+diff --git a/app/dashboard/routines/routines-realtime-refresh.tsx b/app/dashboard/routines/routines-realtime-refresh.tsx
+--- a/app/dashboard/routines/routines-realtime-refresh.tsx
++++ b/app/dashboard/routines/routines-realtime-refresh.tsx
+@@
+-      .subscribe((status) => {
++      .subscribe((status: string) => {
+diff --git a/app/dashboard/sessions/sessions-realtime-refresh.tsx b/app/dashboard/sessions/sessions-realtime-refresh.tsx
+--- a/app/dashboard/sessions/sessions-realtime-refresh.tsx
++++ b/app/dashboard/sessions/sessions-realtime-refresh.tsx
+@@
+-      .subscribe((status) => {
++      .subscribe((status: string) => {
+diff --git a/app/dashboard/events/events-realtime-refresh.tsx b/app/dashboard/events/events-realtime-refresh.tsx
+--- a/app/dashboard/events/events-realtime-refresh.tsx
++++ b/app/dashboard/events/events-realtime-refresh.tsx
+@@
+-      .subscribe((status) => {
++      .subscribe((status: string) => {
+diff --git a/app/dashboard/operational-profiles/profiles-realtime-refresh.tsx b/app/dashboard/operational-profiles/profiles-realtime-refresh.tsx
+--- a/app/dashboard/operational-profiles/profiles-realtime-refresh.tsx
++++ b/app/dashboard/operational-profiles/profiles-realtime-refresh.tsx
+@@
+-      .subscribe((next) => {
++      .subscribe((next: string) => {
