@@ -1,0 +1,111 @@
+{
+  "version": "mcp-public-v1",
+  "repoRoot": "/workspaces/MonitorIA",
+  "createdAt": "2026-08-03T18:12:30.684Z",
+  "operations": [
+    {
+      "path": "src/mcp/constants.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/contracts.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/supabase.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/auth.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/grants.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/envelope.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/data.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "src/mcp/server.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/mcp/route.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/.well-known/oauth-protected-resource/route.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/.well-known/oauth-protected-resource/mcp/route.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/oauth/consent/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "app/oauth/consent/oauth-consent.module.css",
+      "existedBefore": false
+    },
+    {
+      "path": "app/api/oauth/decision/route.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/dashboard/profile/mcp-connections/actions.ts",
+      "existedBefore": false
+    },
+    {
+      "path": "app/dashboard/profile/mcp-connections/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "app/dashboard/profile/mcp-connections/mcp-connections.module.css",
+      "existedBefore": false
+    },
+    {
+      "path": "app/integrations/monitoria-mcp/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "app/integrations/monitoria-mcp/monitoria-mcp.module.css",
+      "existedBefore": false
+    },
+    {
+      "path": "app/integrations/monitoria-mcp/privacy/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "app/integrations/monitoria-mcp/terms/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "app/integrations/monitoria-mcp/support/page.tsx",
+      "existedBefore": false
+    },
+    {
+      "path": "supabase/migrations/20260801230000_mcp_public_v1.sql",
+      "existedBefore": false
+    },
+    {
+      "path": "supabase/migrations/rollback_mcp_public_v1.sql",
+      "existedBefore": false
+    },
+    {
+      "path": "package.json",
+      "existedBefore": true
+    },
+    {
+      "path": ".env.example",
+      "existedBefore": true
+    }
+  ]
+}
