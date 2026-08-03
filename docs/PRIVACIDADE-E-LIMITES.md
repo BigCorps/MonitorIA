@@ -1,49 +1,38 @@
-# Privacidade e limites da INT-4
+# Privacidade e limites
 
-## O que a fase aprende
+## O que a INT-5 faz
 
-A fase aprende horários e volumes visuais agregados por câmera, por exemplo:
+- organiza ações visíveis em etapas;
+- compara a ordem observada com uma definição;
+- mede duração;
+- aponta ausência de confirmação visual;
+- mantém evidências relacionadas.
 
-- quando uma abertura costuma ser confirmada;
-- quando ocorre o primeiro atendimento;
-- quantas sessões normalmente aparecem;
-- quanto tempo um tipo de sessão costuma durar;
-- quando um fechamento costuma ser confirmado.
+## O que ela não deve afirmar
 
-## O que a fase não conclui
-
-Ela não conclui automaticamente:
-
-- que alguém cometeu uma infração;
+- que uma pessoa errou intencionalmente;
 - que houve fraude;
-- que uma pessoa teve determinada intenção;
-- que a empresa realmente não abriu;
-- que uma atividade não ocorreu fora do enquadramento;
-- que uma câmera representa toda a operação do local.
+- que uma etapa não aconteceu fora do enquadramento;
+- que uma ação adicional é irregular;
+- que o processo foi legal, financeiro ou comercialmente concluído;
+- identidade civil de participantes.
 
-## Ausência de evidência
+## Linguagem correta
 
-`opening_not_observed` e `closing_not_observed` significam ausência de confirmação visual suficiente até determinado horário.
+Preferir:
 
-Não significam prova de que a abertura ou o fechamento não aconteceu.
+> Não houve confirmação visual suficiente da etapa final.
 
-## Fontes de erro
+Evitar:
 
-- câmera desligada ou deslocada;
-- obstrução;
-- baixa iluminação;
-- perfil visual desatualizado;
-- evento não capturado;
-- período histórico curto;
-- feriado, manutenção ou exceção não configurada;
-- mudança legítima de rotina;
-- atividades fora do campo de visão.
+> O funcionário não realizou a etapa final.
 
-## Proteções
+Preferir:
 
-- baseline só fica ativo após amostra mínima;
-- confiança acompanha baseline e desvio;
-- exceções podem ser registradas;
-- expectativas podem ser pausadas;
-- evidências são preservadas quando existem;
-- a redação evita transformar padrão em acusação.
+> A ordem visual observada foi diferente da definição ativa.
+
+Evitar:
+
+> O procedimento foi executado incorretamente.
+
+A câmera pode não mostrar todas as etapas, e o evento pode ter sido dividido ou ocluído.

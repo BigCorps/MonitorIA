@@ -1,40 +1,37 @@
-# Aplicação da INT-4
+# Aplicação da INT-5
 
-## 1. Dependências obrigatórias
+## Dependências obrigatórias
 
-A migration interrompe com erro explícito quando não encontra:
-
-```text
-public.site_operating_sessions
-public.operational_sessions
-public.operational_insights
-public.monitoria_capability_registry
-```
-
-Isso significa que INT-1, INT-3 e INT-3.8 precisam estar aplicadas no banco. O instalador também exige os arquivos de INT-3 e INT-3.8 no repositório.
-
-## 2. Banco
-
-Execute uma única vez:
+Confirme no banco e no repositório:
 
 ```text
-supabase/migrations/20260802190000_routine_intelligence_v1.sql
+INT-3   operational_sessions e operational_session_events
+INT-3.8 operational_insights e monitoria_capability_registry
+INT-4   camera_behavior_baselines
 ```
 
-A cópia isolada é:
+## 1. Aplicar a migration
+
+Execute:
 
 ```text
-004-routine-intelligence-v1.sql
+005-operational-process-intelligence-v1.sql
 ```
 
-Não execute o rollback como parte da instalação.
+A migration cria templates genéricos, mas mantém `process_intelligence_enabled=false` por padrão. Ative por câmera somente depois de revisar a configuração.
 
-## 3. Código
+Exemplo:
 
-Na raiz do repositório:
+```sql
+update public.cameras
+set process_intelligence_enabled = true
+where id = 'CAMERA_UUID';
+```
+
+## 2. Aplicar os arquivos
 
 ```bash
-node MonitorIA-inteligencia-fase-4/scripts/apply-fase-4.mjs \
+node MonitorIA-inteligencia-fase-5/scripts/apply-fase-5.mjs \
   --repo . \
   --dry-run
 ```
@@ -42,91 +39,44 @@ node MonitorIA-inteligencia-fase-4/scripts/apply-fase-4.mjs \
 Depois:
 
 ```bash
-node MonitorIA-inteligencia-fase-4/scripts/apply-fase-4.mjs \
+node MonitorIA-inteligencia-fase-5/scripts/apply-fase-5.mjs \
   --repo .
 ```
 
-O instalador:
-
-- cria backup dos arquivos existentes;
-- instala os arquivos completos da fase;
-- modifica apenas blocos conhecidos;
-- pode ser executado novamente sem duplicar código;
-- informa erro se a base esperada tiver mudado.
-
-## 4. Validação
+## 3. Validar
 
 ```bash
 npm run check
 npm run build
 ```
 
-Depois do deploy, valide:
+## 4. Processar a fila inicial
 
 ```text
-/dashboard/routines
-/api/cron/routines?mode=evaluate
-/api/cron/routines?mode=full
+GET /api/cron/processes?mode=queue&limit=100
+Authorization: Bearer CRON_SECRET
 ```
 
-Os dois endpoints de cron exigem:
+Para reconstrução controlada:
 
 ```text
-Authorization: Bearer <CRON_SECRET>
+GET /api/cron/processes?mode=full&limit=500
 ```
 
-## 5. Agenda recomendada
+## 5. Agendamento recomendado
 
-Avaliação leve, para desvios atuais:
+- fila: a cada 5 minutos;
+- reconstrução completa: uma vez por noite durante homologação;
+- após estabilização, reconstrução completa somente sob demanda.
+
+## Rollback
+
+Primeiro remova ou reverta os arquivos. Depois execute:
 
 ```text
-GET /api/cron/routines?mode=evaluate
+005-operational-process-intelligence-v1-rollback.sql
 ```
 
-Frequência inicial recomendada: uma vez por hora.
+## Definições personalizadas
 
-Reconstrução completa de observações, baselines e insights:
-
-```text
-GET /api/cron/routines?mode=full
-```
-
-Frequência inicial recomendada: uma vez por noite.
-
-Use `limit` e `offset` para processar lotes:
-
-```text
-/api/cron/routines?mode=full&limit=100&offset=0
-```
-
-## 6. Primeira execução
-
-A migration habilita a rotina apenas em câmeras que já tenham `operational_sessions_enabled = true`.
-
-Uma câmera nova começa em aprendizado. O padrão geral só fica ativo quando atingir `routine_minimum_days`, inicialmente 5 dias. Dados históricos já existentes dentro da janela de 42 dias podem formar o baseline imediatamente.
-
-## 7. Rollback
-
-Primeiro restaure os arquivos usando o caminho de backup exibido pelo instalador:
-
-```bash
-node MonitorIA-inteligencia-fase-4/scripts/restore-fase-4.mjs \
-  --repo . \
-  --backup ../MonitorIA-backup-routine-intelligence-v1-AAAA-MM-DD...
-```
-
-Depois, apenas quando a remoção do banco for realmente desejada, execute:
-
-```text
-supabase/migrations/rollback_routine_intelligence_v1.sql
-```
-
-O rollback remove estruturas da INT-4 e volta as capacidades `routines` e `deviations` para `planned`.
-
-## 8. O que não foi executado ao preparar o pacote
-
-- nenhuma migration foi aplicada no Supabase;
-- nenhum arquivo foi alterado no GitHub;
-- nenhum deploy foi iniciado;
-- nenhum cron foi configurado;
-- nenhuma ferramenta MCP pública foi renomeada.
+A migration inclui a RPC administrativa `save_operational_process_definition_v1`. Ela deve ser chamada apenas por owner/admin autenticado ou por uma futura tela administrativa. O MCP público não possui permissão de execução.

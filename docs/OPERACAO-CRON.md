@@ -1,63 +1,28 @@
-# Operação dos crons de rotina
+# Operação do cron de processos
 
-## Endpoint
-
-```text
-GET /api/cron/routines
-```
-
-Autorização:
+## Fila
 
 ```text
-Authorization: Bearer <CRON_SECRET>
+/api/cron/processes?mode=queue
 ```
 
-## Avaliação frequente
+Processa sessões enfileiradas por triggers. É o modo normal de produção.
+
+## Reconstrução
 
 ```text
-/api/cron/routines?mode=evaluate&limit=100&offset=0
+/api/cron/processes?mode=full
 ```
 
-Executa apenas a comparação com expectativas existentes.
+Reprocessa sessões recentes selecionadas pela função SQL. Use em homologação, mudança de template ou correção de regra.
 
-Uso recomendado: a cada hora.
+## Segurança
 
-## Atualização completa
-
-```text
-/api/cron/routines?mode=full&limit=100&offset=0
-```
-
-Reconstrói:
-
-- observações da janela;
-- baselines;
-- expectativas aprendidas;
-- insights de rotina;
-- desvios.
-
-Uso recomendado: uma vez por noite.
-
-## Processamento em lotes
-
-Para mais de 100 câmeras, use offsets sucessivos:
-
-```text
-offset=0
-offset=100
-offset=200
-```
-
-A resposta informa câmeras processadas, falhas e IDs afetados.
+- exige `Authorization: Bearer CRON_SECRET`;
+- utiliza `service_role` somente no servidor;
+- nunca exponha o segredo em URL, SQL ou frontend;
+- logs não devem incluir imagens, tokens ou RTSP.
 
 ## Falhas
 
-Uma falha em uma câmera não interrompe as demais do lote. O resultado agrega:
-
-```text
-processed
-failed
-failures
-```
-
-A reconstrução completa também registra `routine_refresh_runs` por câmera.
+A fila usa backoff e preserva `last_error`. Uma falha não remove a sessão nem os eventos originais.

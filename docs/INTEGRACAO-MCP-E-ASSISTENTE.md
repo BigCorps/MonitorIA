@@ -1,33 +1,33 @@
 # Integração com Assistente e MCP
 
-## Assistente MonitorIA
+## Assistente
 
-A INT-4 adiciona a intenção interna:
-
-```text
-routines_deviations
-```
-
-Ela atende perguntas como:
-
-- Qual é o horário habitual de abertura?
-- A loja abriu mais tarde hoje?
-- Houve atividade depois do fechamento?
-- Quantos atendimentos costumam ocorrer por dia?
-- Alguma sessão durou mais que o normal?
-- O que ficou fora do padrão esta semana?
-
-A resposta utiliza a RPC:
+Nova intenção:
 
 ```text
-assistant_routine_deviation_summary
+processes_actions
 ```
 
-## MCP público
+Perguntas previstas:
 
-Nenhuma das 14 ferramentas públicas é renomeada ou substituída.
+- Quais etapas do atendimento foram observadas?
+- Houve algum processo incompleto hoje?
+- Qual etapa ainda está pendente?
+- Houve ações fora da sequência?
+- Quais entregas tiveram transferência de objeto confirmada?
+- O fechamento teve a etapa final visualmente confirmada?
 
-Os resultados entram dentro de ferramentas já congeladas:
+A RPC usada é:
+
+```text
+assistant_operational_process_summary_v1
+```
+
+## MCP
+
+Nenhuma ferramenta pública é adicionada.
+
+A capacidade `processes` passa para `available`, e os dados entram em:
 
 ```text
 get_monitoria_capabilities
@@ -38,30 +38,4 @@ search_insights
 ask_monitoria
 ```
 
-As capacidades mudam de:
-
-```text
-routines: planned
-deviations: planned
-```
-
-para:
-
-```text
-routines: available
-deviations: available
-```
-
-## Evidências
-
-Quando um desvio deriva de eventos concretos, são retornados IDs de evidência. Quando deriva de ausência de confirmação ou de uma agregação, a resposta deve explicar que pode não existir um evento individual.
-
-## Contrato congelado
-
-A implementação interna pode melhorar nas próximas fases, mas não deve:
-
-- adicionar parâmetro obrigatório;
-- mudar o tipo de um campo existente;
-- transformar ferramenta de leitura em escrita;
-- alterar autenticação;
-- ampliar organização ou câmera sem autorização.
+O toolset público continua `1.0.0` e somente leitura.

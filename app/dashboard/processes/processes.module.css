@@ -1,0 +1,79 @@
+.page { display: grid; gap: 24px; }
+.header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.header h1 { margin: 4px 0 8px; font-size: clamp(1.8rem, 4vw, 2.6rem); }
+.header p { margin: 0; max-width: 760px; color: #64748b; line-height: 1.6; }
+.eyebrow, .sectionHeader span { color: #2563eb; font-weight: 800; font-size: .72rem; letter-spacing: .12em; }
+.liveButton { border: 1px solid #dbeafe; background: #fff; border-radius: 999px; padding: 10px 14px; display: inline-flex; gap: 8px; align-items: center; font-weight: 700; color: #334155; cursor: pointer; }
+.liveButton span { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.live span { background: #22c55e; box-shadow: 0 0 0 4px #dcfce7; }
+.updating span, .connecting span { background: #f59e0b; }
+.offline span { background: #ef4444; }
+.metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.metrics article { border: 1px solid #e2e8f0; background: #fff; border-radius: 16px; padding: 18px; }
+.metrics strong { display: block; font-size: 1.75rem; }
+.metrics span { color: #64748b; font-size: .86rem; }
+.filters { border: 1px solid #e2e8f0; background: #fff; border-radius: 16px; padding: 0 18px 18px; }
+.filters summary { cursor: pointer; padding: 18px 0; font-weight: 800; }
+.filters form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.filters label { display: grid; gap: 6px; font-size: .78rem; font-weight: 700; color: #475569; }
+.filters input, .filters select { min-width: 0; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 11px; background: #fff; color: #0f172a; }
+.filterActions { display: flex; gap: 10px; align-items: end; }
+.filterActions button, .filterActions a { border-radius: 10px; padding: 10px 15px; text-decoration: none; font-weight: 800; }
+.filterActions button { border: 0; background: #0f172a; color: #fff; }
+.filterActions a { border: 1px solid #cbd5e1; color: #334155; }
+.section { display: grid; gap: 14px; }
+.sectionHeader { display: flex; justify-content: space-between; align-items: end; }
+.sectionHeader h2 { margin: 3px 0 0; }
+.sectionHeader small { color: #64748b; }
+.processList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.processCard { border: 1px solid #e2e8f0; background: #fff; border-radius: 20px; padding: 20px; display: grid; gap: 15px; }
+.processTop { display: flex; justify-content: space-between; gap: 15px; }
+.processTop > div > span { color: #64748b; font-size: .78rem; }
+.processTop h3, .deviationCard h3, .definitionGrid h3 { margin: 4px 0 0; }
+.processCard > p { margin: 0; color: #475569; line-height: 1.55; }
+.status, .severity { border-radius: 999px; padding: 6px 10px; font-size: .72rem; font-weight: 800; align-self: flex-start; white-space: nowrap; }
+.open { background: #eff6ff; color: #1d4ed8; }
+.completed { background: #ecfdf5; color: #047857; }
+.incomplete, .high, .critical { background: #fef2f2; color: #b91c1c; }
+.uncertain, .medium { background: #fffbeb; color: #b45309; }
+.info, .low { background: #f1f5f9; color: #475569; }
+.progressRow { display: flex; gap: 10px; align-items: center; }
+.progress { flex: 1; height: 8px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.progress span { display: block; height: 100%; background: #2563eb; border-radius: inherit; }
+.progressRow strong { font-size: .8rem; }
+.processMeta { display: flex; flex-wrap: wrap; gap: 8px; }
+.processMeta span { border-radius: 999px; padding: 5px 9px; background: #f8fafc; color: #475569; font-size: .74rem; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; }
+.steps li > span { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #f1f5f9; font-size: .75rem; font-weight: 800; }
+.steps li div { display: grid; gap: 2px; }
+.steps li small { color: #64748b; }
+.steps li a, .processCard footer a, .deviationCard a { color: #2563eb; text-decoration: none; font-weight: 800; font-size: .78rem; }
+.steps .observed { border-color: #bbf7d0; }
+.steps .missing, .steps .out_of_order { border-color: #fecaca; }
+.steps .unexpected { border-style: dashed; }
+.processCard footer { display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: .78rem; }
+.deviationList { display: grid; gap: 10px; }
+.deviationCard { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; border: 1px solid #e2e8f0; background: #fff; border-radius: 15px; padding: 15px; }
+.deviationCard p { margin: 5px 0; color: #475569; }
+.deviationCard small { color: #64748b; }
+.definitionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.definitionGrid > article { border: 1px solid #e2e8f0; background: #fff; border-radius: 16px; padding: 17px; }
+.definitionGrid > article > span { color: #2563eb; font-size: .72rem; font-weight: 800; }
+.definitionGrid p { color: #64748b; line-height: 1.5; }
+.definitionGrid ol { display: grid; gap: 7px; padding-left: 20px; }
+.definitionGrid li { color: #334155; }
+.definitionGrid li small { display: block; color: #94a3b8; }
+.empty { border: 1px dashed #cbd5e1; border-radius: 16px; padding: 30px; text-align: center; color: #64748b; background: #f8fafc; }
+@media (min-width: 761px) { .filters > summary { display: none; } .filters:not([open]) > *:not(summary) { display: grid; } }
+@media (max-width: 1050px) { .metrics { grid-template-columns: repeat(3, 1fr); } .definitionGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) {
+  .header { display: grid; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .filters { padding-bottom: 0; }
+  .filters[open] { padding-bottom: 16px; }
+  .filters form { grid-template-columns: 1fr; }
+  .processList, .definitionGrid { grid-template-columns: 1fr; }
+  .processTop, .processCard footer { align-items: flex-start; }
+  .deviationCard { grid-template-columns: 1fr; }
+}

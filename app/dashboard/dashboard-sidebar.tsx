@@ -16,6 +16,7 @@ export type DashboardSection =
   | "events"
   | "sessions"
   | "routines"
+  | "processes"
   | "search"
   | "trial"
   | "plans"
@@ -84,6 +85,17 @@ function RoutinesIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="8.5" />
       <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
+function ProcessesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="4" width="7" height="7" rx="1.5" />
+      <rect x="14" y="13" width="7" height="7" rx="1.5" />
+      <path d="M10 7.5h4a3 3 0 0 1 3 3V13" />
+      <path d="M14 5l3 2.5-3 2.5" />
     </svg>
   );
 }
@@ -195,6 +207,12 @@ const items: NavigationItem[] = [
     href: "/dashboard/routines",
     label: "Rotinas",
     icon: <RoutinesIcon />,
+  },
+  {
+    id: "processes",
+    href: "/dashboard/processes",
+    label: "Processos",
+    icon: <ProcessesIcon />,
   },
   {
     id: "search",
