@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatBrl } from "@/src/billing/pricing";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
@@ -98,7 +99,7 @@ export default async function PlansPage({
           <section className={styles.invoiceCard}>
             <div className={styles.sectionHeading}>
               <div>
-                <span>FATURA EM RASCUNHO</span>
+                <span>FATURA ATUAL</span>
                 <h2>
                   {commercial.draftInvoice.invoiceNumber}
                 </h2>
@@ -145,11 +146,18 @@ export default async function PlansPage({
               </span>
             </footer>
 
-            <p>
-              Esta fatura já está registrada com os preços e
-              descontos congelados. A geração do QR Code Pix será
-              adicionada na Fase 2.
-            </p>
+            <div className={styles.invoiceAction}>
+              <p>
+                Esta fatura já está registrada com os preços e
+                descontos congelados. Continue para gerar o QR Code
+                Pix e acompanhar a confirmação automática.
+              </p>
+              <Link
+                href={`/dashboard/billing?invoice=${commercial.draftInvoice.id}`}
+              >
+                Ir para pagamento
+              </Link>
+            </div>
           </section>
         ) : null}
 

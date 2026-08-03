@@ -145,12 +145,24 @@ export async function createDraftInvoiceAction(
   const invoiceNumber = String(
     result.invoiceNumber ?? "nova fatura",
   );
+  const invoiceId = String(result.invoiceId ?? "");
+
+  if (!z.string().uuid().safeParse(invoiceId).success) {
+    plansRedirect(
+      "error",
+      "A fatura foi preparada, mas não pôde ser aberta.",
+    );
+  }
 
   revalidatePath("/dashboard/plans");
+  revalidatePath("/dashboard/billing");
   revalidatePath("/dashboard/cameras");
 
-  plansRedirect(
-    "message",
-    `${invoiceNumber} preparada. O Pix será conectado na Fase 2.`,
+  redirect(
+    `/dashboard/billing?invoice=${encodeURIComponent(
+      invoiceId,
+    )}&message=${encodeURIComponent(
+      `${invoiceNumber} preparada. Gere o Pix para ativar as câmeras.`,
+    )}`,
   );
 }

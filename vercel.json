@@ -4,6 +4,10 @@
   "regions": ["pdx1"],
   "crons": [
     {
+      "path": "/api/cron/billing",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/retention",
       "schedule": "20 3 * * *"
     }

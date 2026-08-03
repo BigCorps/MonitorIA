@@ -84,7 +84,7 @@ export async function getCommercialFoundationData(
         "id,invoice_number,status,subtotal_cents,discount_cents,total_cents,service_period_start,service_period_end,created_at",
       )
       .eq("organization_id", organizationId)
-      .eq("status", "draft")
+      .in("status", ["draft", "open", "pending_payment"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -121,6 +121,7 @@ export async function getCommercialFoundationData(
     tiersResult.error,
     subscriptionsResult.error,
     invoiceResult.error,
+    accountResult.error,
     trialResult.error,
     allowanceResult.error,
   ].find(Boolean);

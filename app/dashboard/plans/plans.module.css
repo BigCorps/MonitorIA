@@ -562,3 +562,43 @@
     padding: 18px;
   }
 }
+
+.invoiceAction {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-top: 17px;
+  border-radius: 12px;
+  background: #f5f8fb;
+  padding: 12px 14px;
+}
+
+.invoiceAction p {
+  margin: 0;
+  color: #607085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.invoiceAction a {
+  flex: 0 0 auto;
+  border-radius: 11px;
+  background: #15845d;
+  color: #ffffff;
+  padding: 11px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .invoiceAction {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invoiceAction a {
+    text-align: center;
+  }
+}

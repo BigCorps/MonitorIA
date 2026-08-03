@@ -1,0 +1,478 @@
+.content {
+  color: #142033;
+}
+
+.headerAction,
+.emptyState a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #15845d;
+  color: #ffffff;
+  padding: 12px 17px;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.successNotice,
+.errorNotice {
+  margin: 0 0 22px;
+  border-radius: 14px;
+  padding: 14px 17px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.successNotice {
+  border: 1px solid #bfe8d5;
+  background: #effaf5;
+  color: #126c4e;
+}
+
+.errorNotice {
+  border: 1px solid #f0c7c7;
+  background: #fff5f5;
+  color: #a43737;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 22px;
+  align-items: start;
+}
+
+.mainColumn {
+  display: grid;
+  gap: 22px;
+}
+
+.invoiceCard,
+.pixCard,
+.historyCard,
+.emptyState {
+  border: 1px solid #e0e7ef;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(15, 31, 52, 0.05);
+}
+
+.invoiceCard,
+.pixCard,
+.historyCard {
+  padding: 24px;
+}
+
+.invoiceHeading,
+.pixHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.invoiceHeading span,
+.pixHeading span,
+.historyCard > div > span,
+.emptyState > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #16845d;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
+.invoiceHeading h2,
+.pixHeading h2,
+.historyCard h2,
+.emptyState h2 {
+  margin: 0;
+  color: #17243a;
+}
+
+.invoiceHeading > div:last-child,
+.pixHeading > strong {
+  text-align: right;
+}
+
+.invoiceHeading > div:last-child small {
+  display: block;
+  color: #5f6f82;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.invoiceHeading > div:last-child strong,
+.pixHeading > strong {
+  display: block;
+  margin-top: 5px;
+  color: #16845d;
+  font-size: 25px;
+}
+
+.invoiceItems {
+  display: grid;
+  gap: 0;
+  margin-top: 20px;
+}
+
+.invoiceItems > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #edf1f5;
+  padding: 11px 0;
+}
+
+.invoiceItems span,
+.invoiceItems strong,
+.invoiceItems small {
+  display: block;
+}
+
+.invoiceItems strong {
+  color: #263750;
+  font-size: 13px;
+}
+
+.invoiceItems small {
+  margin-top: 4px;
+  color: #7a8798;
+  font-size: 10px;
+}
+
+.invoiceItems b {
+  color: #25364e;
+  font-size: 13px;
+}
+
+.invoiceTotals {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+}
+
+.invoiceTotals > div {
+  display: flex;
+  justify-content: space-between;
+  color: #647287;
+  font-size: 13px;
+}
+
+.invoiceTotals > div:last-child {
+  margin-top: 5px;
+  border-top: 1px solid #dfe6ed;
+  padding-top: 13px;
+  color: #17243a;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.invoiceTotals dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.invoiceCard footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 18px;
+  color: #7a8798;
+  font-size: 10px;
+}
+
+.statusBanner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+  background: #f7f9fb;
+  padding: 13px 15px;
+}
+
+.statusBanner span,
+.statusBanner strong {
+  display: block;
+}
+
+.statusBanner span {
+  color: #7e8a9a;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.statusBanner strong {
+  margin-top: 3px;
+  color: #33445b;
+  font-size: 13px;
+}
+
+.statusBanner small {
+  color: #738095;
+  font-size: 10px;
+}
+
+.statusPaid {
+  border-color: #bfe8d5;
+  background: #effaf5;
+}
+
+.statusPaid strong {
+  color: #126c4e;
+}
+
+.pixContent {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.35fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.qrArea {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  border-radius: 17px;
+  background: #f6f9fb;
+  padding: 18px;
+}
+
+.qrArea img,
+.qrPlaceholder {
+  width: min(100%, 230px);
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.qrPlaceholder {
+  display: grid;
+  place-items: center;
+  color: #15845d;
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.qrArea small {
+  color: #748196;
+  font-size: 10px;
+  text-align: center;
+}
+
+.copyArea {
+  display: grid;
+  gap: 10px;
+}
+
+.copyArea label span {
+  display: block;
+  margin-bottom: 7px;
+  color: #43546a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.copyArea textarea {
+  width: 100%;
+  resize: none;
+  box-sizing: border-box;
+  border: 1px solid #dce4ed;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #2d3d53;
+  padding: 12px;
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+}
+
+.copyArea button,
+.generateState button {
+  border: 0;
+  border-radius: 12px;
+  background: #15845d;
+  color: #ffffff;
+  padding: 13px 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.copyArea button:disabled,
+.generateState button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.copyArea .secondaryButton {
+  border: 1px solid #dce4ed;
+  background: #ffffff;
+  color: #3d4e64;
+}
+
+.copyArea > small {
+  color: #8490a0;
+  font-size: 10px;
+  text-align: center;
+}
+
+.generateState,
+.paidState {
+  border-radius: 17px;
+  background: #f6f9fb;
+  padding: 28px;
+  text-align: center;
+}
+
+.generateState h3,
+.paidState h3 {
+  margin: 0;
+  color: #213149;
+}
+
+.generateState p,
+.paidState p {
+  max-width: 590px;
+  margin: 10px auto 18px;
+  color: #647287;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.generateState button {
+  min-width: 210px;
+}
+
+.generateState small,
+.paidState small {
+  display: block;
+  margin-top: 12px;
+  color: #7d8999;
+  font-size: 10px;
+}
+
+.paidState {
+  background: #effaf5;
+}
+
+.paidState > div {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 13px;
+  border-radius: 50%;
+  background: #20ad7a;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.historyCard {
+  position: sticky;
+  top: 24px;
+}
+
+.historyCard nav {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.historyItem,
+.historySelected {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8ef;
+  border-radius: 13px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.historySelected {
+  border-color: #23a975;
+  background: #ecfaf4;
+}
+
+.historyItem span,
+.historyItem strong,
+.historyItem small,
+.historySelected span,
+.historySelected strong,
+.historySelected small {
+  display: block;
+}
+
+.historyItem strong,
+.historySelected strong {
+  color: #263750;
+  font-size: 12px;
+}
+
+.historyItem small,
+.historySelected small {
+  margin-top: 4px;
+  color: #788597;
+  font-size: 9px;
+}
+
+.historyItem b,
+.historySelected b {
+  color: #34455c;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.emptyState {
+  padding: 42px;
+  text-align: center;
+}
+
+.emptyState p {
+  max-width: 620px;
+  margin: 12px auto 20px;
+  color: #657488;
+  line-height: 1.6;
+}
+
+@media (max-width: 1050px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .historyCard {
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .invoiceCard,
+  .pixCard,
+  .historyCard {
+    padding: 18px;
+  }
+
+  .invoiceHeading,
+  .pixHeading,
+  .invoiceCard footer {
+    flex-direction: column;
+  }
+
+  .invoiceHeading > div:last-child,
+  .pixHeading > strong {
+    text-align: left;
+  }
+
+  .pixContent {
+    grid-template-columns: 1fr;
+  }
+}
