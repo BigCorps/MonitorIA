@@ -418,7 +418,84 @@ export async function POST(request: Request) {
     let retrievedData: unknown = {};
     let candidateEvidenceIds: string[] = [];
 
-    if (plan.intent === "period_summary") {
+    if (plan.intent === "operating_hours") {
+      const result = await supabase.rpc(
+        "assistant_operating_hours_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const payload = objectValue(result.data);
+      const sessions = Array.isArray(payload.sessions)
+        ? payload.sessions.map(objectValue)
+        : [];
+
+      candidateEvidenceIds = sessions
+        .flatMap((session) => [
+          typeof session.openingEventId === "string"
+            ? session.openingEventId
+            : null,
+          typeof session.closingEventId === "string"
+            ? session.closingEventId
+            : null,
+        ])
+        .filter((id): id is string => Boolean(id));
+
+      retrievedData = {
+        operatingHours: result.data,
+        definitions: {
+          observedOnly:
+            "O estado já era visível naquele momento; a transição exata não foi capturada.",
+          visibleTransition:
+            "Os quadros mostram visualmente a mudança de estado.",
+          declaredHours:
+            "O horário cadastrado é contexto e não prova que o estabelecimento estava aberto ou fechado.",
+        },
+      };
+    } else if (plan.intent === "visual_state") {
+      const result = await supabase.rpc(
+        "assistant_visual_state_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const payload = objectValue(result.data);
+      const transitions = Array.isArray(payload.transitions)
+        ? payload.transitions.map(objectValue)
+        : [];
+
+      candidateEvidenceIds = transitions
+        .map((transition) => transition.eventId)
+        .filter((id): id is string => typeof id === "string");
+
+      retrievedData = {
+        visualStates: result.data,
+        definitions: {
+          outsideDeclaredHours:
+            "O evento ocorreu fora da janela semanal cadastrada.",
+          afterConfirmedClosing:
+            "O evento ocorreu depois de um fechamento visual confirmado e antes de uma reabertura confirmada.",
+        },
+      };
+    } else if (plan.intent === "period_summary") {
       const [summaryResult, matchingEvents] = await Promise.all([
         supabase.rpc("assistant_period_summary", {
           p_organization_id: organization.id,
@@ -561,6 +638,9 @@ export async function POST(request: Request) {
     } else {
       retrievedData = {
         capabilities: [
+          "informar abertura e fechamento visualmente confirmados",
+          "consultar o estado atual de entidades configuradas",
+          "localizar mudanças em caixas, armários, objetos, equipamentos e áreas",
           "resumir períodos",
           "estimar aparições de clientes e funcionários",
           "localizar entregas, objetos e veículos",

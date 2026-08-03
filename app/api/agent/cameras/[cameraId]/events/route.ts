@@ -18,6 +18,10 @@ import {
   getVisionPlan,
   otherValidationModel,
 } from "@/src/vision/plans";
+import {
+  buildVisionPromptHash,
+  VISION_PROMPT_VERSION,
+} from "@/src/vision/prompt";
 import type {
   AnalyzeEventInput,
   VisionAnalysisAttempt,
@@ -529,6 +533,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
   }
 
+  let visualEntityRows: Array<Record<string, unknown>> = [];
+
+  if (authenticated.camera.visualStateEnabled) {
+    const {
+      data: configuredVisualEntities,
+      error: visualEntitiesError,
+    } = await supabase
+      .from("camera_visual_entities")
+      .select(
+        "id,name,entity_type,polygon,state_definitions,primary_operational_marker,min_confidence,reliability",
+      )
+      .eq("organization_id", authenticated.camera.organizationId)
+      .eq("camera_id", cameraId)
+      .eq("camera_profile_id", profile.id)
+      .eq("enabled", true)
+      .order("sort_order", { ascending: true });
+
+    if (visualEntitiesError) {
+      return NextResponse.json(
+        { ok: false, error: "visual_entities_unavailable" },
+        { status: 500 },
+      );
+    }
+
+    visualEntityRows = configuredVisualEntities ?? [];
+  }
+
   let cameraProfile;
 
   try {
@@ -553,6 +584,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
         polygon: zone.polygon,
         description: String(zone.description ?? ""),
       })),
+      visualEntities: (visualEntityRows ?? []).map(
+        (entity: any) => ({
+          id: String(entity.id),
+          name: String(entity.name),
+          type: String(entity.entity_type),
+          polygon: entity.polygon,
+          stateDefinitions: entity.state_definitions,
+          primaryOperationalMarker: Boolean(
+            entity.primary_operational_marker,
+          ),
+          minConfidence: Number(
+            entity.min_confidence ?? 0.82,
+          ),
+          reliability: String(
+            entity.reliability ?? "medium",
+          ),
+        }),
+      ),
     });
   } catch (profileError) {
     console.error("Perfil ativo inválido:", profileError);
@@ -567,6 +616,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     planCode,
   };
 
+  const promptHash = buildVisionPromptHash(
+    cameraProfile,
+    visionPlan.mode,
+  );
+
   let analysisJobId = existingJob ? String(existingJob.id) : null;
 
   if (existingJob) {
@@ -579,7 +633,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
-        prompt_version: 2,
+        prompt_version: VISION_PROMPT_VERSION,
+        prompt_hash: promptHash,
         local_metrics: localMetrics,
         analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,
@@ -607,7 +662,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         ended_at: endedAt.toISOString(),
         profile_id: profile.id,
         profile_version: Number(profile.version),
-        prompt_version: 2,
+        prompt_version: VISION_PROMPT_VERSION,
+        prompt_hash: promptHash,
         local_metrics: localMetrics,
         analysis_plan_code: planCode,
         source_agent_id: authenticated.agent.id,
@@ -733,7 +789,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       cameraId,
       profileVersion: Number(profile.version),
       planCode,
-      modelGroup: visionPlan.mode,
+      modelGroup: `${visionPlan.mode}:${promptHash.slice(0, 12)}`,
     });
 
     const visionInput: AnalyzeEventInput = {
@@ -797,6 +853,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const normalizedEvent = normalizeAnalyzedEventZones(
       finalAnalysis.event,
       allowedZones,
+      cameraProfile.visualEntities,
     );
 
     const finalCost = estimateVisionCostBreakdown(
@@ -920,10 +977,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
             nano_payload: normalizeAnalyzedEventZones(
               nano.event,
               allowedZones,
+              cameraProfile.visualEntities,
             ),
             mini_payload: normalizeAnalyzedEventZones(
               mini.event,
               allowedZones,
+              cameraProfile.visualEntities,
             ),
             nano_usage: nano.usage,
             mini_usage: mini.usage,

@@ -7,6 +7,8 @@ export const DateOnlySchema = z
 export const AssistantPlanSchema = z
   .object({
     intent: z.enum([
+      "operating_hours",
+      "visual_state",
       "period_summary",
       "search_events",
       "compare_periods",
