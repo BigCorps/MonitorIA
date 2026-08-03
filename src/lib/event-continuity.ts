@@ -14,7 +14,7 @@ export type ContinuityProcessingResult = {
 
 type SupabaseLike = {
   from: (table: string) => any;
-  rpc: (name: string, args: Record<string, unknown>) => Promise<{
+  rpc: (name: string, args: Record<string, unknown>) => PromiseLike<{
     data: unknown;
     error: { message: string } | null;
   }>;

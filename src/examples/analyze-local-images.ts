@@ -89,6 +89,8 @@ const result = await provider.analyzeEvent({
           "Zona de teste cobrindo todo o quadro.",
       },
     ],
+    visualEntities: [],
+    staffProfiles: [],
   },
   frames,
   localMetrics: {
