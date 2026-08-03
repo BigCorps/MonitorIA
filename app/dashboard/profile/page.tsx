@@ -18,9 +18,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise
-    Record<string, string | string[] | undefined>
-  >;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const roleLabels: Record<string, string> = {

@@ -39,8 +39,7 @@ type AuthSettings = {
   canManageOrganizationPolicy: boolean;
 };
 
-type Draft = Pick
-  AuthSettings,
+type Draft = Pick<AuthSettings,
   | "allowPassword"
   | "allowMagicLink"
   | "allowGoogle"
@@ -334,12 +333,8 @@ export function SecuritySettings({
     useState<AuthSettings | null>(null);
   const [draft, setDraft] =
     useState<Draft | null>(null);
-  const [passkeys, setPasskeys] = useState
-    PasskeyRecord[]
-  >([]);
-  const [factors, setFactors] = useState
-    TotpFactor[]
-  >([]);
+  const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
+  const [factors, setFactors] = useState<TotpFactor[]>([]);
   const [enrollment, setEnrollment] =
     useState<Enrollment | null>(null);
   const [enrollmentCode, setEnrollmentCode] =
