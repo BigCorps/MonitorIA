@@ -1,80 +1,73 @@
-# Coordenação da Fase 5 com a trilha de inteligência
+# Fase 6 — coordenação com a trilha de inteligência
 
-## Fonte de verdade
+## Fronteira preservada
 
-Esta fase foi desenhada a partir de:
-
-```text
-docs/PLANO-INTELIGENCIA-INTEGRADO-AO-PLANO-PRODUCAO.md
-```
-
-## O que a Fase 5 implementa
-
-- agregação de uso por dia, mês, câmera e organização;
-- separação entre custo de produção e experimentos A/B;
-- projeção de custo por ritmo observado;
-- metas comerciais de COGS versionadas;
-- comparação de custo conhecido de IA contra o teto total de COGS;
-- alertas de custo, escalonamento e integridade da telemetria;
-- painel interno protegido por lista de operadores;
-- cron idempotente;
-- proteção dos campos financeiros contra leitura de clientes.
-
-## O que esta fase não implementa
-
-- score de complexidade;
-- escolha da rota;
-- troca de modelo;
-- verificador visual;
-- alteração de prompts;
-- alteração dos schemas de visão;
-- seleção de frames;
-- modos de câmera;
-- gateway de inferência;
-- criação de `analysis_routing_decisions`.
-
-Esses itens permanecem sob governança da INT-3.5, INT-8 e INT-9.
-
-## Contrato de integração futura
-
-Quando a INT-3.5 for aplicada, ela deverá continuar registrando a decisão na estrutura de inteligência e atualizar o rollup comercial de forma aditiva.
-
-A integração recomendada é:
+A Fase 6 não altera:
 
 ```text
-analysis_routing_decisions
-→ agregação por câmera/mês
-→ camera_usage_monthly.routing_telemetry_available = true
-→ painel de custos exibe rota e motivo reais
+src/assistant/contracts.ts
+src/assistant/openai.ts
+prompts
+intenções
+planejamento de consultas
+evidências
+linguagem de incerteza
+toolset público do MCP
+schemas da inteligência
 ```
 
-Não substituir:
+Ela controla exclusivamente:
+
+- disponibilidade comercial;
+- reserva;
+- consumo;
+- estorno/liberação;
+- franquia mensal;
+- trial;
+- pacotes extras;
+- Pix;
+- expiração;
+- interface de saldo.
+
+## Dashboard atual
+
+A rota inteligente existente continua intacta.
+
+A integração acontece por triggers em `assistant_messages`:
 
 ```text
-refresh_monitoria_ai_usage_daily
-refresh_monitoria_ai_usage_monthly
-refresh_monitoria_ai_usage_organization
-refresh_monitoria_ai_usage_rollups
+BEFORE INSERT da mensagem user
+  reserva
+
+AFTER INSERT da mensagem assistant
+  conclui e consome
+
+AFTER DELETE da mensagem user ainda reservada
+  libera sem consumir
 ```
 
-A inteligência pode enriquecer esses rollups, mas não deve criar um segundo painel financeiro ou um segundo teto comercial.
+Isso evita modificar prompts ou o planner do Assistente.
 
-## Limite comercial versus decisão visual
+## MCP futuro
 
-`camera_plan_catalog.maximum_escalation_percent` é um limite comercial.
+As 14 ferramentas públicas permanecem congeladas.
 
-Ele não define quais eventos são complexos. O gateway da inteligência decide quais eventos merecem rota forte ou verificador e deve operar dentro desse limite, com fallback e telemetria.
+Ferramentas determinísticas como busca, detalhe, estado ou resumo estruturado não consomem automaticamente.
 
-## Projeção
-
-A projeção usa:
+Somente uma operação de resposta livre que o produto classificar como interação do Assistente deve usar:
 
 ```text
-custo de produção observado
-÷ horas entre primeiro e último evento observado
-× 720 horas
+reserve_assistant_interaction
+complete_assistant_interaction
+release_assistant_interaction
 ```
 
-Ela exige uma amostra mínima configurável de jobs e horas.
+## Regra para outro agente
 
-O resultado é um sinal de risco, não uma cobrança e não uma ordem automática para degradar qualidade.
+Antes de trocar o fluxo de persistência de `assistant_messages`, preserve estes três pontos:
+
+1. a mensagem `user` precisa possuir uma reserva;
+2. o consumo acontece somente após persistir a resposta `assistant`;
+3. a falha precisa excluir a mensagem incompleta ou liberar a reserva explicitamente.
+
+Não decrementar saldo dentro de prompt, planner, OpenAI provider ou ferramenta MCP.

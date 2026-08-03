@@ -1,0 +1,136 @@
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 17px 19px;
+  border: 1px solid #dbe7ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: #087f6a;
+  background: #e7f8f3;
+  font-size: 1.25rem;
+}
+
+.content {
+  min-width: 0;
+}
+
+.content span,
+.content strong,
+.content p {
+  display: block;
+}
+
+.content span {
+  color: #0f8b75;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.content strong {
+  margin-top: 3px;
+  color: #12212d;
+  font-size: 1rem;
+}
+
+.content p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.card > a {
+  padding: 10px 14px;
+  border: 1px solid #b9ddd4;
+  border-radius: 11px;
+  color: #087f6a;
+  background: #f1fbf8;
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.warning {
+  border-color: #f3d6a2;
+  background: #fffbf2;
+}
+
+.warning .icon {
+  color: #a46108;
+  background: #fff0cf;
+}
+
+.warning .content span,
+.warning > a {
+  color: #9a5c08;
+}
+
+.warning > a {
+  border-color: #f1d099;
+  background: #fff7e6;
+}
+
+.blocked {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.blocked .icon {
+  color: #b42318;
+  background: #fee4e2;
+}
+
+.blocked .content span,
+.blocked > a {
+  color: #b42318;
+}
+
+.blocked > a {
+  border-color: #fecaca;
+  background: #fff1f1;
+}
+
+.legacy {
+  border-color: #c7d7fe;
+  background: #f7f9ff;
+}
+
+.legacy .icon {
+  color: #3451b2;
+  background: #e8edff;
+}
+
+.legacy .content span,
+.legacy > a {
+  color: #3451b2;
+}
+
+.legacy > a {
+  border-color: #c7d7fe;
+  background: #eef2ff;
+}
+
+@media (max-width: 720px) {
+  .card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .card > a {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+}

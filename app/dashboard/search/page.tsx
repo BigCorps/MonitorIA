@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getAssistantWorkspace } from "@/src/lib/assistant-data";
+import { getAssistantBalance } from "@/src/lib/assistant-commercial-data";
 import {
   getCurrentOrganization,
   getOrganizationCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { AssistantBalanceCard } from "./assistant-balance-card";
 import { AssistantChat } from "./assistant-chat";
 
 export const metadata = { title: "Pesquisa" };
@@ -33,10 +35,11 @@ export default async function SearchPage({
   const rawParams = await searchParams;
   const requestedThreadId = scalar(rawParams.thread) || null;
 
-  const [sites, cameras, workspace] = await Promise.all([
+  const [sites, cameras, workspace, balance] = await Promise.all([
     getOrganizationSites(organization.id),
     getOrganizationCameras(organization.id),
     getAssistantWorkspace(organization.id, requestedThreadId),
+    getAssistantBalance(organization.id),
   ]);
 
   if (!sites.length) redirect("/onboarding");
@@ -70,6 +73,8 @@ export default async function SearchPage({
             Abrir eventos
           </Link>
         </header>
+
+        <AssistantBalanceCard initialBalance={balance} />
 
         <AssistantChat
           initialWorkspace={workspace}

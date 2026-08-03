@@ -98,7 +98,7 @@ async function checkPayment(payment: {
 
     const paidAmountCents = bankAmountToCents(data);
     const { data: confirmation, error } = await admin.rpc(
-      "apply_confirmed_monitoria_pix_payment",
+      "apply_confirmed_monitoria_payment",
       {
         p_payment_id: payment.id,
         p_txid: payment.txid,
@@ -119,6 +119,7 @@ async function checkPayment(payment: {
       paymentId: payment.id,
       result: result.success === true ? "confirmed" : "manual_review",
       duplicate: result.duplicate === true,
+      assistantPacks: result.assistantPacks ?? [],
     };
   } catch (error) {
     console.error(

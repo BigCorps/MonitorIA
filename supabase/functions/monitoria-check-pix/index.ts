@@ -249,7 +249,7 @@ Deno.serve(async (request: Request) => {
     if (PAID_BANK_STATUSES.has(bankStatus)) {
       const paidAmountCents = bankAmountToCents(data);
       const { data: confirmation, error: confirmationError } =
-        await admin.rpc("apply_confirmed_monitoria_pix_payment", {
+        await admin.rpc("apply_confirmed_monitoria_payment", {
           p_payment_id: payment.id,
           p_txid: payment.txid,
           p_paid_amount_cents: paidAmountCents,
@@ -260,7 +260,7 @@ Deno.serve(async (request: Request) => {
 
       if (confirmationError) {
         console.error(
-          "apply_confirmed_monitoria_pix_payment:",
+          "apply_confirmed_monitoria_payment:",
           confirmationError.message,
         );
         return json(
@@ -273,6 +273,13 @@ Deno.serve(async (request: Request) => {
       const result = objectValue(confirmation);
 
       if (result.success === true) {
+        const activatedCameras = Array.isArray(result.activatedCameras)
+          ? result.activatedCameras
+          : [];
+        const assistantPacks = Array.isArray(result.assistantPacks)
+          ? result.assistantPacks
+          : [];
+
         return json(request, {
           success: true,
           status: "paid",
@@ -281,10 +288,15 @@ Deno.serve(async (request: Request) => {
           invoice_number: result.invoiceNumber ?? invoice?.invoice_number,
           period_start: result.periodStart ?? null,
           period_end: result.periodEnd ?? null,
-          activated_cameras: result.activatedCameras ?? [],
-          assistant_interactions: result.assistantInteractions ?? 90,
+          activated_cameras: activatedCameras,
+          assistant_packs: assistantPacks,
+          assistant_interactions: result.assistantInteractions ?? null,
+          balance: result.balance ?? null,
           duplicate: result.duplicate === true,
-          message: "Pagamento confirmado e câmeras ativadas.",
+          message:
+            assistantPacks.length && !activatedCameras.length
+              ? "Pagamento confirmado e interações extras liberadas."
+              : "Pagamento confirmado e serviços ativados.",
         });
       }
 
