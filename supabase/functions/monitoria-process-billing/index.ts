@@ -30,10 +30,58 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function decodeJwtPayload(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  try {
+    const normalized = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      Math.ceil(normalized.length / 4) * 4,
+      "=",
+    );
+    const payload = JSON.parse(atob(padded));
+    return payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function serviceAuthorized(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
+  const [scheme, token] = authorization.split(/\s+/, 2);
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return false;
+  }
+
+  // Compatibilidade com a chave atual da própria Edge Function.
+  if (SERVICE_ROLE_KEY && token === SERVICE_ROLE_KEY) {
+    return true;
+  }
+
+  // O gateway da Supabase continua com verify_jwt=true e valida a
+  // assinatura antes da execução. Aqui validamos o papel do JWT em vez
+  // de exigir igualdade literal entre chaves válidas/rotacionadas.
+  const payload = decodeJwtPayload(token);
+  const role = String(payload?.role ?? "");
+  const issuer = String(payload?.iss ?? "").replace(/\/$/, "");
+  const expectedIssuer = SUPABASE_URL
+    ? `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1`
+    : "";
+  const expiresAt = Number(payload?.exp ?? 0);
+  const notExpired = Number.isFinite(expiresAt)
+    && expiresAt > Math.floor(Date.now() / 1000);
+
   return Boolean(
-    SERVICE_ROLE_KEY && authorization === `Bearer ${SERVICE_ROLE_KEY}`,
+    role === "service_role"
+      && expectedIssuer
+      && issuer === expectedIssuer
+      && notExpired,
   );
 }
 

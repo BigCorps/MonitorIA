@@ -12,17 +12,17 @@
     "test": "node --import tsx --test test/**/*.test.ts",
     "analyze": "tsx src/examples/analyze-local-images.ts"
   },
-   "dependencies": {
+  "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-     "@supabase/ssr": "^0.12.3",
-     "@supabase/supabase-js": "^2.110.9",
-     "next": "16.2.12",
-     "openai": "^6.39.0",
-     "react": "19.2.8",
-     "react-dom": "19.2.8",
-     "zod": "^3.25.76",
-     "zod-v4": "npm:zod@4.4.3"
-   },
+    "@supabase/ssr": "^0.12.3",
+    "@supabase/supabase-js": "^2.110.9",
+    "next": "16.2.12",
+    "openai": "^6.39.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^3.25.76",
+    "zod-v4": "npm:zod@4.4.3"
+  },
   "devDependencies": {
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.17",
@@ -31,6 +31,6 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   }
 }

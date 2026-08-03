@@ -14,6 +14,22 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/camera-health",
+      "schedule": "2-59/5 * * * *"
+    },
+    {
+      "path": "/api/cron/processes",
+      "schedule": "3-59/5 * * * *"
+    },
+    {
+      "path": "/api/cron/staff-profiles",
+      "schedule": "4-59/5 * * * *"
+    },
+    {
+      "path": "/api/cron/routines",
+      "schedule": "7-59/15 * * * *"
+    },
+    {
       "path": "/api/cron/ai-usage",
       "schedule": "*/15 * * * *"
     },

@@ -1,0 +1,63 @@
+{
+  "package": "MonitorIA pós-auditoria fases 1–7",
+  "generated_at": "2026-08-03T20:40:00Z",
+  "target_repository": "BigCorps/MonitorIA",
+  "target_supabase_project": "xwejfayeackbrilipgrj",
+  "files": [
+    {
+      "path": "README-PRIMEIRO.md",
+      "size": 571,
+      "sha256": "30bea20bd0971c4d20e4891f9cdd4c9db8162dd6b9a82c98dd1d76d87a7a9806"
+    },
+    {
+      "path": "docs/POS-AUDITORIA-FASES-1-A-7.md",
+      "size": 3015,
+      "sha256": "b67cdca94286fc783327fb887a9c32d9cd437659b68ba6f1dfc62107bb1bfa9d"
+    },
+    {
+      "path": "package.json",
+      "size": 941,
+      "sha256": "8ac13b74e7c382e91fa6c3c1d12e7ea4e913b1d50a9b9b2cc6aca25b541a7be7"
+    },
+    {
+      "path": "scripts/apply-post-audit-fix.ps1",
+      "size": 1817,
+      "sha256": "db5be470354d1e0b61a546e92fddf41362d94d6731845d38166dd6ea1a2bb63e"
+    },
+    {
+      "path": "scripts/reconcile-migration-history.ps1",
+      "size": 4826,
+      "sha256": "2757c04d95245ca7c489823b0bfbb381a3be7ace2d8fa9bccec73ae3f0e40d33"
+    },
+    {
+      "path": "scripts/verify-post-audit.ps1",
+      "size": 2329,
+      "sha256": "a95e3d133d2238282950d3a3509f3ec75a54df0e079f8e016374bbd2c76b6846"
+    },
+    {
+      "path": "supabase/functions/monitoria-process-billing/index.ts",
+      "size": 7561,
+      "sha256": "c39c9733d645e6668fb4b7d3668997faa6d980c45fcf19c205626a8763b12ddf"
+    },
+    {
+      "path": "supabase/migrations/20260803204000_post_audit_security_performance.sql",
+      "size": 13652,
+      "sha256": "438f0a5453dd16a602a4cc330e9e2f1d2ca9f9e5fe43ea5c4a4c45b92294e19e"
+    },
+    {
+      "path": "supabase/rollback/rollback_20260803204000_post_audit_security_performance.sql",
+      "size": 3412,
+      "sha256": "f20652dca4e127d82a15e3aa6d332bcd63ec154e202c9294dea4ad6c51eb8c12"
+    },
+    {
+      "path": "test/post-audit-fix.test.mjs",
+      "size": 1582,
+      "sha256": "378e47b70b73a1abff267fd84d89007056611227fe26dce9b95e4ea477c5dcf2"
+    },
+    {
+      "path": "vercel.json",
+      "size": 890,
+      "sha256": "3d758a1cf7da25b23bfad08ee4f52a0be39cea023e566e69c6f3783a12a421a2"
+    }
+  ]
+}
