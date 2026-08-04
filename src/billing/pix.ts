@@ -20,7 +20,34 @@ export function normalizeQrCodeSource(
     return candidate;
   }
 
-  return `data:image/png;base64,${candidate}`;
+  if (
+    candidate.startsWith("<svg") ||
+    candidate.startsWith("<?xml")
+  ) {
+    return `data:image/svg+xml;charset=utf-8,${
+      encodeURIComponent(candidate)
+    }`;
+  }
+
+  const compact = candidate.replace(/\s+/g, "");
+
+  // Evita tratar o próprio payload EMV do Pix como uma imagem
+  // base64. Só formatos de imagem reconhecidos são aceitos.
+  const mime =
+    compact.startsWith("iVBORw0KGgo")
+      ? "image/png"
+      : compact.startsWith("/9j/")
+        ? "image/jpeg"
+        : compact.startsWith("UklGR")
+          ? "image/webp"
+          : compact.startsWith("PHN2Zy") ||
+              compact.startsWith("PD94bW")
+            ? "image/svg+xml"
+            : null;
+
+  if (!mime) return null;
+
+  return `data:${mime};base64,${compact}`;
 }
 
 export function paymentCanGenerate(

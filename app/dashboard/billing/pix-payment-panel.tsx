@@ -102,10 +102,25 @@ export function PixPaymentPanel({
   const [error, setError] = useState<string | null>(null);
   const checking = useRef(false);
 
-  const qrSource = useMemo(
-    () => normalizeQrCodeSource(payment?.qrCodePayload),
-    [payment?.qrCodePayload],
-  );
+  const qrSource = useMemo(() => {
+    const providerSource = normalizeQrCodeSource(
+      payment?.qrCodePayload,
+    );
+
+    if (providerSource) return providerSource;
+
+    if (!payment?.id || !payment.pixCopyPaste) {
+      return null;
+    }
+
+    return `/api/billing/pix/${
+      encodeURIComponent(payment.id)
+    }/qr`;
+  }, [
+    payment?.id,
+    payment?.pixCopyPaste,
+    payment?.qrCodePayload,
+  ]);
 
   const invoke = useCallback(
     async (functionName: string, body: Record<string, unknown>) => {
