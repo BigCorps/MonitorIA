@@ -166,15 +166,36 @@ jobs:
 
       # ------------------------------------------------------- instalador
 
-      - name: Instalar Inno Setup
+      # O runner do Windows já traz o Inno Setup. Fixar versão fazia o
+      # Chocolatey falhar por recusar rebaixar uma instalação mais nova.
+      # Aqui apenas localizamos o compilador, e só instalamos se faltar.
+      - name: Localizar o Inno Setup
+        id: inno
         shell: pwsh
-        run: choco install innosetup --version=6.4.3 -y --no-progress
+        run: |
+          $candidatos = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          )
+
+          $iscc = $candidatos | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $iscc) {
+            Write-Host "Inno Setup não encontrado na imagem. Instalando..."
+            choco install innosetup -y --no-progress
+            $iscc = $candidatos | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+
+          if (-not $iscc) { throw "Não foi possível localizar o ISCC.exe." }
+
+          Write-Host "Usando: $iscc"
+          & $iscc /? | Select-Object -First 1
+          "path=$iscc" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Compilar o instalador
         shell: pwsh
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
+          & "${{ steps.inno.outputs.path }}" "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador." }
 
       - name: Assinar o instalador
