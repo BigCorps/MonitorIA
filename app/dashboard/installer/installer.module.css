@@ -348,3 +348,64 @@
 .outdatedVersion {
   color: #a86710;
 }
+
+/* Bloco de instalação em Linux, abaixo do instalador Windows. */
+
+.platformDivider {
+  margin: 22px 0 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.platformDivider::before,
+.platformDivider::after {
+  height: 1px;
+  background: #e6ecf3;
+  content: "";
+}
+
+.platformDivider span {
+  color: #8496aa;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.platformIntro {
+  margin: 14px 0 0;
+  color: #71849a;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+.downloadRow {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.secondaryDownload,
+.secondaryDisabled {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.secondaryDownload {
+  color: #08745f;
+  border: 1px solid #c5e8df;
+  background: #edf9f6;
+}
+
+.secondaryDisabled {
+  color: #8496aa;
+  border: 1px solid #e6ecf3;
+  background: #f8fafc;
+  font-weight: 700;
+}

@@ -16,13 +16,51 @@ export type InstallerAgent = {
   queuedEvents: number;
 };
 
+export type InstallerPlatform = "windows" | "linux-x64" | "linux-arm64";
+
+export type InstallerDownload = {
+  platform: InstallerPlatform;
+  label: string;
+  available: boolean;
+};
+
 export type InstallerWorkspace = {
   agents: InstallerAgent[];
   pairedCameras: number;
   totalCameras: number;
   recommendedVersion: string;
+  downloads: InstallerDownload[];
+  /** Verdadeiro quando ao menos uma plataforma tem download publicado. */
   downloadAvailable: boolean;
 };
+
+/**
+ * Origem de cada instalador.
+ *
+ * Os binários ficam em GitHub Releases, não no Supabase Storage nem em rota
+ * da Vercel: banda de release é gratuita e nenhum byte passa pela nossa
+ * infraestrutura. A rota /api/installer/[platform] apenas redireciona, então
+ * o custo por download é o de uma resposta HTTP vazia.
+ */
+export const INSTALLER_ENV_VARS: Record<InstallerPlatform, string> = {
+  windows: "AGENT_WINDOWS_DOWNLOAD_URL",
+  "linux-x64": "AGENT_LINUX_X64_DOWNLOAD_URL",
+  "linux-arm64": "AGENT_LINUX_ARM64_DOWNLOAD_URL",
+};
+
+const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
+  windows: "Windows 10/11 · 64 bits",
+  "linux-x64": "Linux · x86_64",
+  "linux-arm64": "Linux · ARM64",
+};
+
+export function installerUrlFor(platform: InstallerPlatform) {
+  return process.env[INSTALLER_ENV_VARS[platform]]?.trim() || null;
+}
+
+export function isInstallerPlatform(value: string): value is InstallerPlatform {
+  return value === "windows" || value === "linux-x64" || value === "linux-arm64";
+}
 
 function relationOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
@@ -127,6 +165,14 @@ export async function getInstallerWorkspace(
 
   const cameras = cameraResult.data ?? [];
 
+  const downloads: InstallerDownload[] = (
+    ["windows", "linux-x64", "linux-arm64"] as const
+  ).map((platform) => ({
+    platform,
+    label: PLATFORM_LABELS[platform],
+    available: Boolean(installerUrlFor(platform)),
+  }));
+
   return {
     agents,
     totalCameras: cameras.length,
@@ -134,9 +180,8 @@ export async function getInstallerWorkspace(
       (camera: any) => camera.pairing_status === "paired",
     ).length,
     recommendedVersion:
-      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.8.1",
-    downloadAvailable: Boolean(
-      process.env.AGENT_WINDOWS_DOWNLOAD_URL?.trim(),
-    ),
+      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.9.0",
+    downloads,
+    downloadAvailable: downloads.some((download) => download.available),
   };
 }

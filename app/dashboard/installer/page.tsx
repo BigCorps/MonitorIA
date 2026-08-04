@@ -43,6 +43,13 @@ export default async function InstallerPage() {
     (agent) => agent.status === "online",
   ).length;
 
+  const windows = workspace.downloads.find(
+    (download) => download.platform === "windows",
+  );
+  const linuxDownloads = workspace.downloads.filter((download) =>
+    download.platform.startsWith("linux"),
+  );
+
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
@@ -59,8 +66,9 @@ export default async function InstallerPage() {
             </span>
             <h1>Conecte as câmeras ao MonitorIA</h1>
             <p>
-              Baixe o Agent Windows, acompanhe a versão instalada e
-              confira a saúde do computador que acessa as câmeras.
+              Baixe o Agent para Windows ou Linux, acompanhe a versão
+              instalada e confira a saúde do computador que acessa as
+              câmeras.
             </p>
           </div>
 
@@ -88,7 +96,7 @@ export default async function InstallerPage() {
           <article>
             <span>Versão recomendada</span>
             <strong>v{workspace.recommendedVersion}</strong>
-            <small>Agent Windows 64 bits</small>
+            <small>Windows e Linux · 64 bits</small>
           </article>
         </div>
 
@@ -99,75 +107,121 @@ export default async function InstallerPage() {
                 <span>INSTALAÇÃO NO WINDOWS</span>
                 <h2>Instale no computador da câmera</h2>
               </div>
-              <span className={styles.windowsBadge}>Windows x64</span>
+              <span className={styles.windowsBadge}>Windows · Linux</span>
             </div>
 
             <ol className={styles.steps}>
               <li>
                 <span>1</span>
                 <div>
-                  <strong>Baixe o instalador</strong>
+                  <strong>Baixe o executável</strong>
                   <p>
                     Use um computador que permaneça ligado e tenha
-                    acesso à mesma rede das câmeras RTSP. Prefira
-                    conexão por cabo: RTSP sobre Wi-Fi instável derruba
-                    o vídeo e gera alarme falso de câmera offline.
+                    acesso à mesma rede das câmeras RTSP.
                   </p>
                 </div>
               </li>
               <li>
                 <span>2</span>
                 <div>
-                  <strong>Execute como administrador</strong>
-                  <p>
-                    O Windows pode exibir um aviso de proteção antes de
-                    abrir. Clique em &ldquo;Mais informações&rdquo; e
-                    depois em &ldquo;Executar assim mesmo&rdquo; — o
-                    instalador é publicado pela BigCorps.
-                  </p>
+                  <strong>Libere e teste o arquivo</strong>
+                  <code>
+                    Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+                  </code>
+                  <code>
+                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
+                  </code>
                 </div>
               </li>
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Gere o código quando o instalador pedir</strong>
+                  <strong>Cadastre ou pareie a câmera</strong>
                   <p>
-                    Só então abra a câmera no painel e gere o código de
-                    pareamento: ele expira em 15 minutos. Gerar antes de
-                    baixar costuma estourar o prazo.
+                    O endereço e a senha RTSP permanecem protegidos no
+                    computador local pelo Windows DPAPI.
                   </p>
                 </div>
               </li>
               <li>
                 <span>4</span>
                 <div>
-                  <strong>Pronto</strong>
-                  <p>
-                    O MonitorIA passa a rodar como serviço do Windows e
-                    sobe sozinho ao ligar o computador. O endereço e a
-                    senha RTSP ficam protegidos localmente pelo DPAPI e
-                    nunca saem da máquina.
-                  </p>
+                  <strong>Inicie o Agent</strong>
+                  <code>
+                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+                  </code>
                 </div>
               </li>
             </ol>
 
-            {workspace.downloadAvailable ? (
+            {windows?.available ? (
               <a
                 href="/api/installer/windows"
                 className={styles.downloadButton}
               >
-                Baixar Agent para Windows
+                Baixar instalador para Windows
               </a>
             ) : (
               <div className={styles.pendingDownload}>
-                <strong>Download comercial ainda não publicado</strong>
+                <strong>Instalador do Windows ainda não publicado</strong>
                 <p>
                   Durante a validação, continue usando o artifact do
                   GitHub Actions. A versão final aparecerá neste botão.
                 </p>
               </div>
             )}
+
+            <div className={styles.platformDivider}>
+              <span>OU INSTALE EM LINUX</span>
+            </div>
+
+            <p className={styles.platformIntro}>
+              Um mini PC dedicado costuma ser mais estável que o
+              computador da loja: não é desligado por engano e não
+              reinicia sozinho para atualizar. Requer systemd.
+            </p>
+
+            <ol className={styles.steps}>
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>Baixe e extraia o pacote</strong>
+                  <code>tar xzf monitoria-agent-linux-x64.tar.gz</code>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Execute o instalador</strong>
+                  <code>cd monitoria-agent-linux-x64 &amp;&amp; sudo ./install.sh</code>
+                  <p>
+                    Ele cria o serviço, ativa a inicialização automática
+                    e pede o código de pareamento no fim.
+                  </p>
+                </div>
+              </li>
+            </ol>
+
+            <div className={styles.downloadRow}>
+              {linuxDownloads.map((download) =>
+                download.available ? (
+                  <a
+                    key={download.platform}
+                    href={`/api/installer/${download.platform}`}
+                    className={styles.secondaryDownload}
+                  >
+                    {download.label}
+                  </a>
+                ) : (
+                  <span
+                    key={download.platform}
+                    className={styles.secondaryDisabled}
+                  >
+                    {download.label} · em breve
+                  </span>
+                ),
+              )}
+            </div>
           </section>
 
           <section className={styles.agentList}>

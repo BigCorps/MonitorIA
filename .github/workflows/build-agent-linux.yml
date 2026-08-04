@@ -80,7 +80,7 @@ jobs:
       - name: Montar o pacote
         run: |
           set -euo pipefail
-          OUT="monitoria-agent-${AGENT_VERSION}-linux-${{ matrix.arch }}"
+          OUT="monitoria-agent-linux-${{ matrix.arch }}"
           mkdir -p "$OUT"
 
           cp agent/dist/monitoria-agent "$OUT/"
@@ -107,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: monitoria-agent-linux-${{ matrix.arch }}
-          path: monitoria-agent-*-linux-*.tar.gz
+          path: monitoria-agent-linux-*.tar.gz
           if-no-files-found: error
           retention-days: 30
 
@@ -115,5 +115,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/agent-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: monitoria-agent-*-linux-*.tar.gz
+          files: monitoria-agent-linux-*.tar.gz
           fail_on_unmatched_files: true
