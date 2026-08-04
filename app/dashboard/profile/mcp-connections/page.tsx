@@ -45,16 +45,22 @@ export default async function McpConnectionsPage() {
 
   for (const row of data ?? []) {
     const clientId = String((row as any).client_id);
-    const current = grouped.get(clientId) ?? {
-      clientId,
-      clientName: String((row as any).client_name ?? "Aplicativo MCP"),
-      organizations: [],
-      scopes: Array.isArray((row as any).approved_scopes)
-        ? (row as any).approved_scopes.map(String)
-        : [],
-      active: false,
-      createdAt: String((row as any).created_at),
-    };
+let current = grouped.get(clientId);
+
+if (!current) {
+  current = {
+    clientId,
+    clientName: String(
+      (row as any).client_name ?? "Aplicativo MCP",
+    ),
+    organizations: [],
+    scopes: Array.isArray((row as any).approved_scopes)
+      ? (row as any).approved_scopes.map(String)
+      : [],
+    active: false,
+    createdAt: String((row as any).created_at),
+  };
+}
 
     const relation = (row as any).organization;
     const related = Array.isArray(relation) ? relation[0] : relation;
