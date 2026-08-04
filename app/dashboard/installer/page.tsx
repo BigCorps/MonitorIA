@@ -126,10 +126,10 @@ export default async function InstallerPage() {
                 <div>
                   <strong>Libere e teste o arquivo</strong>
                   <code>
-                    Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+                    Unblock-File "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
                   </code>
                   <code>
-                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
+                    & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe" self-test
                   </code>
                 </div>
               </li>
@@ -148,7 +148,7 @@ export default async function InstallerPage() {
                 <div>
                   <strong>Inicie o Agent</strong>
                   <code>
-                    & "$env:USERPROFILE\Downloads\monitoria-agent.exe"
+                    & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
                   </code>
                 </div>
               </li>
