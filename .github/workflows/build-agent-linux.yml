@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: agent-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AGENT_VERSION: "0.9.0"
 
@@ -22,6 +26,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - arch: x64
