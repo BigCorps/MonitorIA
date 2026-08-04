@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: agent-release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AGENT_VERSION: "0.9.0"
 
