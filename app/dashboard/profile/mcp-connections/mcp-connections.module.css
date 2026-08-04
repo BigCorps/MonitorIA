@@ -1,11 +1,381 @@
-.list {
+.urlCard {
   margin-top: 24px;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #a8e8dc;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #effcf9, #f8fffd);
+}
+
+.urlCard span,
+.sectionTitle span,
+.cursorConfig > div > span,
+.diagnosticHeader span {
+  display: block;
+  color: #159278;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.urlCard code {
+  display: block;
+  margin-top: 8px;
+  color: #102c41;
+  font-size: clamp(16px, 2.1vw, 22px);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.urlCard p {
+  margin: 8px 0 0;
+  color: #64788d;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.urlCard button,
+.cursorConfig > button,
+.diagnosticHeader button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  color: #092a24;
+  background: #57dfc8;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.platformSection,
+.connectionsSection,
+.diagnostics,
+.testPlan {
+  margin-top: 30px;
+}
+
+.sectionTitle,
+.diagnosticHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.sectionTitle h2,
+.diagnosticHeader h2,
+.cursorConfig h2 {
+  margin: 5px 0 0;
+  color: #142d45;
+  font-size: 20px;
+}
+
+.sectionTitle small {
+  max-width: 430px;
+  color: #7b8da0;
+  font-size: 10px;
+  text-align: right;
+}
+
+.platformGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.platformCard {
+  min-width: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(35, 65, 91, 0.05);
+}
+
+.platformCard header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.platformIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.chatgptIcon {
+  color: #08775f;
+  background: #e9faf5;
+}
+
+.claudeIcon {
+  color: #9b512b;
+  background: #fff2e9;
+}
+
+.cursorIcon {
+  color: #253849;
+  background: #edf2f6;
+}
+
+.platformCard header h3 {
+  margin: 0;
+  color: #1d3046;
+  font-size: 16px;
+}
+
+.platformCard header p {
+  margin: 3px 0 0;
+  color: #7c8fa3;
+  font-size: 9px;
+}
+
+.availableBadge {
+  margin-left: auto;
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: #147b68;
+  background: #e9faf5;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.platformCard ol {
+  margin: 17px 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+  list-style: none;
+}
+
+.platformCard li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.platformCard li > span {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  flex: 0 0 19px;
+  place-items: center;
+  border-radius: 50%;
+  color: #52687e;
+  background: #eef3f7;
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.platformCard li p {
+  margin: 1px 0 0;
+  color: #52687e;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.platformNote {
+  margin-top: auto;
+  padding: 10px;
+  border-radius: 10px;
+  color: #66592c;
+  background: #fff9df;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.platformActions {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.platformActions button,
+.platformActions a {
+  min-height: 37px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 9px;
+  font-weight: 850;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.platformActions button {
+  border: 1px solid #cfe0ea;
+  color: #30516b;
+  background: #f7fafc;
+}
+
+.platformActions a {
+  color: #fff;
+  background: #203c55;
+}
+
+.cursorConfig {
+  margin-top: 18px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(170px, .75fr) minmax(280px, 1.35fr) auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.cursorConfig p {
+  margin: 6px 0 0;
+  color: #71849a;
+  font-size: 10px;
+}
+
+.cursorConfig pre {
+  margin: 0;
+  padding: 13px;
+  overflow: auto;
+  border-radius: 10px;
+  color: #dffbf4;
+  background: #14283b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.diagnostics {
+  padding: 20px;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.diagnosticHeader {
+  align-items: center;
+}
+
+.diagnosticHeader p {
+  max-width: 690px;
+  margin: 6px 0 0;
+  color: #71849a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.diagnosticHeader button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.diagnosticPlaceholder,
+.diagnosticError {
+  padding: 18px;
+  border-radius: 11px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.diagnosticPlaceholder {
+  color: #71849a;
+  background: #f5f8fa;
+}
+
+.diagnosticError {
+  color: #964353;
+  background: #fff1f3;
+}
+
+.checkGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.checkCard {
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  border: 1px solid;
+  border-radius: 11px;
+}
+
+.checkCard > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  flex: 0 0 25px;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.checkCard h3 {
+  margin: 0;
+  color: #263b52;
+  font-size: 11px;
+}
+
+.checkCard p {
+  margin: 4px 0 0;
+  color: #667b90;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.check_ok {
+  border-color: #b9e9dc;
+  background: #f3fcf9;
+}
+
+.check_ok > span {
+  color: #147b68;
+  background: #dff7f0;
+}
+
+.check_warning {
+  border-color: #f0ddb0;
+  background: #fffaf0;
+}
+
+.check_warning > span {
+  color: #916c1d;
+  background: #f9edc7;
+}
+
+.check_error {
+  border-color: #efc9d0;
+  background: #fff5f7;
+}
+
+.check_error > span {
+  color: #9b4050;
+  background: #f8dfe4;
+}
+
+.list {
   display: grid;
   gap: 12px;
 }
 
 .card {
-  padding: 20px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -15,17 +385,35 @@
   background: #fff;
 }
 
-.card span {
-  color: #159278;
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: 0.13em;
+.connectionIdentity {
+  display: grid;
+  gap: 4px;
 }
 
-.card h2 {
-  margin: 5px 0;
+.activeBadge,
+.revokedBadge {
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.activeBadge {
+  color: #147b68;
+  background: #e8faf5;
+}
+
+.revokedBadge {
+  color: #788a9c;
+  background: #eef2f5;
+}
+
+.card h3 {
+  margin: 2px 0;
   color: #1d3046;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .card p,
@@ -34,7 +422,7 @@
   font-size: 10px;
 }
 
-.card button {
+.card form button {
   min-height: 38px;
   padding: 0 13px;
   border: 1px solid #edd0d6;
@@ -47,32 +435,124 @@
 }
 
 .empty {
-  min-height: 240px;
+  min-height: 210px;
+  padding: 30px;
   display: grid;
   place-content: center;
+  justify-items: center;
   text-align: center;
   border: 1px solid #dfe6ee;
   border-radius: 14px;
   background: #fff;
 }
 
-.empty h2 {
-  margin: 0;
+.emptyIcon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #159278;
+  background: #eafaf6;
+  font-size: 24px;
+}
+
+.empty h3 {
+  margin: 12px 0 5px;
   color: #263b52;
 }
 
 .empty p {
+  max-width: 500px;
+  margin: 0;
   color: #71849a;
   font-size: 11px;
+  line-height: 1.55;
 }
 
-@media (max-width: 620px) {
+.testGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.testGrid article {
+  padding: 12px;
+  display: flex;
+  gap: 9px;
+  border: 1px solid #dfe6ee;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.testGrid article > span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 8px;
+  color: #147b68;
+  background: #e8faf5;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.testGrid h3 {
+  margin: 0;
+  color: #263b52;
+  font-size: 10px;
+}
+
+.testGrid p {
+  margin: 3px 0 0;
+  color: #71849a;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+@media (max-width: 980px) {
+  .platformGrid,
+  .testGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cursorConfig {
+    grid-template-columns: 1fr;
+  }
+
+  .cursorConfig > button {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 650px) {
+  .urlCard,
+  .sectionTitle,
+  .diagnosticHeader,
   .card {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .card button {
+  .urlCard button,
+  .diagnosticHeader button,
+  .card form button {
     width: 100%;
+  }
+
+  .sectionTitle small {
+    max-width: none;
+    text-align: left;
+  }
+
+  .platformGrid,
+  .testGrid,
+  .checkGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .platformActions {
+    grid-template-columns: 1fr;
   }
 }
