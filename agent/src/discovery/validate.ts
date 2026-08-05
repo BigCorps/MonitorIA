@@ -192,8 +192,10 @@ export async function validateStream(options: {
   ffprobePath: string;
   rtspUrl: string;
   credentials: Credentials;
+  log?: (message: string) => void;
 }): Promise<StreamValidationResult> {
   const startedAt = Date.now();
+  const log = options.log ?? (() => undefined);
 
   const result: StreamValidationResult = {
     success: false,
@@ -201,50 +203,55 @@ export async function validateStream(options: {
     blackFrameDetected: false,
   };
 
-  // Etapa 1: DESCRIBE. Barata e decisiva — separa senha errada de caminho
-  // errado antes de gastar segundos abrindo o stream.
-  try {
-    const describe = await describeStream(options.rtspUrl, options.credentials);
-    result.rtspStatus = describe.status;
-    result.latencyMs = describe.latencyMs;
+  /**
+   * O ffprobe é a autoridade, não o nosso cliente RTSP.
+   *
+   * A versão anterior fazia DESCRIBE primeiro e abortava se não viesse 200.
+   * Em campo isso reprovou um stream que o FFmpeg abria sem problema: a
+   * câmera de homologação entrega HEVC 2560x1440 em /stream0, o monitor
+   * contínuo captura normalmente, e a validação descartava o mesmo endereço.
+   * Um cliente de protocolo escrito à mão jamais deve ter poder de veto sobre
+   * o motor que realmente vai abrir o vídeo em produção.
+   *
+   * O DESCRIBE continua útil — só mudou de papel. Agora ele explica a falha
+   * depois que o ffprobe recusa, que é onde distinguir 401 de 404 importa.
+   */
+  let video;
 
-    if (describe.status !== 200) {
+  try {
+    video = await probeStream(options.ffprobePath, options.rtspUrl);
+  } catch (probeError) {
+    const detalhe = probeError instanceof Error ? probeError.message : "falha desconhecida";
+    log(`ffprobe recusou o stream: ${detalhe}`);
+
+    // Só agora perguntamos ao protocolo qual foi o motivo.
+    try {
+      const describe = await describeStream(options.rtspUrl, options.credentials);
+      result.rtspStatus = describe.status;
+      result.latencyMs = describe.latencyMs;
       result.errorCode = `rtsp_${describe.status}`;
       result.errorMessage = describeStatusMessage(describe.status);
-      return result;
+      log(`DESCRIBE respondeu ${describe.status}.`);
+    } catch (describeError) {
+      result.errorCode =
+        describeError instanceof RtspError ? describeError.code : "probe_failed";
+      result.errorMessage = detalhe;
     }
 
-    if (describe.codec !== null) result.codec = describe.codec;
-    if (describe.width !== null) result.width = describe.width;
-    if (describe.height !== null) result.height = describe.height;
-  } catch (error) {
-    result.errorCode = error instanceof RtspError ? error.code : "rtsp_unreachable";
-    result.errorMessage =
-      error instanceof Error ? error.message : "Falha ao conversar com a câmera.";
     return result;
   }
 
-  // Etapa 2: metadados reais do stream.
-  try {
-    const video = await probeStream(options.ffprobePath, options.rtspUrl);
+  result.codec = normalizeCodec(video.codec_name);
 
-    result.codec = normalizeCodec(video.codec_name);
+  if (typeof video.width === "number") result.width = video.width;
+  if (typeof video.height === "number") result.height = video.height;
 
-    if (typeof video.width === "number") result.width = video.width;
-    if (typeof video.height === "number") result.height = video.height;
+  const fps = parseFrameRate(video.r_frame_rate) ?? parseFrameRate(video.avg_frame_rate);
+  if (fps !== null) result.fps = fps;
 
-    const fps = parseFrameRate(video.r_frame_rate) ?? parseFrameRate(video.avg_frame_rate);
-    if (fps !== null) result.fps = fps;
-
-    const bitrate = Number(video.bit_rate);
-    if (Number.isFinite(bitrate) && bitrate > 0) {
-      result.bitrateKbps = Math.round(bitrate / 1000);
-    }
-  } catch (error) {
-    result.errorCode = "probe_failed";
-    result.errorMessage =
-      error instanceof Error ? error.message : "Não foi possível ler os dados do vídeo.";
-    return result;
+  const bitrate = Number(video.bit_rate);
+  if (Number.isFinite(bitrate) && bitrate > 0) {
+    result.bitrateKbps = Math.round(bitrate / 1000);
   }
 
   if (!result.width || !result.height) {
@@ -253,7 +260,7 @@ export async function validateStream(options: {
     return result;
   }
 
-  // Etapa 3: quadro real. É o que separa "a porta respondeu" de "há imagem".
+  // Quadro real. É o que separa "a porta respondeu" de "há imagem".
   try {
     const sample = await decodeSampleFrame(options.ffmpegPath, options.rtspUrl);
     result.firstFrameDecoded = true;
@@ -262,6 +269,7 @@ export async function validateStream(options: {
     result.errorCode = "frame_decode_failed";
     result.errorMessage =
       error instanceof Error ? error.message : "Não foi possível decodificar um quadro.";
+    log(`Decodificação de quadro falhou: ${result.errorMessage}`);
     return result;
   }
 
@@ -275,5 +283,11 @@ export async function validateStream(options: {
 
   result.success = true;
   result.latencyMs = Date.now() - startedAt;
+
+  log(
+    `Stream validado: ${result.codec} ${result.width}x${result.height}` +
+      `${result.fps ? ` @ ${result.fps}fps` : ""}.`,
+  );
+
   return result;
 }

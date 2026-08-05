@@ -267,7 +267,12 @@ export async function discoverDeviceStreams(options: {
       }
 
       const rtspUrl = withCredentials(uri, credentials);
-      const validation = await validateStream({ ...tools, rtspUrl, credentials });
+      const validation = await validateStream({
+          ...tools,
+          rtspUrl,
+          credentials,
+          ...(logger ? { log: logger } : {}),
+        });
 
       let port = 554;
       try {
@@ -339,7 +344,12 @@ export async function discoverDeviceStreams(options: {
           credentials,
         });
 
-        const validation = await validateStream({ ...tools, rtspUrl, credentials });
+        const validation = await validateStream({
+          ...tools,
+          rtspUrl,
+          credentials,
+          ...(logger ? { log: logger } : {}),
+        });
 
         // Credencial errada não melhora com outro caminho: aborta tudo e
         // devolve a mensagem certa em vez de mil tentativas inúteis.
