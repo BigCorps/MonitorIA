@@ -18,6 +18,7 @@ import {
   saveConfig,
   type StoredAgentConfigV2,
 } from "./config.js";
+import { classifyCameraFailure, retryDelayMs } from "./camera-failure.js";
 import { captureFrame, resolveFfmpeg } from "./ffmpeg.js";
 import { IpcError, type IpcHandlerMap } from "./ipc-protocol.js";
 import { startIpcServer, type IpcServerHandle } from "./ipc-server.js";
@@ -42,7 +43,14 @@ import type { Credentials } from "./discovery/types.js";
 import type { RemoteCamera } from "./types.js";
 
 export const AGENT_VERSION = "0.9.0";
-export const DEFAULT_API_URL = "https://monitoria.cam";
+/**
+ * Domínio canônico.
+ *
+ * O apex responde 308 para www, e seguir esse redirecionamento removia o
+ * cabeçalho Authorization. O `api.ts` agora trata isso, mas apontar direto
+ * para o destino final economiza um salto em toda requisição.
+ */
+export const DEFAULT_API_URL = "https://www.monitoria.cam";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
@@ -121,6 +129,13 @@ export class AgentService {
 
   private timers: NodeJS.Timeout[] = [];
   private unauthorized = false;
+  private unauthorizedSince: number | null = null;
+  private everAuthenticated = false;
+  private tokenState: "ok" | "locked" | "missing" = "missing";
+  private readonly cameraBackoff = new Map<
+    string,
+    { attempts: number; nextAttemptAt: number; code: string; message: string }
+  >();
   private shuttingDown = false;
   private lastSyncAt: string | null = null;
   private discovery: DiscoveryResult[] = [];
@@ -191,7 +206,9 @@ export class AgentService {
 
     try {
       this.token = await this.vault.open(config.protectedAgentToken);
+      this.tokenState = "ok";
     } catch (error) {
+      this.tokenState = "locked";
       this.logger.error(
         `Não foi possível abrir o token do Agent: ${errorMessage(error)}. ` +
           "Se a pasta de dados foi copiada de outro computador, é preciso parear novamente.",
@@ -208,6 +225,7 @@ export class AgentService {
     }
 
     this.unauthorized = false;
+    this.unauthorizedSince = null;
     await this.syncConfiguration();
   }
 
@@ -316,6 +334,13 @@ export class AgentService {
         continue;
       }
 
+      // Câmera que falhou recentemente não é reiniciada a cada ciclo. Sem
+      // isso, credencial errada gerava uma tentativa por minuto, e cada
+      // reinício descartava a calibração de movimento já acumulada.
+      const backoff = this.cameraBackoff.get(camera.id);
+
+      if (backoff && Date.now() < backoff.nextAttemptAt) continue;
+
       if (existing) await this.stopRuntime(camera.id, "configuration_changed");
 
       try {
@@ -351,14 +376,29 @@ export class AgentService {
           },
           log: (message: string) => this.logger.info(message),
           onFatalError: (error: Error) => {
+            const failure = classifyCameraFailure(error.message);
+            const anterior = this.cameraBackoff.get(camera.id);
+            const attempts = (anterior?.attempts ?? 0) + 1;
+
+            this.cameraBackoff.set(camera.id, {
+              attempts,
+              nextAttemptAt: Date.now() + retryDelayMs(failure, attempts),
+              code: failure.code,
+              message: failure.message,
+            });
+
             this.logger.error(
-              `Monitor contínuo de "${camera.name}" falhou: ${error.message}`,
+              `Monitor de "${camera.name}" falhou (${failure.code}): ${failure.message}`,
             );
+
+            // O texto cru do FFmpeg fica só no log de depuração; o painel
+            // recebe a mensagem acionável.
+            this.logger.debug(`Detalhe técnico: ${error.message}`);
 
             void sendCameraStatus(config.apiBaseUrl, token, camera.id, {
               status: "error",
-              errorCode: "continuous_monitor_failed",
-              errorMessage: error.message,
+              errorCode: failure.code,
+              errorMessage: failure.message,
             }).catch(() => undefined);
           },
         });
@@ -368,6 +408,8 @@ export class AgentService {
           sessionId: session.sessionId,
           monitor,
         });
+
+        this.cameraBackoff.delete(camera.id);
 
         this.logger.info(
           `Monitoramento ${camera.plan} iniciado em "${camera.name}" · perfil v${camera.activeProfileVersion}.`,
@@ -385,13 +427,33 @@ export class AgentService {
     }
   }
 
+  /**
+   * 401 do servidor.
+   *
+   * Antes isso suspendia o Agent em definitivo, até alguém reiniciar o
+   * serviço na loja. Em produção a causa nem era revogação: era o cabeçalho
+   * de autorização perdido num redirecionamento, e a mensagem mandava o
+   * operador gerar código novo várias vezes sem resolver nada.
+   *
+   * Agora o estado é temporário: o monitoramento para, a fila é preservada e
+   * a autenticação é retentada periodicamente. A mensagem também distingue os
+   * dois cenários, porque a ação do operador é diferente em cada um.
+   */
   private handleUnauthorized() {
     if (this.unauthorized) return;
 
     this.unauthorized = true;
+    this.unauthorizedSince = Date.now();
+
     this.logger.error(
-      "O token do Agent foi recusado pelo servidor. O monitoramento foi suspenso " +
-        "e a fila preservada. Gere um novo código de pareamento no painel.",
+      this.everAuthenticated
+        ? "O token do Agent foi recusado pelo servidor. O monitoramento foi " +
+            "suspenso e a fila preservada. Se o pareamento foi removido no " +
+            "painel, gere um novo código."
+        : "O servidor recusou o token e este Agent nunca autenticou com " +
+            `sucesso em ${this.config?.apiBaseUrl ?? "(sem servidor)"}. ` +
+            "Isso costuma indicar endereço de servidor incorreto, e não token " +
+            "revogado. Verifique o parâmetro --url usado no pareamento.",
     );
 
     void (async () => {
@@ -401,16 +463,38 @@ export class AgentService {
     })();
   }
 
+  /** Espaçamento das retentativas enquanto não autorizado. */
+  private shouldRetryAuthorization() {
+    if (!this.unauthorized) return false;
+    if (this.unauthorizedSince === null) return true;
+    return Date.now() - this.unauthorizedSince >= 5 * 60_000;
+  }
+
   private async syncConfiguration() {
     const config = this.config;
     const token = this.token;
 
-    if (!config || !token || this.unauthorized) return;
+    if (!config || !token) return;
+
+    if (this.unauthorized) {
+      if (!this.shouldRetryAuthorization()) return;
+
+      this.logger.info("Tentando autenticar novamente com o servidor...");
+      this.unauthorizedSince = Date.now();
+    }
 
     try {
       const remote = await fetchAgentConfig(config.apiBaseUrl, token);
       this.cameras = remote.cameras;
       this.lastSyncAt = new Date().toISOString();
+      this.everAuthenticated = true;
+
+      if (this.unauthorized) {
+        this.unauthorized = false;
+        this.unauthorizedSince = null;
+        this.logger.info("Autenticação restabelecida. Retomando o monitoramento.");
+      }
+
       await this.syncMonitoring();
     } catch (error) {
       if (classifyError(error) === "unauthorized") {
@@ -471,14 +555,15 @@ export class AgentService {
         return;
       }
 
-      const message = errorMessage(error);
-      this.logger.warn(`Falha na câmera "${camera.name}": ${message}`);
+      const failure = classifyCameraFailure(errorMessage(error));
+      this.logger.warn(`Falha na câmera "${camera.name}": ${failure.message}`);
+      this.logger.debug(`Detalhe técnico: ${errorMessage(error)}`);
 
       try {
         await sendCameraStatus(config.apiBaseUrl, token, camera.id, {
           status: "error",
-          errorCode: "rtsp_capture_failed",
-          errorMessage: message,
+          errorCode: failure.code,
+          errorMessage: failure.message,
         });
       } catch {
         // Sem rede, o heartbeat seguinte já reflete o estado.
@@ -664,6 +749,10 @@ export class AgentService {
         this.token = null;
         this.cameras = [];
         this.unauthorized = false;
+        this.unauthorizedSince = null;
+        this.everAuthenticated = false;
+        this.tokenState = "missing";
+        this.cameraBackoff.clear();
         this.vault.clear();
 
         this.logger.info("Pareamento removido por solicitação local.");
@@ -930,6 +1019,8 @@ export class AgentService {
       startedAt: this.startedAt,
       paired: Boolean(this.config),
       unauthorized: this.unauthorized,
+      everAuthenticated: this.everAuthenticated,
+      tokenState: this.tokenState,
       agentName: this.config?.agentName ?? null,
       apiBaseUrl: this.config?.apiBaseUrl ?? null,
       lastSyncAt: this.lastSyncAt,
@@ -968,7 +1059,19 @@ export class AgentService {
       aclRestricted: layout.restricted,
       configPresent: Boolean(this.config),
       secretScope: this.config?.secretScope ?? null,
+      // Reflete o estado real do cofre. A versão anterior mostrava o token
+      // como aceito mesmo quando o DPAPI havia falhado ao abri-lo, porque só
+      // considerava a resposta do servidor — que nunca chegou a ser feita.
+      tokenState: this.tokenState,
       unauthorized: this.unauthorized,
+      everAuthenticated: this.everAuthenticated,
+      cameraFailures: [...this.cameraBackoff.entries()].map(([id, item]) => ({
+        cameraId: id,
+        code: item.code,
+        message: item.message,
+        attempts: item.attempts,
+        nextAttemptAt: new Date(item.nextAttemptAt).toISOString(),
+      })),
       ffmpeg,
       ffmpegError,
       queue: stats,

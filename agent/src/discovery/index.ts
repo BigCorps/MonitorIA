@@ -16,7 +16,7 @@ import {
   withCredentials,
 } from "./onvif.js";
 import { NS } from "./soap.js";
-import { scanLocalNetwork } from "./scan.js";
+import { openRtspPorts, scanLocalNetwork } from "./scan.js";
 import { validateStream } from "./validate.js";
 import { probeOnvifDevices } from "./wsdiscovery.js";
 import type {
@@ -213,10 +213,18 @@ export async function discoverDeviceStreams(options: {
       normalizeVendor(onvif.information.model) ??
       result.vendor;
 
+    // A câmera de homologação devolve estes campos em branco, não nulos.
+    // Tratar string vazia como ausente evita log enganoso e impede que o
+    // catálogo registre fabricante "" como se fosse informação.
+    const fabricante = onvif.information.manufacturer?.trim() || null;
+    const modelo = onvif.information.model?.trim() || null;
+
     log(
       logger,
-      `ONVIF respondeu em ${device.host}: ${onvif.information.manufacturer ?? "fabricante desconhecido"} ` +
-        `${onvif.information.model ?? ""} · ${onvif.profiles.length} perfil(is).`,
+      `ONVIF respondeu em ${device.host}: ` +
+        `${fabricante ?? "fabricante não informado"} ` +
+        `${modelo ?? "(modelo não informado)"} · ` +
+        `${onvif.profiles.length} perfil(is).`,
     );
 
     for (const profile of onvif.profiles) {
@@ -224,11 +232,39 @@ export async function discoverDeviceStreams(options: {
 
       try {
         uri = await getStreamUri(onvif.mediaUrl, credentials, profile.token, onvif.generation);
-      } catch {
-        continue;
+      } catch (error) {
+        // A versão anterior engolia esta falha com um catch vazio. Em campo,
+        // a câmera de homologação respondeu GetProfiles e falhou aqui — e o
+        // log não dizia por quê, o que tornou o problema não diagnosticável.
+        log(
+          logger,
+          `GetStreamUri falhou no perfil "${profile.name}" (${onvif.generation}): ` +
+            `${error instanceof Error ? error.message : "erro desconhecido"}`,
+        );
+
+        // Firmwares que anunciam Media2 mas implementam o formato antigo são
+        // comuns. Vale uma tentativa na outra geração antes de desistir.
+        const alternativa = onvif.generation === "media2" ? "media" : "media2";
+
+        try {
+          uri = await getStreamUri(onvif.mediaUrl, credentials, profile.token, alternativa);
+          if (uri) {
+            log(logger, `GetStreamUri funcionou na geração ${alternativa}.`);
+          }
+        } catch (segundoErro) {
+          log(
+            logger,
+            `GetStreamUri também falhou em ${alternativa}: ` +
+              `${segundoErro instanceof Error ? segundoErro.message : "erro desconhecido"}`,
+          );
+          continue;
+        }
       }
 
-      if (!uri) continue;
+      if (!uri) {
+        log(logger, `O perfil "${profile.name}" não devolveu URI de stream.`);
+        continue;
+      }
 
       const rtspUrl = withCredentials(uri, credentials);
       const validation = await validateStream({ ...tools, rtspUrl, credentials });
@@ -263,17 +299,38 @@ export async function discoverDeviceStreams(options: {
   const channels = options.channels ?? [1];
   const candidates = candidatesFor({ vendor: result.vendor, includeGeneric: true });
 
+  // Sonda as portas uma única vez em vez de testar todo caminho em todas.
+  const portasAbertas = await openRtspPorts(device.host);
+
+  if (portasAbertas.length === 0) {
+    result.failure = {
+      code: "no_rtsp_port",
+      message:
+        "Nenhuma porta de vídeo respondeu neste aparelho. " +
+        "Verifique se o serviço RTSP está habilitado na câmera.",
+    };
+    return result;
+  }
+
   log(
     logger,
     `ONVIF não produziu stream utilizável em ${device.host}. ` +
-      `Testando ${candidates.length} caminho(s) do catálogo.`,
+      `Testando ${candidates.length} caminho(s) na(s) porta(s) ${portasAbertas.join(", ")}.`,
   );
 
   let lastFailure: StreamValidationResult | null = null;
 
   for (const candidate of candidates) {
     for (const channel of channels) {
-      for (const port of new Set([candidate.defaultPort, ...RTSP_PORTS])) {
+      // Só as portas comprovadamente abertas, com a porta padrão do
+      // fabricante primeiro quando ela estiver entre elas.
+      const portas = [...portasAbertas].sort((a, b) => {
+        if (a === candidate.defaultPort) return -1;
+        if (b === candidate.defaultPort) return 1;
+        return a - b;
+      });
+
+      for (const port of portas) {
         const rtspUrl = buildCandidateUrl({
           candidate,
           host: device.host,

@@ -185,7 +185,12 @@ async function commandStatus() {
 
   if (status.unauthorized) {
     console.log(
-      "\nATENÇÃO: o token foi recusado pelo servidor. Gere um novo código de pareamento.",
+      status.everAuthenticated
+        ? "\nATENÇÃO: o token foi recusado pelo servidor. Se o pareamento foi " +
+            "removido no painel, gere um novo código."
+        : "\nATENÇÃO: o servidor recusou o token e este Agent nunca autenticou. " +
+            "Isso costuma ser endereço de servidor errado, não token revogado. " +
+            "Confira o --url usado no pareamento.",
     );
   }
 
@@ -221,7 +226,24 @@ async function commandDiagnose() {
   console.log(`Pasta de dados      ${String(report.dataDirectory)}`);
   console.log(`Permissões da pasta ${ok(Boolean(report.aclRestricted))}`);
   console.log(`Configuração        ${ok(Boolean(report.configPresent))}`);
-  console.log(`Token aceito        ${ok(!report.unauthorized)}`);
+
+  const tokenState = String(report.tokenState ?? "missing");
+  const tokenTexto =
+    tokenState === "ok"
+      ? report.unauthorized
+        ? "FALHA · recusado pelo servidor"
+        : "OK"
+      : tokenState === "locked"
+        ? "FALHA · não foi possível decifrar nesta máquina"
+        : "FALHA · nenhum token gravado";
+
+  console.log(`Token               ${tokenTexto}`);
+
+  if (report.unauthorized && !report.everAuthenticated) {
+    console.log(
+      "                    (nunca autenticou: verifique o endereço do servidor)",
+    );
+  }
   console.log(
     `FFmpeg              ${report.ffmpeg ? `OK · ${String(report.ffmpeg)}` : `FALHA · ${String(report.ffmpegError)}`}`,
   );
@@ -232,6 +254,19 @@ async function commandDiagnose() {
   console.log(
     `Logs                ${String(logs.files ?? 0)} arquivo(s), ${bytes(logs.totalBytes)}`,
   );
+
+  const falhas = Array.isArray(report.cameraFailures) ? report.cameraFailures : [];
+
+  if (falhas.length > 0) {
+    console.log("\nCâmeras com problema:");
+
+    for (const item of falhas) {
+      const falha = item as Record<string, unknown>;
+      console.log(`  ${String(falha.cameraId)} · ${String(falha.code)}`);
+      console.log(`    ${String(falha.message)}`);
+      console.log(`    Nova tentativa: ${String(falha.nextAttemptAt)}`);
+    }
+  }
 
   if (!report.aclRestricted) {
     console.log(

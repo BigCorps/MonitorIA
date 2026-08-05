@@ -71,7 +71,20 @@ export async function startIpcServer(
 
     let buffer = "";
 
+    /**
+     * Requisições em andamento nesta conexão.
+     *
+     * O timeout existe para não acumular conexão ociosa, mas na versão
+     * anterior ele derrubava a conexão mesmo com trabalho em curso: a
+     * varredura de rede leva minutos sem trafegar byte nenhum, e o próprio
+     * serviço matava o canal aos 30 segundos. O cliente reportava
+     * "encerrou a conexão sem responder" enquanto o serviço seguia
+     * trabalhando e gravando o resultado só no log.
+     */
+    let pending = 0;
+
     socket.on("timeout", () => {
+      if (pending > 0) return;
       socket.destroy();
     });
 
@@ -96,7 +109,12 @@ export async function startIpcServer(
         buffer = buffer.slice(newline + 1);
         newline = buffer.indexOf("\n");
 
-        if (line.length > 0) void handleLine(socket, line);
+        if (line.length > 0) {
+          pending += 1;
+          void handleLine(socket, line).finally(() => {
+            pending -= 1;
+          });
+        }
       }
     });
   });

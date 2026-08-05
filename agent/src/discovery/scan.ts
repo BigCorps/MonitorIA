@@ -117,6 +117,33 @@ async function runPool(targets: ScanTarget[], onOpen: (target: ScanTarget) => vo
   );
 }
 
+/**
+ * Portas RTSP abertas num host específico.
+ *
+ * Existe para cortar a explosão combinatória da descoberta. Antes, cada
+ * caminho do catálogo era testado em todas as cinco portas conhecidas: dez
+ * caminhos viravam cinquenta tentativas de stream por aparelho, cada uma com
+ * DESCRIBE, ffprobe e decodificação. O log de produção mostrou quase dois
+ * minutos por câmera.
+ *
+ * Sondando as portas uma vez, o número cai para os caminhos vezes as portas
+ * realmente abertas — quase sempre uma.
+ */
+export async function openRtspPorts(
+  host: string,
+  ports: readonly number[] = RTSP_PORTS,
+) {
+  const abertas: number[] = [];
+
+  await Promise.all(
+    ports.map(async (port) => {
+      if (await probePort(host, port)) abertas.push(port);
+    }),
+  );
+
+  return abertas.sort((a, b) => a - b);
+}
+
 export async function scanLocalNetwork(options?: {
   ports?: readonly number[];
   hosts?: string[];
