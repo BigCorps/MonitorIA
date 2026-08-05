@@ -7,7 +7,7 @@ export const MCP_RESPONSE_SCHEMA_VERSION = "1.0";
 export const MCP_AUDITED_QUERY_ANNOTATIONS = {
   readOnlyHint: false,
   destructiveHint: false,
-  idempotentHint: true,
+  idempotentHint: false,
   openWorldHint: false,
 } as const;
 
