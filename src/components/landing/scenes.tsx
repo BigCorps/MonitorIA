@@ -297,7 +297,7 @@ export function SceneAgentInstall() {
         ["Status", "Conectado", C.mint],
         ["Versão", "1.0.0", C.ink],
         ["Agent ID", "ag_7f3c9b21", C.ink],
-        ["Sistema", "Windows 11 x64", C.ink],   ← ou "Linux x64", ou remova a linha
+        ["Sistema", "Windows 11 x64", C.ink],
       ].map(([k, v, color], i) => (
         <g key={k} className={styles.sIn} style={d(2.4 + i * 0.18)}>
           <line x1="184" y1={320 + i * 24} x2="616" y2={320 + i * 24} stroke={C.line} />
