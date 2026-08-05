@@ -65,11 +65,11 @@ function canonicalResourceUri(value: string) {
     url.pathname =
       url.pathname === "/"
         ? "/"
-        : url.pathname.replace(/\\/+$/, "");
+        : url.pathname.replace(/\/+$/, "");
 
     return url.toString();
   } catch {
-    return value.trim().replace(/\\/+$/, "");
+    return value.trim().replace(/\/+$/, "");
   }
 }
 
