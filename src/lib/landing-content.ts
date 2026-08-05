@@ -149,7 +149,7 @@ export const steps = [
     time: "08:04",
     kicker: "Instalação",
     title: "Você instala o Agent no computador da loja",
-    text: "Um programa para Windows 10 ou 11, instalado por você mesmo, sem taxa e sem técnico. Ele fica no seu computador e conversa com o seu DVR.",
+    text: "Um programa para Windows ou Linux, instalado por você mesmo, sem taxa e sem técnico. Ele fica no seu computador e conversa com o seu DVR.",
     media: "agent-install",
   },
   {
@@ -243,7 +243,7 @@ export const faq = [
   },
   {
     q: "Em quais sistemas o Agent roda?",
-    a: "Windows 10 x64 e Windows 11 x64. Windows Server depende de homologação. Não oferecemos macOS nem Linux.",
+    a: "Windows 10 x64, Windows 11 x64 e Linux x64. Não oferecemos macOS.",
   },
   {
     q: "Como é o pagamento?",

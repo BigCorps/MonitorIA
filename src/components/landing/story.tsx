@@ -25,7 +25,7 @@ export function Problem() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
             <span>O problema</span>
@@ -37,7 +37,7 @@ export function Problem() {
           </p>
         </div>
 
-        <div className={`${styles.problemGrid} ${styles.reveal}`}>
+        <div className={`${styles.problemGrid} ${styles.stagger}`}>
           {problems.map((item) => (
             <article className={styles.problemCard} key={item.title}>
               <h3 className={styles.h3}>{item.title}</h3>
@@ -54,7 +54,7 @@ export function HowItWorks() {
   return (
     <section className={styles.section} id="como-funciona">
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>08:04</span>
             <span>Um dia de operação</span>
@@ -81,7 +81,7 @@ export function HowItWorks() {
                 <p>{step.text}</p>
               </div>
 
-              <MediaSlot label={step.kicker}>
+              <MediaSlot label={step.kicker} className={styles.floatMedia}>
                 <StepScene media={step.media} />
               </MediaSlot>
             </article>
@@ -96,7 +96,7 @@ export function Sectors() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
             <span>Onde funciona</span>
@@ -149,7 +149,7 @@ export function Boundaries() {
   return (
     <section className={styles.section}>
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
             <span>Limites declarados</span>
@@ -161,7 +161,7 @@ export function Boundaries() {
           </p>
         </div>
 
-        <div className={`${styles.boundaryGrid} ${styles.reveal}`}>
+        <div className={`${styles.boundaryGrid} ${styles.stagger}`}>
           {boundaries.map((item) => (
             <p className={styles.boundaryItem} key={item}>
               <svg viewBox="0 0 24 24" aria-hidden="true">

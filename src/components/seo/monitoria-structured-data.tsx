@@ -33,7 +33,7 @@ const structuredData = {
       url: appConfig.url,
       applicationCategory: "BusinessApplication",
       applicationSubCategory: "VideoAnalyticsApplication",
-      operatingSystem: "Web, Windows 10, Windows 11",
+      operatingSystem: "Web, Windows 10, Windows 11, Linux.",
       inLanguage: appConfig.language,
       description: appConfig.description,
       provider: { "@id": `${appConfig.url}/#organization` },

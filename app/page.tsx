@@ -39,9 +39,11 @@ export default function HomePage() {
 
       <LandingHeader />
       <Hero />
+      {/* "Onde funciona" vem logo após o herói: é o ativo visual mais forte
+          da página e responde à primeira pergunta de quem chega. */}
+      <Sectors />
       <Problem />
       <HowItWorks />
-      <Sectors />
       <Boundaries />
       <Retention />
       <Plans />

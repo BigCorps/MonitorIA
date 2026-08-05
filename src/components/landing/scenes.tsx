@@ -264,7 +264,7 @@ export function SceneAgentInstall() {
   return (
     <svg className={styles.svgScene} viewBox="0 0 800 500" role="img"
       aria-label="Janela do Agent do MonitorIA no Windows, com instalação concluída, status conectado, versão e identificador.">
-      <Frame title="MonitorIA Agent · Windows" right="v1.0.0" />
+      <Frame title="MonitorIA Agent" right="v1.0.0" />
 
       <rect x="120" y="86" width="560" height="330" rx="10" fill={C.panel} stroke={C.line} />
 
@@ -285,7 +285,7 @@ export function SceneAgentInstall() {
         Agent conectado
       </Line>
       <Line x={400} y={254} size={13} fill={C.ink2} anchor="middle" delay={2.0}>
-        O serviço inicia junto com o Windows. Nada mais a fazer aqui.
+        O serviço inicia junto com o sistema. Nada mais a fazer aqui.
       </Line>
 
       {/* barra de progresso */}
@@ -297,7 +297,7 @@ export function SceneAgentInstall() {
         ["Status", "Conectado", C.mint],
         ["Versão", "1.0.0", C.ink],
         ["Agent ID", "ag_7f3c9b21", C.ink],
-        ["Sistema", "Windows 11 x64", C.ink],
+        ["Sistema", "Windows 11 x64", C.ink],   ← ou "Linux x64", ou remova a linha
       ].map(([k, v, color], i) => (
         <g key={k} className={styles.sIn} style={d(2.4 + i * 0.18)}>
           <line x1="184" y1={320 + i * 24} x2="616" y2={320 + i * 24} stroke={C.line} />

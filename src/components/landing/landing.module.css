@@ -75,25 +75,85 @@
   to { transform: scaleY(1); }
 }
 
-/* --- Reveal --------------------------------------------------------------
-   Estado padrão = visível. A animação só é aplicada onde há suporte E o
-   usuário não pediu movimento reduzido. Firefox antigo vê a página inteira. */
+/* --- Transições de seção -------------------------------------------------
+   Quatro efeitos, todos ligados à rolagem e todos em CSS puro.
+
+   Estado padrão = final. A animação só entra onde há suporte E o visitante
+   não pediu movimento reduzido. Quem não suporta vê a página inteira,
+   estática e completa — nunca uma seção invisível.
+
+   1 .reveal      sobe, aparece e assenta (micro-escala)
+   2 .stagger     os filhos entram em cascata conforme a rolagem
+   3 .wipe        revelação por corte, de baixo para cima
+   4 .floatMedia  paralaxe leve nos painéis, ligada à rolagem
+   ------------------------------------------------------------------------ */
 
 .reveal { opacity: 1; transform: none; }
+.wipe { opacity: 1; clip-path: inset(0 0 0 0); }
+.stagger > * { opacity: 1; transform: none; }
+.floatMedia { transform: none; }
 
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .reveal {
       animation: revealIn linear both;
       animation-timeline: view();
-      animation-range: entry 4% cover 22%;
+      animation-range: entry 2% cover 24%;
+    }
+
+    .wipe {
+      animation: revealWipe linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 30%;
+    }
+
+    /* Cascata: mesma animação, faixas de rolagem deslocadas. */
+    .stagger > * {
+      animation: revealIn linear both;
+      animation-timeline: view();
+    }
+    .stagger > *:nth-child(1) { animation-range: entry 2% cover 20%; }
+    .stagger > *:nth-child(2) { animation-range: entry 7% cover 25%; }
+    .stagger > *:nth-child(3) { animation-range: entry 12% cover 30%; }
+    .stagger > *:nth-child(4) { animation-range: entry 17% cover 35%; }
+    .stagger > *:nth-child(5) { animation-range: entry 22% cover 40%; }
+    .stagger > *:nth-child(6) { animation-range: entry 27% cover 45%; }
+    .stagger > *:nth-child(7) { animation-range: entry 32% cover 50%; }
+    .stagger > *:nth-child(8) { animation-range: entry 37% cover 55%; }
+
+    .floatMedia {
+      animation: mediaFloat linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+
+    /* Fio que se desenha no topo de cada seção quando ela é alcançada. */
+    .section::before {
+      animation: ruleDraw linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
     }
   }
 }
 
 @keyframes revealIn {
-  from { opacity: 0; transform: translateY(26px); }
+  from { opacity: 0; transform: translateY(24px) scale(0.988); }
   to { opacity: 1; transform: none; }
+}
+
+@keyframes revealWipe {
+  from { opacity: 0.4; clip-path: inset(0 0 92% 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+@keyframes mediaFloat {
+  from { transform: translateY(22px); }
+  to { transform: translateY(-22px); }
+}
+
+@keyframes ruleDraw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* --- Tipografia ---------------------------------------------------------- */
@@ -126,7 +186,7 @@
 /* Títulos: Archivo estreitado no eixo wdth. É esse aperto que dá o caráter. */
 .h1 {
   margin: 0;
-  font-size: clamp(46px, 7.4vw, 104px);
+  font-size: clamp(42px, 6.6vw, 88px);
   line-height: 0.94;
   letter-spacing: -0.045em;
   font-weight: 800;
@@ -169,6 +229,24 @@
 .section {
   padding-block: var(--step);
   position: relative;
+}
+
+.section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  transform: scaleX(1);
+  transform-origin: left center;
+  background: linear-gradient(
+    90deg,
+    var(--mint) 0%,
+    rgba(88, 226, 199, 0.35) 22%,
+    rgba(148, 172, 200, 0.16) 55%,
+    transparent 100%
+  );
 }
 
 .sectionDeep { background: var(--deep); }
@@ -273,11 +351,28 @@
 /* --- Hero ------------------------------------------------------------------ */
 
 .hero {
-  padding-top: clamp(48px, 7vw, 96px);
+  padding-top: clamp(40px, 5vw, 72px);
   padding-bottom: clamp(56px, 7vw, 100px);
 }
 
-.heroGrid { display: grid; gap: 30px; }
+/* Em duas colunas o título divide a linha com o painel. */
+@media (min-width: 1060px) {
+  .hero .h1 { font-size: clamp(46px, 4.4vw, 66px); }
+  .hero .lede { font-size: 17px; }
+  .proof { margin-top: 36px; }
+  .proofItem { flex-basis: 140px; padding-block: 18px; }
+  .proofItem strong { font-size: 19px; }
+}
+
+.heroGrid { display: grid; gap: 34px; }
+
+@media (min-width: 1060px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+    align-items: center;
+    gap: 54px;
+  }
+}
 
 .heroCopy { max-width: 820px; }
 .heroCopy .lede { margin-top: 26px; }
@@ -477,20 +572,20 @@
 
 .sectorCard {
   position: relative;
-  min-height: clamp(380px, 56vh, 560px);
+  min-height: clamp(196px, 30vh, 300px);
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--hair);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 34px 30px;
+  padding: 26px 28px;
   background: var(--card);
 }
 
 /* Empilhamento pegajoso: cada card trava e o seguinte cobre. */
 @media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
-  .sectorCard { position: sticky; top: 96px; }
+  .sectorCard { position: sticky; top: 84px; }
 }
 
 .sectorMedia {
@@ -498,6 +593,7 @@
   inset: 0;
   z-index: 0;
   object-fit: cover;
+  object-position: center 42%;
   width: 100%;
   height: 100%;
 }
@@ -534,7 +630,7 @@
 
 .sectorValue {
   margin: 0;
-  font-size: clamp(48px, 7.4vw, 92px);
+  font-size: clamp(34px, 4.6vw, 58px);
   line-height: 0.92;
   letter-spacing: -0.05em;
   font-weight: 800;
@@ -542,9 +638,9 @@
 }
 
 .sectorLabel {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   max-width: 34ch;
-  font-size: clamp(15px, 1.6vw, 18px);
+  font-size: clamp(13.5px, 1.3vw, 15.5px);
   line-height: 1.45;
   color: rgba(233, 242, 251, 0.9);
 }

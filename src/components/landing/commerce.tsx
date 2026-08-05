@@ -19,7 +19,7 @@ export function Plans() {
   return (
     <section className={styles.section} id="planos">
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
             <span>Planos</span>
@@ -31,7 +31,7 @@ export function Plans() {
           </p>
         </div>
 
-        <div className={`${styles.planGrid} ${styles.reveal}`}>
+        <div className={`${styles.planGrid} ${styles.stagger}`}>
           {landingPlans.map((plan) => (
             <article
               className={styles.planCard}
@@ -175,7 +175,7 @@ export function Trial() {
             </p>
           </div>
 
-          <div className={styles.trialFacts}>
+          <div className={`${styles.trialFacts} ${styles.stagger}`}>
             {trialFacts.map((fact) => (
               <div className={styles.trialFact} key={fact.label}>
                 <b className={styles.mono}>{fact.value}</b>
@@ -200,7 +200,7 @@ export function Faq() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`} id="duvidas">
       <div className={styles.container}>
-        <div className={`${styles.sectionHead} ${styles.reveal}`}>
+        <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
             <span>Dúvidas</span>
@@ -208,7 +208,7 @@ export function Faq() {
           <h2 className={styles.h2}>As perguntas que sempre chegam.</h2>
         </div>
 
-        <div className={styles.faqList}>
+        <div className={`${styles.faqList} ${styles.stagger}`}>
           {faq.map((item) => (
             <details className={styles.faqItem} key={item.q}>
               <summary>{item.q}</summary>

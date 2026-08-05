@@ -82,7 +82,7 @@ export function Hero() {
             <CtaLink cta={secondaryCta} variant="ghost" />
           </div>
 
-          <dl className={styles.proof}>
+          <dl className={`${styles.proof} ${styles.stagger}`}>
             <div className={styles.proofItem}>
               <strong className={styles.mono}>R$ 39,90</strong>
               <span>por câmera, por mês. Sem mensalidade fixa.</span>
@@ -102,7 +102,7 @@ export function Hero() {
           </dl>
         </div>
 
-        <MediaSlot label="Painel · Entrada principal" className={styles.reveal}>
+        <MediaSlot label="Painel · Entrada principal">
           <SceneHero />
         </MediaSlot>
       </div>
