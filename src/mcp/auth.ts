@@ -50,9 +50,44 @@ export function mcpResourceUri(request: Request) {
   return process.env.MCP_RESOURCE_URI?.trim() || `${base}/mcp`;
 }
 
+function canonicalResourceUri(value: string) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+
+    if (
+      (url.protocol === "https:" && url.port === "443") ||
+      (url.protocol === "http:" && url.port === "80")
+    ) {
+      url.port = "";
+    }
+
+    url.pathname =
+      url.pathname === "/"
+        ? "/"
+        : url.pathname.replace(/\\/+$/, "");
+
+    return url.toString();
+  } catch {
+    return value.trim().replace(/\\/+$/, "");
+  }
+}
+
 function audienceIncludes(value: unknown, expected: string) {
-  if (typeof value === "string") return value === expected;
-  return Array.isArray(value) && value.some((item) => item === expected);
+  const canonicalExpected = canonicalResourceUri(expected);
+
+  if (typeof value === "string") {
+    return canonicalResourceUri(value) === canonicalExpected;
+  }
+
+  return (
+    Array.isArray(value) &&
+    value.some(
+      (item) =>
+        typeof item === "string" &&
+        canonicalResourceUri(item) === canonicalExpected,
+    )
+  );
 }
 
 export async function authenticateMcpRequest(

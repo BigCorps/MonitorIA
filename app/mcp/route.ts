@@ -53,7 +53,18 @@ async function handle(request: Request) {
   const authentication = await authenticateMcpRequest(request);
 
   if (!authentication.ok) {
-    return withCors(mcpAuthErrorResponse(request, authentication));
+    console.warn("MonitorIA MCP authentication rejected", {
+      code: authentication.code,
+      status: authentication.status,
+      hasAuthorizationHeader: Boolean(
+        request.headers.get("authorization"),
+      ),
+      method: request.method,
+    });
+
+    return withCors(
+      mcpAuthErrorResponse(request, authentication),
+    );
   }
 
   const context = authentication.context;
