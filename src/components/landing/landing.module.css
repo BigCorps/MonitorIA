@@ -187,9 +187,9 @@
 .h1 {
   margin: 0;
   font-size: clamp(42px, 6.6vw, 88px);
-  line-height: 0.94;
-  letter-spacing: -0.045em;
-  font-weight: 800;
+  line-height: 0.96;
+  letter-spacing: -0.038em;
+  font-weight: 620;
   font-variation-settings: "wdth" 86;
   text-wrap: balance;
 }
@@ -197,9 +197,9 @@
 .h2 {
   margin: 0 0 20px;
   font-size: clamp(32px, 4.4vw, 60px);
-  line-height: 1;
-  letter-spacing: -0.04em;
-  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.034em;
+  font-weight: 620;
   font-variation-settings: "wdth" 88;
   text-wrap: balance;
 }
@@ -208,8 +208,8 @@
   margin: 0 0 10px;
   font-size: clamp(19px, 2vw, 24px);
   line-height: 1.15;
-  letter-spacing: -0.025em;
-  font-weight: 700;
+  letter-spacing: -0.022em;
+  font-weight: 600;
   font-variation-settings: "wdth" 94;
 }
 
@@ -226,9 +226,42 @@
 
 /* --- Seções --------------------------------------------------------------- */
 
+/* --- Empilhamento de seções -----------------------------------------------
+   Cada seção tem fundo opaco, canto superior arredondado e margem negativa.
+   Como irmãs posicionadas pintam em ordem de DOM, a seção de baixo cobre
+   literalmente a de cima — o mesmo efeito dos cards de setor, agora entre
+   as partes da página.
+
+   O par disso é `.recede`, aplicado ao conteúdo: enquanto a seção seguinte
+   sobe, a que está saindo recua e escurece. É o que dá a sensação de
+   profundidade em vez de simples rolagem. */
+
 .section {
   padding-block: var(--step);
   position: relative;
+  z-index: 1;
+  background: var(--deep-2);
+  border-radius: 26px 26px 0 0;
+  margin-top: -26px;
+  box-shadow: 0 -22px 54px rgba(2, 7, 14, 0.66);
+}
+
+
+.recede { opacity: 1; transform: none; }
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .recede {
+      animation: sectionRecede linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 92%;
+    }
+  }
+}
+
+@keyframes sectionRecede {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0.32; transform: scale(0.955) translateY(-28px); }
 }
 
 .section::before {
@@ -238,6 +271,7 @@
   right: 0;
   top: 0;
   height: 1px;
+  border-radius: 26px 26px 0 0;
   transform: scaleX(1);
   transform-origin: left center;
   background: linear-gradient(
@@ -306,7 +340,7 @@
   align-items: center;
   gap: 11px;
   font-size: 19px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.045em;
   font-variation-settings: "wdth" 92;
 }
@@ -328,6 +362,16 @@
 }
 
 .headerCta { display: inline-flex; gap: 10px; }
+
+/* O bloco final é uma seção como as outras: cobre a de cima. */
+.closingWrap {
+  position: relative;
+  z-index: 1;
+  background: var(--deep-2);
+  border-radius: 26px 26px 0 0;
+  margin-top: -26px;
+  box-shadow: 0 -22px 54px rgba(2, 7, 14, 0.66);
+}
 
 .footer {
   border-top: 1px solid var(--hair);
@@ -633,7 +677,7 @@
   font-size: clamp(34px, 4.6vw, 58px);
   line-height: 0.92;
   letter-spacing: -0.05em;
-  font-weight: 800;
+  font-weight: 640;
   font-variation-settings: "wdth" 84;
 }
 
@@ -742,7 +786,7 @@
 .planName {
   margin: 0;
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 620;
   letter-spacing: -0.035em;
   font-variation-settings: "wdth" 90;
 }
@@ -830,7 +874,7 @@
   margin: 0;
   font-size: clamp(58px, 8vw, 92px);
   line-height: 0.9;
-  font-weight: 800;
+  font-weight: 640;
   letter-spacing: -0.05em;
   font-variation-settings: "wdth" 84;
   color: var(--mint);
@@ -929,7 +973,6 @@
   display: grid;
   gap: 28px;
   padding-block: clamp(72px, 9vw, 128px);
-  border-top: 1px solid var(--hair);
 }
 
 @media (min-width: 900px) {

@@ -60,7 +60,7 @@ export function LandingFooter() {
 export function Hero() {
   return (
     <section className={`${styles.hero} ${styles.container}`}>
-      <div className={styles.heroGrid}>
+      <div className={`${styles.heroGrid} ${styles.recede}`}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>08:12</span>

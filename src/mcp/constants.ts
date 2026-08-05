@@ -4,8 +4,8 @@ export const MCP_TOOLSET_VERSION =
   process.env.MCP_TOOLSET_VERSION ?? "1.0.0";
 export const MCP_RESPONSE_SCHEMA_VERSION = "1.0";
 
-export const MCP_READ_ONLY_ANNOTATIONS = {
-  readOnlyHint: true,
+export const MCP_AUDITED_QUERY_ANNOTATIONS = {
+  readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,

@@ -24,7 +24,7 @@ function StepScene({ media }: { media: keyof typeof stepScenes }) {
 export function Problem() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
@@ -53,7 +53,7 @@ export function Problem() {
 export function HowItWorks() {
   return (
     <section className={styles.section} id="como-funciona">
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>08:04</span>
@@ -148,7 +148,7 @@ export function Sectors() {
 export function Boundaries() {
   return (
     <section className={styles.section}>
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
@@ -179,7 +179,7 @@ export function Boundaries() {
 export function Retention() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
-      <div className={`${styles.container} ${styles.retention} ${styles.reveal}`}>
+      <div className={`${styles.container} ${styles.retention} ${styles.reveal} ${styles.recede}`}>
         <div>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>365</span>

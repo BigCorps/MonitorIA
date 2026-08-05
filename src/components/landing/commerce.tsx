@@ -18,7 +18,7 @@ import styles from "./landing.module.css";
 export function Plans() {
   return (
     <section className={styles.section} id="planos">
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
@@ -118,7 +118,7 @@ export function Plans() {
 export function Assistant() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
-      <div className={`${styles.container} ${styles.assistant} ${styles.reveal}`}>
+      <div className={`${styles.container} ${styles.assistant} ${styles.reveal} ${styles.recede}`}>
         <div>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
@@ -160,7 +160,7 @@ export function Assistant() {
 export function Trial() {
   return (
     <section className={styles.section}>
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.trial} ${styles.reveal}`}>
           <div>
             <p className={styles.eyebrow}>
@@ -199,7 +199,7 @@ export function Trial() {
 export function Faq() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`} id="duvidas">
-      <div className={styles.container}>
+      <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
@@ -223,17 +223,19 @@ export function Faq() {
 
 export function Closing() {
   return (
-    <section className={`${styles.container} ${styles.closing}`}>
-      <div>
-        <p className={styles.eyebrow}>
-          <span className={styles.eyebrowTime}>19:47</span>
-          <span>Depois do fechamento</span>
-        </p>
-        <h2 className={styles.h2}>Suas câmeras já gravam. Falta alguém lembrar.</h2>
-      </div>
-      <div className={styles.actions}>
-        <CtaLink cta={primaryCta} variant="primary" />
-        <CtaLink cta={secondaryCta} variant="ghost" />
+    <section className={styles.closingWrap}>
+      <div className={`${styles.container} ${styles.closing}`}>
+        <div>
+          <p className={styles.eyebrow}>
+            <span className={styles.eyebrowTime}>19:47</span>
+            <span>Depois do fechamento</span>
+          </p>
+          <h2 className={styles.h2}>Suas câmeras já gravam. Falta alguém lembrar.</h2>
+        </div>
+        <div className={styles.actions}>
+          <CtaLink cta={primaryCta} variant="primary" />
+          <CtaLink cta={secondaryCta} variant="ghost" />
+        </div>
       </div>
     </section>
   );
