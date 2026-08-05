@@ -1,19 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Rubik } from "next/font/google";
 import { appConfig } from "@/src/lib/app-config";
 import "./globals.css";
 
 /**
- * Archivo (Omnibus-Type, SIL OFL 1.1) — variável, com eixo de largura.
- * O eixo `wdth` é o que dá caráter aos títulos sem trocar de família.
+ * Rubik (Hubert & Fischer / Meir Sadan, SIL OFL 1.1) — variável no eixo de
+ * peso, cantos levemente arredondados. Suaviza sem virar fonte infantil.
  * Cobertura de diacríticos do português vem de `latin-ext`.
  *
- * Se o build reclamar do eixo, remova a linha `axes` — a página continua
- * funcionando, apenas sem o estreitamento dos títulos.
+ * Rubik não tem eixo de largura. O caráter dos títulos vem do tracking
+ * fechado e da altura de linha curta, não do estreitamento.
  */
-const archivo = Archivo({
+const rubik = Rubik({
   subsets: ["latin", "latin-ext"],
-  axes: ["wdth"],
   display: "swap",
   variable: "--font-display",
 });
@@ -97,7 +96,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang={appConfig.language} className={`${archivo.variable} ${jetbrainsMono.variable}`}>
+    <html lang={appConfig.language} className={`${rubik.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );
