@@ -3,7 +3,6 @@
   background: #07111f;
   color: #f2f7fd;
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-variation-settings: "wdth" 100;
 }
 .container {
   width: min(1200px, calc(100% - 40px));
@@ -24,7 +23,6 @@
   font-size: 19px;
   font-weight: 700;
   letter-spacing: -0.042em;
-  font-variation-settings: "wdth" 92;
 }
 .brandMark {
   display: grid;
@@ -41,7 +39,6 @@
   min-height: 46px;
   padding: 0 20px;
   border-radius: 6px;
-  font-variation-settings: "wdth" 96;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -74,7 +71,6 @@
   line-height: 0.98;
   letter-spacing: -0.045em;
   font-weight: 620;
-  font-variation-settings: "wdth" 86;
   text-wrap: balance;
 }
 .hero p {
@@ -90,7 +86,7 @@
 .section + .section { padding-top: 72px; border-top: 1px solid rgba(148, 172, 200, 0.14); }
 .sectionHeader { display: grid; grid-template-columns: 0.65fr 1.35fr; gap: 52px; margin-bottom: 30px; }
 .sectionHeader span { color: #58e2c7; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; padding-top: 8px; }
-.sectionHeader h2 { margin: 0; font-size: clamp(30px, 3.8vw, 46px); line-height: 1.04; letter-spacing: -0.04em; font-weight: 620; font-variation-settings: "wdth" 88; text-wrap: balance; }
+.sectionHeader h2 { margin: 0; font-size: clamp(30px, 3.8vw, 46px); line-height: 1.04; letter-spacing: -0.04em; font-weight: 620; text-wrap: balance; }
 .prose { max-width: 850px; color: #9db0c6; font-size: 16px; line-height: 1.85; }
 .prose p { margin: 0 0 20px; }
 .prose h2, .prose h3 { color: #f4f8ff; letter-spacing: -0.03em; }
@@ -118,7 +114,7 @@
 .faq summary { cursor: pointer; font-weight: 750; font-size: 17px; }
 .faq p { color: #9db0c6; line-height: 1.75; margin: 15px 0 0; }
 .cta { margin-top: 18px; padding: 44px; border-radius: 12px; border: 1px solid rgba(88, 226, 199, 0.24); background: linear-gradient(160deg, rgba(88,226,199,.07), transparent 55%), #0c1a2b; color: #f2f7fd; display: flex; align-items: center; justify-content: space-between; gap: 30px; }
-.cta h2 { margin: 0 0 10px; font-size: clamp(28px, 3.8vw, 44px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 620; font-variation-settings: "wdth" 88; }
+.cta h2 { margin: 0 0 10px; font-size: clamp(28px, 3.8vw, 44px); line-height: 1.02; letter-spacing: -0.04em; font-weight: 620; }
 .cta p { margin: 0; max-width: 670px; line-height: 1.55; }
 .cta p { color: #9db0c6; }
 .cta a { background: #58e2c7; color: #03120e; white-space: nowrap; }
