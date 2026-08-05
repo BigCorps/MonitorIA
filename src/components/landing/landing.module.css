@@ -24,7 +24,6 @@
   background: var(--deep-2);
   color: var(--ink);
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-variation-settings: "wdth" 100;
 }
 
 .container {
@@ -183,34 +182,33 @@
   color: var(--mint);
 }
 
-/* Títulos: Archivo estreitado no eixo wdth. É esse aperto que dá o caráter. */
+/* Títulos: Rubik não tem eixo de largura, então o caráter vem do tracking
+   fechado e da altura de linha curta. Ela é opticamente mais firme que a
+   Nunito, então os pesos aqui são mais baixos para o mesmo resultado. */
 .h1 {
   margin: 0;
-  font-size: clamp(42px, 6.6vw, 88px);
-  line-height: 0.96;
-  letter-spacing: -0.038em;
+  font-size: clamp(40px, 5.9vw, 78px);
+  line-height: 1;
+  letter-spacing: -0.032em;
   font-weight: 620;
-  font-variation-settings: "wdth" 86;
   text-wrap: balance;
 }
 
 .h2 {
   margin: 0 0 20px;
-  font-size: clamp(32px, 4.4vw, 60px);
-  line-height: 1.02;
-  letter-spacing: -0.034em;
+  font-size: clamp(30px, 4.1vw, 53px);
+  line-height: 1.08;
+  letter-spacing: -0.028em;
   font-weight: 620;
-  font-variation-settings: "wdth" 88;
   text-wrap: balance;
 }
 
 .h3 {
   margin: 0 0 10px;
-  font-size: clamp(19px, 2vw, 24px);
-  line-height: 1.15;
-  letter-spacing: -0.022em;
+  font-size: clamp(18px, 1.9vw, 22px);
+  line-height: 1.22;
+  letter-spacing: -0.016em;
   font-weight: 600;
-  font-variation-settings: "wdth" 94;
 }
 
 .lede {
@@ -302,7 +300,6 @@
   border: 1px solid transparent;
   font-size: 15px;
   font-weight: 700;
-  font-variation-settings: "wdth" 96;
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
@@ -341,8 +338,7 @@
   gap: 11px;
   font-size: 19px;
   font-weight: 700;
-  letter-spacing: -0.045em;
-  font-variation-settings: "wdth" 92;
+  letter-spacing: -0.032em;
 }
 .brand img { width: 27px; height: 27px; }
 .brand em { font-style: normal; color: var(--mint); }
@@ -401,7 +397,7 @@
 
 /* Em duas colunas o título divide a linha com o painel. */
 @media (min-width: 1060px) {
-  .hero .h1 { font-size: clamp(46px, 4.4vw, 66px); }
+  .hero .h1 { font-size: clamp(42px, 4vw, 59px); }
   .hero .lede { font-size: 17px; }
   .proof { margin-top: 36px; }
   .proofItem { flex-basis: 140px; padding-block: 18px; }
@@ -442,7 +438,6 @@
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  font-variation-settings: "wdth" 92;
 }
 .proofItem span { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
 
@@ -674,11 +669,10 @@
 
 .sectorValue {
   margin: 0;
-  font-size: clamp(34px, 4.6vw, 58px);
-  line-height: 0.92;
-  letter-spacing: -0.05em;
-  font-weight: 640;
-  font-variation-settings: "wdth" 84;
+  font-size: clamp(33px, 4.4vw, 55px);
+  line-height: 0.98;
+  letter-spacing: -0.034em;
+  font-weight: 650;
 }
 
 .sectorLabel {
@@ -714,10 +708,9 @@
   gap: 14px;
   padding: 20px 4px;
   border-bottom: 1px solid var(--hair);
-  font-size: clamp(16px, 1.8vw, 20px);
+  font-size: clamp(16px, 1.7vw, 19px);
   font-weight: 600;
-  font-variation-settings: "wdth" 94;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.012em;
   line-height: 1.35;
 }
 
@@ -785,10 +778,9 @@
 
 .planName {
   margin: 0;
-  font-size: 26px;
-  font-weight: 620;
-  letter-spacing: -0.035em;
-  font-variation-settings: "wdth" 90;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
 }
 
 .planPrice { display: flex; align-items: baseline; gap: 7px; }
@@ -872,11 +864,10 @@
 }
 .quotaNumber {
   margin: 0;
-  font-size: clamp(58px, 8vw, 92px);
-  line-height: 0.9;
-  font-weight: 640;
-  letter-spacing: -0.05em;
-  font-variation-settings: "wdth" 84;
+  font-size: clamp(56px, 7.6vw, 86px);
+  line-height: 0.96;
+  font-weight: 650;
+  letter-spacing: -0.038em;
   color: var(--mint);
 }
 .quotaCaption { margin: 12px 0 0; font-size: 15px; color: var(--ink-2); }
@@ -943,10 +934,9 @@
   cursor: pointer;
   padding: 24px 40px 24px 0;
   position: relative;
-  font-size: clamp(16px, 1.7vw, 19px);
+  font-size: clamp(16px, 1.6vw, 18px);
   font-weight: 600;
-  font-variation-settings: "wdth" 94;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.012em;
 }
 .faqItem > summary::-webkit-details-marker { display: none; }
 .faqItem > summary::after {
