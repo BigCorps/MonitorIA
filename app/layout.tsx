@@ -1,6 +1,29 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import { appConfig } from "@/src/lib/app-config";
 import "./globals.css";
+
+/**
+ * Archivo (Omnibus-Type, SIL OFL 1.1) — variável, com eixo de largura.
+ * O eixo `wdth` é o que dá caráter aos títulos sem trocar de família.
+ * Cobertura de diacríticos do português vem de `latin-ext`.
+ *
+ * Se o build reclamar do eixo, remova a linha `axes` — a página continua
+ * funcionando, apenas sem o estreitamento dos títulos.
+ */
+const archivo = Archivo({
+  subsets: ["latin", "latin-ext"],
+  axes: ["wdth"],
+  display: "swap",
+  variable: "--font-display",
+});
+
+/** Usada só em horário, preço e código de plano. Dígitos de largura fixa. */
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+});
 
 const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
 
@@ -74,7 +97,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang={appConfig.language}>
+    <html lang={appConfig.language} className={`${archivo.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );

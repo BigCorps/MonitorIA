@@ -13,6 +13,7 @@
     "analyze": "tsx src/examples/analyze-local-images.ts"
   },
   "dependencies": {
+    "@microsoft/clarity": "^1.0.2",
     "@modelcontextprotocol/server": "^2.0.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.9",

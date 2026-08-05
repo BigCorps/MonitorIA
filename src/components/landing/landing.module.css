@@ -1,0 +1,947 @@
+/* ==========================================================================
+   MonitorIA.cam — landing
+   Módulo único e escopado. Não depende de globals.css além dos tokens de cor.
+
+   Assinatura visual: a régua de tempo. O produto vende horário exato, então
+   o horário é o elemento estrutural da página — não decoração.
+   ========================================================================== */
+
+.page {
+  --ink: #f2f7fd;
+  --ink-2: #9db0c6;
+  --ink-3: #63788f;
+  --mint: #58e2c7;
+  --mint-dim: #2bb79c;
+  --deep: #050c16;
+  --deep-2: #07111f;
+  --card: #0c1a2b;
+  --hair: rgba(148, 172, 200, 0.14);
+  --hair-mint: rgba(88, 226, 199, 0.24);
+
+  --step: clamp(72px, 9vw, 132px);
+
+  position: relative;
+  background: var(--deep-2);
+  color: var(--ink);
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: "wdth" 100;
+}
+
+.container {
+  width: min(1200px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+/* --- Régua de tempo -------------------------------------------------------
+   Linha fixa à esquerda que se preenche conforme a rolagem. Pura CSS.
+   Some abaixo de 1100px — no mobile o horário vive no eyebrow de cada seção. */
+
+.rail {
+  position: fixed;
+  left: 26px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--hair);
+  z-index: 5;
+  pointer-events: none;
+  display: none;
+}
+
+.railFill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: top;
+  transform: scaleY(0);
+  background: linear-gradient(180deg, transparent, var(--mint) 12%, var(--mint));
+}
+
+@media (min-width: 1100px) {
+  .rail { display: block; }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .railFill {
+      animation: railGrow linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+
+@keyframes railGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* --- Reveal --------------------------------------------------------------
+   Estado padrão = visível. A animação só é aplicada onde há suporte E o
+   usuário não pediu movimento reduzido. Firefox antigo vê a página inteira. */
+
+.reveal { opacity: 1; transform: none; }
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: revealIn linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 22%;
+    }
+  }
+}
+
+@keyframes revealIn {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Tipografia ---------------------------------------------------------- */
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 0 0 22px;
+}
+
+.eyebrowTime {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--mint);
+}
+
+/* Títulos: Archivo estreitado no eixo wdth. É esse aperto que dá o caráter. */
+.h1 {
+  margin: 0;
+  font-size: clamp(46px, 7.4vw, 104px);
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  font-weight: 800;
+  font-variation-settings: "wdth" 86;
+  text-wrap: balance;
+}
+
+.h2 {
+  margin: 0 0 20px;
+  font-size: clamp(32px, 4.4vw, 60px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+  font-variation-settings: "wdth" 88;
+  text-wrap: balance;
+}
+
+.h3 {
+  margin: 0 0 10px;
+  font-size: clamp(19px, 2vw, 24px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  font-variation-settings: "wdth" 94;
+}
+
+.lede {
+  margin: 0;
+  max-width: 60ch;
+  font-size: clamp(16px, 1.5vw, 19px);
+  line-height: 1.62;
+  color: var(--ink-2);
+}
+
+.dim { color: var(--ink-3); }
+.accent { color: var(--mint); }
+
+/* --- Seções --------------------------------------------------------------- */
+
+.section {
+  padding-block: var(--step);
+  position: relative;
+}
+
+.sectionDeep { background: var(--deep); }
+
+.sectionHead { max-width: 780px; margin-bottom: 56px; }
+
+/* --- Botões --------------------------------------------------------------- */
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 52px;
+  padding-inline: 24px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-variation-settings: "wdth" 96;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+
+.btnPrimary { background: var(--mint); color: #03120e; }
+.btnPrimary:hover { background: #6ff0d7; }
+
+.btnGhost {
+  border-color: var(--hair);
+  color: var(--ink);
+  background: transparent;
+}
+.btnGhost:hover { border-color: var(--hair-mint); background: rgba(88, 226, 199, 0.06); }
+
+/* --- Chrome (header / footer) --------------------------------------------- */
+
+.header {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  height: 84px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  font-variation-settings: "wdth" 92;
+}
+.brand img { width: 27px; height: 27px; }
+.brand em { font-style: normal; color: var(--mint); }
+
+.nav {
+  display: none;
+  align-items: center;
+  gap: 30px;
+  font-size: 14px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.nav a:hover { color: var(--ink); }
+
+@media (min-width: 900px) {
+  .nav { display: flex; }
+}
+
+.headerCta { display: inline-flex; gap: 10px; }
+
+.footer {
+  border-top: 1px solid var(--hair);
+  padding-block: 48px 64px;
+  display: grid;
+  gap: 26px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.footerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 26px;
+  align-items: center;
+  justify-content: space-between;
+}
+.footerRow nav { display: flex; flex-wrap: wrap; gap: 20px; }
+.footerRow a:hover { color: var(--ink); }
+
+/* --- Hero ------------------------------------------------------------------ */
+
+.hero {
+  padding-top: clamp(48px, 7vw, 96px);
+  padding-bottom: clamp(56px, 7vw, 100px);
+}
+
+.heroGrid { display: grid; gap: 30px; }
+
+.heroCopy { max-width: 820px; }
+.heroCopy .lede { margin-top: 26px; }
+.heroCopy .actions { margin-top: 34px; }
+
+.heroSlogan { display: block; color: var(--ink-3); }
+
+.proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 46px;
+  border-top: 1px solid var(--hair);
+}
+
+.proofItem {
+  flex: 1 1 170px;
+  padding: 20px 22px 20px 0;
+  display: grid;
+  gap: 5px;
+}
+.proofItem strong {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variation-settings: "wdth" 92;
+}
+.proofItem span { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+
+/* --- Media slot ------------------------------------------------------------ */
+
+.media {
+  position: relative;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card);
+  isolation: isolate;
+}
+
+.mediaVideo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mediaFallback {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Cena de câmera desenhada em CSS. Fica no ar até o MP4 existir. */
+.scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background:
+    linear-gradient(180deg, rgba(5, 12, 22, 0) 46%, rgba(5, 12, 22, 0.55) 100%),
+    linear-gradient(148deg, #16293c 0 32%, #22384a 32% 33%, #182c3f 33% 54%, #0d1e2f 54% 100%);
+}
+
+.sceneGrid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  background-image:
+    linear-gradient(rgba(88, 226, 199, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88, 226, 199, 0.2) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.sceneFloor {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 64%;
+  height: 46%;
+  background: linear-gradient(160deg, #17303e, #0a1c2c);
+  clip-path: polygon(0 34%, 76% 0, 100% 100%, 0 100%);
+}
+
+.zone {
+  position: absolute;
+  border: 1.5px solid rgba(88, 226, 199, 0.7);
+  background: rgba(88, 226, 199, 0.04);
+}
+.zone > span {
+  position: absolute;
+  left: -1px;
+  top: -21px;
+  padding: 3px 7px;
+  background: var(--mint);
+  color: #04140f;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.zoneEntry { left: 7%; bottom: 10%; width: 38%; height: 36%; }
+.zoneCounter {
+  right: 8%;
+  bottom: 18%;
+  width: 29%;
+  height: 44%;
+  border-color: rgba(120, 176, 255, 0.65);
+  background: rgba(120, 176, 255, 0.04);
+}
+.zoneCounter > span { background: #78b0ff; color: #061426; }
+
+.sceneStamp {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  display: grid;
+  gap: 2px;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+.sceneStamp span { font-size: 9.5px; color: #b9c9da; letter-spacing: 0.05em; }
+.sceneStamp strong { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+
+/* Barra superior do quadro */
+.mediaBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.mediaBar b { font-weight: 500; color: var(--ink-2); }
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mint);
+  margin-right: 8px;
+  box-shadow: 0 0 10px var(--mint);
+}
+
+/* Legenda de spec — só aparece enquanto o vídeo não foi entregue. */
+.mediaSpec {
+  padding: 12px 14px;
+  border-top: 1px dashed var(--hair);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  background: rgba(88, 226, 199, 0.03);
+}
+.mediaSpec b { color: var(--mint-dim); font-weight: 600; }
+
+/* --- Problema -------------------------------------------------------------- */
+
+.problemGrid {
+  display: grid;
+  gap: 1px;
+  background: var(--hair);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.problemCard {
+  background: var(--deep-2);
+  padding: 34px 30px 38px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.problemCard p { margin: 0; color: var(--ink-2); line-height: 1.6; font-size: 15.5px; }
+
+@media (min-width: 860px) {
+  .problemGrid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* --- Como funciona --------------------------------------------------------- */
+
+.stepList { display: grid; gap: clamp(48px, 6vw, 88px); }
+
+.step { display: grid; gap: 28px; align-items: center; }
+
+@media (min-width: 940px) {
+  .step { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 56px; }
+  .stepFlip > .stepCopy { order: 2; }
+}
+
+.stepCopy p { margin: 0; color: var(--ink-2); line-height: 1.65; font-size: 16px; }
+
+/* --- Setores (cards empilhados) -------------------------------------------- */
+
+.sectorStack { display: grid; gap: 18px; }
+
+.sectorCard {
+  position: relative;
+  min-height: clamp(380px, 56vh, 560px);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--hair);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 34px 30px;
+  background: var(--card);
+}
+
+/* Empilhamento pegajoso: cada card trava e o seguinte cobre. */
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .sectorCard { position: sticky; top: 96px; }
+}
+
+.sectorMedia {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+.sectorScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(5, 12, 22, 0.72) 0%, rgba(5, 12, 22, 0.34) 46%, rgba(5, 12, 22, 0.86) 100%);
+}
+
+.sectorArt {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(120% 90% at 18% 8%, rgba(88, 226, 199, 0.16), transparent 58%),
+    linear-gradient(158deg, #10243a 0%, #0a1727 52%, #060f1c 100%);
+}
+.sectorArt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.035) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.sectorTop, .sectorBottom { position: relative; z-index: 2; }
+
+.sectorValue {
+  margin: 0;
+  font-size: clamp(48px, 7.4vw, 92px);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  font-variation-settings: "wdth" 84;
+}
+
+.sectorLabel {
+  margin: 14px 0 0;
+  max-width: 34ch;
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.45;
+  color: rgba(233, 242, 251, 0.9);
+}
+
+.sectorTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--mint);
+}
+
+/* --- Limites ("o que não é") ------------------------------------------------ */
+
+.boundaryGrid {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--hair);
+}
+
+.boundaryItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 4px;
+  border-bottom: 1px solid var(--hair);
+  font-size: clamp(16px, 1.8vw, 20px);
+  font-weight: 600;
+  font-variation-settings: "wdth" 94;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+}
+
+.boundaryItem svg {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  margin-top: 2px;
+  stroke: var(--mint);
+  stroke-width: 2;
+  fill: none;
+}
+
+@media (min-width: 820px) {
+  .boundaryGrid { grid-template-columns: 1fr 1fr; column-gap: 46px; }
+}
+
+/* --- Retenção --------------------------------------------------------------- */
+
+.retention { display: grid; gap: 44px; }
+
+@media (min-width: 980px) {
+  .retention { grid-template-columns: 0.85fr 1.15fr; gap: 64px; align-items: center; }
+}
+
+.scaleRow { display: grid; gap: 9px; padding-block: 16px; border-bottom: 1px solid var(--hair); }
+.scaleRow:first-child { border-top: 1px solid var(--hair); }
+
+.scaleHead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.scaleHead strong { font-size: 15px; font-weight: 600; }
+.scaleHead span { font-size: 13px; color: var(--ink-3); }
+
+.scaleTrack { height: 8px; border-radius: 99px; background: rgba(148, 172, 200, 0.1); overflow: hidden; }
+.scaleTrack > i { display: block; height: 100%; border-radius: inherit; background: var(--ink-3); }
+.scaleMine > i { background: linear-gradient(90deg, var(--mint-dim), var(--mint)); }
+
+.scaleNote { margin: 18px 0 0; font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+
+/* --- Planos ------------------------------------------------------------------ */
+
+.planGrid { display: grid; gap: 16px; }
+
+@media (min-width: 900px) {
+  .planGrid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.planCard {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 30px 26px 32px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--card);
+}
+.planCard[data-featured="true"] { border-color: var(--hair-mint); background: #0d2032; }
+
+.planCode {
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.planName {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  font-variation-settings: "wdth" 90;
+}
+
+.planPrice { display: flex; align-items: baseline; gap: 7px; }
+.planPrice b {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.planPrice span { font-size: 13px; color: var(--ink-3); }
+
+.planSummary { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.55; }
+
+.planSpecs { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; border-top: 1px solid var(--hair); padding-top: 18px; }
+.planSpecs li { display: grid; gap: 2px; font-size: 14px; }
+.planSpecs li > span { font-size: 12px; color: var(--ink-3); }
+
+.includes {
+  margin-top: 22px;
+  padding: 24px 26px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  display: grid;
+  gap: 16px;
+}
+.includesList { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.includesList li { font-size: 13.5px; color: var(--ink-2); }
+.includesList li::before { content: "· "; color: var(--mint); }
+
+.discount { margin-top: 16px; display: grid; gap: 20px; }
+
+@media (min-width: 940px) {
+  .discount { grid-template-columns: 1fr 1fr; gap: 26px; }
+}
+
+.tierTable, .invoiceTable {
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  padding: 22px 24px 24px;
+  display: grid;
+  gap: 4px;
+}
+
+.tierRow, .invoiceRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 9px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 14px;
+}
+.tierRow:last-child, .invoiceRow:last-child { border-bottom: 0; }
+.tierRow b, .invoiceRow b { font-weight: 600; }
+
+.invoiceTotal { border-top: 1px solid var(--hair-mint); margin-top: 6px; padding-top: 14px; }
+.invoiceTotal b { color: var(--mint); font-size: 17px; }
+
+.tableCaption {
+  margin: 0 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+/* --- Assistente --------------------------------------------------------------- */
+
+.assistant { display: grid; gap: 40px; }
+
+@media (min-width: 980px) {
+  .assistant { grid-template-columns: 1fr 1fr; gap: 60px; }
+}
+
+.quotaCard {
+  border: 1px solid var(--hair-mint);
+  border-radius: 12px;
+  padding: 30px 28px;
+  background: linear-gradient(155deg, rgba(88, 226, 199, 0.08), transparent 60%), var(--card);
+}
+.quotaNumber {
+  margin: 0;
+  font-size: clamp(58px, 8vw, 92px);
+  line-height: 0.9;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  font-variation-settings: "wdth" 84;
+  color: var(--mint);
+}
+.quotaCaption { margin: 12px 0 0; font-size: 15px; color: var(--ink-2); }
+
+.freeList { margin: 26px 0 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+.freeList li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14.5px;
+  color: var(--ink-2);
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--hair);
+}
+.freeList li:last-child { border-bottom: 0; padding-bottom: 0; }
+.freeTag {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--mint);
+  border: 1px solid var(--hair-mint);
+  border-radius: 4px;
+  padding: 3px 6px;
+  flex: none;
+}
+
+/* --- Trial ---------------------------------------------------------------------- */
+
+.trial {
+  border: 1px solid var(--hair-mint);
+  border-radius: 14px;
+  padding: clamp(30px, 4vw, 52px);
+  background: linear-gradient(160deg, rgba(88, 226, 199, 0.07), transparent 55%), var(--card);
+  display: grid;
+  gap: 34px;
+}
+
+.trialFacts { display: grid; gap: 1px; background: var(--hair); border-radius: 10px; overflow: hidden; }
+
+@media (min-width: 760px) {
+  .trialFacts { grid-template-columns: repeat(4, 1fr); }
+}
+
+.trialFact { background: var(--card); padding: 22px 20px; display: grid; gap: 6px; }
+.trialFact b {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.trialFact span { font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+
+.trialNote { margin: 0; font-size: 13.5px; color: var(--ink-3); line-height: 1.6; }
+
+/* --- FAQ -------------------------------------------------------------------------- */
+
+.faqList { border-top: 1px solid var(--hair); }
+
+.faqItem { border-bottom: 1px solid var(--hair); }
+
+.faqItem > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 24px 40px 24px 0;
+  position: relative;
+  font-size: clamp(16px, 1.7vw, 19px);
+  font-weight: 600;
+  font-variation-settings: "wdth" 94;
+  letter-spacing: -0.02em;
+}
+.faqItem > summary::-webkit-details-marker { display: none; }
+.faqItem > summary::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-top: -7px;
+  border-right: 2px solid var(--mint);
+  border-bottom: 2px solid var(--mint);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+.faqItem[open] > summary::after { transform: rotate(-135deg); margin-top: -3px; }
+.faqItem > summary:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+
+.faqAnswer { margin: 0; padding: 0 0 26px; max-width: 74ch; color: var(--ink-2); line-height: 1.65; font-size: 15.5px; }
+
+/* --- Fechamento -------------------------------------------------------------------- */
+
+.closing {
+  display: grid;
+  gap: 28px;
+  padding-block: clamp(72px, 9vw, 128px);
+  border-top: 1px solid var(--hair);
+}
+
+@media (min-width: 900px) {
+  .closing { grid-template-columns: 1.3fr 0.7fr; align-items: end; gap: 48px; }
+}
+
+/* ==========================================================================
+   CENAS ANIMADAS EM SVG
+   --------------------------------------------------------------------------
+   Substituem as gravações de tela do produto. SVG embutido no Server
+   Component: zero KB de JavaScript, zero dependência, nítido em qualquer
+   resolução.
+
+   Todos os elementos animados têm o estado FINAL como estilo base. A animação
+   parte do estado oculto. Assim, se o movimento estiver desligado, a cena
+   aparece completa e legível — nunca em branco.
+   ========================================================================== */
+
+.svgScene {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #08131f;
+}
+
+.svgScene * {
+  transform-box: fill-box;
+}
+
+/* Entrada escalonada. O ciclo é sempre de 10s para tudo ficar em fase. */
+.sIn {
+  opacity: 1;
+  transform: none;
+  animation: sceneIn 10s infinite both;
+}
+
+@keyframes sceneIn {
+  0% { opacity: 0; transform: translateY(9px); }
+  6% { opacity: 1; transform: none; }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Cobertura que encolhe para a direita, revelando o conteúdo da esquerda. */
+.sWipe {
+  transform: scaleX(0);
+  transform-origin: right center;
+  animation: sceneWipe 10s infinite both;
+}
+
+@keyframes sceneWipe {
+  0% { transform: scaleX(1); }
+  14% { transform: scaleX(0); }
+  100% { transform: scaleX(0); }
+}
+
+/* Barra de progresso: cresce da esquerda. */
+.sGrow {
+  transform: scaleX(1);
+  transform-origin: left center;
+  animation: sceneGrow 10s infinite both;
+}
+
+@keyframes sceneGrow {
+  0% { transform: scaleX(0); }
+  22% { transform: scaleX(1); }
+  100% { transform: scaleX(1); }
+}
+
+/* Ponto de gravação / brilho da zona ativa. */
+.sPulse { animation: scenePulse 2.4s infinite ease-in-out; }
+
+@keyframes scenePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* Cursor de texto. */
+.sCaret {
+  opacity: 0;
+  animation: sceneCaret 1s infinite steps(1);
+}
+
+@keyframes sceneCaret {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+/* Faixa de varredura da descoberta de câmeras. */
+.sScan {
+  opacity: 0;
+  animation: sceneScan 10s infinite both;
+}
+
+@keyframes sceneScan {
+  0% { opacity: 0.55; transform: translateY(0); }
+  30% { opacity: 0.55; transform: translateY(196px); }
+  34%, 100% { opacity: 0; transform: translateY(196px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svgScene .sIn,
+  .svgScene .sWipe,
+  .svgScene .sGrow,
+  .svgScene .sPulse,
+  .svgScene .sCaret,
+  .svgScene .sScan {
+    animation: none;
+  }
+  .svgScene .sWipe { transform: scaleX(0); }
+  .svgScene .sScan { opacity: 0; }
+}

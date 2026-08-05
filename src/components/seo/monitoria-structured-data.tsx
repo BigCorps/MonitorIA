@@ -33,7 +33,7 @@ const structuredData = {
       url: appConfig.url,
       applicationCategory: "BusinessApplication",
       applicationSubCategory: "VideoAnalyticsApplication",
-      operatingSystem: "Web, Windows",
+      operatingSystem: "Web, Windows 10, Windows 11",
       inLanguage: appConfig.language,
       description: appConfig.description,
       provider: { "@id": `${appConfig.url}/#organization` },
@@ -50,6 +50,52 @@ const structuredData = {
       areaServed: {
         "@type": "Country",
         name: "Brasil",
+      },
+      // Preços congelados no PLANO-DE-PRODUCAO.md §3.2.
+      // Mantenha em sincronia com src/lib/landing-content.ts.
+      offers: [
+        {
+          "@type": "Offer",
+          name: "Câmera Essencial",
+          price: "39.90",
+          priceCurrency: "BRL",
+          category: "SubscriptionService",
+          availability: "https://schema.org/InStock",
+          url: `${appConfig.url}/#planos`,
+          description:
+            "Por câmera, por mês. 365 dias de histórico pesquisável e 1 imagem por acontecimento.",
+        },
+        {
+          "@type": "Offer",
+          name: "Câmera Atenta",
+          price: "79.90",
+          priceCurrency: "BRL",
+          category: "SubscriptionService",
+          availability: "https://schema.org/InStock",
+          url: `${appConfig.url}/#planos`,
+          description:
+            "Por câmera, por mês. 365 dias de histórico pesquisável e 2 imagens por acontecimento.",
+        },
+        {
+          "@type": "Offer",
+          name: "Câmera Detalhada",
+          price: "149.90",
+          priceCurrency: "BRL",
+          category: "SubscriptionService",
+          availability: "https://schema.org/InStock",
+          url: `${appConfig.url}/#planos`,
+          description:
+            "Por câmera, por mês. 365 dias de histórico, 3 imagens por acontecimento e clipe de 15 segundos guardado por 30 dias.",
+        },
+      ],
+      // §3.3 — o teste gratuito é uma oferta distinta, não um preço zero dos planos.
+      isRelatedTo: {
+        "@type": "Offer",
+        name: "Teste gratuito",
+        price: "0",
+        priceCurrency: "BRL",
+        description:
+          "1 câmera, 24 horas de análise real, 7 dias para explorar os resultados e 21 interações com o Assistente IA. Sem cartão de crédito.",
       },
     },
   ],

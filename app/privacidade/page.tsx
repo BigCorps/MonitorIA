@@ -55,6 +55,7 @@ export default function PrivacidadePage() {
           <h2>13. Alterações</h2>
           <p>Esta política pode ser atualizada para refletir mudanças no produto, fornecedores ou legislação. A data da versão será atualizada nesta página.</p>
 
+          <Note>Antes do lançamento comercial amplo, recomenda-se revisão desta política por profissional jurídico com os dados societários completos da BigCorps e os contratos definitivos dos fornecedores.</Note>
         </Prose>
       </ContentSection>
     </MarketingPage>
