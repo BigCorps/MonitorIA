@@ -5,9 +5,9 @@ export const MCP_TOOLSET_VERSION =
 export const MCP_RESPONSE_SCHEMA_VERSION = "1.0";
 
 export const MCP_AUDITED_QUERY_ANNOTATIONS = {
-  readOnlyHint: false,
+  readOnlyHint: true,
   destructiveHint: false,
-  idempotentHint: false,
+  idempotentHint: true,
   openWorldHint: false,
 } as const;
 
