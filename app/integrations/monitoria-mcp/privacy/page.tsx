@@ -12,7 +12,6 @@ export default function Page() {
         <p>Consultas podem retornar metadados de câmeras, eventos, estados, sessões e insights operacionais. Imagens são fornecidas apenas mediante solicitação explícita, por URLs assinadas temporárias.</p>
         <p>O MonitorIA registra auditoria técnica com ferramenta, cliente, horário, duração, quantidade de resultados e hash dos argumentos. O texto integral das perguntas e os dados retornados não são gravados nessa auditoria.</p>
         <p>O usuário pode revogar o acesso na área de conexões MCP. A revogação interrompe o acesso às organizações mesmo que o aplicativo ainda possua um token não expirado.</p>
-        <p>Este texto deve ser revisado juridicamente antes da submissão pública final.</p>
       </article>
     </main>
   );
