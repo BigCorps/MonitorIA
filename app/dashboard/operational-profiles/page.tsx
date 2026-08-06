@@ -99,10 +99,12 @@ export default async function OperationalProfilesPage({
         active="operational-profiles"
       />
 
-      <main className={`dashboard-content ${styles.page}`}>
-        <header className={styles.header}>
+      <main className="dashboard-content">
+        <header className="dashboard-header">
           <div>
-            <span className={styles.eyebrow}>PADRÕES DA OPERAÇÃO</span>
+            <span className="dashboard-eyebrow">
+              PADRÕES · {organization.name.toUpperCase()}
+            </span>
             <h1>Padrões da operação</h1>
             <p>
               Veja horários, locais e atividades recorrentes já revisados. O

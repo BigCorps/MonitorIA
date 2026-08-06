@@ -1088,3 +1088,36 @@
     transition: none;
   }
 }
+
+/* O cartão acompanha todo o conteúdo e nunca recorta o campo de mensagem. */
+.workspace {
+  min-height: 0;
+  overflow: visible;
+}
+
+.chatPanel {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.messages {
+  min-height: 420px;
+  max-height: min(620px, calc(100vh - 320px));
+}
+
+.welcome {
+  min-height: 420px;
+}
+
+@media (max-width: 760px) {
+  .workspace,
+  .chatPanel {
+    overflow: visible;
+  }
+
+  .messages,
+  .welcome {
+    min-height: 360px;
+  }
+}

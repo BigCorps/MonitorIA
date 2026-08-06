@@ -88,10 +88,12 @@ export default async function ProcessesPage({
         active="processes"
       />
 
-      <main className={`dashboard-content ${styles.page}`}>
-        <header className={styles.header}>
+      <main className="dashboard-content">
+        <header className="dashboard-header">
           <div>
-            <span className={styles.eyebrow}>ANÁLISE DE PROCESSOS</span>
+            <span className="dashboard-eyebrow">
+              PROCESSOS · {organization.name.toUpperCase()}
+            </span>
             <h1>Processos e etapas</h1>
             <p>
               Acompanhe as etapas observadas, o que foi concluído e o que ainda

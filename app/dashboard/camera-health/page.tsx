@@ -68,11 +68,12 @@ export default async function CameraHealthPage({ searchParams }: Props) {
         active="camera-health"
       />
 
-      <main className={`dashboard-content ${styles.page}`}>
-        <DashboardSectionTabs group="monitoring" />
-        <header className={styles.hero}>
+      <main className="dashboard-content">
+        <header className="dashboard-header">
           <div>
-            <span>FUNCIONAMENTO DAS CÂMERAS</span>
+            <span className="dashboard-eyebrow">
+              FUNCIONAMENTO · {organization.name.toUpperCase()}
+            </span>
             <h1>Funcionamento das câmeras</h1>
             <p>
               Veja se a imagem está clara, nítida, desobstruída e no
@@ -81,6 +82,8 @@ export default async function CameraHealthPage({ searchParams }: Props) {
           </div>
           <CameraHealthRealtimeRefresh organizationId={organization.id} />
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
 
         <section
           className={styles.metrics}
