@@ -14,8 +14,6 @@ type Props = {
   hasActiveMcpConnection: boolean;
 };
 
-const DISMISSED_KEY = "monitoria:search-integrations-card-dismissed";
-
 function dateTime(value: string | null) {
   if (!value) return null;
   return new Intl.DateTimeFormat("pt-BR", {
@@ -32,8 +30,6 @@ export function AssistantBalanceCard({
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    setDismissed(window.localStorage.getItem(DISMISSED_KEY) === "1");
-
     let cancelled = false;
 
     async function refresh() {
@@ -61,7 +57,6 @@ export function AssistantBalanceCard({
   }, []);
 
   function dismissIntegrationsCard() {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
     setDismissed(true);
   }
 

@@ -48,13 +48,6 @@ export const dashboardNavigationGroups: Record<
         activePrefixes: ["/dashboard/sessions/"],
       },
       {
-        id: "intelligence-overview",
-        label: "Visão geral",
-        href: "/dashboard/intelligence",
-        exactPaths: ["/dashboard/intelligence"],
-        activePrefixes: ["/dashboard/intelligence/"],
-      },
-      {
         id: "routines",
         label: "Rotinas",
         href: "/dashboard/routines",
@@ -158,12 +151,6 @@ export const dashboardNavigationGroups: Record<
   intelligence: {
     label: "Módulos de inteligência",
     items: [
-      {
-        id: "intelligence-overview",
-        label: "Visão geral",
-        href: "/dashboard/intelligence",
-        exactPaths: ["/dashboard/intelligence"],
-      },
       {
         id: "routines",
         label: "Rotinas",
