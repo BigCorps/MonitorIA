@@ -1,0 +1,74 @@
+diff --git a/src/mcp/auth.ts b/src/mcp/auth.ts
+index 2d961ac..29e6329 100644
+--- a/src/mcp/auth.ts
++++ b/src/mcp/auth.ts
+@@ -1,5 +1,6 @@
+ import type { SupabaseClient } from "@supabase/supabase-js";
+ import { createMcpSupabaseClient } from "./supabase";
++import { createAdminClient } from "@/src/lib/supabase/admin";
+ 
+ export type McpAuthorizedOrganization = {
+   id: string;
+@@ -104,6 +105,62 @@ export async function authenticateMcpRequest(
+     };
+   }
+ 
++  // DIAGNÓSTICO TEMPORÁRIO — remover após o teste.
++  // Só ativa se MCP_STATIC_TEST_TOKEN estiver definido no ambiente
++  // e o Authorization enviado bater exatamente com esse valor.
++  const staticTestToken = process.env.MCP_STATIC_TEST_TOKEN?.trim();
++  if (staticTestToken && accessToken === staticTestToken) {
++    const staticUserId = process.env.MCP_STATIC_TEST_USER_ID?.trim();
++    const staticOrgId = process.env.MCP_STATIC_TEST_ORG_ID?.trim();
++
++    if (!staticUserId || !staticOrgId) {
++      return {
++        ok: false,
++        status: 500,
++        code: "static_test_not_configured",
++        message: "MCP_STATIC_TEST_USER_ID/ORG_ID ausentes.",
++      };
++    }
++
++    const serviceSupabase = createAdminClient();
++
++    const { data: org, error: orgError } = await serviceSupabase
++      .from("organizations")
++      .select("id,name,slug")
++      .eq("id", staticOrgId)
++      .maybeSingle();
++
++    if (orgError || !org) {
++      return {
++        ok: false,
++        status: 500,
++        code: "static_test_org_not_found",
++        message: "Organização de teste não encontrada.",
++      };
++    }
++
++    return {
++      ok: true,
++      context: {
++        accessToken,
++        userId: staticUserId,
++        email: null,
++        clientId: "static-test-token",
++        clientName: "Diagnóstico estático",
++        organizationIds: [String(org.id)],
++        organizations: [
++          {
++            id: String(org.id),
++            name: String(org.name),
++            slug: String(org.slug),
++            role: "owner",
++          },
++        ],
++        supabase: serviceSupabase,
++      },
++    };
++  }
++
+   let supabase: SupabaseClient;
+ 
+   try {
