@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import os from "node:os";
 import {
@@ -68,8 +69,21 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function cameraSignature(camera: RemoteCamera) {
+/**
+ * Assinatura que decide se o monitor precisa ser recriado.
+ *
+ * `localRtsp` entrou depois de um caso real: trocar o endereço RTSP pelo
+ * canal local gravava a configuração, respondia "o monitoramento inicia em
+ * instantes" e não reiniciava nada — a assinatura só olhava a configuração
+ * vinda do painel. O monitor antigo seguia rodando no endereço antigo até
+ * alguém reiniciar o serviço. É o hash do valor protegido, então nenhuma
+ * credencial entra na comparação.
+ */
+function cameraSignature(camera: RemoteCamera, localRtsp: string | null) {
   return JSON.stringify({
+    localRtsp: localRtsp
+      ? createHash("sha256").update(localRtsp).digest("hex").slice(0, 16)
+      : null,
     profile: camera.activeProfileId,
     profileVersion: camera.activeProfileVersion,
     plan: camera.plan,
@@ -308,7 +322,10 @@ export class AgentService {
 
     for (const camera of this.cameras) {
       const existing = this.runtimes.get(camera.id);
-      const signature = cameraSignature(camera);
+      const signature = cameraSignature(
+        camera,
+        config.cameras[camera.id]?.protectedRtsp ?? null,
+      );
 
       if (
         !camera.monitoringEnabled ||
@@ -391,9 +408,11 @@ export class AgentService {
               `Monitor de "${camera.name}" falhou (${failure.code}): ${failure.message}`,
             );
 
-            // O texto cru do FFmpeg fica só no log de depuração; o painel
-            // recebe a mensagem acionável.
-            this.logger.debug(`Detalhe técnico: ${error.message}`);
+            // O texto cru fica no log em nível warn, não debug: com debug
+            // desligado por padrão, a causa das falhas desaparecia e o
+            // suporte remoto ficava sem nada para analisar. O painel segue
+            // recebendo apenas a mensagem amigável.
+            this.logger.warn(`Detalhe técnico de "${camera.name}": ${error.message}`);
 
             void sendCameraStatus(config.apiBaseUrl, token, camera.id, {
               status: "error",
@@ -557,7 +576,7 @@ export class AgentService {
 
       const failure = classifyCameraFailure(errorMessage(error));
       this.logger.warn(`Falha na câmera "${camera.name}": ${failure.message}`);
-      this.logger.debug(`Detalhe técnico: ${errorMessage(error)}`);
+      this.logger.warn(`Detalhe técnico de "${camera.name}": ${errorMessage(error)}`);
 
       try {
         await sendCameraStatus(config.apiBaseUrl, token, camera.id, {

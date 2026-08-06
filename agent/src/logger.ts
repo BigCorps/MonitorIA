@@ -88,6 +88,21 @@ async function rotate(directory: string) {
   }
 }
 
+/**
+ * Nível mínimo, ajustável sem recompilar.
+ *
+ * Existe porque o detalhe técnico das falhas de câmera foi para `debug` e
+ * simplesmente desapareceu: o padrão é `info`, e em campo o log passou a
+ * mostrar só a mensagem amigável, sem a causa. Diagnosticar remotamente virou
+ * impossível. Agora o suporte pede para definir MONITORIA_LOG_LEVEL=debug e
+ * reiniciar o serviço.
+ */
+function levelFromEnv(): LogLevel | null {
+  const raw = process.env.MONITORIA_LOG_LEVEL?.trim().toLowerCase();
+  if (raw === "debug" || raw === "info" || raw === "warn" || raw === "error") return raw;
+  return null;
+}
+
 export async function createLogger(options?: {
   level?: LogLevel;
   /** true quando executado a partir de um terminal, não do serviço. */
@@ -95,7 +110,7 @@ export async function createLogger(options?: {
 }): Promise<Logger> {
   const layout = await resolvePaths();
   const directory = layout.logDirectory;
-  const minimum = LEVEL_ORDER[options?.level ?? "info"];
+  const minimum = LEVEL_ORDER[levelFromEnv() ?? options?.level ?? "info"];
   const mirror = options?.mirrorToConsole ?? false;
 
   // As escritas são serializadas numa única cadeia de promessas. Sem isso,

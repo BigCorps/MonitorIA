@@ -32,9 +32,13 @@ const NOVADIGITAL: RtspCandidate[] = [
     stream: "sub",
     pathTemplate: "/stream1",
     defaultPort: 8554,
-    validationLevel: "heuristic_candidate",
-    testedModels: [],
-    notes: "Substream provável por simetria com /stream0. Não confirmado no aparelho.",
+    validationLevel: "hardware_validated",
+    testedModels: ["CS-CALL"],
+    notes:
+      "Confirmado no equipamento de homologação: H.264 640x360, contra HEVC " +
+      "2560x1440 do /stream0. Dezesseis vezes menos pixels e codec mais " +
+      "barato de decodificar, com a mesma qualidade de detecção — a " +
+      "amostragem de movimento reduz tudo para 160x90 de qualquer forma.",
   },
 ];
 

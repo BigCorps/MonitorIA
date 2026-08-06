@@ -23,7 +23,7 @@ type ConnectionView = {
 function canonicalMcpUrl() {
   return (
     process.env.MCP_RESOURCE_URI?.trim() ||
-    `${(process.env.MCP_PUBLIC_BASE_URL ?? "https://www.monitoria.cam").replace(/\/$/, "")}/mcp`
+    `${(process.env.MCP_PUBLIC_BASE_URL ?? "https://monitoria.cam").replace(/\/$/, "")}/mcp`
   );
 }
 

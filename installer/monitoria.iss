@@ -83,8 +83,6 @@ Source: "..\build\ffmpeg\FFMPEG-ORIGEM.txt"; DestDir: "{app}\ffmpeg"; Flags: ign
 Filename: "{app}\monitoria-service.exe"; Parameters: "install"; \
   StatusMsg: "Registrando o serviço do Windows..."; Flags: runhidden waituntilterminated
 
-Filename: "{app}\monitoria-service.exe"; Parameters: "start"; \
-  StatusMsg: "Iniciando o MonitorIA..."; Flags: runhidden waituntilterminated
 
 [UninstallRun]
 Filename: "{app}\monitoria-service.exe"; Parameters: "stop"; \
@@ -105,6 +103,51 @@ Type: filesandordirs; Name: "{commonappdata}\MonitorIA\frames"
 var
   PairingPage: TInputQueryWizardPage;
 
+function ServicoInstalado(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\\sc.exe'), 'query MonitorIAAgent',
+                 '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  Tentativa: Integer;
+begin
+  Result := '';
+
+  { O serviço mantém o monitoria-agent.exe aberto, e o Windows não permite
+    substituir arquivo em uso. Sem parar antes, toda reinstalação falhava com
+    "DeleteFile falhou; código 5", e o instalador oferecia ignorar o arquivo —
+    o que deixaria o executável antigo com os componentes novos ao redor.
+
+    Usamos sc.exe e não o WinSW porque na primeira instalação o
+    monitoria-service.exe ainda não existe. }
+  if not ServicoInstalado() then
+    Exit;
+
+  Exec(ExpandConstant('{sys}\\sc.exe'), 'stop MonitorIAAgent',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  { O encerramento fecha as sessões de captura no servidor e leva alguns
+    segundos. Espera ativa, com teto de 20 segundos. }
+  for Tentativa := 1 to 20 do
+  begin
+    Sleep(1000);
+
+    Exec(ExpandConstant('{cmd}'), '/C sc query MonitorIAAgent | find "RUNNING"',
+         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+    if ResultCode <> 0 then
+      Break;
+  end;
+
+  { Folga final para o antivírus liberar o arquivo recém-fechado. }
+  Sleep(2000);
+end;
+
 procedure InitializeWizard();
 begin
   { Criada depois de wpInstalling: a página só aparece com os arquivos já
@@ -123,6 +166,34 @@ begin
   PairingPage.Add('Código de pareamento:', False);
 end;
 
+function IniciarServico(): Boolean;
+var
+  ResultCode: Integer;
+  Tentativa: Integer;
+begin
+  Result := False;
+
+  { Retentativa deliberada. Na primeira instalação em máquina com antivírus
+    ativo, o serviço falhou ao iniciar com "Acesso negado": o binário
+    recém-gravado ainda estava retido para varredura. Dez minutos depois
+    subiu sem alteração nenhuma. Enquanto o executável não for assinado, isso
+    vai se repetir em campo. }
+  for Tentativa := 1 to 6 do
+  begin
+    if Exec(ExpandConstant('{app}\monitoria-service.exe'), 'start',
+            ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    begin
+      if ResultCode = 0 then
+      begin
+        Result := True;
+        Exit;
+      end;
+    end;
+
+    Sleep(5000);
+  end;
+end;
+
 function RunPairing(const Code: String): Boolean;
 var
   ResultCode: Integer;
@@ -138,6 +209,24 @@ begin
     ewWaitUntilTerminated,
     ResultCode
   ) and (ResultCode = 0);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  if IniciarServico() then
+    Exit;
+
+  MsgBox(
+    'O MonitorIA foi instalado, mas o serviço não iniciou.' + #13#10#13#10 +
+    'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
+    'Aguarde alguns minutos e inicie "MonitorIA Agent" pelos Serviços do ' +
+    'Windows, ou reinicie o computador.',
+    mbInformation,
+    MB_OK
+  );
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
