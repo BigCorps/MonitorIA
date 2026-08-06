@@ -1,11 +1,17 @@
 .tabs {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0 0 24px;
   overflow: hidden;
   border-bottom: 1px solid #dbe5ed;
+  contain: inline-size;
 }
 
 .scroller {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -91,6 +97,23 @@
 
 .scroller::-webkit-scrollbar-thumb:hover {
   background: #b7c6d2;
+}
+
+@media (max-width: 760px) {
+  :global(.dashboard-content) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  :global(.dashboard-content) > *,
+  :global(.dashboard-header),
+  :global(.dashboard-header) > * {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
