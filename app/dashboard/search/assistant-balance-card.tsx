@@ -51,6 +51,26 @@ export function AssistantBalanceCard({ initialBalance }: Props) {
     };
   }, []);
 
+  if (balance.unlimited) {
+    return (
+      <section className={`${styles.card} ${styles.integrations}`}>
+        <div className={styles.icon} aria-hidden="true">
+          ✦
+        </div>
+        <div className={styles.content}>
+          <span>PESQUISA EM QUALQUER IA</span>
+          <strong>Use o MonitorIA na IA de sua preferência</strong>
+          <p>
+            Conecte o MonitorIA via MCP ao ChatGPT, Claude, Cursor ou a qualquer
+            aplicativo de IA compatível e consulte por lá as informações da sua
+            organização.
+          </p>
+        </div>
+        <Link href="/dashboard/profile/mcp-connections">Ver integrações</Link>
+      </section>
+    );
+  }
+
   const tone = assistantBalanceTone(balance);
   const resetAt = dateTime(balance.nextResetAt);
   const expiryAt = dateTime(balance.nextPurchasedExpiryAt);
@@ -63,12 +83,7 @@ export function AssistantBalanceCard({ initialBalance }: Props) {
       <div className={styles.content}>
         <span>FRANQUIA DO ASSISTENTE</span>
         <strong>{assistantBalanceLabel(balance)}</strong>
-        {balance.unlimited ? (
-          <p>
-            Esta organização ainda está em acesso legado de homologação. A
-            cobrança passa a valer quando o controle comercial for ativado.
-          </p>
-        ) : balance.blockReason === "subscription_or_trial_required" ? (
+        {balance.blockReason === "subscription_or_trial_required" ? (
           <p>
             Pacotes extras permanecem guardados, mas o Assistente só funciona
             durante um trial válido ou uma assinatura ativa.

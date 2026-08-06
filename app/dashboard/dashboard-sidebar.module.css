@@ -92,6 +92,42 @@
   gap: 3px;
 }
 
+.accountSettings {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 6px 0;
+  color: #8295aa;
+  font-size: 10px;
+  font-weight: 680;
+  text-decoration: none;
+}
+
+.accountSettings:hover,
+.accountSettingsActive {
+  color: #9ef0df;
+}
+
+.accountSettingsIcon {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 14px;
+}
+
+.accountSettingsIcon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .mobileBar,
 .mobileDrawer,
 .mobileOverlay {
@@ -107,12 +143,11 @@
     padding: 0 20px !important;
     overflow: visible !important;
     display: block !important;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(8, 19, 33, 0.99),
-        rgba(8, 19, 33, 0.97)
-      ) !important;
+    background: linear-gradient(
+      180deg,
+      rgba(8, 19, 33, 0.99),
+      rgba(8, 19, 33, 0.97)
+    ) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     box-shadow: 0 10px 30px rgba(3, 11, 20, 0.12);
     backdrop-filter: blur(18px);
@@ -199,9 +234,7 @@
     bottom: 0;
     display: flex;
     flex-direction: column;
-    padding:
-      max(22px, env(safe-area-inset-top))
-      18px
+    padding: max(22px, env(safe-area-inset-top)) 18px
       max(20px, env(safe-area-inset-bottom));
     color: #d9e4f1;
     background:
@@ -288,12 +321,11 @@
   .mobileDrawer .navigation :global(a.active) {
     color: #eff8ff;
     border-color: rgba(87, 230, 199, 0.13);
-    background:
-      linear-gradient(
-        90deg,
-        rgba(87, 230, 199, 0.105),
-        rgba(87, 230, 199, 0.035)
-      );
+    background: linear-gradient(
+      90deg,
+      rgba(87, 230, 199, 0.105),
+      rgba(87, 230, 199, 0.035)
+    );
   }
 
   .mobileDrawer .navigation :global(a.active)::before {
@@ -340,7 +372,18 @@
   }
 
   .mobileDrawer .account form {
-    margin-top: 14px;
+    margin-top: 8px;
+  }
+
+  .mobileDrawer .accountSettings {
+    width: 100%;
+    min-height: 39px;
+    margin-top: 12px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.025);
+    font-size: 11px;
   }
 
   .mobileDrawer .account form button {
@@ -387,4 +430,9 @@
     transition: none;
   }
 }
-.adminStar{margin-left:7px;color:#c08a00;font-size:.82em;vertical-align:.08em}
+.adminStar {
+  margin-left: 7px;
+  color: #c08a00;
+  font-size: 0.82em;
+  vertical-align: 0.08em;
+}

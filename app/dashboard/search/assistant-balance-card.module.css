@@ -104,24 +104,26 @@
   background: #fff1f1;
 }
 
-.legacy {
-  border-color: #c7d7fe;
-  background: #f7f9ff;
+.integrations {
+  border-color: #b9ddd4;
+  background:
+    radial-gradient(circle at 0 0, rgba(87, 230, 199, 0.13), transparent 38%),
+    #ffffff;
 }
 
-.legacy .icon {
-  color: #3451b2;
-  background: #e8edff;
+.integrations .icon {
+  color: #087f6a;
+  background: #e7f8f3;
 }
 
-.legacy .content span,
-.legacy > a {
-  color: #3451b2;
+.integrations .content span,
+.integrations > a {
+  color: #087f6a;
 }
 
-.legacy > a {
-  border-color: #c7d7fe;
-  background: #eef2ff;
+.integrations > a {
+  border-color: #b9ddd4;
+  background: #f1fbf8;
 }
 
 @media (max-width: 720px) {

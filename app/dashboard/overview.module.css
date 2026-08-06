@@ -10,21 +10,17 @@
   align-items: center;
   gap: 28px;
   padding: 28px;
-  border: 1px solid rgba(87, 230, 199, 0.18);
+  border: 1px solid #cdebe4;
   border-radius: 20px;
   background:
-    radial-gradient(
-      circle at 0 0,
-      rgba(87, 230, 199, 0.15),
-      transparent 38%
-    ),
+    radial-gradient(circle at 0 0, rgba(87, 230, 199, 0.14), transparent 38%),
     radial-gradient(
       circle at 100% 100%,
-      rgba(74, 144, 245, 0.12),
+      rgba(74, 144, 245, 0.08),
       transparent 36%
     ),
-    rgba(10, 24, 40, 0.88);
-  box-shadow: 0 22px 60px rgba(2, 11, 20, 0.18);
+    #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
 }
 
 .aiCopy {
@@ -42,7 +38,7 @@
 .aiCopy h2 {
   max-width: 760px;
   margin: 8px 0 10px;
-  color: #f0f7ff;
+  color: #12212d;
   font-size: clamp(22px, 3vw, 32px);
   line-height: 1.12;
   letter-spacing: -0.035em;
@@ -51,7 +47,7 @@
 .aiCopy p {
   max-width: 760px;
   margin: 0;
-  color: #9eb0c4;
+  color: #64748b;
   font-size: 13px;
   line-height: 1.65;
 }
@@ -65,10 +61,10 @@
 
 .integrationChips span {
   padding: 6px 9px;
-  border: 1px solid rgba(139, 164, 191, 0.13);
+  border: 1px solid #dbe7ef;
   border-radius: 999px;
-  color: #a9bbcd;
-  background: rgba(255, 255, 255, 0.035);
+  color: #52677a;
+  background: rgba(255, 255, 255, 0.82);
   font-size: 9px;
   font-weight: 760;
 }
@@ -100,9 +96,9 @@
 }
 
 .secondaryAction {
-  border: 1px solid rgba(139, 164, 191, 0.18);
-  color: #d7e5f3;
-  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid #b9ddd4;
+  color: #087f6a;
+  background: #f1fbf8;
 }
 
 .metrics {
@@ -116,13 +112,14 @@
   display: grid;
   gap: 5px;
   padding: 18px;
-  border: 1px solid rgba(139, 164, 191, 0.11);
+  border: 1px solid #dbe7ef;
   border-radius: 15px;
-  background: rgba(10, 23, 38, 0.72);
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
 }
 
 .metrics span {
-  color: #8295aa;
+  color: #718399;
   font-size: 9px;
   font-weight: 780;
   letter-spacing: 0.08em;
@@ -131,7 +128,7 @@
 
 .metrics strong {
   overflow: hidden;
-  color: #eef6ff;
+  color: #12212d;
   font-size: 25px;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -139,7 +136,7 @@
 }
 
 .metrics small {
-  color: #71859b;
+  color: #74869a;
   font-size: 10px;
 }
 
@@ -153,9 +150,10 @@
 .statusCard {
   min-width: 0;
   padding: 22px;
-  border: 1px solid rgba(139, 164, 191, 0.11);
+  border: 1px solid #dbe7ef;
   border-radius: 18px;
-  background: rgba(10, 23, 38, 0.72);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
 }
 
 .sectionHeading {
@@ -168,13 +166,13 @@
 
 .sectionHeading h2 {
   margin: 6px 0 0;
-  color: #eaf3fc;
+  color: #12212d;
   font-size: 20px;
   letter-spacing: -0.025em;
 }
 
 .sectionHeading > a {
-  color: #8fe8d6;
+  color: #087f6a;
   font-size: 10px;
   font-weight: 760;
   text-decoration: none;
@@ -191,7 +189,7 @@
   align-items: center;
   gap: 13px;
   padding: 11px 0;
-  border-top: 1px solid rgba(139, 164, 191, 0.08);
+  border-top: 1px solid #e8eef3;
 }
 
 .eventList article:first-child {
@@ -199,7 +197,7 @@
 }
 
 .eventList time {
-  color: #7f93a8;
+  color: #75869a;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
@@ -212,7 +210,7 @@
 
 .eventList strong {
   overflow: hidden;
-  color: #dce8f4;
+  color: #253746;
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -220,7 +218,7 @@
 
 .eventList span,
 .eventList small {
-  color: #71859b;
+  color: #718096;
   font-size: 9px;
 }
 
@@ -229,12 +227,12 @@
   display: grid;
   place-content: center;
   gap: 8px;
-  color: #8fa2b5;
+  color: #718096;
   text-align: center;
 }
 
 .emptyState strong {
-  color: #dce8f4;
+  color: #253746;
 }
 
 .emptyState p {
@@ -272,9 +270,9 @@
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 11px;
   padding: 12px;
-  border: 1px solid rgba(139, 164, 191, 0.08);
+  border: 1px solid #e2ebf0;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: #f8fbfd;
 }
 
 .steps article > span {
@@ -282,17 +280,17 @@
   height: 30px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(139, 164, 191, 0.14);
+  border: 1px solid #d7e4eb;
   border-radius: 9px;
-  color: #8ca0b4;
+  color: #64788c;
   font-size: 10px;
   font-weight: 850;
 }
 
 .steps article[data-complete="true"] > span {
-  border-color: rgba(87, 230, 199, 0.2);
-  color: #9cead9;
-  background: rgba(87, 230, 199, 0.08);
+  border-color: #b9ddd4;
+  color: #087f6a;
+  background: #e7f8f3;
 }
 
 .steps article > div {
@@ -301,13 +299,13 @@
 }
 
 .steps strong {
-  color: #dce8f4;
+  color: #253746;
   font-size: 11px;
 }
 
 .steps p {
   margin: 0;
-  color: #75899e;
+  color: #6b7d8f;
   font-size: 9px;
   line-height: 1.5;
 }
@@ -321,10 +319,10 @@
 
 .cardActions a {
   padding: 8px 10px;
-  border: 1px solid rgba(139, 164, 191, 0.12);
+  border: 1px solid #d7e4eb;
   border-radius: 9px;
-  color: #a7b9ca;
-  background: rgba(255, 255, 255, 0.025);
+  color: #087f6a;
+  background: #f8fcfb;
   font-size: 9px;
   font-weight: 750;
   text-decoration: none;
@@ -337,9 +335,10 @@
   justify-content: space-between;
   gap: 20px;
   padding: 15px 18px;
-  border: 1px solid rgba(139, 164, 191, 0.1);
+  border: 1px solid #dbe7ef;
   border-radius: 15px;
-  background: rgba(10, 23, 38, 0.58);
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
 }
 
 .healthStrip > div {
@@ -350,20 +349,20 @@
 }
 
 .healthStrip strong {
-  color: #dce8f4;
+  color: #253746;
   font-size: 11px;
 }
 
 .healthStrip p {
   margin: 4px 0 0;
-  color: #75899e;
+  color: #6b7d8f;
   font-size: 9px;
   line-height: 1.5;
 }
 
 .healthStrip > a {
   flex: 0 0 auto;
-  color: #8fe8d6;
+  color: #087f6a;
   font-size: 10px;
   font-weight: 760;
   text-decoration: none;

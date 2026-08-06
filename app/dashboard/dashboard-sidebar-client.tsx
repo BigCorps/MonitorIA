@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import styles from "./dashboard-sidebar.module.css";
 
 export type DashboardSection =
@@ -33,12 +27,7 @@ export type DashboardSection =
   | "admin";
 
 type NavId =
-  | "overview"
-  | "monitoring"
-  | "cameras"
-  | "search"
-  | "settings"
-  | "admin";
+  "overview" | "monitoring" | "cameras" | "search" | "settings" | "admin";
 
 type Props = {
   organizationName: string;
@@ -61,6 +50,16 @@ function Icon({ children }: { children?: ReactNode }) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       {children}
     </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <Icon>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M5 21c0-4 2.8-7 7-7s7 3 7 7" />
+      <path d="M19 4v5M16.5 6.5h5" />
+    </Icon>
   );
 }
 
@@ -112,19 +111,6 @@ const baseItems: NavigationItem[] = [
   },
 ];
 
-const settingsItem: NavigationItem = {
-  id: "settings",
-  href: "/dashboard/profile",
-  label: "Configurações",
-  icon: (
-    <Icon>
-      <circle cx="12" cy="8" r="3" />
-      <path d="M5 21c0-4 2.8-7 7-7s7 3 7 7" />
-      <path d="M19 4v5M16.5 6.5h5" />
-    </Icon>
-  ),
-};
-
 const adminItem: NavigationItem = {
   id: "admin",
   href: "/dashboard/admin",
@@ -137,10 +123,7 @@ const adminItem: NavigationItem = {
   ),
 };
 
-function resolvedActive(
-  pathname: string,
-  fallback: DashboardSection,
-): NavId {
+function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
   if (pathname === "/dashboard") return "overview";
 
   if (
@@ -265,9 +248,7 @@ function Navigation({
       {items.map((item) => (
         <Link
           className={
-            current === item.id
-              ? `active ${styles.activeLink}`
-              : undefined
+            current === item.id ? `active ${styles.activeLink}` : undefined
           }
           href={item.href}
           key={item.id}
@@ -278,10 +259,7 @@ function Navigation({
           <span className={styles.navLabel}>
             {item.label}
             {item.adminStar ? (
-              <span
-                className={styles.adminStar}
-                aria-label="acesso interno"
-              >
+              <span className={styles.adminStar} aria-label="acesso interno">
                 ★
               </span>
             ) : null}
@@ -298,12 +276,13 @@ function Navigation({
 function Account({
   organizationName,
   userEmail,
+  settingsActive,
 }: {
   organizationName: string;
   userEmail: string | null;
+  settingsActive: boolean;
 }) {
-  const initial =
-    organizationName.trim().charAt(0).toUpperCase() || "M";
+  const initial = organizationName.trim().charAt(0).toUpperCase() || "M";
 
   return (
     <div className={`sidebar-account ${styles.account}`}>
@@ -320,6 +299,18 @@ function Account({
           <small>{userEmail ?? "Usuário autenticado"}</small>
         </div>
       </Link>
+      <Link
+        className={`${styles.accountSettings} ${
+          settingsActive ? styles.accountSettingsActive : ""
+        }`}
+        href="/dashboard/profile"
+        aria-current={settingsActive ? "page" : undefined}
+      >
+        <span className={styles.accountSettingsIcon} aria-hidden="true">
+          <SettingsIcon />
+        </span>
+        <span>Configurações</span>
+      </Link>
       <form action="/auth/signout" method="post">
         <button type="submit">Sair da conta</button>
       </form>
@@ -331,24 +322,16 @@ export function DashboardSidebarClient({
   organizationName,
   userEmail,
   active,
-  organizationRole,
   isInternalOperator,
 }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const drawerId = useId();
-  const canManage =
-    organizationRole === "owner" ||
-    organizationRole === "admin";
   const current = resolvedActive(pathname, active);
 
   const items = useMemo(
-    () => [
-      ...baseItems,
-      ...(canManage ? [settingsItem] : []),
-      ...(isInternalOperator ? [adminItem] : []),
-    ],
-    [canManage, isInternalOperator],
+    () => [...baseItems, ...(isInternalOperator ? [adminItem] : [])],
+    [isInternalOperator],
   );
 
   useEffect(() => setOpen(false), [pathname]);
@@ -384,6 +367,7 @@ export function DashboardSidebarClient({
           <Account
             organizationName={organizationName}
             userEmail={userEmail}
+            settingsActive={current === "settings"}
           />
         </div>
 
@@ -393,9 +377,7 @@ export function DashboardSidebarClient({
             type="button"
             className={styles.menuButton}
             aria-label={
-              open
-                ? "Fechar menu do dashboard"
-                : "Abrir menu do dashboard"
+              open ? "Fechar menu do dashboard" : "Abrir menu do dashboard"
             }
             aria-controls={drawerId}
             aria-expanded={open}
@@ -416,9 +398,7 @@ export function DashboardSidebarClient({
 
       <aside
         id={drawerId}
-        className={`${styles.mobileDrawer} ${
-          open ? styles.drawerOpen : ""
-        }`}
+        className={`${styles.mobileDrawer} ${open ? styles.drawerOpen : ""}`}
         aria-hidden={!open}
         aria-label="Navegação mobile do MonitorIA"
       >
@@ -445,6 +425,7 @@ export function DashboardSidebarClient({
         <Account
           organizationName={organizationName}
           userEmail={userEmail}
+          settingsActive={current === "settings"}
         />
       </aside>
     </>
