@@ -132,9 +132,7 @@ function AssistantChart({ chart }: { chart: AssistantChartSpec }) {
       : margin.left + (index / (chart.labels.length - 1)) * plotWidth;
   const yPosition = (value: number) =>
     margin.top + plotHeight - (value / roundedMaximum) * plotHeight;
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map(
-    (ratio) => roundedMaximum * ratio,
-  );
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => roundedMaximum * ratio);
 
   function downloadSvg() {
     const element = svgRef.current;
@@ -207,12 +205,10 @@ function AssistantChart({ chart }: { chart: AssistantChartSpec }) {
             ? chart.series.map((series, seriesIndex) => {
                 const points = series.values
                   .map(
-                    (value, index) =>
-                      `${xPosition(index)},${yPosition(value)}`,
+                    (value, index) => `${xPosition(index)},${yPosition(value)}`,
                   )
                   .join(" ");
-                const color =
-                  chartColors[seriesIndex % chartColors.length];
+                const color = chartColors[seriesIndex % chartColors.length];
 
                 return (
                   <g key={series.name}>
@@ -250,14 +246,14 @@ function AssistantChart({ chart }: { chart: AssistantChartSpec }) {
                   availableWidth / chart.series.length,
                 );
                 const groupStart =
-                  margin.left + labelIndex * groupWidth +
+                  margin.left +
+                  labelIndex * groupWidth +
                   (groupWidth - barWidth * chart.series.length) / 2;
 
                 return chart.series.map((series, seriesIndex) => {
                   const value = series.values[labelIndex] ?? 0;
                   const y = yPosition(value);
-                  const color =
-                    chartColors[seriesIndex % chartColors.length];
+                  const color = chartColors[seriesIndex % chartColors.length];
 
                   return (
                     <g key={`${label}-${series.name}`}>
@@ -344,10 +340,7 @@ function EvidenceCard({
     >
       <div className={styles.evidenceImage}>
         {event.thumbnailAssetId ? (
-          <img
-            src={`/api/storage-assets/${event.thumbnailAssetId}`}
-            alt=""
-          />
+          <img src={`/api/storage-assets/${event.thumbnailAssetId}`} alt="" />
         ) : (
           <img src="/favicon.svg" alt="" />
         )}
@@ -375,15 +368,9 @@ export function AssistantChat({
 }: Props) {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [threadId, setThreadId] = useState(
-    initialWorkspace.selectedThreadId,
-  );
-  const [messages, setMessages] = useState(
-    initialWorkspace.messages,
-  );
-  const [evidence, setEvidence] = useState(
-    initialWorkspace.evidence,
-  );
+  const [threadId, setThreadId] = useState(initialWorkspace.selectedThreadId);
+  const [messages, setMessages] = useState(initialWorkspace.messages);
+  const [evidence, setEvidence] = useState(initialWorkspace.evidence);
   const [message, setMessage] = useState("");
   const [siteId, setSiteId] = useState("");
   const [cameraId, setCameraId] = useState("");
@@ -419,9 +406,7 @@ export function AssistantChat({
 
   const filteredCameras = useMemo(
     () =>
-      siteId
-        ? cameras.filter((camera) => camera.siteId === siteId)
-        : cameras,
+      siteId ? cameras.filter((camera) => camera.siteId === siteId) : cameras,
     [cameras, siteId],
   );
 
@@ -448,8 +433,7 @@ export function AssistantChat({
       });
 
       const data = (await response.json()) as
-        | QueryResponse
-        | { ok: false; error: string };
+        QueryResponse | { ok: false; error: string };
 
       if (!response.ok || !data.ok) {
         const code = "error" in data ? data.error : "unknown";
@@ -471,9 +455,7 @@ export function AssistantChat({
       ]);
       setEvidence((current) => ({
         ...current,
-        ...Object.fromEntries(
-          data.evidence.map((item) => [item.id, item]),
-        ),
+        ...Object.fromEntries(data.evidence.map((item) => [item.id, item])),
       }));
 
       if (!threadId) {
@@ -513,9 +495,7 @@ export function AssistantChat({
     router.push("/dashboard/search");
   }
 
-  const hasFilters = Boolean(
-    siteId || cameraId || fromDate || toDate,
-  );
+  const hasFilters = Boolean(siteId || cameraId || fromDate || toDate);
 
   return (
     <section className={styles.workspace}>
@@ -566,21 +546,15 @@ export function AssistantChat({
                 href={`/dashboard/search?thread=${thread.id}`}
                 onClick={() => setShowThreads(false)}
                 className={
-                  thread.id === threadId
-                    ? styles.activeThread
-                    : undefined
+                  thread.id === threadId ? styles.activeThread : undefined
                 }
               >
                 <span>{thread.title}</span>
-                <small>
-                  {formatDate(thread.lastMessageAt, timeZone)}
-                </small>
+                <small>{formatDate(thread.lastMessageAt, timeZone)}</small>
               </Link>
             ))
           ) : (
-            <p className={styles.noThreads}>
-              Suas pesquisas aparecerão aqui.
-            </p>
+            <p className={styles.noThreads}>Suas pesquisas aparecerão aqui.</p>
           )}
         </nav>
       </aside>
@@ -592,9 +566,7 @@ export function AssistantChat({
           </div>
           <div className={styles.chatIdentity}>
             <strong>Assistente MonitorIA</strong>
-            <span>
-              Consulta eventos, períodos e indicadores visuais
-            </span>
+            <span>Consulta eventos, períodos e indicadores visuais</span>
           </div>
           <div className={styles.chatHeaderActions}>
             <button
@@ -612,9 +584,7 @@ export function AssistantChat({
             <button
               type="button"
               className={
-                hasFilters
-                  ? styles.filtersActive
-                  : styles.filterToggle
+                hasFilters ? styles.filtersActive : styles.filterToggle
               }
               onClick={() => setShowFilters((current) => !current)}
             >
@@ -698,11 +668,10 @@ export function AssistantChat({
               <span>PESQUISA CONVERSACIONAL</span>
               <h2>O que deseja saber sobre o seu negócio?</h2>
               <p>
-                O Assistente calcula indicadores no Supabase e usa
-                somente os eventos relevantes para responder. Ele também
-                entende período, local e câmera escritos diretamente na
-                pergunta. Aparições são estimativas e não representam
-                pessoas únicas.
+                O Assistente calcula indicadores no Supabase e usa somente os
+                eventos relevantes para responder. Ele também entende período,
+                local e câmera escritos diretamente na pergunta. Aparições são
+                estimativas e não representam pessoas únicas.
               </p>
 
               <div className={styles.suggestions}>
@@ -748,15 +717,11 @@ export function AssistantChat({
                       ) : null}
                       <p>{item.content}</p>
                       {item.caution ? (
-                        <small className={styles.caution}>
-                          {item.caution}
-                        </small>
+                        <small className={styles.caution}>{item.caution}</small>
                       ) : null}
                     </div>
 
-                    {item.chart ? (
-                      <AssistantChart chart={item.chart} />
-                    ) : null}
+                    {item.chart ? <AssistantChart chart={item.chart} /> : null}
 
                     {itemEvidence.length ? (
                       <div className={styles.evidenceList}>
@@ -771,8 +736,7 @@ export function AssistantChat({
                       </div>
                     ) : null}
 
-                    {item.role === "assistant" &&
-                    item.suggestions.length ? (
+                    {item.role === "assistant" && item.suggestions.length ? (
                       <div className={styles.followUps}>
                         {item.suggestions.map((suggestion) => (
                           <button
@@ -815,7 +779,7 @@ export function AssistantChat({
               onChange={(event) => setMessage(event.target.value)}
               onKeyDown={handleKeyDown}
               maxLength={2000}
-              rows={2}
+              rows={1}
               disabled={pending}
               placeholder="Pergunte sobre clientes, atendimentos, entregas, objetos, veículos, gráficos ou períodos..."
             />
@@ -824,12 +788,13 @@ export function AssistantChat({
               disabled={pending || message.trim().length < 2}
               aria-label="Enviar pergunta"
             >
-              ↑
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h13" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
             </button>
           </div>
-          <small>
-            Enter envia · Shift + Enter cria uma nova linha
-          </small>
+          <small>Enter envia · Shift + Enter cria uma nova linha</small>
         </form>
       </div>
     </section>
