@@ -1,10 +1,14 @@
 import { closePrompt, promptSecret, promptText } from "./cli.js";
 import { loadConfig, removeConfig } from "./config.js";
 import { protectSecret, revealSecret } from "./secret-store.js";
-import { callAgent } from "./ipc-client.js";
+import {
+  AgentAccessDeniedError,
+  AgentNotRunningError,
+  callAgent,
+} from "./ipc-client.js";
 import { AdaptiveMotionCalibration } from "./motion-calibration.js";
 import { calculateMotion } from "./motion.js";
-import { forgetPaths, resolvePaths } from "./paths.js";
+import { forgetPaths, PermissionError, resolvePaths } from "./paths.js";
 import { AGENT_VERSION, AgentService, DEFAULT_API_URL } from "./service.js";
 
 /**
@@ -224,7 +228,13 @@ async function commandDiagnose() {
 
   console.log(`\nDiagnóstico do MonitorIA Agent v${String(report.version)}\n`);
   console.log(`Pasta de dados      ${String(report.dataDirectory)}`);
-  console.log(`Permissões da pasta ${ok(Boolean(report.aclRestricted))}`);
+  console.log(
+    `Permissões da pasta ${
+      report.aclRestricted === null
+        ? "não verificadas (só o serviço gerencia)"
+        : ok(Boolean(report.aclRestricted))
+    }`,
+  );
   console.log(`Configuração        ${ok(Boolean(report.configPresent))}`);
 
   const tokenState = String(report.tokenState ?? "missing");
@@ -268,7 +278,7 @@ async function commandDiagnose() {
     }
   }
 
-  if (!report.aclRestricted) {
+  if (report.aclRestricted === false) {
     console.log(
       "\nA pasta de dados não está protegida. Reinstale o MonitorIA como administrador.",
     );
@@ -410,10 +420,37 @@ async function main() {
   }
 }
 
+/**
+ * Códigos de saída, consumidos pelo instalador.
+ *
+ * O instalador não consegue ler a saída de texto, só o código de retorno.
+ * Sem distinguir os casos, ele atribuía toda falha de pareamento a "código
+ * expirado" — inclusive quando a causa era falta de permissão, o que mandava
+ * o operador gerar códigos novos indefinidamente sem resolver nada.
+ */
+const EXIT = {
+  ERRO_GERAL: 1,
+  SERVICO_PARADO: 4,
+  SEM_PERMISSAO: 5,
+  PAREAMENTO_RECUSADO: 6,
+} as const;
+
+function exitCodeFor(error: unknown) {
+  if (error instanceof AgentNotRunningError) return EXIT.SERVICO_PARADO;
+  if (error instanceof AgentAccessDeniedError) return EXIT.SEM_PERMISSAO;
+  if (error instanceof PermissionError) return EXIT.SEM_PERMISSAO;
+
+  if (error instanceof Error && error.message.startsWith("Pareamento recusado")) {
+    return EXIT.PAREAMENTO_RECUSADO;
+  }
+
+  return EXIT.ERRO_GERAL;
+}
+
 main()
   .catch((error: unknown) => {
     console.error(`Erro: ${errorMessage(error)}`);
-    process.exitCode = 1;
+    process.exitCode = exitCodeFor(error);
   })
   .finally(() => {
     closePrompt();

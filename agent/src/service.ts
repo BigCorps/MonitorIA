@@ -24,7 +24,7 @@ import { captureFrame, resolveFfmpeg } from "./ffmpeg.js";
 import { IpcError, type IpcHandlerMap } from "./ipc-protocol.js";
 import { startIpcServer, type IpcServerHandle } from "./ipc-server.js";
 import { createLogger, logDiskUsage, type Logger } from "./logger.js";
-import { resolvePaths } from "./paths.js";
+import { enableAclManagement, resolvePaths } from "./paths.js";
 import { PersistentEventQueue } from "./queue.js";
 import { platformMetadata, systemMetrics } from "./system.js";
 import { SecretVault } from "./vault.js";
@@ -162,6 +162,9 @@ export class AgentService {
   // ---------------------------------------------------------------- ciclo
 
   async start() {
+    // Só o serviço tem autoridade sobre as permissões da pasta de dados.
+    enableAclManagement();
+
     this.logger = await createLogger({ mirrorToConsole: this.options.mirrorToConsole });
 
     // O cofre reprotege segredos legados assim que consegue abri-los, e
@@ -188,7 +191,7 @@ export class AgentService {
 
     const layout = await resolvePaths();
 
-    if (!layout.restricted) {
+    if (layout.restricted === false) {
       this.logger.warn(
         "A pasta de dados não pôde ser protegida por ACL. Execute o serviço como SYSTEM ou administrador.",
       );

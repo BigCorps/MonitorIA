@@ -29,11 +29,29 @@ export type PathLayout = {
   queueDirectory: string;
   logDirectory: string;
   frameDirectory: string;
-  /** false quando a ACL não pôde ser aplicada (execução sem elevação). */
-  restricted: boolean;
+  /**
+   * true quando a ACL foi aplicada com sucesso, false quando falhou, e null
+   * quando nem foi tentada — o caso dos comandos de interface, que não têm
+   * (nem devem ter) autoridade sobre as permissões da pasta.
+   */
+  restricted: boolean | null;
 };
 
 let cached: PathLayout | null = null;
+
+/**
+ * Só o serviço gerencia a ACL.
+ *
+ * Antes, qualquer comando reaplicava permissões — `status`, `diagnose`,
+ * `camera`, todos. Um processo de usuário reescrevendo a ACL do diretório de
+ * dados dezenas de vezes é como se chega a um estado onde nem administrador
+ * entra mais. Os comandos de interface agora apenas leem.
+ */
+let manageAcl = false;
+
+export function enableAclManagement() {
+  manageAcl = true;
+}
 
 function candidateRoots() {
   const overridden = process.env.MONITORIA_CONFIG_DIR?.trim();
@@ -114,10 +132,58 @@ async function runIcacls(target: string) {
   });
 }
 
+function errorCode(error: unknown) {
+  return error && typeof error === "object" && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+}
+
+/**
+ * Distingue "não existe" de "não tenho permissão".
+ *
+ * O `mkdir` recursivo devolve EEXIST quando a pasta existe mas o processo não
+ * consegue enxergá-la. Em campo isso virou a mensagem
+ * "EEXIST: file already exists, mkdir C:\ProgramData\MonitorIA\queue" para
+ * um usuário cuja única falta era não ter aberto o terminal como
+ * administrador. Um programa que mente sobre a própria falha faz o operador
+ * desistir da instalação.
+ */
 async function usableDirectory(candidate: string) {
-  await mkdir(candidate, { recursive: true });
-  await access(candidate, constants.R_OK | constants.W_OK);
-  return candidate;
+  try {
+    await access(candidate, constants.R_OK | constants.W_OK);
+    return candidate;
+  } catch (error) {
+    const code = errorCode(error);
+
+    if (code === "EACCES" || code === "EPERM") {
+      throw new PermissionError(candidate);
+    }
+  }
+
+  try {
+    await mkdir(candidate, { recursive: true });
+    await access(candidate, constants.R_OK | constants.W_OK);
+    return candidate;
+  } catch (error) {
+    const code = errorCode(error);
+
+    if (code === "EACCES" || code === "EPERM" || code === "EEXIST") {
+      throw new PermissionError(candidate);
+    }
+
+    throw error;
+  }
+}
+
+export class PermissionError extends Error {
+  constructor(readonly directory: string) {
+    super(
+      `Sem permissão para acessar ${directory}. ` +
+        "Feche esta janela e abra o Prompt de Comando ou o PowerShell com o " +
+        'botão direito, escolhendo "Executar como administrador".',
+    );
+    this.name = "PermissionError";
+  }
 }
 
 /**
@@ -141,6 +207,8 @@ export async function resolvePaths(): Promise<PathLayout> {
   }
 
   if (!root) {
+    if (lastError instanceof PermissionError) throw lastError;
+
     throw new Error(
       `Não foi possível criar a pasta de dados do Agent: ${
         lastError instanceof Error ? lastError.message : "erro desconhecido"
@@ -148,8 +216,11 @@ export async function resolvePaths(): Promise<PathLayout> {
     );
   }
 
-  const restricted =
-    process.platform === "win32" ? await runIcacls(root) : await restrictPosix(root);
+  const restricted = !manageAcl
+    ? null
+    : process.platform === "win32"
+      ? await runIcacls(root)
+      : await restrictPosix(root);
 
   const layout: PathLayout = {
     root,

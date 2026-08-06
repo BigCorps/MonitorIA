@@ -194,6 +194,16 @@ begin
   end;
 end;
 
+{ Códigos devolvidos por monitoria-agent.exe. }
+const
+  SAIDA_OK = 0;
+  SAIDA_SERVICO_PARADO = 4;
+  SAIDA_SEM_PERMISSAO = 5;
+  SAIDA_PAREAMENTO_RECUSADO = 6;
+
+var
+  UltimoCodigoPareamento: Integer;
+
 function RunPairing(const Code: String): Boolean;
 var
   ResultCode: Integer;
@@ -201,14 +211,47 @@ begin
   { O instalador não pareia por conta própria: ele delega ao serviço pelo
     canal local. Assim existe um caminho de código só, o mesmo que o
     operador usa depois, e o serviço segue sendo o único dono dos segredos. }
-  Result := Exec(
+  if not Exec(
     ExpandConstant('{app}\monitoria-agent.exe'),
     'pair --code ' + Code,
     ExpandConstant('{app}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
-  ) and (ResultCode = 0);
+  ) then
+  begin
+    UltimoCodigoPareamento := SAIDA_SERVICO_PARADO;
+    Result := False;
+    Exit;
+  end;
+
+  UltimoCodigoPareamento := ResultCode;
+  Result := ResultCode = SAIDA_OK;
+end;
+
+function MensagemDeFalha(): String;
+begin
+  { Cada causa exige uma ação diferente do operador. Atribuir tudo a "código
+    expirado" fazia gerar código novo indefinidamente sem resolver nada. }
+  if UltimoCodigoPareamento = SAIDA_SEM_PERMISSAO then
+    Result :=
+      'O MonitorIA não conseguiu acessar a própria pasta de dados.' + #13#10#13#10 +
+      'Cancele, clique no instalador com o botão direito e escolha ' +
+      '"Executar como administrador".'
+  else if UltimoCodigoPareamento = SAIDA_SERVICO_PARADO then
+    Result :=
+      'O serviço do MonitorIA ainda não estava em execução.' + #13#10#13#10 +
+      'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
+      'Aguarde alguns minutos e pareie depois pelo painel.'
+  else if UltimoCodigoPareamento = SAIDA_PAREAMENTO_RECUSADO then
+    Result :=
+      'O painel recusou este código de pareamento.' + #13#10#13#10 +
+      'Ele vale 15 minutos e só pode ser usado uma vez. ' +
+      'Gere um código novo e tente de novo.'
+  else
+    Result :=
+      'Não foi possível concluir o pareamento.' + #13#10#13#10 +
+      'Verifique se o computador está conectado à internet.';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -267,9 +310,7 @@ begin
   { Falha de pareamento não aborta a instalação. O serviço já está no ar e
     o lojista pode tentar de novo sem reinstalar 100 MB. }
   Result := MsgBox(
-    'Não foi possível parear com este código.' + #13#10#13#10 +
-    'As causas mais comuns são o código ter passado dos 15 minutos ou o ' +
-    'computador estar sem internet.' + #13#10#13#10 +
+    MensagemDeFalha() + #13#10#13#10 +
     'Deseja continuar mesmo assim? O MonitorIA fica instalado e você pode ' +
     'parear depois.',
     mbConfirmation,
