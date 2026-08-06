@@ -10,6 +10,8 @@ import {
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./storage.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Armazenamento" };
 export const dynamic = "force-dynamic";
 
@@ -76,6 +78,9 @@ export default async function StoragePage() {
             <strong>365 dias</strong>
           </div>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         {totals.mismatches > 0 ? (
           <div className={styles.warning}>

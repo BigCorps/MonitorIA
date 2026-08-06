@@ -11,6 +11,8 @@ import {
 import { SecuritySettings } from "./security-settings";
 import styles from "./profile.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = {
   title: "Perfil e empresa",
 };
@@ -91,6 +93,9 @@ export default async function ProfilePage({
             </strong>
           </div>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         {message ? (
           <div

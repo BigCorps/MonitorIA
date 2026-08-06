@@ -3,23 +3,110 @@ import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { DashboardSidebar } from "../dashboard-sidebar";
-import styles from "../dashboard-hubs.module.css";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+import styles from "./intelligence.module.css";
 
 export const metadata = { title: "Inteligência" };
 export const dynamic = "force-dynamic";
 
-export default async function IntelligenceHubPage() {
+const modules = [
+  {
+    eyebrow: "PADRÕES",
+    title: "Rotinas e desvios",
+    description:
+      "Faixas habituais, atrasos, antecipações e diferenças em relação ao histórico visual.",
+    href: "/dashboard/routines",
+  },
+  {
+    eyebrow: "ETAPAS",
+    title: "Processos e ações",
+    description:
+      "Sequências observadas, etapas confirmadas, pendências e resultados visuais.",
+    href: "/dashboard/processes",
+  },
+  {
+    eyebrow: "MEMÓRIA OPERACIONAL",
+    title: "Perfis operacionais",
+    description:
+      "Padrões aprovados de presença, zonas, turnos e ações recorrentes, sem biometria.",
+    href: "/dashboard/operational-profiles",
+  },
+] as const;
+
+export default async function IntelligencePage() {
   const user = await requireAuthenticatedUser();
-  const organization = await getCurrentOrganization(user.id);
+  const organization =
+    await getCurrentOrganization(user.id);
+
   if (!organization) redirect("/onboarding");
+
   return (
     <main className="dashboard-shell">
-      <DashboardSidebar organizationName={organization.name} userEmail={user.email} active="intelligence" />
-      <section className={`dashboard-content ${styles.content}`}>
-        <header className="dashboard-header"><div><span className="dashboard-eyebrow">INTELIGÊNCIA · {organization.name.toUpperCase()}</span><h1>Padrões e processos observados</h1><p>Veja o que costuma acontecer e quais etapas foram confirmadas visualmente.</p></div></header>
+      <DashboardSidebar
+        organizationName={organization.name}
+        userEmail={user.email}
+        active="intelligence"
+      />
+
+      <section
+        className={`dashboard-content ${styles.content}`}
+      >
+        <header className="dashboard-header">
+          <div>
+            <span className="dashboard-eyebrow">
+              INTELIGÊNCIA ·{" "}
+              {organization.name.toUpperCase()}
+            </span>
+            <h1>Padrões e processos observados</h1>
+            <p>
+              Toda nova fase de inteligência entra nesta área,
+              sem criar novas opções no menu principal.
+            </p>
+          </div>
+
+          <Link
+            className="panel-primary-action"
+            href="/dashboard/search"
+          >
+            Perguntar à Pesquisa IA
+          </Link>
+        </header>
+
+        <DashboardSectionTabs group="monitoring" />
+        <DashboardSectionTabs
+          group="intelligence"
+          density="compact"
+        />
+
+        <section className={styles.intro}>
+          <div>
+            <span>LEITURA CONSERVADORA</span>
+            <h2>
+              O MonitorIA organiza evidências, não atribui
+              intenção.
+            </h2>
+          </div>
+          <p>
+            Rotinas, desvios, processos e perfis são derivados
+            do histórico visual autorizado e permanecem
+            separados de reconhecimento facial ou identidade
+            civil.
+          </p>
+        </section>
+
         <div className={styles.grid}>
-          <Link className={styles.card} href="/dashboard/routines"><span>PADRÕES</span><h2>Rotinas e desvios</h2><p>Faixas habituais, atrasos, antecipações e diferenças em relação ao histórico.</p><strong>Abrir rotinas →</strong></Link>
-          <Link className={styles.card} href="/dashboard/processes"><span>ETAPAS</span><h2>Processos e ações</h2><p>Sequências observadas, etapas pendentes e resultados visuais.</p><strong>Abrir processos →</strong></Link>
+          {modules.map((module) => (
+            <Link
+              className={styles.card}
+              href={module.href}
+              key={module.href}
+            >
+              <span>{module.eyebrow}</span>
+              <h2>{module.title}</h2>
+              <p>{module.description}</p>
+              <strong>Abrir módulo →</strong>
+            </Link>
+          ))}
         </div>
       </section>
     </main>

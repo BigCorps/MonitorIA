@@ -25,6 +25,8 @@ import {
 import { ProfilesRealtimeRefresh } from "./profiles-realtime-refresh";
 import styles from "./profiles.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -93,6 +95,10 @@ export default async function OperationalProfilesPage({ searchParams }: { search
           </div>
           <ProfilesRealtimeRefresh organizationId={organization.id} />
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
+        <DashboardSectionTabs group="intelligence" density="compact" />
+
 
         <section className={styles.metrics} aria-label="Resumo dos perfis operacionais">
           <article><strong>{overview.summary.activeProfiles}</strong><span>Perfis ativos</span></article>

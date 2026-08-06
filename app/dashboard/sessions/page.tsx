@@ -18,6 +18,8 @@ import { SessionList } from "./session-list";
 import { SessionsRealtimeRefresh } from "./sessions-realtime-refresh";
 import styles from "./sessions.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Sessões" };
 export const dynamic = "force-dynamic";
 
@@ -119,6 +121,9 @@ export default async function SessionsPage({
             Ver eventos individuais
           </Link>
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
+
 
         <form className={styles.filters} method="get">
           <label>

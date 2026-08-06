@@ -1,0 +1,93 @@
+.tabs {
+  width: 100%;
+  margin: 0 0 24px;
+  border-bottom: 1px solid rgba(139, 164, 191, 0.15);
+}
+
+.scroller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 2px;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+
+.scroller a {
+  position: relative;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border-radius: 10px 10px 0 0;
+  color: #8195aa;
+  font-size: 12px;
+  font-weight: 720;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.scroller a:hover {
+  color: #dce8f5;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.scroller a::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.scroller .active {
+  color: #effcf9;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(87, 230, 199, 0.09),
+      rgba(87, 230, 199, 0.025)
+    );
+}
+
+.scroller .active::after {
+  background: var(--green, #57e6c7);
+  box-shadow: 0 0 14px rgba(87, 230, 199, 0.35);
+}
+
+.compact {
+  margin-top: -8px;
+  margin-bottom: 22px;
+  border-bottom-color: rgba(139, 164, 191, 0.09);
+}
+
+.compact .scroller a {
+  min-height: 38px;
+  padding-inline: 12px;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .tabs {
+    margin-bottom: 18px;
+  }
+
+  .scroller {
+    margin-inline: -2px;
+    padding-bottom: 1px;
+  }
+
+  .scroller a {
+    min-height: 42px;
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+}

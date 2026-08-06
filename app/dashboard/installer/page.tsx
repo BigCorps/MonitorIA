@@ -6,6 +6,8 @@ import { getInstallerWorkspace } from "@/src/lib/installer-data";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./installer.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Instalador" };
 export const dynamic = "force-dynamic";
 
@@ -79,6 +81,9 @@ export default async function InstallerPage() {
             Abrir câmeras
           </Link>
         </header>
+
+        <DashboardSectionTabs group="cameras" />
+
 
         <div className={styles.metrics}>
           <article>

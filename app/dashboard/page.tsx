@@ -8,6 +8,7 @@ import {
 } from "@/src/lib/dashboard-data";
 import { eventTypeLabel } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "./dashboard-sidebar";
+import styles from "./overview.module.css";
 
 export const metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
@@ -16,6 +17,12 @@ type Props = {
   searchParams: Promise<
     Record<string, string | string[] | undefined>
   >;
+};
+
+const planLabels: Record<string, string> = {
+  basic: "Essencial",
+  standard: "Atenta",
+  intensive: "Detalhada",
 };
 
 function greeting(timeZone: string) {
@@ -32,22 +39,11 @@ function greeting(timeZone: string) {
   return "Boa noite";
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
-
-function eventTime(
-  value: string,
-  timeZone: string,
-) {
+function eventTime(value: string, timeZone: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone,
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   }).format(new Date(value));
 }
 
@@ -82,37 +78,37 @@ export default async function DashboardPage({
     data.cameras > 0,
     data.agentsOnline > 0,
   ];
-  const completed =
-    progress.filter(Boolean).length;
+  const completed = progress.filter(Boolean).length;
+  const setupComplete = completed === progress.length;
 
   const metrics = [
     {
       label: "Câmeras",
       value: String(data.cameras),
       helper: data.cameras
-        ? "Câmeras cadastradas"
-        : "Aguardando configuração",
+        ? "fontes cadastradas"
+        : "aguardando configuração",
     },
     {
-      label: "Agentes online",
+      label: "Agents online",
       value: String(data.agentsOnline),
       helper: data.agentsOnline
-        ? "Heartbeat ativo"
-        : "Nenhum agente conectado",
+        ? "captura local ativa"
+        : "nenhum Agent conectado",
     },
     {
-      label: "Eventos hoje",
+      label: "Hoje",
       value: String(data.eventsToday),
       helper: data.eventsToday
-        ? "Eventos estruturados"
-        : "A linha do tempo está vazia",
+        ? "acontecimentos registrados"
+        : "nenhum acontecimento",
     },
     {
-      label: "Uso estimado",
-      value: formatCurrency(
-        data.estimatedCostBrl,
-      ),
-      helper: "COGS visual no mês",
+      label: "Plano atual",
+      value:
+        planLabels[organization.planCode] ??
+        organization.planCode,
+      helper: "configuração da organização",
     },
   ];
 
@@ -122,14 +118,14 @@ export default async function DashboardPage({
       text: `${site.name} · ${site.timezone}`,
     },
     {
-      title: "Adicione a câmera",
+      title: "Câmera cadastrada",
       text:
-        "Nomeie a câmera e configure o perfil de monitoramento.",
+        "Nome, local e perfil de monitoramento definidos.",
     },
     {
-      title: "Instale o agente",
+      title: "Agent conectado",
       text:
-        "O Agent conecta ao RTSP e envia somente eventos relevantes.",
+        "Captura local e envio de acontecimentos funcionando.",
     },
   ];
 
@@ -142,28 +138,27 @@ export default async function DashboardPage({
       />
 
       <section
-        className="dashboard-content"
+        className={`dashboard-content ${styles.content}`}
         id="visao-geral"
       >
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              VISÃO GERAL ·{" "}
-              {site.name.toUpperCase()}
+              VISÃO GERAL · {site.name.toUpperCase()}
             </span>
             <h1>
-              {greeting(site.timezone)}. O MonitorIA
-              está conectado!
+              {greeting(site.timezone)}. Veja o que importa
+              agora.
             </h1>
             <p>
-              Dados reais da organização{" "}
-              {organization.name}. Plano atual:{" "}
-              {organization.planCode}.
+              Monitoramento visual da organização{" "}
+              {organization.name}, sem misturar configurações
+              técnicas com a rotina diária.
             </p>
           </div>
 
-          <Link href="/" className="back-link">
-            Ver apresentação ↗
+          <Link href="/dashboard/events" className="back-link">
+            Abrir monitoramento →
           </Link>
         </header>
 
@@ -173,12 +168,47 @@ export default async function DashboardPage({
           </div>
         ) : null}
 
-        <div className="metric-grid">
-          {metrics.map((metric) => (
-            <article
-              className="metric-card"
-              key={metric.label}
+        <section className={styles.aiCard}>
+          <div className={styles.aiCopy}>
+            <span>PESQUISE DO SEU JEITO</span>
+            <h2>
+              Use a Pesquisa IA do MonitorIA ou conecte a IA
+              que sua equipe já utiliza.
+            </h2>
+            <p>
+              Pergunte o que aconteceu, compare períodos,
+              encontre evidências e consulte a operação pelo
+              MonitorIA, ChatGPT, Claude ou Cursor.
+            </p>
+
+            <div className={styles.integrationChips}>
+              <span>MonitorIA</span>
+              <span>ChatGPT</span>
+              <span>Claude</span>
+              <span>Cursor</span>
+              <span>MCP</span>
+            </div>
+          </div>
+
+          <div className={styles.aiActions}>
+            <Link
+              href="/dashboard/search"
+              className={styles.primaryAction}
             >
+              Abrir Pesquisa IA
+            </Link>
+            <Link
+              href="/dashboard/profile/mcp-connections"
+              className={styles.secondaryAction}
+            >
+              Conectar minha própria IA
+            </Link>
+          </div>
+        </section>
+
+        <div className={styles.metrics}>
+          {metrics.map((metric) => (
+            <article key={metric.label}>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
               <small>{metric.helper}</small>
@@ -186,37 +216,88 @@ export default async function DashboardPage({
           ))}
         </div>
 
-        <div className="dashboard-grid">
-          <section
-            className="empty-panel"
-            id="cameras"
-          >
-            <div className="panel-title-row">
+        <div className={styles.mainGrid}>
+          <section className={styles.timelineCard}>
+            <div className={styles.sectionHeading}>
               <div>
-                <span>PRIMEIROS PASSOS</span>
+                <span>ACONTECIMENTOS RECENTES</span>
+                <h2>O que aconteceu</h2>
+              </div>
+              <Link href="/dashboard/events">
+                Ver linha do tempo →
+              </Link>
+            </div>
+
+            {data.recentEvents.length ? (
+              <div className={styles.eventList}>
+                {data.recentEvents
+                  .slice(0, 6)
+                  .map((event) => (
+                    <article key={event.id}>
+                      <time>
+                        {eventTime(
+                          event.startedAt,
+                          site.timezone,
+                        )}
+                      </time>
+                      <div>
+                        <strong>{event.headline}</strong>
+                        <span>
+                          {eventTypeLabel(event.type)}
+                        </span>
+                      </div>
+                      <small>
+                        {Math.round(
+                          event.confidence * 100,
+                        )}
+                        %
+                        {event.requiresReview
+                          ? " · revisar"
+                          : ""}
+                      </small>
+                    </article>
+                  ))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>
+                <strong>Nenhum acontecimento hoje</strong>
+                <p>
+                  Os registros aparecerão aqui quando o Agent
+                  detectar algo relevante.
+                </p>
+              </div>
+            )}
+          </section>
+
+          <section className={styles.statusCard}>
+            <div className={styles.sectionHeading}>
+              <div>
+                <span>CÂMERAS E INSTALAÇÃO</span>
                 <h2>
-                  Conecte a primeira câmera
+                  {setupComplete
+                    ? "Tudo conectado"
+                    : "Conclua a configuração"}
                 </h2>
               </div>
-              <span className="status-chip">
+              <span
+                className={
+                  setupComplete
+                    ? styles.okBadge
+                    : styles.pendingBadge
+                }
+              >
                 {completed} de 3
               </span>
             </div>
 
-            <div className="steps-list">
+            <div className={styles.steps}>
               {steps.map((step, index) => (
                 <article
-                  className={
-                    progress[index]
-                      ? "completed"
-                      : ""
-                  }
                   key={step.title}
+                  data-complete={progress[index]}
                 >
                   <span>
-                    {progress[index]
-                      ? "✓"
-                      : index + 1}
+                    {progress[index] ? "✓" : index + 1}
                   </span>
                   <div>
                     <strong>{step.title}</strong>
@@ -226,168 +307,52 @@ export default async function DashboardPage({
               ))}
             </div>
 
-            <Link
-              href="/dashboard/cameras/new"
-              className="panel-primary-action"
-            >
-              Cadastrar primeira câmera
-            </Link>
-          </section>
-
-          <section
-            className="health-panel"
-            id="agentes"
-          >
-            <div className="panel-title-row">
-              <div>
-                <span>INFRAESTRUTURA</span>
-                <h2>Saúde do sistema</h2>
-              </div>
-              <span className="online-chip">
-                <i /> Operacional
-              </span>
+            <div className={styles.cardActions}>
+              <Link href="/dashboard/cameras">
+                Gerenciar câmeras
+              </Link>
+              <Link href="/dashboard/installer">
+                Instalação e Agent
+              </Link>
+              <Link href="/dashboard/cameras/connections">
+                Como conectar
+              </Link>
             </div>
-
-            <div className="health-list">
-              <div>
-                <span>Aplicação web</span>
-                <strong>Online</strong>
-              </div>
-              <div>
-                <span>Banco de dados</span>
-                <strong
-                  className={
-                    data.databaseReady
-                      ? ""
-                      : "muted"
-                  }
-                >
-                  {data.databaseReady
-                    ? "Conectado"
-                    : "Verificar"}
-                </strong>
-              </div>
-              <div>
-                <span>Frames temporários</span>
-                <strong>
-                  {
-                    data.retention
-                      .temporary_frame_days
-                  }{" "}
-                  dias
-                </strong>
-              </div>
-              <div>
-                <span>Metadados</span>
-                <strong>
-                  {
-                    data.retention
-                      .metadata_days
-                  }{" "}
-                  dias
-                </strong>
-              </div>
-              <div>
-                <span>Agente local</span>
-                <strong
-                  className={
-                    data.agentsOnline
-                      ? ""
-                      : "muted"
-                  }
-                >
-                  {data.agentsOnline
-                    ? "Online"
-                    : "Não instalado"}
-                </strong>
-              </div>
-              <div>
-                <span>Análise visual</span>
-                <strong
-                  className={
-                    process.env.OPENAI_API_KEY
-                      ? ""
-                      : "muted"
-                  }
-                >
-                  {process.env.OPENAI_API_KEY
-                    ? "Configurada"
-                    : "Não configurada"}
-                </strong>
-              </div>
-            </div>
-
-            <a
-              href="/api/health/deep"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir diagnóstico autenticado →
-            </a>
           </section>
         </div>
 
-        <section
-          className="events-panel"
-          id="eventos"
-        >
-          <div className="events-panel-heading">
+        <section className={styles.healthStrip}>
+          <div>
+            <span
+              className={
+                data.databaseReady
+                  ? styles.healthDot
+                  : styles.healthDotWarning
+              }
+            />
             <div>
-              <span>LINHA DO TEMPO</span>
-              <h2>Eventos recentes</h2>
+              <strong>
+                {data.databaseReady
+                  ? "Sistema operacional"
+                  : "Verificação necessária"}
+              </strong>
+              <p>
+                Banco{" "}
+                {data.databaseReady
+                  ? "conectado"
+                  : "indisponível"}
+                {" · "}
+                {data.agentsOnline} Agent(s) online
+                {" · "}
+                retenção de metadados por{" "}
+                {data.retention.metadata_days} dias
+              </p>
             </div>
-            <small>
-              {data.recentEvents.length} resultado(s)
-            </small>
           </div>
 
-          {data.recentEvents.length ? (
-            <div className="real-event-list">
-              {data.recentEvents.map((event) => (
-                <article key={event.id}>
-                  <time>
-                    {eventTime(
-                      event.startedAt,
-                      site.timezone,
-                    )}
-                  </time>
-                  <div>
-                    <strong>
-                      {event.headline}
-                    </strong>
-                    <span>
-                      {eventTypeLabel(event.type)}
-                    </span>
-                  </div>
-                  <small>
-                    {Math.round(
-                      event.confidence * 100,
-                    )}
-                    %
-                    {event.requiresReview
-                      ? " · revisar"
-                      : ""}
-                  </small>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="event-empty compact">
-              <div className="event-empty-icon">
-                ≋
-              </div>
-              <div>
-                <h2>Nenhum evento recebido</h2>
-                <p>
-                  Quando o Agent estiver
-                  conectado, os acontecimentos
-                  aparecerão aqui em ordem
-                  cronológica.
-                </p>
-              </div>
-              <span>Timeline vazia</span>
-            </div>
-          )}
+          <Link href="/dashboard/camera-health">
+            Ver saúde das câmeras →
+          </Link>
         </section>
       </section>
     </main>

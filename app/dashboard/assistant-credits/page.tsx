@@ -7,6 +7,8 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import { createAssistantCreditInvoiceAction } from "./actions";
 import styles from "./assistant-credits.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Interações do Assistente" };
 export const dynamic = "force-dynamic";
 
@@ -68,6 +70,9 @@ export default async function AssistantCreditsPage() {
             Voltar à pesquisa
           </Link>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         <section className={styles.balanceGrid}>
           <article className={styles.balanceMain}>

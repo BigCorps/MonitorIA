@@ -9,6 +9,8 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import { PixPaymentPanel } from "./pix-payment-panel";
 import styles from "./billing.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Cobranças" };
 export const dynamic = "force-dynamic";
 
@@ -82,6 +84,9 @@ export default async function BillingPage({
             Alterar planos
           </Link>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         {query.message ? (
           <div className={styles.successNotice}>

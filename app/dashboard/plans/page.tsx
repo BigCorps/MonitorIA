@@ -11,6 +11,8 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import { PlanSelector } from "./plan-selector";
 import styles from "./plans.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Planos" };
 export const dynamic = "force-dynamic";
 
@@ -74,6 +76,9 @@ export default async function PlansPage({
             <strong>90 interações de IA/mês</strong>
           </div>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         {query.message ? (
           <div className={styles.successNotice}>

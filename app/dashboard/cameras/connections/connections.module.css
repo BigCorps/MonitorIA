@@ -1,0 +1,174 @@
+.content {
+  display: grid;
+  align-content: start;
+}
+
+.flow {
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(87, 230, 199, 0.12);
+  border-radius: 16px;
+  background: rgba(87, 230, 199, 0.035);
+}
+
+.flow > span,
+.card header span,
+.helpCard span {
+  color: var(--green, #57e6c7);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+}
+
+.flow > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.flow article {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(139, 164, 191, 0.09);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.flow strong {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #a4eadd;
+  background: rgba(87, 230, 199, 0.08);
+  font-size: 10px;
+}
+
+.flow p {
+  margin: 0;
+  color: #93a6b9;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  min-width: 0;
+  padding: 21px;
+  border: 1px solid rgba(139, 164, 191, 0.11);
+  border-radius: 16px;
+  background: rgba(10, 23, 38, 0.7);
+}
+
+.card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card h2 {
+  margin: 7px 0 0;
+  color: #eaf3fc;
+  font-size: 19px;
+}
+
+.card header > strong {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: #a5b8ca;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 8px;
+}
+
+.card > p {
+  margin: 16px 0;
+  color: #8498ad;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.card ol {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 18px;
+  color: #9eb0c1;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.helpCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 22px;
+  margin-top: 16px;
+  border: 1px solid rgba(139, 164, 191, 0.11);
+  border-radius: 16px;
+  background: rgba(10, 23, 38, 0.58);
+}
+
+.helpCard h2 {
+  margin: 7px 0 8px;
+  color: #eaf3fc;
+  font-size: 18px;
+}
+
+.helpCard p {
+  max-width: 720px;
+  margin: 0;
+  color: #8498ad;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.helpCard > div:last-child {
+  display: grid;
+  gap: 8px;
+}
+
+.helpCard a {
+  min-height: 39px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 13px;
+  border: 1px solid rgba(139, 164, 191, 0.13);
+  border-radius: 9px;
+  color: #a8e9dc;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 9px;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+@media (max-width: 980px) {
+  .flow > div,
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .helpCard {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .flow > div,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

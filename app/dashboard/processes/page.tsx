@@ -18,6 +18,8 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import { ProcessesRealtimeRefresh } from "./processes-realtime-refresh";
 import styles from "./processes.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -96,6 +98,10 @@ export default async function ProcessesPage({
           </div>
           <ProcessesRealtimeRefresh organizationId={organization.id} />
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
+        <DashboardSectionTabs group="intelligence" density="compact" />
+
 
         <section className={styles.metrics} aria-label="Resumo dos processos">
           <article><strong>{overview.summary.totalProcesses}</strong><span>Processos</span></article>

@@ -7,6 +7,10 @@ import CameraHealthRealtimeRefresh from "./camera-health-realtime-refresh";
 import { approveCameraHealthBaselineAction, dismissCameraHealthIncidentAction, rejectCameraHealthBaselineAction } from "./actions";
 import styles from "./camera-health.module.css";
 
+import { DashboardSidebar } from "../dashboard-sidebar";
+
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -26,7 +30,15 @@ export default async function CameraHealthPage({ searchParams }: Props) {
   const canManage = ["owner", "admin"].includes(organization.role);
 
   return (
-    <main className={styles.page}>
+    <div className="dashboard-shell">
+      <DashboardSidebar
+        organizationName={organization.name}
+        userEmail={user.email}
+        active="camera-health"
+      />
+
+      <main className={`dashboard-content ${styles.page}`}>
+        <DashboardSectionTabs group="monitoring" />
       <header className={styles.hero}>
         <div><span>INT-7 · CONFIABILIDADE DA EVIDÊNCIA</span><h1>Saúde das câmeras</h1><p>Qualidade, iluminação, obstrução, desfoque e mudanças persistentes de enquadramento.</p></div>
         <CameraHealthRealtimeRefresh organizationId={organization.id} />
@@ -98,6 +110,7 @@ export default async function CameraHealthPage({ searchParams }: Props) {
           {!overview.baselines.some((baseline) => baseline.status === "proposed") ? <div className={styles.empty}>Nenhuma referência aguardando aprovação.</div> : null}
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

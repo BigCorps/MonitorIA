@@ -21,6 +21,8 @@ import styles from "./events.module.css";
 import disclosureStyles from "./mobile-disclosure.module.css";
 import realtimeStyles from "./events-realtime-refresh.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Eventos" };
 export const dynamic = "force-dynamic";
 
@@ -138,6 +140,9 @@ export default async function EventsPage({
             Conversar na Pesquisa
           </Link>
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
+
 
         {scalar(rawParams.deleted) === "1" ? (
           <div className={styles.successMessage}>

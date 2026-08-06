@@ -8,6 +8,8 @@ import { McpConnectionGuide } from "./mcp-connection-guide";
 import { revokeMcpConnection } from "./actions";
 import styles from "./mcp-connections.module.css";
 
+import { DashboardSectionTabs } from "../../dashboard-section-tabs";
+
 export const metadata = { title: "Integrações MCP" };
 export const dynamic = "force-dynamic";
 
@@ -100,6 +102,9 @@ if (!current) {
             Sobre o MCP
           </Link>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         <McpConnectionGuide mcpUrl={canonicalMcpUrl()} />
 

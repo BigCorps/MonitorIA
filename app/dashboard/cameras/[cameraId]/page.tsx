@@ -11,6 +11,8 @@ import { PairingCodeGenerator } from "../pairing-code-generator";
 import { CameraProfilePanel } from "./camera-profile-panel";
 import { MonitoringSettings } from "./monitoring-settings";
 
+import { DashboardSectionTabs } from "../../dashboard-section-tabs";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -75,6 +77,9 @@ export default async function CameraDetailPage({
             ← Voltar às câmeras
           </Link>
         </header>
+
+        <DashboardSectionTabs group="cameras" />
+
 
         <div className="camera-detail-grid">
           <section className="camera-detail-card">

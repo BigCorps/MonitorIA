@@ -5,6 +5,8 @@ import { getCurrentOrganization, getOrganizationSites } from "@/src/lib/dashboar
 import { DashboardSidebar } from "../../dashboard-sidebar";
 import { CameraSetupForm } from "../camera-setup-form";
 
+import { DashboardSectionTabs } from "../../dashboard-section-tabs";
+
 export const metadata = { title: "Adicionar câmera" };
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,9 @@ export default async function NewCameraPage() {
           </div>
           <Link href="/dashboard/cameras" className="back-link">← Voltar às câmeras</Link>
         </header>
+
+        <DashboardSectionTabs group="cameras" />
+
 
         <section className="camera-form-card">
           <div className="camera-form-intro">

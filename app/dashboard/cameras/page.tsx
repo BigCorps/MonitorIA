@@ -9,6 +9,8 @@ import {
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./cameras.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Câmeras" };
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,9 @@ export default async function CamerasPage() {
             Adicionar câmera
           </Link>
         </header>
+
+        <DashboardSectionTabs group="cameras" />
+
 
         {cameras.length ? (
           <div className="camera-list-grid">

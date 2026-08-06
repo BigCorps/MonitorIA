@@ -23,6 +23,8 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import { RoutinesRealtimeRefresh } from "./routines-realtime-refresh";
 import styles from "./routines.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Rotinas e desvios" };
 export const dynamic = "force-dynamic";
 
@@ -117,6 +119,10 @@ export default async function RoutinesPage({
             </Link>
           </div>
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
+        <DashboardSectionTabs group="intelligence" density="compact" />
+
 
         <section className={styles.explanation}>
           <div>

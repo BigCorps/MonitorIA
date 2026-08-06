@@ -25,6 +25,8 @@ import { TrialAutoRefresh } from "./trial-auto-refresh";
 import { TrialCountdown } from "./trial-countdown";
 import styles from "./trial.module.css";
 
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+
 export const metadata = { title: "Teste grátis" };
 export const dynamic = "force-dynamic";
 
@@ -220,6 +222,9 @@ export default async function TrialPage({ searchParams }: Props) {
             <strong>1 câmera grátis</strong>
           </div>
         </header>
+
+        <DashboardSectionTabs group="settings" />
+
 
         {query.message ? (
           <div className={styles.successNotice}>{query.message}</div>
