@@ -60,12 +60,10 @@
   .rail { display: block; }
 }
 
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .railFill {
-      animation: railGrow linear both;
-      animation-timeline: scroll(root block);
-    }
+@media (prefers-reduced-motion: no-preference) {
+  .railFill {
+    animation: railGrow linear both;
+    animation-timeline: scroll(root block);
   }
 }
 
@@ -92,46 +90,54 @@
 .stagger > * { opacity: 1; transform: none; }
 .floatMedia { transform: none; }
 
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .reveal {
-      animation: revealIn linear both;
-      animation-timeline: view();
-      animation-range: entry 2% cover 24%;
-    }
+/* --- Transições por Scroll (Scroll-driven Animations) ---
+   Usamos propriedades individuais para maior compatibilidade com Chrome/Edge recentes.
+   O fallback é o estado estático (opacity 1) definido acima. */
 
-    .wipe {
-      animation: revealWipe linear both;
-      animation-timeline: view();
-      animation-range: entry 4% cover 30%;
-    }
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    view-timeline-name: --reveal;
+    view-timeline-axis: block;
+    animation: revealIn linear both;
+    animation-timeline: --reveal;
+    animation-range: entry 10% cover 30%;
+  }
 
-    /* Cascata: mesma animação, faixas de rolagem deslocadas. */
-    .stagger > * {
-      animation: revealIn linear both;
-      animation-timeline: view();
-    }
-    .stagger > *:nth-child(1) { animation-range: entry 2% cover 20%; }
-    .stagger > *:nth-child(2) { animation-range: entry 7% cover 25%; }
-    .stagger > *:nth-child(3) { animation-range: entry 12% cover 30%; }
-    .stagger > *:nth-child(4) { animation-range: entry 17% cover 35%; }
-    .stagger > *:nth-child(5) { animation-range: entry 22% cover 40%; }
-    .stagger > *:nth-child(6) { animation-range: entry 27% cover 45%; }
-    .stagger > *:nth-child(7) { animation-range: entry 32% cover 50%; }
-    .stagger > *:nth-child(8) { animation-range: entry 37% cover 55%; }
+  .wipe {
+    view-timeline-name: --wipe;
+    view-timeline-axis: block;
+    animation: revealWipe linear both;
+    animation-timeline: --wipe;
+    animation-range: entry 10% cover 35%;
+  }
 
-    .floatMedia {
-      animation: mediaFloat linear both;
-      animation-timeline: view();
-      animation-range: entry 0% exit 100%;
-    }
+  .stagger > * {
+    view-timeline-name: --stagger;
+    view-timeline-axis: block;
+    animation: revealIn linear both;
+    animation-timeline: --stagger;
+  }
+  .stagger > *:nth-child(1) { animation-range: entry 5% cover 20%; }
+  .stagger > *:nth-child(2) { animation-range: entry 10% cover 25%; }
+  .stagger > *:nth-child(3) { animation-range: entry 15% cover 30%; }
+  .stagger > *:nth-child(4) { animation-range: entry 20% cover 35%; }
+  .stagger > *:nth-child(5) { animation-range: entry 25% cover 40%; }
+  .stagger > *:nth-child(6) { animation-range: entry 30% cover 45%; }
 
-    /* Fio que se desenha no topo de cada seção quando ela é alcançada. */
-    .section::before {
-      animation: ruleDraw linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 26%;
-    }
+  .floatMedia {
+    view-timeline-name: --float;
+    view-timeline-axis: block;
+    animation: mediaFloat linear both;
+    animation-timeline: --float;
+    animation-range: entry 0% exit 100%;
+  }
+
+  .section::before {
+    view-timeline-name: --section;
+    view-timeline-axis: block;
+    animation: ruleDraw linear both;
+    animation-timeline: --section;
+    animation-range: entry 0% cover 20%;
   }
 }
 
@@ -247,13 +253,13 @@
 
 .recede { opacity: 1; transform: none; }
 
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .recede {
-      animation: sectionRecede linear both;
-      animation-timeline: view();
-      animation-range: exit 0% exit 92%;
-    }
+@media (prefers-reduced-motion: no-preference) {
+  .recede {
+    view-timeline-name: --recede;
+    view-timeline-axis: block;
+    animation: sectionRecede linear both;
+    animation-timeline: --recede;
+    animation-range: exit 0% exit 90%;
   }
 }
 
@@ -611,7 +617,8 @@
 
 .sectorCard {
   position: relative;
-  min-height: clamp(196px, 30vh, 300px);
+  /* Aumentamos a altura mínima no mobile para dar espaço ao efeito sticky */
+  min-height: clamp(280px, 45vh, 400px);
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--hair);
@@ -622,9 +629,20 @@
   background: var(--card);
 }
 
-/* Empilhamento pegajoso: cada card trava e o seguinte cobre. */
-@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
-  .sectorCard { position: sticky; top: 84px; }
+/* Empilhamento pegajoso: cada card trava e o seguinte cobre.
+   No mobile, reduzimos o 'top' para os cards não ficarem muito baixos. */
+@media (prefers-reduced-motion: no-preference) {
+  .sectorCard {
+    position: sticky;
+    top: 60px;
+  }
+}
+
+@media (min-width: 900px) {
+  .sectorCard {
+    min-height: clamp(196px, 30vh, 300px);
+    top: 84px;
+  }
 }
 
 .sectorMedia {
