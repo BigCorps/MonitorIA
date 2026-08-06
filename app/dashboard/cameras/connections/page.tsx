@@ -14,43 +14,42 @@ export const dynamic = "force-dynamic";
 const sourceTypes = [
   {
     title: "Câmera IP",
-    badge: "RTSP / ONVIF",
+    badge: "Conexão pela rede",
     description:
-      "Use a transmissão local da câmera. O Agent acessa a fonte dentro da rede e mantém usuário e senha no computador instalado.",
+      "O MonitorIA acessa a câmera pela rede local. O usuário e a senha ficam guardados somente no computador instalado.",
     steps: [
-      "Confirme o endereço IP da câmera.",
-      "Ative RTSP ou ONVIF no equipamento.",
-      "Cadastre a câmera e informe a URL somente no Agent.",
+      "Encontre o endereço da câmera na rede.",
+      "Ative a transmissão local nas configurações da câmera.",
+      "Cadastre a câmera e conclua a conexão no computador instalado.",
     ],
   },
   {
-    title: "DVR ou NVR",
-    badge: "Analógica ou IP",
+    title: "Gravador (DVR ou NVR)",
+    badge: "Gravador de câmeras",
     description:
-      "Câmeras analógicas podem chegar ao MonitorIA pelos canais do DVR. Em NVRs, cada canal costuma ter uma URL própria.",
+      "Use o endereço do gravador e escolha qual canal de câmera será monitorado.",
     steps: [
-      "Localize o IP do gravador.",
+      "Encontre o endereço do gravador na rede.",
       "Escolha o canal que será monitorado.",
-      "Use a URL RTSP correspondente ao canal.",
+      "Informe ao MonitorIA o endereço de transmissão desse canal.",
     ],
   },
   {
     title: "Câmera de aplicativo",
-    badge: "Depende do fabricante",
+    badge: "Consulte o fabricante",
     description:
-      "Alguns aplicativos escondem a transmissão. Verifique se o fabricante oferece RTSP, ONVIF, modo local ou um gateway compatível.",
+      "Algumas câmeras funcionam apenas pelo aplicativo do fabricante. Verifique se existe uma opção de acesso pela rede local.",
     steps: [
-      "Procure RTSP, ONVIF ou modo LAN no aplicativo.",
+      "Procure por “acesso local”, “RTSP” ou “ONVIF” nas configurações.",
       "Consulte o manual do modelo exato.",
-      "Quando não houver transmissão local, fale com o suporte MonitorIA.",
+      "Se não encontrar essa opção, fale com o suporte MonitorIA.",
     ],
   },
 ] as const;
 
 export default async function CameraConnectionsPage() {
   const user = await requireAuthenticatedUser();
-  const organization =
-    await getCurrentOrganization(user.id);
+  const organization = await getCurrentOrganization(user.id);
 
   if (!organization) redirect("/onboarding");
 
@@ -62,9 +61,7 @@ export default async function CameraConnectionsPage() {
         active="cameras"
       />
 
-      <section
-        className={`dashboard-content ${styles.content}`}
-      >
+      <section className={`dashboard-content ${styles.content}`}>
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
@@ -72,16 +69,13 @@ export default async function CameraConnectionsPage() {
             </span>
             <h1>Como conectar cada tipo de câmera</h1>
             <p>
-              Identifique a origem do vídeo, cadastre a câmera
-              e conecte o Agent sem expor credenciais RTSP no
-              navegador.
+              Escolha de onde vem a imagem, cadastre a câmera e conclua a
+              conexão. As informações de acesso ficam protegidas e não aparecem
+              no navegador.
             </p>
           </div>
 
-          <Link
-            className="panel-primary-action"
-            href="/dashboard/cameras/new"
-          >
+          <Link className="panel-primary-action" href="/dashboard/cameras/new">
             Adicionar câmera
           </Link>
         </header>
@@ -93,7 +87,7 @@ export default async function CameraConnectionsPage() {
           <div>
             <article>
               <strong>1</strong>
-              <p>Identifique a fonte e o canal.</p>
+              <p>Identifique a câmera ou o gravador.</p>
             </article>
             <article>
               <strong>2</strong>
@@ -101,11 +95,11 @@ export default async function CameraConnectionsPage() {
             </article>
             <article>
               <strong>3</strong>
-              <p>Instale o Agent na mesma rede.</p>
+              <p>Instale o MonitorIA em um computador da mesma rede.</p>
             </article>
             <article>
               <strong>4</strong>
-              <p>Pareie, informe o RTSP e teste.</p>
+              <p>Conecte e teste a imagem.</p>
             </article>
           </div>
         </section>
@@ -132,23 +126,20 @@ export default async function CameraConnectionsPage() {
 
         <section className={styles.helpCard}>
           <div>
-            <span>NÃO ENCONTRO RTSP OU ONVIF</span>
-            <h2>O modelo pode exigir uma ponte local.</h2>
+            <span>NÃO CONSIGO CONECTAR A CÂMERA</span>
+            <h2>Alguns modelos precisam de uma configuração adicional.</h2>
             <p>
-              Envie fabricante e modelo para o suporte antes de
-              comprar conversores ou trocar equipamentos. A
-              compatibilidade depende do recurso disponibilizado
-              pelo fabricante.
+              Envie o fabricante e o modelo para o suporte antes de comprar
+              conversores ou trocar equipamentos. A equipe verificará a melhor
+              forma de conexão disponível.
             </p>
           </div>
 
           <div>
             <Link href="/dashboard/installer">
-              Instalar ou diagnosticar o Agent
+              Instalar ou verificar o MonitorIA
             </Link>
-            <Link href="/dashboard/cameras">
-              Ver câmeras cadastradas
-            </Link>
+            <Link href="/dashboard/cameras">Ver câmeras cadastradas</Link>
           </div>
         </section>
       </section>

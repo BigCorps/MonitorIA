@@ -19,8 +19,7 @@ type Props = {
  *
  * O módulo recebe automaticamente:
  * - sidebar consolidada;
- * - abas principais de Monitoramento;
- * - abas secundárias de Inteligência;
+ * - uma única linha de navegação de Monitoramento;
  * - estrutura de cabeçalho consistente.
  */
 export function IntelligencePageFrame({
@@ -44,9 +43,7 @@ export function IntelligencePageFrame({
       <section className="dashboard-content">
         <header className="dashboard-header">
           <div>
-            <span className="dashboard-eyebrow">
-              {eyebrow}
-            </span>
+            <span className="dashboard-eyebrow">{eyebrow}</span>
             <h1>{title}</h1>
             <p>{description}</p>
           </div>
@@ -54,10 +51,6 @@ export function IntelligencePageFrame({
         </header>
 
         <DashboardSectionTabs group="monitoring" />
-        <DashboardSectionTabs
-          group="intelligence"
-          density="compact"
-        />
 
         {children}
       </section>

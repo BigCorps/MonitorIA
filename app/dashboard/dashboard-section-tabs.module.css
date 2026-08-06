@@ -1,7 +1,8 @@
 .tabs {
   width: 100%;
   margin: 0 0 24px;
-  border-bottom: 1px solid rgba(139, 164, 191, 0.15);
+  overflow: hidden;
+  border-bottom: 1px solid #dbe5ed;
 }
 
 .scroller {
@@ -9,9 +10,13 @@
   align-items: center;
   gap: 6px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0 2px;
   scrollbar-width: thin;
+  scrollbar-color: #cbd7e1 transparent;
   overscroll-behavior-inline: contain;
+  overscroll-behavior-block: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .scroller a {
@@ -22,7 +27,7 @@
   flex: 0 0 auto;
   padding: 0 14px;
   border-radius: 10px 10px 0 0;
-  color: #8195aa;
+  color: #64748b;
   font-size: 12px;
   font-weight: 720;
   text-decoration: none;
@@ -33,8 +38,8 @@
 }
 
 .scroller a:hover {
-  color: #dce8f5;
-  background: rgba(255, 255, 255, 0.035);
+  color: #263d55;
+  background: #f3f7fa;
 }
 
 .scroller a::after {
@@ -49,13 +54,8 @@
 }
 
 .scroller .active {
-  color: #effcf9;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(87, 230, 199, 0.09),
-      rgba(87, 230, 199, 0.025)
-    );
+  color: #08745f;
+  background: linear-gradient(180deg, #f1fbf8, #e9f8f4);
 }
 
 .scroller .active::after {
@@ -66,13 +66,31 @@
 .compact {
   margin-top: -8px;
   margin-bottom: 22px;
-  border-bottom-color: rgba(139, 164, 191, 0.09);
+  border-bottom-color: #e3ebf1;
 }
 
 .compact .scroller a {
   min-height: 38px;
   padding-inline: 12px;
   font-size: 11px;
+}
+
+.scroller::-webkit-scrollbar {
+  width: 0;
+  height: 5px;
+}
+
+.scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd7e1;
+}
+
+.scroller::-webkit-scrollbar-thumb:hover {
+  background: #b7c6d2;
 }
 
 @media (max-width: 640px) {

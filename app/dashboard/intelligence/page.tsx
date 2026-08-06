@@ -12,31 +12,29 @@ export const dynamic = "force-dynamic";
 const modules = [
   {
     eyebrow: "PADRÕES",
-    title: "Rotinas e desvios",
+    title: "Rotinas e diferenças",
     description:
-      "Faixas habituais, atrasos, antecipações e diferenças em relação ao histórico visual.",
+      "Horários habituais e mudanças em relação ao que costuma acontecer.",
     href: "/dashboard/routines",
   },
   {
     eyebrow: "ETAPAS",
-    title: "Processos e ações",
-    description:
-      "Sequências observadas, etapas confirmadas, pendências e resultados visuais.",
+    title: "Processos e etapas",
+    description: "Etapas observadas, concluídas, pendentes e seus resultados.",
     href: "/dashboard/processes",
   },
   {
-    eyebrow: "MEMÓRIA OPERACIONAL",
-    title: "Perfis operacionais",
+    eyebrow: "PADRÕES DA OPERAÇÃO",
+    title: "Padrões da operação",
     description:
-      "Padrões aprovados de presença, zonas, turnos e ações recorrentes, sem biometria.",
+      "Padrões revisados de horários, locais e atividades recorrentes.",
     href: "/dashboard/operational-profiles",
   },
 ] as const;
 
 export default async function IntelligencePage() {
   const user = await requireAuthenticatedUser();
-  const organization =
-    await getCurrentOrganization(user.id);
+  const organization = await getCurrentOrganization(user.id);
 
   if (!organization) redirect("/onboarding");
 
@@ -48,63 +46,47 @@ export default async function IntelligencePage() {
         active="intelligence"
       />
 
-      <section
-        className={`dashboard-content ${styles.content}`}
-      >
+      <section className={`dashboard-content ${styles.content}`}>
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              INTELIGÊNCIA ·{" "}
-              {organization.name.toUpperCase()}
+              INTELIGÊNCIA · {organization.name.toUpperCase()}
             </span>
             <h1>Padrões e processos observados</h1>
             <p>
-              Toda nova fase de inteligência entra nesta área,
-              sem criar novas opções no menu principal.
+              Veja rotinas, mudanças e etapas identificadas a partir dos
+              acontecimentos registrados.
             </p>
           </div>
 
-          <Link
-            className="panel-primary-action"
-            href="/dashboard/search"
-          >
+          <Link className="panel-primary-action" href="/dashboard/search">
             Perguntar à Pesquisa IA
           </Link>
         </header>
 
         <DashboardSectionTabs group="monitoring" />
-        <DashboardSectionTabs
-          group="intelligence"
-          density="compact"
-        />
 
         <section className={styles.intro}>
           <div>
-            <span>LEITURA CONSERVADORA</span>
+            <span>ANÁLISE RESPONSÁVEL</span>
             <h2>
-              O MonitorIA organiza evidências, não atribui
-              intenção.
+              O MonitorIA organiza o que foi observado sem tirar conclusões
+              sobre intenções.
             </h2>
           </div>
           <p>
-            Rotinas, desvios, processos e perfis são derivados
-            do histórico visual autorizado e permanecem
-            separados de reconhecimento facial ou identidade
-            civil.
+            As análises usam somente o histórico autorizado e não identificam
+            pessoas por rosto, biometria ou documentos.
           </p>
         </section>
 
         <div className={styles.grid}>
           {modules.map((module) => (
-            <Link
-              className={styles.card}
-              href={module.href}
-              key={module.href}
-            >
+            <Link className={styles.card} href={module.href} key={module.href}>
               <span>{module.eyebrow}</span>
               <h2>{module.title}</h2>
               <p>{module.description}</p>
-              <strong>Abrir módulo →</strong>
+              <strong>Abrir →</strong>
             </Link>
           ))}
         </div>

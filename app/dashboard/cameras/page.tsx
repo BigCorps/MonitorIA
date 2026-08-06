@@ -21,9 +21,9 @@ const planLabels: Record<string, string> = {
 };
 
 const pairingLabels: Record<string, string> = {
-  unpaired: "Sem Agent",
-  pairing: "Aguardando pareamento",
-  paired: "Pareada",
+  unpaired: "Sem computador conectado",
+  pairing: "Conectando",
+  paired: "Conectada",
 };
 
 export default async function CamerasPage() {
@@ -53,23 +53,18 @@ export default async function CamerasPage() {
             <span className="dashboard-eyebrow">
               CÂMERAS · {organization.name.toUpperCase()}
             </span>
-            <h1>Fontes visuais do MonitorIA</h1>
+            <h1>Câmeras do MonitorIA</h1>
             <p>
-              Identifique cada câmera pelo frame de referência do
-              perfil inteligente.
+              Veja cada câmera, sua imagem de referência e o estado da conexão.
             </p>
           </div>
 
-          <Link
-            href="/dashboard/cameras/new"
-            className="panel-primary-action"
-          >
+          <Link href="/dashboard/cameras/new" className="panel-primary-action">
             Adicionar câmera
           </Link>
         </header>
 
         <DashboardSectionTabs group="cameras" />
-
 
         {cameras.length ? (
           <div className="camera-list-grid">
@@ -79,21 +74,15 @@ export default async function CamerasPage() {
                 className="camera-list-card"
                 key={camera.id}
               >
-                <div
-                  className={`camera-card-preview ${styles.preview}`}
-                >
+                <div className={`camera-card-preview ${styles.preview}`}>
                   {camera.thumbnailAssetId ? (
                     <img
                       className={styles.thumbnail}
                       src={`/api/storage-assets/${camera.thumbnailAssetId}`}
-                      alt={`Frame de referência da câmera ${camera.name}`}
+                      alt={`Imagem de referência da câmera ${camera.name}`}
                     />
                   ) : (
-                    <img
-                      className={styles.logo}
-                      src="/favicon.svg"
-                      alt=""
-                    />
+                    <img className={styles.logo} src="/favicon.svg" alt="" />
                   )}
 
                   <span
@@ -105,7 +94,7 @@ export default async function CamerasPage() {
                   >
                     {camera.status === "online"
                       ? "ONLINE"
-                      : "AGUARDANDO AGENT"}
+                      : "AGUARDANDO CONEXÃO"}
                   </span>
                 </div>
 
@@ -122,20 +111,15 @@ export default async function CamerasPage() {
 
                   <dl>
                     <div>
-                      <dt>Plano configurado</dt>
-                      <dd>
-                        {planLabels[camera.planCode] ??
-                          camera.planCode}
-                      </dd>
+                      <dt>Plano</dt>
+                      <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
                     </div>
                     <div>
-                      <dt>Consolidação</dt>
-                      <dd>
-                        {camera.consolidationIntervalSeconds}s
-                      </dd>
+                      <dt>Intervalo de análise</dt>
+                      <dd>{camera.consolidationIntervalSeconds}s</dd>
                     </div>
                     <div>
-                      <dt>Pareamento</dt>
+                      <dt>Conexão</dt>
                       <dd>
                         {pairingLabels[camera.pairingStatus] ??
                           camera.pairingStatus}
@@ -150,10 +134,10 @@ export default async function CamerasPage() {
           <section className="camera-empty-state">
             <div className="camera-empty-icon">◉</div>
             <span>PRIMEIRA CÂMERA</span>
-            <h2>Conecte a primeira fonte visual</h2>
+            <h2>Conecte a primeira câmera</h2>
             <p>
-              O cadastro leva menos de um minuto. A URL RTSP
-              será solicitada apenas pelo Agent local.
+              O cadastro leva menos de um minuto. As informações de acesso serão
+              solicitadas somente no computador instalado.
             </p>
             <Link
               href="/dashboard/cameras/new"

@@ -8,6 +8,7 @@ import {
   getOrganizationCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
+import { createClient } from "@/src/lib/supabase/server";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { AssistantBalanceCard } from "./assistant-balance-card";
 import { AssistantChat } from "./assistant-chat";
@@ -15,12 +16,10 @@ import { AssistantChat } from "./assistant-chat";
 export const metadata = { title: "Pesquisa" };
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<
-  Record<string, string | string[] | undefined>
->;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 export default async function SearchPage({
@@ -34,13 +33,21 @@ export default async function SearchPage({
 
   const rawParams = await searchParams;
   const requestedThreadId = scalar(rawParams.thread) || null;
+  const supabase = await createClient();
 
-  const [sites, cameras, workspace, balance] = await Promise.all([
-    getOrganizationSites(organization.id),
-    getOrganizationCameras(organization.id),
-    getAssistantWorkspace(organization.id, requestedThreadId),
-    getAssistantBalance(organization.id),
-  ]);
+  const [sites, cameras, workspace, balance, activeMcpResult] =
+    await Promise.all([
+      getOrganizationSites(organization.id),
+      getOrganizationCameras(organization.id),
+      getAssistantWorkspace(organization.id, requestedThreadId),
+      getAssistantBalance(organization.id),
+      supabase
+        .from("mcp_oauth_grants")
+        .select("client_id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("organization_id", organization.id)
+        .is("revoked_at", null),
+    ]);
 
   if (!sites.length) redirect("/onboarding");
 
@@ -60,21 +67,21 @@ export default async function SearchPage({
             </span>
             <h1>Converse com os acontecimentos</h1>
             <p>
-              Pergunte sobre clientes, atendimentos, entregas,
-              objetos, veículos e períodos. Os eventos aparecem
-              somente quando sustentam a resposta.
+              Pergunte sobre clientes, atendimentos, entregas, objetos, veículos
+              e períodos. Os eventos aparecem somente quando sustentam a
+              resposta.
             </p>
           </div>
 
-          <Link
-            href="/dashboard/events"
-            className="panel-secondary-action"
-          >
+          <Link href="/dashboard/events" className="panel-secondary-action">
             Abrir eventos
           </Link>
         </header>
 
-        <AssistantBalanceCard initialBalance={balance} />
+        <AssistantBalanceCard
+          initialBalance={balance}
+          hasActiveMcpConnection={(activeMcpResult.count ?? 0) > 0}
+        />
 
         <AssistantChat
           initialWorkspace={workspace}

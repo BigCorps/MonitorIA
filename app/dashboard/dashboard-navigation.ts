@@ -1,8 +1,5 @@
 export type DashboardNavigationGroupId =
-  | "monitoring"
-  | "cameras"
-  | "settings"
-  | "intelligence";
+  "monitoring" | "cameras" | "settings" | "intelligence";
 
 export type DashboardNavigationItem = {
   id: string;
@@ -45,31 +42,42 @@ export const dashboardNavigationGroups: Record<
       },
       {
         id: "sessions",
-        label: "Sessões",
+        label: "Períodos",
         href: "/dashboard/sessions",
         exactPaths: ["/dashboard/sessions"],
         activePrefixes: ["/dashboard/sessions/"],
       },
       {
-        id: "intelligence",
-        label: "Inteligência",
+        id: "intelligence-overview",
+        label: "Visão geral",
         href: "/dashboard/intelligence",
-        exactPaths: [
-          "/dashboard/intelligence",
-          "/dashboard/routines",
-          "/dashboard/processes",
-          "/dashboard/operational-profiles",
-        ],
-        activePrefixes: [
-          "/dashboard/intelligence/",
-          "/dashboard/routines/",
-          "/dashboard/processes/",
-          "/dashboard/operational-profiles/",
-        ],
+        exactPaths: ["/dashboard/intelligence"],
+        activePrefixes: ["/dashboard/intelligence/"],
+      },
+      {
+        id: "routines",
+        label: "Rotinas",
+        href: "/dashboard/routines",
+        exactPaths: ["/dashboard/routines"],
+        activePrefixes: ["/dashboard/routines/"],
+      },
+      {
+        id: "processes",
+        label: "Processos",
+        href: "/dashboard/processes",
+        exactPaths: ["/dashboard/processes"],
+        activePrefixes: ["/dashboard/processes/"],
+      },
+      {
+        id: "profiles",
+        label: "Padrões da operação",
+        href: "/dashboard/operational-profiles",
+        exactPaths: ["/dashboard/operational-profiles"],
+        activePrefixes: ["/dashboard/operational-profiles/"],
       },
       {
         id: "health",
-        label: "Saúde",
+        label: "Funcionamento",
         href: "/dashboard/camera-health",
         exactPaths: ["/dashboard/camera-health"],
         activePrefixes: ["/dashboard/camera-health/"],
@@ -84,15 +92,12 @@ export const dashboardNavigationGroups: Record<
         label: "Câmeras",
         href: "/dashboard/cameras",
         exactPaths: ["/dashboard/cameras"],
-        activePrefixes: [
-          "/dashboard/cameras/new",
-          "/dashboard/cameras/",
-        ],
+        activePrefixes: ["/dashboard/cameras/new", "/dashboard/cameras/"],
         excludePrefixes: ["/dashboard/cameras/connections"],
       },
       {
         id: "agent",
-        label: "Instalação e Agent",
+        label: "Instalação",
         href: "/dashboard/installer",
         exactPaths: ["/dashboard/installer"],
         activePrefixes: ["/dashboard/installer/"],
@@ -136,7 +141,7 @@ export const dashboardNavigationGroups: Record<
       },
       {
         id: "storage",
-        label: "Dados e retenção",
+        label: "Dados armazenados",
         href: "/dashboard/storage",
         exactPaths: ["/dashboard/storage"],
         activePrefixes: ["/dashboard/storage/"],
@@ -161,7 +166,7 @@ export const dashboardNavigationGroups: Record<
       },
       {
         id: "routines",
-        label: "Rotinas e desvios",
+        label: "Rotinas",
         href: "/dashboard/routines",
         exactPaths: ["/dashboard/routines"],
         activePrefixes: ["/dashboard/routines/"],
@@ -175,7 +180,7 @@ export const dashboardNavigationGroups: Record<
       },
       {
         id: "profiles",
-        label: "Perfis operacionais",
+        label: "Padrões da operação",
         href: "/dashboard/operational-profiles",
         exactPaths: ["/dashboard/operational-profiles"],
         activePrefixes: ["/dashboard/operational-profiles/"],

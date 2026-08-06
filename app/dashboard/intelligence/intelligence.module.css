@@ -9,19 +9,14 @@
   gap: 28px;
   padding: 22px;
   margin-bottom: 18px;
-  border: 1px solid rgba(87, 230, 199, 0.12);
+  border: 1px solid #cdebe4;
   border-radius: 16px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(87, 230, 199, 0.07),
-      rgba(255, 255, 255, 0.018)
-    );
+  background: linear-gradient(135deg, #effaf7, #ffffff);
 }
 
 .intro span,
 .card > span {
-  color: var(--green, #57e6c7);
+  color: #0f8b75;
   font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.15em;
@@ -29,14 +24,14 @@
 
 .intro h2 {
   margin: 7px 0 0;
-  color: #eaf3fc;
+  color: #1e334b;
   font-size: 20px;
   line-height: 1.25;
 }
 
 .intro p {
   margin: 0;
-  color: #899db2;
+  color: #64748b;
   font-size: 11px;
   line-height: 1.7;
 }
@@ -52,10 +47,11 @@
   display: flex;
   flex-direction: column;
   padding: 22px;
-  border: 1px solid rgba(139, 164, 191, 0.11);
+  border: 1px solid #dbe7ef;
   border-radius: 16px;
   color: inherit;
-  background: rgba(10, 23, 38, 0.7);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
   text-decoration: none;
   transition:
     transform 0.18s ease,
@@ -65,19 +61,19 @@
 
 .card:hover {
   transform: translateY(-2px);
-  border-color: rgba(87, 230, 199, 0.2);
-  background: rgba(12, 29, 47, 0.82);
+  border-color: #b9ddd4;
+  background: #f8fcfb;
 }
 
 .card h2 {
   margin: 11px 0 9px;
-  color: #eaf3fc;
+  color: #1e334b;
   font-size: 20px;
 }
 
 .card p {
   margin: 0;
-  color: #8498ad;
+  color: #64748b;
   font-size: 11px;
   line-height: 1.65;
 }
@@ -85,7 +81,7 @@
 .card strong {
   margin-top: auto;
   padding-top: 22px;
-  color: #8fe8d6;
+  color: #08745f;
   font-size: 10px;
 }
 

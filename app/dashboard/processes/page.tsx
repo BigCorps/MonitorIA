@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function param(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 function isoOrNull(value: string) {
@@ -74,9 +74,11 @@ export default async function ProcessesPage({
     }),
   ]);
 
-  const processOptions = [...new Set(
-    overview.definitions.map((definition) => definition.processCode),
-  )];
+  const processOptions = [
+    ...new Set(
+      overview.definitions.map((definition) => definition.processCode),
+    ),
+  ];
 
   return (
     <div className="dashboard-shell">
@@ -89,26 +91,39 @@ export default async function ProcessesPage({
       <main className={`dashboard-content ${styles.page}`}>
         <header className={styles.header}>
           <div>
-            <span className={styles.eyebrow}>INTELIGÊNCIA OPERACIONAL</span>
-            <h1>Processos e ações</h1>
+            <span className={styles.eyebrow}>ANÁLISE DE PROCESSOS</span>
+            <h1>Processos e etapas</h1>
             <p>
-              Sequências visuais reconstruídas a partir das sessões, com etapas
-              observadas, pendentes e não confirmadas.
+              Acompanhe as etapas observadas, o que foi concluído e o que ainda
+              precisa de confirmação.
             </p>
           </div>
           <ProcessesRealtimeRefresh organizationId={organization.id} />
         </header>
 
         <DashboardSectionTabs group="monitoring" />
-        <DashboardSectionTabs group="intelligence" density="compact" />
-
 
         <section className={styles.metrics} aria-label="Resumo dos processos">
-          <article><strong>{overview.summary.totalProcesses}</strong><span>Processos</span></article>
-          <article><strong>{overview.summary.openProcesses}</strong><span>Em andamento</span></article>
-          <article><strong>{overview.summary.completedProcesses}</strong><span>Concluídos</span></article>
-          <article><strong>{overview.summary.incompleteProcesses}</strong><span>Etapas não confirmadas</span></article>
-          <article><strong>{overview.summary.activeDeviations}</strong><span>Desvios ativos</span></article>
+          <article>
+            <strong>{overview.summary.totalProcesses}</strong>
+            <span>Processos</span>
+          </article>
+          <article>
+            <strong>{overview.summary.openProcesses}</strong>
+            <span>Em andamento</span>
+          </article>
+          <article>
+            <strong>{overview.summary.completedProcesses}</strong>
+            <span>Concluídos</span>
+          </article>
+          <article>
+            <strong>{overview.summary.incompleteProcesses}</strong>
+            <span>Etapas não confirmadas</span>
+          </article>
+          <article>
+            <strong>{overview.summary.activeDeviations}</strong>
+            <span>Diferenças encontradas</span>
+          </article>
         </section>
 
         <details className={styles.filters}>
@@ -116,31 +131,51 @@ export default async function ProcessesPage({
           <form>
             <label>
               De
-              <input type="datetime-local" name="from" defaultValue={param(params.from)} />
+              <input
+                type="datetime-local"
+                name="from"
+                defaultValue={param(params.from)}
+              />
             </label>
             <label>
               Até
-              <input type="datetime-local" name="to" defaultValue={param(params.to)} />
+              <input
+                type="datetime-local"
+                name="to"
+                defaultValue={param(params.to)}
+              />
             </label>
             <label>
               Local
               <select name="site" defaultValue={siteId}>
                 <option value="">Todos</option>
-                {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+                {sites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
               Câmera
               <select name="camera" defaultValue={cameraId}>
                 <option value="">Todas</option>
-                {cameras.map((camera) => <option key={camera.id} value={camera.id}>{camera.name}</option>)}
+                {cameras.map((camera) => (
+                  <option key={camera.id} value={camera.id}>
+                    {camera.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
               Processo
               <select name="process" defaultValue={processCode}>
                 <option value="">Todos</option>
-                {processOptions.map((code) => <option key={code} value={code}>{operationalProcessLabel(code)}</option>)}
+                {processOptions.map((code) => (
+                  <option key={code} value={code}>
+                    {operationalProcessLabel(code)}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
@@ -154,7 +189,7 @@ export default async function ProcessesPage({
               </select>
             </label>
             <label>
-              Severidade
+              Prioridade
               <select name="severity" defaultValue={severity}>
                 <option value="">Todas</option>
                 <option value="info">Informativo</option>
@@ -173,96 +208,161 @@ export default async function ProcessesPage({
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <div><span>PROCESSOS OBSERVADOS</span><h2>Execuções recentes</h2></div>
+            <div>
+              <span>PROCESSOS OBSERVADOS</span>
+              <h2>Atividades recentes</h2>
+            </div>
             <small>{overview.instances.length} resultados</small>
           </div>
 
           <div className={styles.processList}>
-            {overview.instances.length ? overview.instances.map((instance) => (
-              <article className={styles.processCard} id={`process-${instance.id}`} key={instance.id}>
-                <div className={styles.processTop}>
-                  <div>
-                    <span>{instance.cameraName}</span>
-                    <h3>{instance.processName}</h3>
+            {overview.instances.length ? (
+              overview.instances.map((instance) => (
+                <article
+                  className={styles.processCard}
+                  id={`process-${instance.id}`}
+                  key={instance.id}
+                >
+                  <div className={styles.processTop}>
+                    <div>
+                      <span>{instance.cameraName}</span>
+                      <h3>{instance.processName}</h3>
+                    </div>
+                    <span
+                      className={`${styles.status} ${styles[instance.status]}`}
+                    >
+                      {processInstanceStatusLabel(instance.status)}
+                    </span>
                   </div>
-                  <span className={`${styles.status} ${styles[instance.status]}`}>
-                    {processInstanceStatusLabel(instance.status)}
-                  </span>
-                </div>
 
-                <p>{instance.summary}</p>
+                  <p>{instance.summary}</p>
 
-                <div className={styles.progressRow}>
-                  <div className={styles.progress}>
-                    <span style={{ width: processProgressLabel(instance.progressRatio) }} />
+                  <div className={styles.progressRow}>
+                    <div className={styles.progress}>
+                      <span
+                        style={{
+                          width: processProgressLabel(instance.progressRatio),
+                        }}
+                      />
+                    </div>
+                    <strong>
+                      {processProgressLabel(instance.progressRatio)}
+                    </strong>
                   </div>
-                  <strong>{processProgressLabel(instance.progressRatio)}</strong>
-                </div>
 
-                <div className={styles.processMeta}>
-                  <span>{instance.requiredStepsCompleted}/{instance.requiredStepsTotal} etapas obrigatórias</span>
-                  <span>{processDurationLabel(instance.durationSeconds)}</span>
-                  <span>Confiança {confidenceLabel(instance.confidence)}</span>
-                </div>
+                  <div className={styles.processMeta}>
+                    <span>
+                      {instance.requiredStepsCompleted}/
+                      {instance.requiredStepsTotal} etapas obrigatórias
+                    </span>
+                    <span>
+                      {processDurationLabel(instance.durationSeconds)}
+                    </span>
+                    <span>Certeza {confidenceLabel(instance.confidence)}</span>
+                  </div>
 
-                <ol className={styles.steps}>
-                  {instance.steps.map((step) => (
-                    <li key={step.id} className={styles[step.status]}>
-                      <span>{step.expectedOrder || step.observedOrder || "•"}</span>
-                      <div>
-                        <strong>{step.stepName}</strong>
-                        <small>{processStepStatusLabel(step.status)}</small>
-                      </div>
-                      {step.eventId ? <Link href={`/dashboard/events/${step.eventId}`}>Evidência</Link> : null}
-                    </li>
-                  ))}
-                </ol>
+                  <ol className={styles.steps}>
+                    {instance.steps.map((step) => (
+                      <li key={step.id} className={styles[step.status]}>
+                        <span>
+                          {step.expectedOrder || step.observedOrder || "•"}
+                        </span>
+                        <div>
+                          <strong>{step.stepName}</strong>
+                          <small>{processStepStatusLabel(step.status)}</small>
+                        </div>
+                        {step.eventId ? (
+                          <Link href={`/dashboard/events/${step.eventId}`}>
+                            Evidência
+                          </Link>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
 
-                <footer>
-                  <time dateTime={instance.startedAt}>{new Date(instance.startedAt).toLocaleString("pt-BR")}</time>
-                  <Link href={`/dashboard/sessions/${instance.operationalSessionId}`}>Abrir sessão</Link>
-                </footer>
-              </article>
-            )) : (
-              <div className={styles.empty}>Nenhum processo foi reconstruído com os filtros atuais.</div>
+                  <footer>
+                    <time dateTime={instance.startedAt}>
+                      {new Date(instance.startedAt).toLocaleString("pt-BR")}
+                    </time>
+                    <Link
+                      href={`/dashboard/sessions/${instance.operationalSessionId}`}
+                    >
+                      Abrir período
+                    </Link>
+                  </footer>
+                </article>
+              ))
+            ) : (
+              <div className={styles.empty}>
+                Nenhum processo foi encontrado com os filtros atuais.
+              </div>
             )}
           </div>
         </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <div><span>ATENÇÃO</span><h2>Desvios de processo</h2></div>
+            <div>
+              <span>ATENÇÃO</span>
+              <h2>Diferenças encontradas</h2>
+            </div>
           </div>
           <div className={styles.deviationList}>
-            {overview.deviations.length ? overview.deviations.map((deviation) => (
-              <article className={styles.deviationCard} key={deviation.id}>
-                <span className={`${styles.severity} ${styles[deviation.severity]}`}>{deviation.severity}</span>
-                <div>
-                  <h3>{processDeviationLabel(deviation.deviationCode)}</h3>
-                  <p>{deviation.summary}</p>
-                  <small>{deviation.cameraName} · confiança {confidenceLabel(deviation.confidence)}</small>
-                </div>
-                <Link href={`#process-${deviation.processInstanceId}`}>Processo</Link>
-              </article>
-            )) : <div className={styles.empty}>Nenhum desvio de processo encontrado.</div>}
+            {overview.deviations.length ? (
+              overview.deviations.map((deviation) => (
+                <article className={styles.deviationCard} key={deviation.id}>
+                  <span
+                    className={`${styles.severity} ${styles[deviation.severity]}`}
+                  >
+                    {deviation.severity}
+                  </span>
+                  <div>
+                    <h3>{processDeviationLabel(deviation.deviationCode)}</h3>
+                    <p>{deviation.summary}</p>
+                    <small>
+                      {deviation.cameraName} · certeza{" "}
+                      {confidenceLabel(deviation.confidence)}
+                    </small>
+                  </div>
+                  <Link href={`#process-${deviation.processInstanceId}`}>
+                    Processo
+                  </Link>
+                </article>
+              ))
+            ) : (
+              <div className={styles.empty}>
+                Nenhuma diferença de processo encontrada.
+              </div>
+            )}
           </div>
         </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <div><span>DEFINIÇÕES ATIVAS</span><h2>Como os processos são interpretados</h2></div>
+            <div>
+              <span>REGRAS ATIVAS</span>
+              <h2>Como cada processo é analisado</h2>
+            </div>
           </div>
           <div className={styles.definitionGrid}>
             {overview.definitions.map((definition) => (
               <article key={definition.id}>
-                <span>{definition.source === "system" ? "Modelo genérico" : "Personalizado"}</span>
+                <span>
+                  {definition.source === "system"
+                    ? "Modelo genérico"
+                    : "Personalizado"}
+                </span>
                 <h3>{definition.name}</h3>
                 <p>{definition.description}</p>
                 <ol>
                   {definition.steps.map((step) => (
                     <li key={step.id}>
-                      <strong>{step.sortOrder}. {step.name}</strong>
-                      <small>{step.required ? "Obrigatória" : "Opcional"}</small>
+                      <strong>
+                        {step.sortOrder}. {step.name}
+                      </strong>
+                      <small>
+                        {step.required ? "Obrigatória" : "Opcional"}
+                      </small>
                     </li>
                   ))}
                 </ol>

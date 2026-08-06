@@ -25,13 +25,13 @@ import styles from "./routines.module.css";
 
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
-export const metadata = { title: "Rotinas e desvios" };
+export const metadata = { title: "Rotinas e mudanças" };
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 function todayInZone(timeZone: string) {
@@ -105,38 +105,36 @@ export default async function RoutinesPage({
             <span className="dashboard-eyebrow">
               ROTINAS · {organization.name.toUpperCase()}
             </span>
-            <h1>Normalidade e desvios operacionais</h1>
+            <h1>Rotinas e mudanças observadas</h1>
             <p>
-              O MonitorIA aprende faixas recorrentes a partir das evidências
-              visuais e destaca diferenças relevantes sem atribuir intenção.
+              O MonitorIA identifica o que costuma acontecer e destaca mudanças
+              importantes, sem tirar conclusões sobre intenções.
             </p>
           </div>
 
           <div className={styles.headerActions}>
             <RoutinesRealtimeRefresh organizationId={organization.id} />
             <Link className="panel-primary-action" href="/dashboard/sessions">
-              Ver sessões
+              Ver períodos
             </Link>
           </div>
         </header>
 
         <DashboardSectionTabs group="monitoring" />
-        <DashboardSectionTabs group="intelligence" density="compact" />
-
 
         <section className={styles.explanation}>
           <div>
-            <span>APRENDIZADO CONSERVADOR</span>
-            <strong>Um padrão só fica ativo depois de dias suficientes.</strong>
+            <span>ANÁLISE CUIDADOSA</span>
+            <strong>Uma rotina só aparece depois de dias suficientes.</strong>
           </div>
           <p>
-            Ausência de evidência não prova que algo não aconteceu. Um desvio
-            significa apenas diferença em relação ao padrão visual observado.
+            Quando não há registro, isso não prova que algo não aconteceu. Uma
+            mudança indica apenas diferença em relação ao habitual.
           </p>
         </section>
 
         <details className={styles.filterDisclosure}>
-          <summary>Filtros de rotinas e desvios</summary>
+          <summary>Filtros de rotinas e mudanças</summary>
           <form className={styles.filters} method="get">
             <label>
               <span>De</span>
@@ -169,7 +167,7 @@ export default async function RoutinesPage({
               </select>
             </label>
             <label>
-              <span>Baseline</span>
+              <span>Rotina de referência</span>
               <select name="baseline" defaultValue={baselineStatus}>
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
@@ -178,7 +176,7 @@ export default async function RoutinesPage({
               </select>
             </label>
             <label>
-              <span>Desvios</span>
+              <span>Diferenças</span>
               <select name="status" defaultValue={status}>
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
@@ -187,7 +185,7 @@ export default async function RoutinesPage({
               </select>
             </label>
             <label>
-              <span>Severidade</span>
+              <span>Prioridade</span>
               <select name="severity" defaultValue={severity}>
                 <option value="all">Todas</option>
                 <option value="low">Baixa</option>
@@ -202,7 +200,7 @@ export default async function RoutinesPage({
 
         <section className={styles.summaryGrid} aria-label="Resumo das rotinas">
           <article>
-            <span>BASELINES ATIVOS</span>
+            <span>ROTINAS IDENTIFICADAS</span>
             <strong>{overview.summary.activeBaselines}</strong>
             <small>padrões com amostra suficiente</small>
           </article>
@@ -212,14 +210,14 @@ export default async function RoutinesPage({
             <small>aguardando mais dias observados</small>
           </article>
           <article>
-            <span>DESVIOS ATIVOS</span>
+            <span>DIFERENÇAS ATIVAS</span>
             <strong>{overview.summary.activeDeviations}</strong>
             <small>diferenças no período selecionado</small>
           </article>
           <article data-attention={overview.summary.importantDeviations > 0}>
             <span>ALTA PRIORIDADE</span>
             <strong>{overview.summary.importantDeviations}</strong>
-            <small>desvios altos ou críticos</small>
+            <small>diferenças importantes</small>
           </article>
         </section>
 
@@ -228,7 +226,7 @@ export default async function RoutinesPage({
             <span>PADRÕES APRENDIDOS</span>
             <h2>Faixas habituais</h2>
           </div>
-          <small>{overview.baselines.length} baseline(s) exibido(s)</small>
+          <small>{overview.baselines.length} padrão(ões) exibido(s)</small>
         </section>
 
         {overview.baselines.length ? (
@@ -260,10 +258,7 @@ export default async function RoutinesPage({
 
                 <div className={styles.baselineMeta}>
                   <span>
-                    {routineScopeLabel(
-                      baseline.dayOfWeek,
-                      baseline.bucketHour,
-                    )}
+                    {routineScopeLabel(baseline.dayOfWeek, baseline.bucketHour)}
                   </span>
                   {baseline.sessionType ? (
                     <span>{baseline.sessionType.replaceAll("_", " ")}</span>
@@ -274,17 +269,18 @@ export default async function RoutinesPage({
                 </div>
 
                 <small>
-                  Período analisado: {baseline.periodStart} a {baseline.periodEnd}
+                  Período analisado: {baseline.periodStart} a{" "}
+                  {baseline.periodEnd}
                 </small>
               </article>
             ))}
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <strong>Ainda não existem baselines para estes filtros.</strong>
+            <strong>Ainda não existem rotinas para estes filtros.</strong>
             <p>
-              A rotina precisa de sessões e estados visuais em vários dias antes
-              de formar uma faixa confiável.
+              O MonitorIA precisa observar vários dias antes de identificar uma
+              faixa habitual confiável.
             </p>
           </div>
         )}
@@ -292,7 +288,7 @@ export default async function RoutinesPage({
         <section className={styles.sectionHeading}>
           <div>
             <span>COMPARAÇÃO COM O HABITUAL</span>
-            <h2>Desvios observados</h2>
+            <h2>Diferenças observadas</h2>
           </div>
           <small>{overview.deviations.length} ocorrência(s)</small>
         </section>
@@ -322,29 +318,44 @@ export default async function RoutinesPage({
                   <span>{confidenceLabel(deviation.confidence)}</span>
                   {deviation.observedValue !== null ? (
                     <span>
-                      Observado: {routineValueLabel(deviation.observedValue, deviation.unit)}
+                      Observado:{" "}
+                      {routineValueLabel(
+                        deviation.observedValue,
+                        deviation.unit,
+                      )}
                     </span>
                   ) : null}
                   {deviation.expectedCenter !== null ? (
                     <span>
-                      Habitual: {routineValueLabel(deviation.expectedCenter, deviation.unit)}
+                      Habitual:{" "}
+                      {routineValueLabel(
+                        deviation.expectedCenter,
+                        deviation.unit,
+                      )}
                     </span>
                   ) : null}
-                  <span>{deviation.status === "active" ? "Ativo" : "Resolvido"}</span>
+                  <span>
+                    {deviation.status === "active" ? "Ativo" : "Resolvido"}
+                  </span>
                 </div>
 
                 {deviation.evidenceEventIds.length ? (
                   <div className={styles.evidenceLinks}>
-                    {deviation.evidenceEventIds.slice(0, 5).map((eventId, index) => (
-                      <Link href={`/dashboard/events/${eventId}`} key={eventId}>
-                        Evidência {index + 1}
-                      </Link>
-                    ))}
+                    {deviation.evidenceEventIds
+                      .slice(0, 5)
+                      .map((eventId, index) => (
+                        <Link
+                          href={`/dashboard/events/${eventId}`}
+                          key={eventId}
+                        >
+                          Evidência {index + 1}
+                        </Link>
+                      ))}
                   </div>
                 ) : (
                   <small>
-                    Este desvio é baseado em ausência de confirmação ou agregação
-                    do período e pode não ter um evento individual.
+                    Esta diferença foi calculada pelo conjunto de registros do
+                    período e pode não ter um acontecimento individual.
                   </small>
                 )}
               </article>
@@ -352,10 +363,12 @@ export default async function RoutinesPage({
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <strong>Nenhum desvio encontrado para os filtros atuais.</strong>
+            <strong>
+              Nenhuma diferença encontrada para os filtros atuais.
+            </strong>
             <p>
-              Isso não significa ausência absoluta de ocorrências; significa que
-              não houve diferença registrada em relação aos baselines disponíveis.
+              Isso significa apenas que não houve mudança registrada em relação
+              às rotinas disponíveis.
             </p>
           </div>
         )}

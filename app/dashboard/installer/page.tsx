@@ -8,13 +8,10 @@ import styles from "./installer.module.css";
 
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
-export const metadata = { title: "Instalador" };
+export const metadata = { title: "Instalação" };
 export const dynamic = "force-dynamic";
 
-function formatDate(
-  value: string | null,
-  timeZone: string,
-) {
+function formatDate(value: string | null, timeZone: string) {
   if (!value) return "Nunca conectado";
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -44,6 +41,12 @@ export default async function InstallerPage() {
   const onlineAgents = workspace.agents.filter(
     (agent) => agent.status === "online",
   ).length;
+  const agentsByStatus = [...workspace.agents].sort((first, second) => {
+    if (first.status === second.status) {
+      return first.name.localeCompare(second.name, "pt-BR");
+    }
+    return first.status === "online" ? -1 : 1;
+  });
 
   const windows = workspace.downloads.find(
     (download) => download.platform === "windows",
@@ -64,39 +67,34 @@ export default async function InstallerPage() {
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              INSTALADOR · {organization.name.toUpperCase()}
+              INSTALAÇÃO · {organization.name.toUpperCase()}
             </span>
             <h1>Conecte as câmeras ao MonitorIA</h1>
             <p>
-              Baixe o Agent para Windows ou Linux, acompanhe a versão
-              instalada e confira a saúde do computador que acessa as
-              câmeras.
+              Baixe o aplicativo MonitorIA para Windows ou Linux, veja a versão
+              instalada e confira se o computador das câmeras está funcionando.
             </p>
           </div>
 
-          <Link
-            href="/dashboard/cameras"
-            className="panel-secondary-action"
-          >
+          <Link href="/dashboard/cameras" className="panel-secondary-action">
             Abrir câmeras
           </Link>
         </header>
 
         <DashboardSectionTabs group="cameras" />
 
-
         <div className={styles.metrics}>
           <article>
-            <span>Agents online</span>
+            <span>Computadores online</span>
             <strong>{onlineAgents}</strong>
-            <small>{workspace.agents.length} instalado(s)</small>
+            <small>{workspace.agents.length} computador(es) instalado(s)</small>
           </article>
           <article>
-            <span>Câmeras pareadas</span>
+            <span>Câmeras conectadas</span>
             <strong>
               {workspace.pairedCameras}/{workspace.totalCameras}
             </strong>
-            <small>Fontes vinculadas ao Agent</small>
+            <small>Câmeras ligadas ao computador</small>
           </article>
           <article>
             <span>Versão recomendada</span>
@@ -110,7 +108,7 @@ export default async function InstallerPage() {
             <div className={styles.cardHeading}>
               <div>
                 <span>INSTALAÇÃO NO WINDOWS</span>
-                <h2>Instale no computador da câmera</h2>
+                <h2>Instale no computador que acessa as câmeras</h2>
               </div>
               <span className={styles.windowsBadge}>Windows · Linux</span>
             </div>
@@ -119,19 +117,20 @@ export default async function InstallerPage() {
               <li>
                 <span>1</span>
                 <div>
-                  <strong>Baixe o executável</strong>
+                  <strong>Baixe o instalador</strong>
                   <p>
-                    Use um computador que permaneça ligado e tenha
-                    acesso à mesma rede das câmeras RTSP.
+                    Use um computador que permaneça ligado e tenha acesso à
+                    mesma rede das câmeras.
                   </p>
                 </div>
               </li>
               <li>
                 <span>2</span>
                 <div>
-                  <strong>Libere e teste o arquivo</strong>
+                  <strong>Autorize e teste o instalador</strong>
                   <code>
-                    Unblock-File "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
+                    Unblock-File
+                    "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
                   </code>
                   <code>
                     & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe" self-test
@@ -141,17 +140,17 @@ export default async function InstallerPage() {
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Cadastre ou pareie a câmera</strong>
+                  <strong>Cadastre ou conecte a câmera</strong>
                   <p>
-                    O endereço e a senha RTSP permanecem protegidos no
-                    computador local pelo Windows DPAPI.
+                    As informações de acesso da câmera ficam protegidas somente
+                    neste computador.
                   </p>
                 </div>
               </li>
               <li>
                 <span>4</span>
                 <div>
-                  <strong>Inicie o Agent</strong>
+                  <strong>Inicie o MonitorIA</strong>
                   <code>
                     & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
                   </code>
@@ -170,8 +169,8 @@ export default async function InstallerPage() {
               <div className={styles.pendingDownload}>
                 <strong>Instalador do Windows ainda não publicado</strong>
                 <p>
-                  Durante a validação, continue usando o artifact do
-                  GitHub Actions. A versão final aparecerá neste botão.
+                  Durante os testes, continue usando a versão fornecida pela
+                  equipe. A versão final aparecerá neste botão.
                 </p>
               </div>
             )}
@@ -181,9 +180,9 @@ export default async function InstallerPage() {
             </div>
 
             <p className={styles.platformIntro}>
-              Um mini PC dedicado costuma ser mais estável que o
-              computador da loja: não é desligado por engano e não
-              reinicia sozinho para atualizar. Requer systemd.
+              Um mini PC dedicado costuma ser mais estável que o computador da
+              loja: não é desligado por engano e não reinicia sozinho para
+              atualizar. A instalação em Linux exige conhecimento técnico.
             </p>
 
             <ol className={styles.steps}>
@@ -198,10 +197,12 @@ export default async function InstallerPage() {
                 <span>2</span>
                 <div>
                   <strong>Execute o instalador</strong>
-                  <code>cd monitoria-agent-linux-x64 &amp;&amp; sudo ./install.sh</code>
+                  <code>
+                    cd monitoria-agent-linux-x64 &amp;&amp; sudo ./install.sh
+                  </code>
                   <p>
-                    Ele cria o serviço, ativa a inicialização automática
-                    e pede o código de pareamento no fim.
+                    Ele configura o MonitorIA para iniciar automaticamente e
+                    pede o código de conexão no fim.
                   </p>
                 </div>
               </li>
@@ -233,13 +234,13 @@ export default async function InstallerPage() {
             <div className={styles.cardHeading}>
               <div>
                 <span>COMPUTADORES CONECTADOS</span>
-                <h2>Status dos Agents</h2>
+                <h2>Computadores do MonitorIA</h2>
               </div>
             </div>
 
             {workspace.agents.length ? (
               <div className={styles.agents}>
-                {workspace.agents.map((agent) => (
+                {agentsByStatus.map((agent) => (
                   <article key={agent.id}>
                     <header>
                       <div>
@@ -268,14 +269,12 @@ export default async function InstallerPage() {
                           {agent.version ? (
                             <small
                               className={
-                                agent.version ===
-                                workspace.recommendedVersion
+                                agent.version === workspace.recommendedVersion
                                   ? styles.currentVersion
                                   : styles.outdatedVersion
                               }
                             >
-                              {agent.version ===
-                              workspace.recommendedVersion
+                              {agent.version === workspace.recommendedVersion
                                 ? "Atualizado"
                                 : "Atualização disponível"}
                             </small>
@@ -291,11 +290,16 @@ export default async function InstallerPage() {
                         </dd>
                       </div>
                       <div>
-                        <dt>Último heartbeat</dt>
-                        <dd>{formatDate(agent.lastHeartbeatAt, agent.siteTimezone)}</dd>
+                        <dt>Última comunicação</dt>
+                        <dd>
+                          {formatDate(
+                            agent.lastHeartbeatAt,
+                            agent.siteTimezone,
+                          )}
+                        </dd>
                       </div>
                       <div>
-                        <dt>CPU</dt>
+                        <dt>Uso do processador</dt>
                         <dd>
                           {agent.cpuPercent === null
                             ? "—"
@@ -307,11 +311,11 @@ export default async function InstallerPage() {
                         <dd>{bytes(agent.memoryBytes)}</dd>
                       </div>
                       <div>
-                        <dt>Disco livre</dt>
+                        <dt>Espaço livre</dt>
                         <dd>{bytes(agent.diskFreeBytes)}</dd>
                       </div>
                       <div>
-                        <dt>Fila</dt>
+                        <dt>Aguardando envio</dt>
                         <dd>{agent.queuedEvents} evento(s)</dd>
                       </div>
                     </dl>
@@ -320,10 +324,10 @@ export default async function InstallerPage() {
               </div>
             ) : (
               <div className={styles.empty}>
-                <strong>Nenhum Agent instalado</strong>
+                <strong>Nenhum computador conectado</strong>
                 <p>
-                  Baixe o instalador e siga os passos para conectar a
-                  primeira câmera.
+                  Baixe o instalador e siga os passos para conectar a primeira
+                  câmera.
                 </p>
               </div>
             )}

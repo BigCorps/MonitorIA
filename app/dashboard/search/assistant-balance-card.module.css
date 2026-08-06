@@ -105,10 +105,42 @@
 }
 
 .integrations {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   border-color: #b9ddd4;
   background:
     radial-gradient(circle at 0 0, rgba(87, 230, 199, 0.13), transparent 38%),
     #ffffff;
+}
+
+.connected {
+  gap: 12px;
+  padding-block: 12px;
+}
+
+.connected .icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  font-size: 1rem;
+}
+
+.dismissButton {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #dbe7ef;
+  border-radius: 9px;
+  color: #64748b;
+  background: #ffffff;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dismissButton:hover {
+  color: #0f172a;
+  border-color: #b9ddd4;
+  background: #f1fbf8;
 }
 
 .integrations .icon {
@@ -134,5 +166,21 @@
   .card > a {
     grid-column: 1 / -1;
     text-align: center;
+  }
+
+  .integrations {
+    position: relative;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding-right: 52px;
+  }
+
+  .integrations > a {
+    grid-column: 1 / -1;
+  }
+
+  .dismissButton {
+    position: absolute;
+    top: 12px;
+    right: 12px;
   }
 }

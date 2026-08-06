@@ -40,11 +40,7 @@ export function CameraSetupForm({ sites }: Props) {
 
         <label>
           <span>Local</span>
-          <select
-            name="site_id"
-            required
-            defaultValue={sites[0]?.id ?? ""}
-          >
+          <select name="site_id" required defaultValue={sites[0]?.id ?? ""}>
             {sites.map((site) => (
               <option value={site.id} key={site.id}>
                 {site.name}
@@ -66,9 +62,8 @@ export function CameraSetupForm({ sites }: Props) {
       <div className="camera-security-note">
         <strong>O plano será escolhido depois do cadastro.</strong>
         <p>
-          Em Planos, você poderá combinar Essencial, Atenta e
-          Detalhada e ver o desconto progressivo antes de gerar a
-          cobrança.
+          Em Planos, você poderá combinar Essencial, Atenta e Detalhada e ver o
+          desconto progressivo antes de gerar a cobrança.
         </p>
       </div>
 
@@ -84,27 +79,21 @@ export function CameraSetupForm({ sites }: Props) {
           ].join("\n")}
         />
         <small className="field-help">
-          Digite um objetivo por linha. A IA poderá aprimorar isso
-          depois do primeiro frame.
+          Digite um objetivo por linha. A IA poderá aprimorar isso depois do
+          primeiro frame.
         </small>
       </label>
 
       <div className="camera-security-note">
-        <strong>A URL RTSP não será informada aqui.</strong>
+        <strong>Os dados de acesso da câmera não serão informados aqui.</strong>
         <p>
-          O endereço, usuário e senha da câmera ficarão somente no
-          computador onde o MonitorIA Agent será instalado.
+          O endereço, usuário e senha da câmera ficarão somente no computador
+          onde o aplicativo MonitorIA será instalado.
         </p>
       </div>
 
-      <button
-        className="auth-submit"
-        type="submit"
-        disabled={pending}
-      >
-        {pending
-          ? "Criando câmera..."
-          : "Criar câmera e gerar código"}
+      <button className="auth-submit" type="submit" disabled={pending}>
+        {pending ? "Criando câmera..." : "Criar câmera e gerar código"}
       </button>
     </form>
   );

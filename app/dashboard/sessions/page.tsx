@@ -20,15 +20,13 @@ import styles from "./sessions.module.css";
 
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
-export const metadata = { title: "Sessões" };
+export const metadata = { title: "Períodos" };
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<
-  Record<string, string | string[] | undefined>
->;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
 }
 
 function todayInZone(timeZone: string) {
@@ -108,22 +106,21 @@ export default async function SessionsPage({
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              SESSÕES · {organization.name.toUpperCase()}
+              PERÍODOS · {organization.name.toUpperCase()}
             </span>
-            <h1>Histórias operacionais</h1>
+            <h1>Atividades agrupadas</h1>
             <p>
               Veja atendimentos, entregas, visitas, atividades e procedimentos
-              consolidados em capítulos relacionados.
+              organizados por período para facilitar a consulta.
             </p>
           </div>
 
           <Link className="panel-primary-action" href="/dashboard/events">
-            Ver eventos individuais
+            Ver acontecimentos individuais
           </Link>
         </header>
 
         <DashboardSectionTabs group="monitoring" />
-
 
         <form className={styles.filters} method="get">
           <label>
@@ -186,7 +183,7 @@ export default async function SessionsPage({
           <div>
             <span>RESULTADOS</span>
             <h2>
-              {result.total} sess{result.total === 1 ? "ão" : "ões"}
+              {result.total} período{result.total === 1 ? "" : "s"}
             </h2>
           </div>
 
@@ -201,7 +198,10 @@ export default async function SessionsPage({
         <SessionList rows={result.rows} timezone={timeZone} />
 
         {totalPages > 1 ? (
-          <nav className={styles.pagination} aria-label="Paginação das sessões">
+          <nav
+            className={styles.pagination}
+            aria-label="Paginação dos períodos"
+          >
             {page > 1 ? (
               <Link href={pageHref(preserved, page - 1)}>← Anterior</Link>
             ) : (

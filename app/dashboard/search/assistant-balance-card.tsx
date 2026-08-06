@@ -11,7 +11,10 @@ import styles from "./assistant-balance-card.module.css";
 
 type Props = {
   initialBalance: AssistantBalance;
+  hasActiveMcpConnection: boolean;
 };
+
+const DISMISSED_KEY = "monitoria:search-integrations-card-dismissed";
 
 function dateTime(value: string | null) {
   if (!value) return null;
@@ -21,10 +24,16 @@ function dateTime(value: string | null) {
   }).format(new Date(value));
 }
 
-export function AssistantBalanceCard({ initialBalance }: Props) {
+export function AssistantBalanceCard({
+  initialBalance,
+  hasActiveMcpConnection,
+}: Props) {
   const [balance, setBalance] = useState(initialBalance);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    setDismissed(window.localStorage.getItem(DISMISSED_KEY) === "1");
+
     let cancelled = false;
 
     async function refresh() {
@@ -51,22 +60,53 @@ export function AssistantBalanceCard({ initialBalance }: Props) {
     };
   }, []);
 
+  function dismissIntegrationsCard() {
+    window.localStorage.setItem(DISMISSED_KEY, "1");
+    setDismissed(true);
+  }
+
   if (balance.unlimited) {
+    if (dismissed) return null;
+
     return (
-      <section className={`${styles.card} ${styles.integrations}`}>
+      <section
+        className={`${styles.card} ${styles.integrations} ${
+          hasActiveMcpConnection ? styles.connected : ""
+        }`}
+      >
         <div className={styles.icon} aria-hidden="true">
           ✦
         </div>
         <div className={styles.content}>
-          <span>PESQUISA EM QUALQUER IA</span>
-          <strong>Use o MonitorIA na IA de sua preferência</strong>
-          <p>
-            Conecte o MonitorIA via MCP ao ChatGPT, Claude, Cursor ou a qualquer
-            aplicativo de IA compatível e consulte por lá as informações da sua
-            organização.
-          </p>
+          <span>
+            {hasActiveMcpConnection
+              ? "CONEXÃO ATIVA"
+              : "PESQUISA EM QUALQUER IA"}
+          </span>
+          <strong>
+            {hasActiveMcpConnection
+              ? "Você já possui uma conexão ativa via MCP"
+              : "Use o MonitorIA na IA de sua preferência"}
+          </strong>
+          {!hasActiveMcpConnection ? (
+            <p>
+              Conecte o MonitorIA ao seu aplicativo de IA preferido e consulte
+              por lá as informações da sua organização.
+            </p>
+          ) : null}
         </div>
-        <Link href="/dashboard/profile/mcp-connections">Ver integrações</Link>
+        <Link href="/dashboard/profile/mcp-connections">
+          {hasActiveMcpConnection ? "Ver conexão" : "Ver integrações"}
+        </Link>
+        <button
+          type="button"
+          className={styles.dismissButton}
+          onClick={dismissIntegrationsCard}
+          aria-label="Fechar aviso de integrações"
+          title="Fechar"
+        >
+          ×
+        </button>
       </section>
     );
   }

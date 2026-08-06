@@ -23,18 +23,16 @@ const planLabels: Record<string, string> = {
 };
 
 const pairingLabels: Record<string, string> = {
-  unpaired: "Sem Agent",
-  pairing: "Aguardando pareamento",
-  paired: "Pareada",
+  unpaired: "Sem computador conectado",
+  pairing: "Conectando",
+  paired: "Conectada",
 };
 
 type Props = {
   params: Promise<{ cameraId: string }>;
 };
 
-export default async function CameraDetailPage({
-  params,
-}: Props) {
+export default async function CameraDetailPage({ params }: Props) {
   const { cameraId } = await params;
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -48,9 +46,7 @@ export default async function CameraDetailPage({
 
   if (!camera) notFound();
 
-  const canManage = ["owner", "admin"].includes(
-    organization.role,
-  );
+  const canManage = ["owner", "admin"].includes(organization.role);
 
   return (
     <main className="dashboard-shell">
@@ -69,7 +65,7 @@ export default async function CameraDetailPage({
             <h1>{camera.name}</h1>
             <p>
               {camera.description ||
-                "A descrição visual será aprimorada após o primeiro frame."}
+                "A descrição será aprimorada após a primeira imagem."}
             </p>
           </div>
 
@@ -80,18 +76,16 @@ export default async function CameraDetailPage({
 
         <DashboardSectionTabs group="cameras" />
 
-
         <div className="camera-detail-grid">
           <section className="camera-detail-card">
             <div className="panel-title-row">
               <div>
                 <span>CONFIGURAÇÃO</span>
-                <h2>Parâmetros atuais</h2>
+                <h2>Configurações atuais</h2>
               </div>
 
               <span className="status-chip">
-                {pairingLabels[camera.pairingStatus] ??
-                  camera.pairingStatus}
+                {pairingLabels[camera.pairingStatus] ?? camera.pairingStatus}
               </span>
             </div>
 
@@ -101,21 +95,16 @@ export default async function CameraDetailPage({
                 <dd>{camera.siteName}</dd>
               </div>
               <div>
-                <dt>Plano configurado</dt>
-                <dd>
-                  {planLabels[camera.planCode] ??
-                    camera.planCode}
-                </dd>
+                <dt>Plano</dt>
+                <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
               </div>
               <div>
-                <dt>Observação local</dt>
+                <dt>Frequência de observação</dt>
                 <dd>{camera.captureIntervalSeconds}s</dd>
               </div>
               <div>
-                <dt>Consolidação</dt>
-                <dd>
-                  {camera.consolidationIntervalSeconds}s
-                </dd>
+                <dt>Intervalo do resumo</dt>
+                <dd>{camera.consolidationIntervalSeconds}s</dd>
               </div>
               <div>
                 <dt>Status da câmera</dt>
@@ -127,16 +116,12 @@ export default async function CameraDetailPage({
               <span>OBJETIVOS ATUAIS</span>
               {camera.monitoringGoals.length ? (
                 <ul>
-                  {camera.monitoringGoals.map(
-                    (goal: string) => (
-                      <li key={goal}>{goal}</li>
-                    ),
-                  )}
+                  {camera.monitoringGoals.map((goal: string) => (
+                    <li key={goal}>{goal}</li>
+                  ))}
                 </ul>
               ) : (
-                <p>
-                  Nenhum objetivo específico informado.
-                </p>
+                <p>Nenhum objetivo específico informado.</p>
               )}
             </div>
           </section>
@@ -144,8 +129,8 @@ export default async function CameraDetailPage({
           <section className="camera-detail-card pairing-card">
             <div className="panel-title-row">
               <div>
-                <span>AGENT LOCAL</span>
-                <h2>Pareamento seguro</h2>
+                <span>CONEXÃO LOCAL</span>
+                <h2>Conexão segura</h2>
               </div>
 
               <span
@@ -155,11 +140,8 @@ export default async function CameraDetailPage({
                     : "status-chip"
                 }
               >
-                {camera.pairingStatus === "paired" ? (
-                  <i />
-                ) : null}
-                {pairingLabels[camera.pairingStatus] ??
-                  camera.pairingStatus}
+                {camera.pairingStatus === "paired" ? <i /> : null}
+                {pairingLabels[camera.pairingStatus] ?? camera.pairingStatus}
               </span>
             </div>
 
@@ -170,10 +152,7 @@ export default async function CameraDetailPage({
           </section>
         </div>
 
-        <MonitoringSettings
-          camera={camera}
-          canManage={canManage}
-        />
+        <MonitoringSettings camera={camera} canManage={canManage} />
 
         <CameraProfilePanel
           cameraId={camera.id}

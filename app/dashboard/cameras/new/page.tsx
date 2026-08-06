@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
-import { getCurrentOrganization, getOrganizationSites } from "@/src/lib/dashboard-data";
+import {
+  getCurrentOrganization,
+  getOrganizationSites,
+} from "@/src/lib/dashboard-data";
 import { DashboardSidebar } from "../../dashboard-sidebar";
 import { CameraSetupForm } from "../camera-setup-form";
 
@@ -20,26 +23,36 @@ export default async function NewCameraPage() {
 
   return (
     <main className="dashboard-shell">
-      <DashboardSidebar organizationName={organization.name} userEmail={user.email} active="cameras" />
+      <DashboardSidebar
+        organizationName={organization.name}
+        userEmail={user.email}
+        active="cameras"
+      />
 
       <section className="dashboard-content camera-dashboard-content">
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">NOVA CÂMERA</span>
-            <h1>Prepare a fonte visual</h1>
-            <p>Defina o local, o nível de precisão e os objetivos iniciais de monitoramento.</p>
+            <h1>Prepare a câmera</h1>
+            <p>
+              Defina o local, o nível de análise e o que deve ser acompanhado.
+            </p>
           </div>
-          <Link href="/dashboard/cameras" className="back-link">← Voltar às câmeras</Link>
+          <Link href="/dashboard/cameras" className="back-link">
+            ← Voltar às câmeras
+          </Link>
         </header>
 
         <DashboardSectionTabs group="cameras" />
 
-
         <section className="camera-form-card">
           <div className="camera-form-intro">
             <span>ETAPA 1 DE 3</span>
-            <h2>Cadastro e código do Agent</h2>
-            <p>Depois desta tela, o Agent testará o RTSP, capturará o primeiro frame e iniciará a configuração visual do ambiente.</p>
+            <h2>Cadastro e código de conexão</h2>
+            <p>
+              Depois desta tela, o computador instalado testará a câmera,
+              capturará a primeira imagem e iniciará a configuração do ambiente.
+            </p>
           </div>
           <CameraSetupForm sites={sites} />
         </section>

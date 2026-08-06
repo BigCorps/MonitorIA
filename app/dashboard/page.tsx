@@ -14,9 +14,7 @@ export const metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<
-    Record<string, string | string[] | undefined>
-  >;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const planLabels: Record<string, string> = {
@@ -47,37 +45,22 @@ function eventTime(value: string, timeZone: string) {
   }).format(new Date(value));
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: Props) {
+export default async function DashboardPage({ searchParams }: Props) {
   const user = await requireAuthenticatedUser();
-  const organization =
-    await getCurrentOrganization(user.id);
+  const organization = await getCurrentOrganization(user.id);
 
   if (!organization) redirect("/onboarding");
 
-  const sites = await getOrganizationSites(
-    organization.id,
-  );
+  const sites = await getOrganizationSites(organization.id);
 
   if (!sites.length) redirect("/onboarding");
 
   const site = sites[0];
-  const data = await getDashboardData(
-    organization,
-    site,
-  );
+  const data = await getDashboardData(organization, site);
   const params = await searchParams;
-  const message =
-    typeof params.message === "string"
-      ? params.message
-      : null;
+  const message = typeof params.message === "string" ? params.message : null;
 
-  const progress = [
-    true,
-    data.cameras > 0,
-    data.agentsOnline > 0,
-  ];
+  const progress = [true, data.cameras > 0, data.agentsOnline > 0];
   const completed = progress.filter(Boolean).length;
   const setupComplete = completed === progress.length;
 
@@ -85,16 +68,14 @@ export default async function DashboardPage({
     {
       label: "Câmeras",
       value: String(data.cameras),
-      helper: data.cameras
-        ? "fontes cadastradas"
-        : "aguardando configuração",
+      helper: data.cameras ? "fontes cadastradas" : "aguardando configuração",
     },
     {
-      label: "Agents online",
+      label: "Computadores online",
       value: String(data.agentsOnline),
       helper: data.agentsOnline
-        ? "captura local ativa"
-        : "nenhum Agent conectado",
+        ? "monitoramento local ativo"
+        : "nenhum computador conectado",
     },
     {
       label: "Hoje",
@@ -105,9 +86,7 @@ export default async function DashboardPage({
     },
     {
       label: "Plano atual",
-      value:
-        planLabels[organization.planCode] ??
-        organization.planCode,
+      value: planLabels[organization.planCode] ?? organization.planCode,
       helper: "configuração da organização",
     },
   ];
@@ -119,13 +98,11 @@ export default async function DashboardPage({
     },
     {
       title: "Câmera cadastrada",
-      text:
-        "Nome, local e perfil de monitoramento definidos.",
+      text: "Nome, local e perfil de monitoramento definidos.",
     },
     {
-      title: "Agent conectado",
-      text:
-        "Captura local e envio de acontecimentos funcionando.",
+      title: "Computador conectado",
+      text: "Monitoramento e envio de acontecimentos funcionando.",
     },
   ];
 
@@ -146,14 +123,10 @@ export default async function DashboardPage({
             <span className="dashboard-eyebrow">
               VISÃO GERAL · {site.name.toUpperCase()}
             </span>
-            <h1>
-              {greeting(site.timezone)}. Veja o que importa
-              agora.
-            </h1>
+            <h1>{greeting(site.timezone)}. Veja o que importa agora.</h1>
             <p>
-              Monitoramento visual da organização{" "}
-              {organization.name}, sem misturar configurações
-              técnicas com a rotina diária.
+              Monitoramento visual da organização {organization.name}, sem
+              misturar configurações técnicas com a rotina diária.
             </p>
           </div>
 
@@ -162,23 +135,18 @@ export default async function DashboardPage({
           </Link>
         </header>
 
-        {message ? (
-          <div className="dashboard-message">
-            {message}
-          </div>
-        ) : null}
+        {message ? <div className="dashboard-message">{message}</div> : null}
 
         <section className={styles.aiCard}>
           <div className={styles.aiCopy}>
             <span>PESQUISE DO SEU JEITO</span>
             <h2>
-              Use a Pesquisa IA do MonitorIA ou conecte a IA
-              que sua equipe já utiliza.
+              Use a Pesquisa IA do MonitorIA ou conecte a IA que sua equipe já
+              utiliza.
             </h2>
             <p>
-              Pergunte o que aconteceu, compare períodos,
-              encontre evidências e consulte a operação pelo
-              MonitorIA, ChatGPT, Claude ou Cursor.
+              Pergunte o que aconteceu, compare períodos, encontre evidências e
+              consulte a operação pelo MonitorIA, ChatGPT, Claude ou Cursor.
             </p>
 
             <div className={styles.integrationChips}>
@@ -191,10 +159,7 @@ export default async function DashboardPage({
           </div>
 
           <div className={styles.aiActions}>
-            <Link
-              href="/dashboard/search"
-              className={styles.primaryAction}
-            >
+            <Link href="/dashboard/search" className={styles.primaryAction}>
               Abrir Pesquisa IA
             </Link>
             <Link
@@ -223,47 +188,31 @@ export default async function DashboardPage({
                 <span>ACONTECIMENTOS RECENTES</span>
                 <h2>O que aconteceu</h2>
               </div>
-              <Link href="/dashboard/events">
-                Ver linha do tempo →
-              </Link>
+              <Link href="/dashboard/events">Ver linha do tempo →</Link>
             </div>
 
             {data.recentEvents.length ? (
               <div className={styles.eventList}>
-                {data.recentEvents
-                  .slice(0, 6)
-                  .map((event) => (
-                    <article key={event.id}>
-                      <time>
-                        {eventTime(
-                          event.startedAt,
-                          site.timezone,
-                        )}
-                      </time>
-                      <div>
-                        <strong>{event.headline}</strong>
-                        <span>
-                          {eventTypeLabel(event.type)}
-                        </span>
-                      </div>
-                      <small>
-                        {Math.round(
-                          event.confidence * 100,
-                        )}
-                        %
-                        {event.requiresReview
-                          ? " · revisar"
-                          : ""}
-                      </small>
-                    </article>
-                  ))}
+                {data.recentEvents.slice(0, 6).map((event) => (
+                  <article key={event.id}>
+                    <time>{eventTime(event.startedAt, site.timezone)}</time>
+                    <div>
+                      <strong>{event.headline}</strong>
+                      <span>{eventTypeLabel(event.type)}</span>
+                    </div>
+                    <small>
+                      {Math.round(event.confidence * 100)}%
+                      {event.requiresReview ? " · revisar" : ""}
+                    </small>
+                  </article>
+                ))}
               </div>
             ) : (
               <div className={styles.emptyState}>
                 <strong>Nenhum acontecimento hoje</strong>
                 <p>
-                  Os registros aparecerão aqui quando o Agent
-                  detectar algo relevante.
+                  Os registros aparecerão aqui quando o MonitorIA detectar algo
+                  relevante.
                 </p>
               </div>
             )}
@@ -274,17 +223,11 @@ export default async function DashboardPage({
               <div>
                 <span>CÂMERAS E INSTALAÇÃO</span>
                 <h2>
-                  {setupComplete
-                    ? "Tudo conectado"
-                    : "Conclua a configuração"}
+                  {setupComplete ? "Tudo conectado" : "Conclua a configuração"}
                 </h2>
               </div>
               <span
-                className={
-                  setupComplete
-                    ? styles.okBadge
-                    : styles.pendingBadge
-                }
+                className={setupComplete ? styles.okBadge : styles.pendingBadge}
               >
                 {completed} de 3
               </span>
@@ -292,13 +235,8 @@ export default async function DashboardPage({
 
             <div className={styles.steps}>
               {steps.map((step, index) => (
-                <article
-                  key={step.title}
-                  data-complete={progress[index]}
-                >
-                  <span>
-                    {progress[index] ? "✓" : index + 1}
-                  </span>
+                <article key={step.title} data-complete={progress[index]}>
+                  <span>{progress[index] ? "✓" : index + 1}</span>
                   <div>
                     <strong>{step.title}</strong>
                     <p>{step.text}</p>
@@ -308,15 +246,9 @@ export default async function DashboardPage({
             </div>
 
             <div className={styles.cardActions}>
-              <Link href="/dashboard/cameras">
-                Gerenciar câmeras
-              </Link>
-              <Link href="/dashboard/installer">
-                Instalação e Agent
-              </Link>
-              <Link href="/dashboard/cameras/connections">
-                Como conectar
-              </Link>
+              <Link href="/dashboard/cameras">Gerenciar câmeras</Link>
+              <Link href="/dashboard/installer">Instalação</Link>
+              <Link href="/dashboard/cameras/connections">Como conectar</Link>
             </div>
           </section>
         </div>
@@ -325,34 +257,26 @@ export default async function DashboardPage({
           <div>
             <span
               className={
-                data.databaseReady
-                  ? styles.healthDot
-                  : styles.healthDotWarning
+                data.databaseReady ? styles.healthDot : styles.healthDotWarning
               }
             />
             <div>
               <strong>
                 {data.databaseReady
-                  ? "Sistema operacional"
+                  ? "Sistema funcionando"
                   : "Verificação necessária"}
               </strong>
               <p>
-                Banco{" "}
-                {data.databaseReady
-                  ? "conectado"
-                  : "indisponível"}
+                Banco {data.databaseReady ? "conectado" : "indisponível"}
                 {" · "}
-                {data.agentsOnline} Agent(s) online
+                {data.agentsOnline} computador(es) online
                 {" · "}
-                retenção de metadados por{" "}
-                {data.retention.metadata_days} dias
+                dados guardados por {data.retention.metadata_days} dias
               </p>
             </div>
           </div>
 
-          <Link href="/dashboard/camera-health">
-            Ver saúde das câmeras →
-          </Link>
+          <Link href="/dashboard/camera-health">Ver saúde das câmeras →</Link>
         </section>
       </section>
     </main>
