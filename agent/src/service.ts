@@ -47,7 +47,7 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.3";
+export const AGENT_VERSION = "0.10.4";
 
 export type TokenState = "ok" | "locked" | "missing";
 

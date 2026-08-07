@@ -147,29 +147,36 @@ async function probeStream(ffprobePath: string, rtspUrl: string) {
  * pipeline de rawvideo já existe no motion.ts e é conhecido, e a média é lida
  * diretamente dos bytes em vez de depender de parsing de log do FFmpeg.
  */
+export function frameDecodeArguments(rtspUrl: string) {
+  return [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-rtsp_transport",
+    "tcp",
+    // Não usamos -rw_timeout aqui. A build compartilhada do FFmpeg 8.1
+    // empacotada para Windows aceita essa opção no ffprobe, mas a rejeita no
+    // ffmpeg com "Option rw_timeout not found". O processo já possui o
+    // timeout externo FRAME_TIMEOUT_MS, que encerra a tentativa travada sem
+    // tornar a validação dependente de uma opção específica da build.
+    "-i",
+    rtspUrl,
+    "-frames:v",
+    "1",
+    "-vf",
+    `scale=${SAMPLE_WIDTH}:${SAMPLE_HEIGHT}`,
+    "-pix_fmt",
+    "gray",
+    "-f",
+    "rawvideo",
+    "-",
+  ];
+}
+
 async function decodeSampleFrame(ffmpegPath: string, rtspUrl: string) {
   const result = await run(
     ffmpegPath,
-    [
-      "-hide_banner",
-      "-loglevel",
-      "error",
-      "-rtsp_transport",
-      "tcp",
-      "-rw_timeout",
-      "10000000",
-      "-i",
-      rtspUrl,
-      "-frames:v",
-      "1",
-      "-vf",
-      `scale=${SAMPLE_WIDTH}:${SAMPLE_HEIGHT}`,
-      "-pix_fmt",
-      "gray",
-      "-f",
-      "rawvideo",
-      "-",
-    ],
+    frameDecodeArguments(rtspUrl),
     FRAME_TIMEOUT_MS,
   );
 

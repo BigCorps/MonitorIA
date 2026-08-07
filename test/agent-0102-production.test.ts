@@ -5,15 +5,16 @@ import {
   AGENT_VERSION,
   hasUsablePairing,
 } from "../agent/src/service.js";
+import { frameDecodeArguments } from "../agent/src/discovery/validate.js";
 import { CAMERA_ANALYSIS_PLANS } from "../src/lib/analysis-plans.js";
 
-test("Agent e defaults de produção apontam para 0.10.3", async () => {
+test("Agent e defaults de produção apontam para 0.10.4", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../agent/package.json", import.meta.url), "utf8"),
   ) as { version: string };
 
-  assert.equal(AGENT_VERSION, "0.10.3");
-  assert.equal(packageJson.version, "0.10.3");
+  assert.equal(AGENT_VERSION, "0.10.4");
+  assert.equal(packageJson.version, "0.10.4");
 });
 
 test("instalador só considera utilizável um pareamento autenticável", () => {
@@ -22,6 +23,18 @@ test("instalador só considera utilizável um pareamento autenticável", () => {
   assert.equal(hasUsablePairing(true, "missing", false), false);
   assert.equal(hasUsablePairing(true, "ok", true), false);
   assert.equal(hasUsablePairing(false, "ok", false), false);
+});
+
+test("decodificação de amostra não usa rw_timeout incompatível", () => {
+  const args = frameDecodeArguments("rtsp://camera/stream");
+
+  assert.equal(args.includes("-rw_timeout"), false);
+  assert.deepEqual(args.slice(2, 6), [
+    "error",
+    "-rtsp_transport",
+    "tcp",
+    "-i",
+  ]);
 });
 
 test("plano detalhado agrupa atividade para reduzir chamadas", () => {

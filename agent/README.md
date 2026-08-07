@@ -1,4 +1,4 @@
-# MonitorIA Agent v0.10.3
+# MonitorIA Agent v0.10.4
 
 O Agent mantém o vídeo contínuo no computador local e envia somente quadros
 selecionados de acontecimentos reais.
@@ -18,7 +18,7 @@ shell é necessário. Atualizações preservam pareamento e câmeras já configu
 
 ## Movimento e custo
 
-A versão 0.10.3 rejeita localmente mudanças globais de exposição, comutação
+A versão 0.10.4 rejeita localmente mudanças globais de exposição, comutação
 de infravermelho e ruído difuso de sensor em baixa luz. Esses quadros não são
 enviados ao servidor e não geram chamada de modelo.
 
@@ -30,6 +30,10 @@ Se um token preservado de uma instalação anterior não puder mais ser aberto
 pelo cofre do Windows ou tiver sido revogado, o assistente gráfico solicita
 automaticamente um novo código. Não é necessário limpar arquivos nem abrir
 terminal para recuperar o pareamento.
+
+A validação inicial também é compatível com a build compartilhada do FFmpeg
+8.1 para Windows: o limite de tempo do processo substitui a opção
+`rw_timeout`, que essa combinação aceitava no ffprobe mas recusava no ffmpeg.
 
 ## Desenvolvimento
 

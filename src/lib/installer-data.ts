@@ -180,7 +180,7 @@ export async function getInstallerWorkspace(
       (camera: any) => camera.pairing_status === "paired",
     ).length,
     recommendedVersion:
-      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.3",
+      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.4",
     downloads,
     downloadAvailable: downloads.some((download) => download.available),
   };
