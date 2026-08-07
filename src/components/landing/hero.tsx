@@ -54,7 +54,7 @@ export function LandingFooter() {
       <div className={styles.footerRow}>
         <span>
           ©&nbsp;2026{" "}
-          
+          <a
             href="https://bigcorps.com.br"
             target="_blank"
             rel="noopener noreferrer"
