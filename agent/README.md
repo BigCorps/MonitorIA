@@ -1,4 +1,4 @@
-# MonitorIA Agent v0.10.2
+# MonitorIA Agent v0.10.3
 
 O Agent mantém o vídeo contínuo no computador local e envia somente quadros
 selecionados de acontecimentos reais.
@@ -18,13 +18,18 @@ shell é necessário. Atualizações preservam pareamento e câmeras já configu
 
 ## Movimento e custo
 
-A versão 0.10.2 rejeita localmente mudanças globais de exposição, comutação
+A versão 0.10.3 rejeita localmente mudanças globais de exposição, comutação
 de infravermelho e ruído difuso de sensor em baixa luz. Esses quadros não são
 enviados ao servidor e não geram chamada de modelo.
 
 O plano Detalhada também passa a exigir três quadros consecutivos, agrupa
 atividade por mais tempo e usa 15 segundos de intervalo antes de abrir outro
 evento. O limite rígido de cinco minutos permanece como proteção.
+
+Se um token preservado de uma instalação anterior não puder mais ser aberto
+pelo cofre do Windows ou tiver sido revogado, o assistente gráfico solicita
+automaticamente um novo código. Não é necessário limpar arquivos nem abrir
+terminal para recuperar o pareamento.
 
 ## Desenvolvimento
 

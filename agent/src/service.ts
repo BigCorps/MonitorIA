@@ -47,7 +47,25 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.2";
+export const AGENT_VERSION = "0.10.3";
+
+export type TokenState = "ok" | "locked" | "missing";
+
+/**
+ * Ter um agent.json não significa que o computador ainda esteja pareado.
+ *
+ * Se o DPAPI não consegue abrir o token (por exemplo, após uma migração de
+ * cofre) ou se o servidor o revogou, o instalador precisa pedir um código
+ * novo. Tratar apenas a presença do arquivo como pareamento deixava o Agent
+ * preso: ele pulava a tela do código, mas também não conseguia autenticar.
+ */
+export function hasUsablePairing(
+  configPresent: boolean,
+  tokenState: TokenState,
+  unauthorized: boolean,
+) {
+  return configPresent && tokenState === "ok" && !unauthorized;
+}
 /**
  * Domínio canônico.
  *
@@ -173,7 +191,7 @@ export class AgentService {
   private unauthorized = false;
   private unauthorizedSince: number | null = null;
   private everAuthenticated = false;
-  private tokenState: "ok" | "locked" | "missing" = "missing";
+  private tokenState: TokenState = "missing";
   private readonly cameraBackoff = new Map<
     string,
     { attempts: number; nextAttemptAt: number; code: string; message: string }
@@ -960,7 +978,9 @@ export class AgentService {
   }
 
   private async pair(payload: Record<string, unknown>) {
-    if (this.config) {
+    if (
+      hasUsablePairing(Boolean(this.config), this.tokenState, this.unauthorized)
+    ) {
       throw new IpcError(
         "bad_request",
         'Este computador já está pareado. Use "unpair" antes de parear novamente.',
@@ -1006,6 +1026,21 @@ export class AgentService {
       pairedAt: new Date().toISOString(),
       cameras: {},
     };
+
+    // O código só substitui uma configuração anterior depois que o servidor
+    // o aceitou e o novo token já está protegido localmente. Se o código for
+    // inválido, a configuração antiga permanece intacta para diagnóstico.
+    for (const cameraId of [...this.runtimes.keys()]) {
+      await this.stopRuntime(cameraId, "repaired");
+    }
+
+    this.vault.clear();
+    this.token = null;
+    this.cameras = [];
+    this.cameraBackoff.clear();
+    this.unauthorized = false;
+    this.unauthorizedSince = null;
+    this.everAuthenticated = false;
 
     await saveConfig(config);
     this.config = config;
@@ -1211,7 +1246,11 @@ export class AgentService {
     return {
       version: AGENT_VERSION,
       startedAt: this.startedAt,
-      paired: Boolean(this.config),
+      paired: hasUsablePairing(
+        Boolean(this.config),
+        this.tokenState,
+        this.unauthorized,
+      ),
       unauthorized: this.unauthorized,
       everAuthenticated: this.everAuthenticated,
       tokenState: this.tokenState,

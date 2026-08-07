@@ -1,16 +1,27 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { AGENT_VERSION } from "../agent/src/service.js";
+import {
+  AGENT_VERSION,
+  hasUsablePairing,
+} from "../agent/src/service.js";
 import { CAMERA_ANALYSIS_PLANS } from "../src/lib/analysis-plans.js";
 
-test("Agent e defaults de produção apontam para 0.10.2", async () => {
+test("Agent e defaults de produção apontam para 0.10.3", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../agent/package.json", import.meta.url), "utf8"),
   ) as { version: string };
 
-  assert.equal(AGENT_VERSION, "0.10.2");
-  assert.equal(packageJson.version, "0.10.2");
+  assert.equal(AGENT_VERSION, "0.10.3");
+  assert.equal(packageJson.version, "0.10.3");
+});
+
+test("instalador só considera utilizável um pareamento autenticável", () => {
+  assert.equal(hasUsablePairing(true, "ok", false), true);
+  assert.equal(hasUsablePairing(true, "locked", false), false);
+  assert.equal(hasUsablePairing(true, "missing", false), false);
+  assert.equal(hasUsablePairing(true, "ok", true), false);
+  assert.equal(hasUsablePairing(false, "ok", false), false);
 });
 
 test("plano detalhado agrupa atividade para reduzir chamadas", () => {
