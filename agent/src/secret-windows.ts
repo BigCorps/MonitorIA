@@ -24,23 +24,34 @@ import { machineEntropy } from "./paths.js";
  */
 
 const PREFIX_V2 = "v2:";
-const POWERSHELL_TIMEOUT_MS = 20_000;
+const POWERSHELL_TIMEOUT_MS = 30_000;
 
 type Scope = "LocalMachine" | "CurrentUser";
 type Operation = "Protect" | "Unprotect";
 
 function buildScript(operation: Operation, scope: Scope) {
-  // O script recebe duas linhas em stdin: payload base64 e entropia base64.
-  // A entropia pode vir vazia, para o formato legado.
+  /**
+   * Lê exatamente duas linhas.
+   *
+   * Antes era usado ReadToEnd(). Em executáveis compilados pelo Bun no
+   * Windows, especialmente no runner do GitHub Actions, o pipe pode continuar
+   * aberto mesmo depois de `stdin.end()` e o PowerShell fica aguardando EOF
+   * até estourar o timeout.
+   *
+   * Como o protocolo sempre possui exatamente duas linhas (payload e
+   * entropia, que pode ser vazia), ReadLine() elimina a dependência do EOF sem
+   * mover o segredo para argumentos de processo ou variáveis de ambiente.
+   */
   return [
     "$ErrorActionPreference = 'Stop'",
     "Add-Type -AssemblyName System.Security",
-    "$raw = [Console]::In.ReadToEnd()",
-    "$lines = $raw -split \"`r?`n\"",
-    "$payload = [Convert]::FromBase64String($lines[0].Trim())",
+    "$payloadLine = [Console]::In.ReadLine()",
+    "$entropyLine = [Console]::In.ReadLine()",
+    "if ($null -eq $payloadLine -or $payloadLine.Trim().Length -eq 0) { throw 'Payload ausente.' }",
+    "$payload = [Convert]::FromBase64String($payloadLine.Trim())",
     "$entropy = $null",
-    "if ($lines.Length -gt 1) {",
-    "  $candidate = $lines[1].Trim()",
+    "if ($null -ne $entropyLine) {",
+    "  $candidate = $entropyLine.Trim()",
     "  if ($candidate.Length -gt 0) { $entropy = [Convert]::FromBase64String($candidate) }",
     "}",
     `$scope = [System.Security.Cryptography.DataProtectionScope]::${scope}`,
@@ -124,7 +135,17 @@ function runPowerShell(script: string, stdinPayload: string) {
       finish(new Error(hint));
     });
 
-    child.stdin.end(stdinPayload, "utf8");
+    child.stdin.on("error", (error) => {
+      finish(
+        new Error(
+          `Não foi possível enviar os dados ao DPAPI: ${error.message}`,
+        ),
+      );
+    });
+
+    // O protocolo possui sempre duas linhas. A segunda pode ser vazia.
+    // O newline final garante que ReadLine() conclua sem esperar EOF.
+    child.stdin.end(`${stdinPayload.replace(/\r?\n$/, "")}\n`, "utf8");
   });
 }
 
@@ -133,7 +154,7 @@ export async function protectWindows(plain: string) {
   const entropy = await machineEntropy();
   const payload = Buffer.from(plain, "utf8").toString("base64");
   const script = buildScript("Protect", "LocalMachine");
-  const result = await runPowerShell(script, `${payload}\n${entropy}`);
+  const result = await runPowerShell(script, `${payload}\n${entropy}\n`);
 
   return `${PREFIX_V2}${result}`;
 }
@@ -153,17 +174,23 @@ export async function revealWindows(stored: string): Promise<WindowsRevealResult
     const script = buildScript("Unprotect", "LocalMachine");
     const output = await runPowerShell(
       script,
-      `${trimmed.slice(PREFIX_V2.length)}\n${entropy}`,
+      `${trimmed.slice(PREFIX_V2.length)}\n${entropy}\n`,
     );
 
-    return { value: Buffer.from(output, "base64").toString("utf8"), legacy: false };
+    return {
+      value: Buffer.from(output, "base64").toString("utf8"),
+      legacy: false,
+    };
   }
 
   // Formato legado: CurrentUser, sem entropia. Só decifra se o serviço
   // estiver rodando sob o mesmo perfil que pareou — por isso a migração
   // precisa acontecer antes de converter o Agent em serviço.
   const script = buildScript("Unprotect", "CurrentUser");
-  const output = await runPowerShell(script, `${trimmed}\n`);
+  const output = await runPowerShell(script, `${trimmed}\n\n`);
 
-  return { value: Buffer.from(output, "base64").toString("utf8"), legacy: true };
+  return {
+    value: Buffer.from(output, "base64").toString("utf8"),
+    legacy: true,
+  };
 }
