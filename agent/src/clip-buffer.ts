@@ -31,11 +31,6 @@ type RunResult = {
   stderr: string;
 };
 
-type EncoderProfile = {
-  name: string;
-  args: string[];
-};
-
 export type BuiltClip = {
   path: string;
   byteSize: number;
@@ -85,10 +80,12 @@ function run(
 
     child.on("close", (code) => {
       clearTimeout(timer);
+
       if (timedOut) {
         reject(new Error("A operação do FFmpeg excedeu o limite."));
         return;
       }
+
       resolve({
         code: code ?? -1,
         stdout,
@@ -102,78 +99,12 @@ function concatPath(value: string) {
   return value.replace(/\\/g, "/").replace(/'/g, "'\\''");
 }
 
-function encoderProfiles(output: string): EncoderProfile[] {
-  const available = new Set<string>();
-
-  for (const line of output.split(/\r?\n/)) {
-    const match = line.match(/^\s*[VAS\.]{6}\s+([^\s]+)/);
-    if (match?.[1]) available.add(match[1]);
-  }
-
-  const profiles: EncoderProfile[] = [];
-
-  // Media Foundation faz parte do FFmpeg no Windows e pode operar por
-  // software ou hardware. É a primeira escolha porque permanece compatível
-  // com a build LGPL distribuída pelo MonitorIA.
-  if (available.has("h264_mf")) {
-    profiles.push({
-      name: "h264_mf",
-      args: [
-        "-c:v",
-        "h264_mf",
-        "-pix_fmt",
-        "nv12",
-        "-b:v",
-        "2500k",
-        "-maxrate",
-        "3500k",
-        "-bufsize",
-        "5000k",
-      ],
-    });
-  }
-
-  // Mantidos como alternativas quando presentes em outra distribuição.
-  if (available.has("libopenh264")) {
-    profiles.push({
-      name: "libopenh264",
-      args: [
-        "-c:v",
-        "libopenh264",
-        "-pix_fmt",
-        "yuv420p",
-        "-b:v",
-        "2500k",
-      ],
-    });
-  }
-
-  if (available.has("libx264")) {
-    profiles.push({
-      name: "libx264",
-      args: [
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "24",
-        "-pix_fmt",
-        "yuv420p",
-      ],
-    });
-  }
-
-  return profiles;
-}
-
 export class CircularClipBuffer {
   private process: ChildProcess | null = null;
   private directory = "";
   private stopped = false;
   private pruneTimer: NodeJS.Timeout | null = null;
   private restartTimer: NodeJS.Timeout | null = null;
-  private encoders: EncoderProfile[] | null = null;
 
   constructor(
     private readonly options: {
@@ -194,6 +125,7 @@ export class CircularClipBuffer {
       "clip-buffer",
       safeCameraId(this.options.cameraId),
     );
+
     await mkdir(this.directory, { recursive: true });
     await this.prune();
 
@@ -202,18 +134,6 @@ export class CircularClipBuffer {
       () => void this.prune(),
       15_000,
     );
-
-    // Descobre o encoder já no início para que o log mostre claramente a
-    // capacidade da máquina antes do primeiro acontecimento.
-    try {
-      await this.resolveEncoders();
-    } catch (error) {
-      this.options.log(
-        `Buffer iniciado, mas nenhum encoder H.264 compatível foi detectado: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
 
     this.options.log(
       `Buffer circular de clipes iniciado em "${this.options.cameraName}".`,
@@ -225,6 +145,7 @@ export class CircularClipBuffer {
 
     const prefix = `${Date.now()}-%06d.ts`;
     const output = path.join(this.directory, prefix);
+
     const child = spawn(
       this.options.ffmpegPath,
       [
@@ -282,47 +203,12 @@ export class CircularClipBuffer {
           lastError ? `: ${lastError}` : "."
         } Reiniciando em 5 segundos.`,
       );
+
       this.restartTimer = setTimeout(
         () => this.spawnBuffer(),
         5_000,
       );
     });
-  }
-
-  private async resolveEncoders() {
-    if (this.encoders) return this.encoders;
-
-    const result = await run(
-      this.options.ffmpegPath,
-      ["-hide_banner", "-encoders"],
-      30_000,
-    );
-
-    if (result.code !== 0) {
-      throw new Error(
-        result.stderr.replace(/\s+/g, " ").trim().slice(0, 500) ||
-          `FFmpeg encerrou com código ${result.code}.`,
-      );
-    }
-
-    const profiles = encoderProfiles(
-      `${result.stdout}\n${result.stderr}`,
-    );
-
-    if (!profiles.length) {
-      throw new Error(
-        "Nenhum dos encoders h264_mf, libopenh264 ou libx264 está disponível.",
-      );
-    }
-
-    this.encoders = profiles;
-    this.options.log(
-      `Encoder(es) H.264 disponível(is): ${profiles
-        .map((profile) => profile.name)
-        .join(", ")}.`,
-    );
-
-    return profiles;
   }
 
   private async segments(): Promise<Segment[]> {
@@ -339,11 +225,12 @@ export class CircularClipBuffer {
       }
 
       const full = path.join(this.directory, entry.name);
+
       try {
         const item = await stat(full);
 
-        // O arquivo atualmente aberto pelo segment muxer pode aparecer com
-        // zero bytes por alguns instantes. Nunca o inclui no concat.
+        // O segment muxer cria o próximo arquivo antes de gravar conteúdo.
+        // Um arquivo vazio/aberto nunca deve entrar no concat.
         if (item.size < MIN_TS_SEGMENT_BYTES) continue;
 
         result.push({
@@ -352,7 +239,7 @@ export class CircularClipBuffer {
           bytes: item.size,
         });
       } catch {
-        // Segmento ainda sendo finalizado.
+        // O segmento pode estar sendo finalizado pelo FFmpeg.
       }
     }
 
@@ -364,6 +251,7 @@ export class CircularClipBuffer {
   async prune() {
     const segments = await this.segments();
     const now = Date.now();
+
     let total = segments.reduce(
       (sum, item) => sum + item.bytes,
       0,
@@ -386,6 +274,7 @@ export class CircularClipBuffer {
   ): Promise<BuiltClip> {
     const started = Date.now();
     const cpuStarted = process.cpuUsage();
+
     await this.prune();
 
     const requestedStart = Date.parse(request.clipStartsAt);
@@ -398,6 +287,7 @@ export class CircularClipBuffer {
         segment.modifiedAt <= requestedEnd + 8_000,
     );
 
+    // Fallback defensivo para relógio/mtime com pequena diferença.
     if (!selected.length) {
       selected = all.slice(-8);
     }
@@ -414,74 +304,74 @@ export class CircularClipBuffer {
       "clips",
       request.requestId,
     );
+
     await rm(work, { recursive: true, force: true });
     await mkdir(work, { recursive: true });
 
     const concatFile = path.join(work, "segments.txt");
     const output = path.join(work, "clip.mp4");
+
     const concat = selected
       .map((segment) => `file '${concatPath(segment.path)}'`)
       .join("\n");
+
     await writeFile(concatFile, `${concat}\n`, "utf8");
 
-    const profiles = await this.resolveEncoders();
-    const failures: string[] = [];
-    let successfulEncoder: string | null = null;
+    /**
+     * Não recodifica.
+     *
+     * O buffer já guarda o bitstream H.264 original da câmera. Recodificar
+     * exigia um encoder que não existe na build LGPL distribuída e ainda
+     * aumentava CPU, latência e risco de perda de qualidade.
+     *
+     * Aqui o FFmpeg apenas remuxa MPEG-TS -> MP4. `h264_mp4toannexb` não é
+     * necessário no sentido TS->MP4; o muxer MP4 recebe o H.264 copiado e
+     * escreve a configuração AVC adequada.
+     */
+    const result = await run(
+      this.options.ffmpegPath,
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-fflags",
+        "+genpts",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        concatFile,
+        "-map",
+        "0:v:0",
+        "-an",
+        "-c:v",
+        "copy",
+        "-avoid_negative_ts",
+        "make_zero",
+        "-movflags",
+        "+faststart",
+        "-t",
+        String(request.durationSeconds),
+        "-y",
+        output,
+      ],
+      60_000,
+    );
 
-    for (const profile of profiles) {
-      await rm(output, { force: true });
-
-      const result = await run(
-        this.options.ffmpegPath,
-        [
-          "-hide_banner",
-          "-loglevel",
-          "error",
-          "-f",
-          "concat",
-          "-safe",
-          "0",
-          "-i",
-          concatFile,
-          "-an",
-          "-vf",
-          "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
-          ...profile.args,
-          "-movflags",
-          "+faststart",
-          "-t",
-          String(request.durationSeconds),
-          "-y",
-          output,
-        ],
-        150_000,
-      );
-
-      if (result.code === 0) {
-        successfulEncoder = profile.name;
-        break;
-      }
-
-      failures.push(
-        `${profile.name}: ${
-          result.stderr.replace(/\s+/g, " ").trim().slice(0, 300) ||
-          `código ${result.code}`
-        }`,
-      );
-    }
-
-    if (!successfulEncoder) {
+    if (result.code !== 0) {
       throw new Error(
-        `Nenhum encoder H.264 conseguiu gerar o clipe. ${failures.join(" | ")}`.slice(
-          0,
-          900,
+        (
+          result.stderr.replace(/\s+/g, " ").trim().slice(0, 750) ||
+          `FFmpeg encerrou com código ${result.code}.`
         ),
       );
     }
 
     const outputStat = await stat(output);
+
     if (outputStat.size < 10_000) {
-      throw new Error("O clipe gerado está vazio ou incompleto.");
+      throw new Error("O clipe remuxado está vazio ou incompleto.");
     }
 
     if (outputStat.size > 25 * 1024 * 1024) {
@@ -491,7 +381,7 @@ export class CircularClipBuffer {
     const cpuUsed = process.cpuUsage(cpuStarted);
 
     this.options.log(
-      `Clipe H.264 gerado com ${successfulEncoder} · ${selected.length} segmento(s).`,
+      `Clipe remuxado sem recodificação · H.264 original · ${selected.length} segmento(s).`,
     );
 
     return {
@@ -508,10 +398,13 @@ export class CircularClipBuffer {
 
   async stop() {
     this.stopped = true;
+
     if (this.pruneTimer) clearInterval(this.pruneTimer);
     if (this.restartTimer) clearTimeout(this.restartTimer);
+
     this.process?.kill();
     this.process = null;
+
     await this.prune();
   }
 }
