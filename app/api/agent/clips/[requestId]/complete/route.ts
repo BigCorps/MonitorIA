@@ -26,7 +26,21 @@ const CompletionSchema = z
       .nullable(),
     durationSeconds: z.number().min(0).max(60).nullable(),
     generationMs: z.number().int().min(0).max(10 * 60 * 1000),
-    cpuTimeMs: z.number().int().min(0).max(10 * 60 * 1000),
+
+    // Compatibilidade com o Agent 0.10.0.
+    //
+    // A primeira build da Fase 8 já calcula cpuTimeMs no buffer local,
+    // porém não o incluiu no payload de conclusão. Tornar o campo opcional
+    // evita rejeitar o clipe inteiro por causa de uma métrica de diagnóstico.
+    // Agents posteriores podem continuar enviando o valor normalmente.
+    cpuTimeMs: z
+      .number()
+      .int()
+      .min(0)
+      .max(10 * 60 * 1000)
+      .optional()
+      .default(0),
+
     segmentsUsed: z.number().int().min(0).max(100),
     errorCode: z.string().trim().max(100).nullable(),
     errorMessage: z.string().trim().max(1000).nullable(),
