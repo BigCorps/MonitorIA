@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "0.10.1"
+  AGENT_VERSION: "0.10.2"
 
   # Dependências fixadas por hash. Nada de "latest": um binário que muda
   # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
@@ -42,24 +42,50 @@ jobs:
           no-cache: true
 
       - name: Instalar dependências
-        working-directory: agent
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Verificar TypeScript
-        working-directory: agent
-        run: bun run check
+        run: npx tsc --noEmit -p agent/tsconfig.json
 
-      - name: Gerar executável do Agent
-        working-directory: agent
-        run: bun run build:win
+      # Os dois executáveis são gerados na mesma etapa de propósito. O Agent
+      # 0.10.2 não pode passar ao autoteste sem o cofre DPAPI ao lado dele.
+      - name: Gerar Agent e componente de segurança
+        shell: pwsh
+        run: |
+          Push-Location agent
+          try {
+            bun run build:win
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o Agent." }
+          }
+          finally {
+            Pop-Location
+          }
+
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ([string]::IsNullOrWhiteSpace($visualStudio)) {
+            throw "Ferramentas C++ do Visual Studio não encontradas."
+          }
+
+          $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars64.bat"
+          $command = '"' + $vcvars + '" && cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE agent\native\dpapi.c /Fe:build\monitoria-dpapi.exe Crypt32.lib'
+          cmd.exe /d /s /c $command
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o componente DPAPI." }
+
+          Copy-Item build\monitoria-dpapi.exe agent\dist\monitoria-dpapi.exe
 
       - name: Validar executável
         working-directory: agent
         shell: pwsh
         run: |
           $exe = Resolve-Path "dist/monitoria-agent.exe"
+          $dpapi = Resolve-Path "dist/monitoria-dpapi.exe"
           if ((Get-Item $exe).Length -lt 1000000) {
             throw "Executável incompleto."
+          }
+          if ((Get-Item $dpapi).Length -lt 10000) {
+            throw "Componente de segurança incompleto."
           }
           & $exe self-test
           if ($LASTEXITCODE -ne 0) { throw "O autoteste falhou." }
