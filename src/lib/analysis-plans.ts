@@ -33,13 +33,13 @@ export const CAMERA_ANALYSIS_PLANS = {
     description:
       "Até quatro quadros para reconstruir acontecimentos rápidos ou críticos.",
     captureIntervalSeconds: 1,
-    consolidationIntervalSeconds: 1,
+    consolidationIntervalSeconds: 5,
     motionStartThreshold: 1,
     motionContinueThreshold: 0.5,
-    eventCloseAfterSeconds: 8,
-    motionStartConsecutiveFrames: 2,
-    motionEndConsecutiveFrames: 5,
-    motionCooldownSeconds: 5,
+    eventCloseAfterSeconds: 15,
+    motionStartConsecutiveFrames: 3,
+    motionEndConsecutiveFrames: 8,
+    motionCooldownSeconds: 15,
   },
 } as const;
 

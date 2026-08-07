@@ -398,11 +398,22 @@ export async function discoverDeviceStreams(options: {
 export async function discoverDevices(options?: {
   log?: (message: string) => void;
   skipScan?: boolean;
+  hosts?: string[];
 }): Promise<DiscoveredDevice[]> {
   const logger = options?.log;
   const byHost = new Map<string, DiscoveredDevice>();
 
   const probeOptions = logger ? { log: logger } : {};
+
+  // O instalador recebe o IP informado pelo usuário. Nesse modo não fazemos
+  // multicast nem varremos os outros 253 endereços da rede: a configuração
+  // fica mais rápida, previsível e não toca equipamentos de terceiros.
+  if (options?.hosts?.length) {
+    return scanLocalNetwork({
+      ...probeOptions,
+      hosts: options.hosts,
+    });
+  }
 
   for (const device of await probeOnvifDevices(probeOptions)) {
     byHost.set(device.host, device);

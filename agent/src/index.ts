@@ -1,4 +1,5 @@
 import { closePrompt, promptSecret, promptText } from "./cli.js";
+import { readFile, rm } from "node:fs/promises";
 import { loadConfig, removeConfig } from "./config.js";
 import { protectSecret, revealSecret } from "./secret-store.js";
 import {
@@ -90,6 +91,196 @@ async function commandPair() {
   console.log(`Câmera: ${String(result.cameraName)}`);
   console.log(`\nInforme o endereço RTSP com:`);
   console.log(`  monitoria-agent camera --id ${String(result.cameraId)}`);
+}
+
+class SetupError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "camera" | "input",
+  ) {
+    super(message);
+    this.name = "SetupError";
+  }
+}
+
+type SetupInput = {
+  code?: string;
+  apiBaseUrl?: string;
+  cameraHost: string;
+  username: string;
+  password?: string;
+  channel?: number;
+};
+
+function setupInput(value: unknown): SetupInput {
+  if (!value || typeof value !== "object") {
+    throw new SetupError("Arquivo de configuração inválido.", "input");
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const cameraHost =
+    typeof candidate.cameraHost === "string"
+      ? candidate.cameraHost.trim()
+      : "";
+  const username =
+    typeof candidate.username === "string"
+      ? candidate.username.trim()
+      : "";
+
+  if (!cameraHost || !username) {
+    throw new SetupError(
+      "O endereço e o usuário da câmera são obrigatórios.",
+      "input",
+    );
+  }
+
+  return {
+    cameraHost,
+    username,
+    password:
+      typeof candidate.password === "string"
+        ? candidate.password
+        : "",
+    code:
+      typeof candidate.code === "string"
+        ? candidate.code.trim()
+        : "",
+    apiBaseUrl:
+      typeof candidate.apiBaseUrl === "string"
+        ? candidate.apiBaseUrl.trim()
+        : DEFAULT_API_URL,
+    channel:
+      typeof candidate.channel === "number" &&
+      Number.isInteger(candidate.channel) &&
+      candidate.channel > 0
+        ? candidate.channel
+        : 1,
+  };
+}
+
+/** Configuração não interativa usada exclusivamente pelo assistente gráfico. */
+async function commandSetup() {
+  const file = argumentValue("--file");
+  if (!file) {
+    throw new SetupError("O arquivo temporário não foi informado.", "input");
+  }
+
+  let input: SetupInput;
+
+  try {
+    const raw = await readFile(file, "utf8");
+    if (Buffer.byteLength(raw, "utf8") > 64 * 1024) {
+      throw new SetupError("Arquivo de configuração muito grande.", "input");
+    }
+    input = setupInput(JSON.parse(raw) as unknown);
+  } catch (error) {
+    if (error instanceof SetupError) throw error;
+    throw new SetupError("Não foi possível ler a configuração inicial.", "input");
+  } finally {
+    // A senha da câmera nunca permanece no disco depois da leitura.
+    await rm(file, { force: true }).catch(() => undefined);
+  }
+
+  const status = await callAgent("status");
+  let cameraId: string | null = null;
+
+  if (!status.paired) {
+    if (!input.code) {
+      throw new SetupError("O código de pareamento é obrigatório.", "input");
+    }
+
+    const paired = await callAgent("pair", {
+      code: input.code,
+      apiBaseUrl: input.apiBaseUrl ?? DEFAULT_API_URL,
+    });
+    cameraId = String(paired.cameraId ?? "") || null;
+  } else {
+    const listed = await callAgent("camera.list");
+    const cameras = Array.isArray(listed.cameras)
+      ? listed.cameras
+      : [];
+    const target = cameras.find((raw) => {
+      const camera = raw as Record<string, unknown>;
+      return camera.rtspConfigured !== true;
+    }) as Record<string, unknown> | undefined;
+
+    if (!target) {
+      console.log("O MonitorIA já está pareado e com câmera configurada.");
+      return;
+    }
+
+    cameraId = String(target.id ?? "") || null;
+  }
+
+  if (!cameraId) {
+    throw new SetupError(
+      "Nenhuma câmera disponível para receber a configuração.",
+      "camera",
+    );
+  }
+
+  let discovery: Record<string, unknown>;
+
+  try {
+    discovery = await callAgent("discovery.scan", {
+      username: input.username,
+      password: input.password ?? "",
+      channels: [input.channel ?? 1],
+      hosts: [input.cameraHost],
+    });
+  } catch (error) {
+    throw new SetupError(
+      `Não foi possível validar a câmera: ${errorMessage(error)}`,
+      "camera",
+    );
+  }
+
+  const devices = Array.isArray(discovery.devices)
+    ? discovery.devices
+    : [];
+  const device = devices.find((raw) => {
+    const candidate = raw as Record<string, unknown>;
+    return (
+      candidate.host === input.cameraHost &&
+      Array.isArray(candidate.streams) &&
+      candidate.streams.length > 0
+    );
+  }) as Record<string, unknown> | undefined;
+
+  if (!device) {
+    throw new SetupError(
+      "A câmera foi localizada, mas nenhum vídeo pôde ser validado. Confira IP, usuário, senha, canal e se o RTSP está habilitado.",
+      "camera",
+    );
+  }
+
+  try {
+    await callAgent("discovery.bind", {
+      deviceId: String(device.deviceId),
+      cameraId,
+      streamIndex: 0,
+    });
+  } catch (error) {
+    throw new SetupError(
+      `A câmera foi validada, mas não pôde ser vinculada: ${errorMessage(error)}`,
+      "camera",
+    );
+  }
+
+  console.log("Pareamento e câmera configurados com sucesso.");
+}
+
+async function commandCheckReady(requireCamera: boolean) {
+  const status = await callAgent("status");
+  if (!status.paired) {
+    process.exitCode = EXIT.CONFIGURACAO_INCOMPLETA;
+    return;
+  }
+
+  if (!requireCamera) return;
+  if (Number(status.camerasConfiguredLocal ?? 0) < 1) {
+    process.exitCode = EXIT.CONFIGURACAO_INCOMPLETA;
+  }
 }
 
 async function commandCamera() {
@@ -385,6 +576,15 @@ async function main() {
     case "pair":
       await commandPair();
       return;
+    case "setup":
+      await commandSetup();
+      return;
+    case "paired-check":
+      await commandCheckReady(false);
+      return;
+    case "ready-check":
+      await commandCheckReady(true);
+      return;
     case "camera":
       await commandCamera();
       return;
@@ -433,12 +633,20 @@ const EXIT = {
   SERVICO_PARADO: 4,
   SEM_PERMISSAO: 5,
   PAREAMENTO_RECUSADO: 6,
+  CONFIGURACAO_INCOMPLETA: 7,
+  CAMERA_NAO_CONFIGURADA: 8,
+  ENTRADA_INVALIDA: 9,
 } as const;
 
 function exitCodeFor(error: unknown) {
   if (error instanceof AgentNotRunningError) return EXIT.SERVICO_PARADO;
   if (error instanceof AgentAccessDeniedError) return EXIT.SEM_PERMISSAO;
   if (error instanceof PermissionError) return EXIT.SEM_PERMISSAO;
+  if (error instanceof SetupError) {
+    return error.kind === "camera"
+      ? EXIT.CAMERA_NAO_CONFIGURADA
+      : EXIT.ENTRADA_INVALIDA;
+  }
 
   if (error instanceof Error && error.message.startsWith("Pareamento recusado")) {
     return EXIT.PAREAMENTO_RECUSADO;

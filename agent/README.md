@@ -1,46 +1,33 @@
-# MonitorIA Agent v0.8.1
+# MonitorIA Agent v0.10.2
 
-O Agent mantém o vídeo contínuo no computador local e envia
-somente quadros selecionados de acontecimentos.
+O Agent mantém o vídeo contínuo no computador local e envia somente quadros
+selecionados de acontecimentos reais.
 
-## Novidade: capítulos de atividade
+## Instalação no Windows
 
-Ambientes comerciais podem permanecer em movimento por vários
-minutos sem atingir silêncio completo. A v0.8.1 divide esse fluxo
-em capítulos quando:
+O usuário final utiliza apenas o `MonitorIA-Setup.exe`:
 
-- a região predominante do movimento muda de forma sustentada;
-- o capítulo chega ao limite próprio do modo;
-- o movimento realmente termina.
+1. gera o código de pareamento da câmera no painel;
+2. abre o instalador e confirma a solicitação do Windows;
+3. informa código, IP, usuário, senha e canal da câmera ou DVR;
+4. aguarda a validação automática do vídeo.
 
-Limites iniciais:
+O instalador registra e inicia o serviço, faz o pareamento, descobre o stream
+RTSP compatível e configura a inicialização automática. Nenhum terminal ou
+shell é necessário. Atualizações preservam pareamento e câmeras já configuradas.
 
-| Modo | Mínimo antes de dividir | Limite do capítulo |
-|---|---:|---:|
-| Econômico | 60 s | 240 s |
-| Equilibrado | 30 s | 150 s |
-| Detalhado | 15 s | 90 s |
+## Movimento e custo
 
-O limite rígido de cinco minutos permanece apenas como proteção.
+A versão 0.10.2 rejeita localmente mudanças globais de exposição, comutação
+de infravermelho e ruído difuso de sensor em baixa luz. Esses quadros não são
+enviados ao servidor e não geram chamada de modelo.
 
-## Atualização
+O plano Detalhada também passa a exigir três quadros consecutivos, agrupa
+atividade por mais tempo e usa 15 segundos de intervalo antes de abrir outro
+evento. O limite rígido de cinco minutos permanece como proteção.
 
-A configuração local é compatível. Feche o executável anterior,
-substitua o arquivo e não execute `reset`.
+## Desenvolvimento
 
-```powershell
-Unblock-File "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe" self-test
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe" status
-& "$env:USERPROFILE\Downloads\monitoria-agent.exe"
-```
-
-Nos logs, os novos motivos podem aparecer como:
-
-```text
-activity_region_changed
-activity_resumed
-activity_chapter_limit
-motion_stopped
-```
+O cofre do Windows usa `CryptProtectData` por meio do componente nativo
+`agent/native/dpapi.c`. O workflow compila e assina esse componente junto com
+o Agent; não há dependência de terminal no computador do cliente.

@@ -3,10 +3,9 @@ import { protectSecret, revealSecret } from "./secret-store.js";
 /**
  * Camada de cache sobre o DPAPI.
  *
- * Cada chamada ao DPAPI abre um processo do PowerShell — algo entre 150 ms e
- * 600 ms em máquina de loja. O Agent lê o token a cada heartbeat e a URL RTSP
- * a cada reconexão de câmera; sem cache, isso vira dezenas de processos por
- * minuto e um vetor de falha quando o PowerShell está sob política restritiva.
+ * Cada chamada ao DPAPI abre o componente nativo isolado. O Agent lê o token
+ * a cada heartbeat e a URL RTSP a cada reconexão de câmera; sem cache, isso
+ * ainda criaria processos desnecessários durante todo o dia.
  *
  * O cofre decifra uma vez e mantém em memória enquanto o serviço vive. Os
  * segredos ficam no heap do processo do serviço, que roda como LocalSystem —

@@ -179,8 +179,8 @@ export class PermissionError extends Error {
   constructor(readonly directory: string) {
     super(
       `Sem permissão para acessar ${directory}. ` +
-        "Feche esta janela e abra o Prompt de Comando ou o PowerShell com o " +
-        'botão direito, escolhendo "Executar como administrador".',
+        "Execute novamente o instalador do MonitorIA e confirme a solicitação " +
+        "de administrador do Windows.",
     );
     this.name = "PermissionError";
   }

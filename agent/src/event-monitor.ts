@@ -46,6 +46,9 @@ type ActiveEvent = {
   regionShiftFrames: number;
   motionRegions: Set<string>;
   maxMotionSpreadPercent: number;
+  maxMotionDensityPercent: number;
+  startMeanLuma: number;
+  maxDirectionalChangeRatio: number;
 };
 
 export type CameraEventMonitor = {
@@ -146,6 +149,7 @@ export function startCameraEventMonitor(options: {
   let stopped = false;
   let captureChain = Promise.resolve();
   let startCandidateFrames = 0;
+  let suppressedCameraNoiseSamples = 0;
   let cooldownUntilMs = 0;
   let requireQuietBeforeRestart = false;
   let quietRecoveryFrames = 0;
@@ -364,6 +368,14 @@ export function startCameraEventMonitor(options: {
         motionSpreadPercent: rounded(
           event.maxMotionSpreadPercent,
         ),
+        motionDensityPercent: rounded(
+          event.maxMotionDensityPercent,
+        ),
+        startMeanLuma: rounded(event.startMeanLuma),
+        maxDirectionalChangeRatio: rounded(
+          event.maxDirectionalChangeRatio,
+        ),
+        suppressedCameraNoiseSamples,
         closeReason,
       },
       frames,
@@ -431,6 +443,7 @@ export function startCameraEventMonitor(options: {
 
     if (requireQuietBeforeRestart) {
       if (
+        sample.likelyCameraNoise ||
         sample.changedPixelPercent <
         lastSnapshot.effectiveContinueThreshold
       ) {
@@ -457,15 +470,25 @@ export function startCameraEventMonitor(options: {
 
     if (!activeEvent) {
       if (
+        !sample.likelyCameraNoise &&
         sample.changedPixelPercent >=
         lastSnapshot.effectiveStartThreshold
       ) {
         startCandidateFrames += 1;
       } else {
+        if (sample.likelyCameraNoise) {
+          suppressedCameraNoiseSamples += 1;
+        }
         startCandidateFrames = 0;
       }
 
-      if (startCandidateFrames < startConsecutiveFrames) {
+      // Sensores em baixa luz têm mais ruído temporal. Um único quadro extra
+      // custa no máximo um intervalo local e evita que cintilação de IR vire
+      // upload e chamada de modelo durante a madrugada.
+      const requiredStartFrames =
+        startConsecutiveFrames + (sample.meanLuma <= 52 ? 1 : 0);
+
+      if (startCandidateFrames < requiredStartFrames) {
         return;
       }
 
@@ -498,6 +521,10 @@ export function startCameraEventMonitor(options: {
           sample.dominantRegion ? [sample.dominantRegion] : [],
         ),
         maxMotionSpreadPercent: sample.motionSpreadPercent,
+        maxMotionDensityPercent: sample.motionDensityPercent,
+        startMeanLuma: sample.meanLuma,
+        maxDirectionalChangeRatio:
+          sample.directionalChangeRatio,
       };
 
       options.log(
@@ -509,12 +536,17 @@ export function startCameraEventMonitor(options: {
     }
 
     const event = activeEvent;
+    const meaningfulMotionPercent = sample.likelyCameraNoise
+      ? 0
+      : sample.changedPixelPercent;
     event.framesObserved += 1;
     event.samples += 1;
-    event.motionSum += sample.changedPixelPercent;
+    event.motionSum += meaningfulMotionPercent;
     event.rawPeakMotionPercent = Math.max(
       event.rawPeakMotionPercent,
-      sample.rawChangedPixelPercent,
+      sample.likelyCameraNoise
+        ? 0
+        : sample.rawChangedPixelPercent,
     );
     event.ignoredPixelPercent = sample.ignoredPixelPercent;
     event.autoIgnoredCellCount = sample.autoIgnoredCellCount;
@@ -525,12 +557,24 @@ export function startCameraEventMonitor(options: {
       event.maxMotionSpreadPercent,
       sample.motionSpreadPercent,
     );
+    event.maxMotionDensityPercent = Math.max(
+      event.maxMotionDensityPercent,
+      sample.motionDensityPercent,
+    );
+    event.maxDirectionalChangeRatio = Math.max(
+      event.maxDirectionalChangeRatio,
+      sample.directionalChangeRatio,
+    );
+
+    if (sample.likelyCameraNoise) {
+      suppressedCameraNoiseSamples += 1;
+    }
 
     const quietFramesBeforeSample =
       event.quietFrames;
 
     if (
-      sample.changedPixelPercent >=
+      meaningfulMotionPercent >=
       lastSnapshot.effectiveContinueThreshold
     ) {
       event.lastMotionMs = sampleMs;
@@ -546,7 +590,7 @@ export function startCameraEventMonitor(options: {
       plan.chapterMaximumSeconds * 1000;
 
     if (
-      sample.changedPixelPercent >=
+      meaningfulMotionPercent >=
         lastSnapshot.effectiveContinueThreshold &&
       sample.motionCentroidX !== null &&
       sample.motionCentroidY !== null
@@ -599,7 +643,7 @@ export function startCameraEventMonitor(options: {
     if (
       ageMs >= chapterMinimumMs &&
       quietFramesBeforeSample >= 3 &&
-      sample.changedPixelPercent >=
+      meaningfulMotionPercent >=
         lastSnapshot.effectiveStartThreshold
     ) {
       void finalizeEvent(
@@ -624,7 +668,7 @@ export function startCameraEventMonitor(options: {
 
     if (
       ageMs >= chapterMaximumMs &&
-      sample.changedPixelPercent >=
+      meaningfulMotionPercent >=
         lastSnapshot.effectiveStartThreshold
     ) {
       void finalizeEvent(
@@ -650,7 +694,7 @@ export function startCameraEventMonitor(options: {
     );
 
     if (
-      sample.changedPixelPercent >=
+      meaningfulMotionPercent >=
         event.peakMotionPercent + peakImprovement &&
       sampleMs - event.lastPeakCaptureMs >= consolidationMs
     ) {
@@ -660,7 +704,7 @@ export function startCameraEventMonitor(options: {
     } else {
       event.peakMotionPercent = Math.max(
         event.peakMotionPercent,
-        sample.changedPixelPercent,
+        meaningfulMotionPercent,
       );
     }
 

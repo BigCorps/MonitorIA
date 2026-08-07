@@ -117,43 +117,41 @@ export default async function InstallerPage() {
               <li>
                 <span>1</span>
                 <div>
-                  <strong>Baixe o instalador</strong>
+                  <strong>Gere o código da câmera</strong>
                   <p>
-                    Use um computador que permaneça ligado e tenha acesso à
-                    mesma rede das câmeras.
+                    Em Câmeras, abra a câmera que será conectada e gere o
+                    código de pareamento. Ele vale 15 minutos.
                   </p>
                 </div>
               </li>
               <li>
                 <span>2</span>
                 <div>
-                  <strong>Autorize e teste o instalador</strong>
-                  <code>
-                    Unblock-File
-                    "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
-                  </code>
-                  <code>
-                    & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe" self-test
-                  </code>
+                  <strong>Baixe e abra o instalador</strong>
+                  <p>
+                    Dê dois cliques no arquivo baixado e confirme a
+                    solicitação de administrador do Windows.
+                  </p>
                 </div>
               </li>
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Cadastre ou conecte a câmera</strong>
+                  <strong>Informe o código e os dados da câmera</strong>
                   <p>
-                    As informações de acesso da câmera ficam protegidas somente
-                    neste computador.
+                    O assistente pede o IP, usuário, senha e canal do gravador.
+                    A senha fica protegida somente neste computador.
                   </p>
                 </div>
               </li>
               <li>
                 <span>4</span>
                 <div>
-                  <strong>Inicie o MonitorIA</strong>
-                  <code>
-                    & "$env:USERPROFILE\Downloads\MonitorIA-Setup.exe"
-                  </code>
+                  <strong>Pronto</strong>
+                  <p>
+                    O instalador valida o vídeo, conecta a câmera e configura
+                    o MonitorIA para iniciar automaticamente com o Windows.
+                  </p>
                 </div>
               </li>
             </ol>

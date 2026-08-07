@@ -22,6 +22,11 @@ export type MotionSample = {
   dominantRegion: string | null;
   activeRegionCount: number;
   motionSpreadPercent: number;
+  motionDensityPercent: number;
+  meanLuma: number;
+  meanLumaDelta: number;
+  directionalChangeRatio: number;
+  likelyCameraNoise: boolean;
 };
 
 export type MotionCalculation = {
@@ -34,7 +39,59 @@ export type MotionCalculation = {
   dominantRegion: string | null;
   activeRegionCount: number;
   motionSpreadPercent: number;
+  motionDensityPercent: number;
+  meanLuma: number;
+  meanLumaDelta: number;
+  directionalChangeRatio: number;
 };
+
+export type MotionQualityInput = Pick<
+  MotionCalculation,
+  | "changedPixelPercent"
+  | "meanAbsoluteDifference"
+  | "activeRegionCount"
+  | "motionSpreadPercent"
+  | "motionDensityPercent"
+  | "meanLuma"
+  | "meanLumaDelta"
+  | "directionalChangeRatio"
+>;
+
+/**
+ * Distingue deslocamento localizado de duas fontes comuns de falso evento:
+ * mudança uniforme de exposição/IR e ruído difuso de sensor em baixa luz.
+ *
+ * É uma barreira determinística e conservadora: ela só rejeita quando a
+ * alteração ocupa quase todo o quadro. Uma pessoa atravessando a imagem
+ * normalmente produz bordas claras e escuras (baixa direcionalidade), ainda
+ * que o retângulo percorrido seja grande.
+ */
+export function isLikelyCameraNoise(sample: MotionQualityInput) {
+  const globalIlluminationChange =
+    sample.activeRegionCount >= 7 &&
+    sample.motionSpreadPercent >= 75 &&
+    sample.directionalChangeRatio >= 0.82 &&
+    Math.abs(sample.meanLumaDelta) >= 2.5;
+
+  const diffuseLowLightNoise =
+    sample.meanLuma <= 52 &&
+    sample.activeRegionCount >= 3 &&
+    sample.motionSpreadPercent >= 80 &&
+    sample.motionDensityPercent <= 8;
+
+  const sparseWholeFrameNoise =
+    sample.activeRegionCount >= 3 &&
+    sample.motionSpreadPercent >= 88 &&
+    sample.motionDensityPercent <= 3.5 &&
+    sample.meanAbsoluteDifference <= 8;
+
+  return (
+    sample.changedPixelPercent > 0 &&
+    (globalIlluminationChange ||
+      diffuseLowLightNoise ||
+      sparseWholeFrameNoise)
+  );
+}
 
 function pointInPolygon(
   x: number,
@@ -165,6 +222,10 @@ export function calculateMotion(
   let changedPixels = 0;
   let analyzedPixels = 0;
   let absoluteDifferenceTotal = 0;
+  let previousLumaTotal = 0;
+  let currentLumaTotal = 0;
+  let positiveChangedPixels = 0;
+  let negativeChangedPixels = 0;
   let changedXTotal = 0;
   let changedYTotal = 0;
   let minChangedX = MOTION_WIDTH;
@@ -176,15 +237,20 @@ export function calculateMotion(
   for (let index = 0; index < current.length; index += 1) {
     if (ignoredPixels?.[index]) continue;
 
-    const difference = Math.abs(
-      Number(current[index]) - Number(previous[index]),
-    );
+    const previousLuma = Number(previous[index]);
+    const currentLuma = Number(current[index]);
+    const signedDifference = currentLuma - previousLuma;
+    const difference = Math.abs(signedDifference);
 
     analyzedPixels += 1;
     absoluteDifferenceTotal += difference;
+    previousLumaTotal += previousLuma;
+    currentLumaTotal += currentLuma;
 
     if (difference >= pixelDifferenceThreshold) {
       changedPixels += 1;
+      if (signedDifference > 0) positiveChangedPixels += 1;
+      else if (signedDifference < 0) negativeChangedPixels += 1;
       const changedX = index % MOTION_WIDTH;
       const changedY = Math.floor(index / MOTION_WIDTH);
       changedXTotal += changedX;
@@ -217,6 +283,10 @@ export function calculateMotion(
       dominantRegion: null,
       activeRegionCount: 0,
       motionSpreadPercent: 0,
+      motionDensityPercent: 0,
+      meanLuma: 0,
+      meanLumaDelta: 0,
+      directionalChangeRatio: 0,
     };
   }
 
@@ -259,6 +329,22 @@ export function calculateMotion(
       )
     : 0;
 
+  const changedArea = changedPixels
+    ? (maxChangedX - minChangedX + 1) *
+      (maxChangedY - minChangedY + 1)
+    : 0;
+
+  const motionDensityPercent = changedArea
+    ? Number(((changedPixels / changedArea) * 100).toFixed(4))
+    : 0;
+
+  const meanLuma = currentLumaTotal / analyzedPixels;
+  const previousMeanLuma = previousLumaTotal / analyzedPixels;
+  const directionalChangeRatio = changedPixels
+    ? Math.max(positiveChangedPixels, negativeChangedPixels) /
+      changedPixels
+    : 0;
+
   return {
     changedPixelPercent: Number(
       ((changedPixels / analyzedPixels) * 100).toFixed(4),
@@ -273,6 +359,14 @@ export function calculateMotion(
     dominantRegion,
     activeRegionCount: activeRegions.size,
     motionSpreadPercent,
+    motionDensityPercent,
+    meanLuma: Number(meanLuma.toFixed(4)),
+    meanLumaDelta: Number(
+      (meanLuma - previousMeanLuma).toFixed(4),
+    ),
+    directionalChangeRatio: Number(
+      directionalChangeRatio.toFixed(4),
+    ),
   };
 }
 
@@ -534,6 +628,13 @@ export function startMotionSampler(options: {
             dominantRegion: effective.dominantRegion,
             activeRegionCount: effective.activeRegionCount,
             motionSpreadPercent: effective.motionSpreadPercent,
+            motionDensityPercent: effective.motionDensityPercent,
+            meanLuma: effective.meanLuma,
+            meanLumaDelta: effective.meanLumaDelta,
+            directionalChangeRatio:
+              effective.directionalChangeRatio,
+            likelyCameraNoise:
+              isLikelyCameraNoise(effective),
           });
         } catch (error) {
           options.onError(

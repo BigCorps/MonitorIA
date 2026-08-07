@@ -152,6 +152,10 @@ export type LocalMotionEvent = {
     motionCentroidY: number | null;
     motionRegionCount: number;
     motionSpreadPercent: number;
+    motionDensityPercent: number;
+    startMeanLuma: number;
+    maxDirectionalChangeRatio: number;
+    suppressedCameraNoiseSamples: number;
     closeReason: string;
     sourceFrameCount?: number;
     submittedFrameCount?: number;

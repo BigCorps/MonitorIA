@@ -1,7 +1,7 @@
 ; Instalador do MonitorIA Agent para Windows.
 ;
 ; Compilar com Inno Setup 6.3 ou superior:
-;   ISCC.exe /DAppVersion=0.9.0 installer\monitoria.iss
+;   ISCC.exe /DAppVersion=0.10.2 installer\monitoria.iss
 ;
 ; Para assinar, adicione ao comando:
 ;   /DSignCommand="<comando de assinatura>"
@@ -66,6 +66,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Files]
 Source: "..\agent\dist\monitoria-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\monitoria-dpapi.exe";       DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\monitoria-service.exe";   DestDir: "{app}"; Flags: ignoreversion
 Source: "monitoria-service.xml";            DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\ffmpeg\ffmpeg.exe";       DestDir: "{app}\ffmpeg"; Flags: ignoreversion
@@ -102,6 +103,8 @@ Type: filesandordirs; Name: "{commonappdata}\MonitorIA\frames"
 [Code]
 var
   PairingPage: TInputQueryWizardPage;
+  CameraPage: TInputQueryWizardPage;
+  ServicoPronto: Boolean;
 
 function ServicoInstalado(): Boolean;
 var
@@ -158,12 +161,25 @@ begin
     'Conectar ao painel',
     'Informe o código de pareamento da câmera',
     'Abra a câmera no painel do MonitorIA, gere o código de pareamento e ' +
-    'digite-o abaixo. O código vale 15 minutos.' + #13#10#13#10 +
-    'Você pode deixar em branco e parear depois — o MonitorIA já está ' +
-    'instalado e continuará aguardando.'
+    'digite-o abaixo. O código vale 15 minutos.'
   );
 
   PairingPage.Add('Código de pareamento:', False);
+
+  CameraPage := CreateInputQueryPage(
+    PairingPage.ID,
+    'Conectar a câmera',
+    'Informe os dados da câmera ou do gravador',
+    'O MonitorIA procura o vídeo somente no endereço informado, valida o ' +
+    'stream e escolhe automaticamente a opção mais leve e compatível.'
+  );
+
+  CameraPage.Add('Endereço IP (ex.: 192.168.1.108):', False);
+  CameraPage.Add('Usuário:', False);
+  CameraPage.Add('Senha:', True);
+  CameraPage.Add('Canal do gravador:', False);
+  CameraPage.Values[1] := 'admin';
+  CameraPage.Values[3] := '1';
 end;
 
 function IniciarServico(): Boolean;
@@ -200,32 +216,112 @@ const
   SAIDA_SERVICO_PARADO = 4;
   SAIDA_SEM_PERMISSAO = 5;
   SAIDA_PAREAMENTO_RECUSADO = 6;
+  SAIDA_CONFIGURACAO_INCOMPLETA = 7;
+  SAIDA_CAMERA_NAO_CONFIGURADA = 8;
+  SAIDA_ENTRADA_INVALIDA = 9;
 
 var
-  UltimoCodigoPareamento: Integer;
+  UltimoCodigoConfiguracao: Integer;
 
-function RunPairing(const Code: String): Boolean;
+function AgentCheck(const Command: String): Boolean;
 var
   ResultCode: Integer;
 begin
-  { O instalador não pareia por conta própria: ele delega ao serviço pelo
-    canal local. Assim existe um caminho de código só, o mesmo que o
-    operador usa depois, e o serviço segue sendo o único dono dos segredos. }
-  if not Exec(
+  Result := Exec(
     ExpandConstant('{app}\monitoria-agent.exe'),
-    'pair --code ' + Code,
+    Command,
     ExpandConstant('{app}'),
     SW_HIDE,
     ewWaitUntilTerminated,
     ResultCode
-  ) then
+  ) and (ResultCode = SAIDA_OK);
+end;
+
+function AgentPareado(): Boolean;
+begin
+  Result := ServicoPronto and AgentCheck('paired-check');
+end;
+
+function AgentConfigurado(): Boolean;
+begin
+  Result := ServicoPronto and AgentCheck('ready-check');
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+
+  if PageID = PairingPage.ID then
+    Result := AgentPareado()
+  else if PageID = CameraPage.ID then
+    Result := AgentConfigurado();
+end;
+
+function JsonEscape(Value: String): String;
+begin
+  Result := Value;
+  StringChangeEx(Result, '\', '\\', True);
+  StringChangeEx(Result, '"', '\"', True);
+  StringChangeEx(Result, #13, '\r', True);
+  StringChangeEx(Result, #10, '\n', True);
+  StringChangeEx(Result, #9, '\t', True);
+end;
+
+function RunSetup(): Boolean;
+var
+  ResultCode: Integer;
+  SetupFile: String;
+  Json: String;
+  Channel: Integer;
+begin
+  Result := False;
+
+  Channel := StrToIntDef(Trim(CameraPage.Values[3]), 0);
+  if Channel <= 0 then
   begin
-    UltimoCodigoPareamento := SAIDA_SERVICO_PARADO;
-    Result := False;
+    UltimoCodigoConfiguracao := SAIDA_ENTRADA_INVALIDA;
     Exit;
   end;
 
-  UltimoCodigoPareamento := ResultCode;
+  SetupFile := ExpandConstant('{tmp}\monitoria-initial-setup.json');
+  Json :=
+    '{' +
+    '"code":"' + JsonEscape(Trim(PairingPage.Values[0])) + '",' +
+    '"cameraHost":"' + JsonEscape(Trim(CameraPage.Values[0])) + '",' +
+    '"username":"' + JsonEscape(Trim(CameraPage.Values[1])) + '",' +
+    '"password":"' + JsonEscape(CameraPage.Values[2]) + '",' +
+    '"channel":' + IntToStr(Channel) +
+    '}';
+
+  if not SaveStringToFile(SetupFile, Json, False) then
+  begin
+    UltimoCodigoConfiguracao := SAIDA_ENTRADA_INVALIDA;
+    Exit;
+  end;
+
+  WizardForm.NextButton.Enabled := False;
+  WizardForm.BackButton.Enabled := False;
+  WizardForm.StatusLabel.Caption :=
+    'Validando a câmera. Isso pode levar alguns minutos...';
+
+  try
+    if not Exec(
+      ExpandConstant('{app}\monitoria-agent.exe'),
+      'setup --file "' + SetupFile + '"',
+      ExpandConstant('{app}'),
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      ResultCode
+    ) then
+      ResultCode := SAIDA_SERVICO_PARADO;
+  finally
+    DeleteFile(SetupFile);
+    WizardForm.NextButton.Enabled := True;
+    WizardForm.BackButton.Enabled := True;
+    WizardForm.StatusLabel.Caption := '';
+  end;
+
+  UltimoCodigoConfiguracao := ResultCode;
   Result := ResultCode = SAIDA_OK;
 end;
 
@@ -233,25 +329,33 @@ function MensagemDeFalha(): String;
 begin
   { Cada causa exige uma ação diferente do operador. Atribuir tudo a "código
     expirado" fazia gerar código novo indefinidamente sem resolver nada. }
-  if UltimoCodigoPareamento = SAIDA_SEM_PERMISSAO then
+  if UltimoCodigoConfiguracao = SAIDA_SEM_PERMISSAO then
     Result :=
       'O MonitorIA não conseguiu acessar a própria pasta de dados.' + #13#10#13#10 +
-      'Cancele, clique no instalador com o botão direito e escolha ' +
-      '"Executar como administrador".'
-  else if UltimoCodigoPareamento = SAIDA_SERVICO_PARADO then
+      'Feche o instalador e abra-o novamente, confirmando a solicitação de ' +
+      'administrador do Windows.'
+  else if UltimoCodigoConfiguracao = SAIDA_SERVICO_PARADO then
     Result :=
       'O serviço do MonitorIA ainda não estava em execução.' + #13#10#13#10 +
-      'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
-      'Aguarde alguns minutos e pareie depois pelo painel.'
-  else if UltimoCodigoPareamento = SAIDA_PAREAMENTO_RECUSADO then
+      'Reinicie o computador e execute novamente este instalador. A ' +
+      'configuração já feita será preservada.'
+  else if UltimoCodigoConfiguracao = SAIDA_PAREAMENTO_RECUSADO then
     Result :=
       'O painel recusou este código de pareamento.' + #13#10#13#10 +
       'Ele vale 15 minutos e só pode ser usado uma vez. ' +
       'Gere um código novo e tente de novo.'
+  else if UltimoCodigoConfiguracao = SAIDA_CAMERA_NAO_CONFIGURADA then
+    Result :=
+      'Não foi possível abrir o vídeo da câmera.' + #13#10#13#10 +
+      'Confira o endereço IP, usuário, senha e canal. Verifique também nas ' +
+      'configurações da câmera se os serviços ONVIF e RTSP estão habilitados.'
+  else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
+    Result :=
+      'Preencha um endereço IPv4 privado, o usuário e um número de canal válido.'
   else
     Result :=
-      'Não foi possível concluir o pareamento.' + #13#10#13#10 +
-      'Verifique se o computador está conectado à internet.';
+      'Não foi possível concluir a configuração.' + #13#10#13#10 +
+      'Verifique a internet e os dados da câmera e tente novamente.';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -259,14 +363,16 @@ begin
   if CurStep <> ssPostInstall then
     Exit;
 
-  if IniciarServico() then
+  ServicoPronto := IniciarServico();
+
+  if ServicoPronto then
     Exit;
 
   MsgBox(
     'O MonitorIA foi instalado, mas o serviço não iniciou.' + #13#10#13#10 +
     'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
-    'Aguarde alguns minutos e inicie "MonitorIA Agent" pelos Serviços do ' +
-    'Windows, ou reinicie o computador.',
+    'Reinicie o computador e execute novamente este instalador. A instalação ' +
+    'será reconhecida e continuará da etapa pendente.',
     mbInformation,
     MB_OK
   );
@@ -278,42 +384,50 @@ var
 begin
   Result := True;
 
-  if CurPageID <> PairingPage.ID then
+  if CurPageID = PairingPage.ID then
+  begin
+    Code := Trim(PairingPage.Values[0]);
+
+    if Code = '' then
+    begin
+      MsgBox(
+        'Informe o código gerado no painel do MonitorIA.',
+        mbError,
+        MB_OK
+      );
+      Result := False;
+    end;
+
+    Exit;
+  end;
+
+  if CurPageID <> CameraPage.ID then
     Exit;
 
-  Code := Trim(PairingPage.Values[0]);
-
-  if Code = '' then
+  if (Trim(CameraPage.Values[0]) = '') or
+     (Trim(CameraPage.Values[1]) = '') then
   begin
     MsgBox(
-      'O MonitorIA foi instalado e está aguardando pareamento.' + #13#10#13#10 +
-      'Quando tiver o código, abra o Prompt de Comando como administrador e execute:' + #13#10 +
-      ExpandConstant('"{app}\monitoria-agent.exe" pair --code SEUCODIGO'),
+      'Informe o endereço IP e o usuário da câmera.',
+      mbError,
+      MB_OK
+    );
+    Result := False;
+    Exit;
+  end;
+
+  if RunSetup() then
+  begin
+    MsgBox(
+      'Configuração concluída.' + #13#10#13#10 +
+      'O MonitorIA já está conectado à câmera e inicia automaticamente com ' +
+      'o Windows. Você pode fechar o instalador e acompanhar tudo pelo painel.',
       mbInformation,
       MB_OK
     );
     Exit;
   end;
 
-  if RunPairing(Code) then
-  begin
-    MsgBox(
-      'Pareamento concluído.' + #13#10#13#10 +
-      'O próximo passo é informar o endereço RTSP da câmera. ' +
-      'Consulte o painel para as instruções.',
-      mbInformation,
-      MB_OK
-    );
-    Exit;
-  end;
-
-  { Falha de pareamento não aborta a instalação. O serviço já está no ar e
-    o lojista pode tentar de novo sem reinstalar 100 MB. }
-  Result := MsgBox(
-    MensagemDeFalha() + #13#10#13#10 +
-    'Deseja continuar mesmo assim? O MonitorIA fica instalado e você pode ' +
-    'parear depois.',
-    mbConfirmation,
-    MB_YESNO
-  ) = IDYES;
+  MsgBox(MensagemDeFalha(), mbError, MB_OK);
+  Result := False;
 end;

@@ -22,6 +22,7 @@ import {
 
 const CONNECT_TIMEOUT_MS = 5_000;
 const RESPONSE_TIMEOUT_MS = 120_000;
+const DISCOVERY_RESPONSE_TIMEOUT_MS = 300_000;
 
 export async function callAgent(
   command: IpcCommand,
@@ -61,7 +62,9 @@ export async function callAgent(
 
       responseTimer = setTimeout(() => {
         finish(new Error("O serviço MonitorIA não respondeu a tempo."));
-      }, RESPONSE_TIMEOUT_MS);
+      }, command === "discovery.scan"
+        ? DISCOVERY_RESPONSE_TIMEOUT_MS
+        : RESPONSE_TIMEOUT_MS);
 
       socket.write(
         `${JSON.stringify({

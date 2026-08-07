@@ -47,7 +47,7 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.1";
+export const AGENT_VERSION = "0.10.2";
 /**
  * Domínio canônico.
  *
@@ -118,6 +118,26 @@ function requireString(payload: Record<string, unknown>, key: string) {
   }
 
   return value.trim();
+}
+
+function privateIpv4(value: string) {
+  const parts = value.split(".").map(Number);
+  if (
+    parts.length !== 4 ||
+    parts.some(
+      (part) =>
+        !Number.isInteger(part) || part < 0 || part > 255,
+    )
+  ) {
+    return false;
+  }
+
+  const [first, second] = parts;
+  return (
+    first === 10 ||
+    (first === 172 && (second ?? 0) >= 16 && (second ?? 0) <= 31) ||
+    (first === 192 && second === 168)
+  );
 }
 
 /**
@@ -205,9 +225,8 @@ export class AgentService {
       );
     }
 
-    this.ipc = await startIpcServer(this.handlers(), this.logger.log);
-
     this.config = await loadConfig();
+    this.ipc = await startIpcServer(this.handlers(), this.logger.log);
 
     if (this.config) {
       await this.bootstrap();
@@ -1053,6 +1072,19 @@ export class AgentService {
     const channels = Array.isArray(payload.channels)
       ? payload.channels.filter((value): value is number => typeof value === "number")
       : [1];
+    const requestedHosts = Array.isArray(payload.hosts)
+      ? payload.hosts.filter(
+          (value): value is string =>
+            typeof value === "string" && privateIpv4(value.trim()),
+        )
+      : [];
+
+    if (Array.isArray(payload.hosts) && requestedHosts.length === 0) {
+      throw new IpcError(
+        "bad_request",
+        "Informe um endereço IPv4 privado válido da câmera ou do gravador.",
+      );
+    }
 
     this.discoveryRunningAt = new Date().toISOString();
 
@@ -1062,7 +1094,12 @@ export class AgentService {
         resolveFfprobe(),
       ]);
 
-      const devices = await discoverDevices({ log: (message) => this.logger.info(message) });
+      const devices = await discoverDevices({
+        log: (message) => this.logger.info(message),
+        ...(requestedHosts.length > 0
+          ? { hosts: requestedHosts }
+          : {}),
+      });
 
       this.logger.info(`Descoberta encontrou ${devices.length} aparelho(s).`);
 
@@ -1183,6 +1220,9 @@ export class AgentService {
       lastSyncAt: this.lastSyncAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
       camerasKnown: this.cameras.length,
+      camerasConfiguredLocal: this.config
+        ? Object.keys(this.config.cameras).length
+        : 0,
       camerasRunning: [...this.runtimes.values()].filter((runtime) =>
         runtime.monitor.isRunning(),
       ).length,
