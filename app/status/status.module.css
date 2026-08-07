@@ -1,0 +1,20 @@
+.page { min-height: 100vh; background: #07111f; color: #f8fafc; padding: 48px 20px; }
+.shell { width: min(820px, 100%); margin: 0 auto; }
+.back { color: #70d8ff; text-decoration: none; }
+.header { margin: 44px 0 28px; }
+.header span { color: #70d8ff; font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.header h1 { font: 750 clamp(2rem, 6vw, 3.8rem)/1.02 var(--font-display); margin: 10px 0 14px; }
+.header p { color: #9fb0c5; max-width: 620px; }
+.overall { border: 1px solid rgba(112,216,255,.35); border-radius: 18px; background: rgba(14,39,62,.72); padding: 22px; margin-bottom: 18px; }
+.overall strong { display: block; font-size: 1.3rem; }
+.overall span { color: #9fb0c5; }
+.components { display: grid; gap: 12px; }
+.component { display: flex; justify-content: space-between; gap: 18px; border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 18px; background: rgba(10,24,42,.7); }
+.component h2 { font-size: 1rem; margin: 0 0 5px; }
+.component p { color: #9fb0c5; margin: 0; }
+.badge { align-self: flex-start; border: 1px solid currentColor; border-radius: 999px; padding: 5px 9px; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+.operational { color: #63e6be; }
+.degraded { color: #ff9a9a; }
+.checking { color: #ffd36a; }
+.updated { color: #8194aa; font-size: .82rem; margin-top: 20px; }
+

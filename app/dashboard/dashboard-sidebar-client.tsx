@@ -149,7 +149,8 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
     pathname.startsWith("/dashboard/routines") ||
     pathname.startsWith("/dashboard/processes") ||
     pathname.startsWith("/dashboard/operational-profiles") ||
-    pathname.startsWith("/dashboard/camera-health")
+    pathname.startsWith("/dashboard/camera-health") ||
+    pathname === "/dashboard/operations"
   ) {
     return "monitoring";
   }
@@ -165,7 +166,8 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
     pathname.startsWith("/dashboard/billing") ||
     pathname.startsWith("/dashboard/storage") ||
     pathname.startsWith("/dashboard/profile") ||
-    pathname.startsWith("/dashboard/assistant-credits")
+    pathname.startsWith("/dashboard/assistant-credits") ||
+    pathname.startsWith("/dashboard/support")
   ) {
     return "settings";
   }

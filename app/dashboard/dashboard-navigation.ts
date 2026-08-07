@@ -75,6 +75,18 @@ export const dashboardNavigationGroups: Record<
         exactPaths: ["/dashboard/camera-health"],
         activePrefixes: ["/dashboard/camera-health/"],
       },
+      {
+        id: "operations",
+        label: "Alertas",
+        href: "/dashboard/operations",
+        exactPaths: ["/dashboard/operations"],
+      },
+      {
+        id: "cross-camera",
+        label: "Entre câmeras",
+        href: "/dashboard/intelligence/cross-camera",
+        exactPaths: ["/dashboard/intelligence/cross-camera"],
+      },
     ],
   },
   cameras: {
@@ -146,6 +158,12 @@ export const dashboardNavigationGroups: Record<
         exactPaths: ["/dashboard/profile/mcp-connections"],
         activePrefixes: ["/dashboard/profile/mcp-connections/"],
       },
+      {
+        id: "support",
+        label: "Suporte",
+        href: "/dashboard/support",
+        exactPaths: ["/dashboard/support"],
+      },
     ],
   },
   intelligence: {
@@ -171,6 +189,12 @@ export const dashboardNavigationGroups: Record<
         href: "/dashboard/operational-profiles",
         exactPaths: ["/dashboard/operational-profiles"],
         activePrefixes: ["/dashboard/operational-profiles/"],
+      },
+      {
+        id: "cross-camera",
+        label: "Entre câmeras",
+        href: "/dashboard/intelligence/cross-camera",
+        exactPaths: ["/dashboard/intelligence/cross-camera"],
       },
     ],
   },

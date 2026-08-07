@@ -23,6 +23,7 @@ export function MarketingHeader() {
         <Link href="/como-funciona">Como funciona</Link>
         <Link href="/recursos">Recursos</Link>
         <Link href="/seguranca-e-privacidade">Segurança</Link>
+        <Link href="/ajuda">Ajuda</Link>
         <Link href="/faq">Dúvidas</Link>
         <Link href="/dashboard" className={styles.panelLink}>Abrir painel</Link>
       </nav>
@@ -60,6 +61,8 @@ export function MarketingFooter() {
           <nav className={styles.footerLinks} aria-label="Links do rodapé">
             <Link href="/sobre">Sobre</Link>
             <Link href="/contato">Contato</Link>
+            <Link href="/ajuda">Ajuda</Link>
+            <Link href="/status">Status</Link>
             <Link href="/privacidade">Privacidade</Link>
             <Link href="/retencao">Retenção</Link>
             <Link href="/subprocessadores">Subprocessadores</Link>

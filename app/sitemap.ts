@@ -14,6 +14,8 @@ const pages: Array<{
   { path: "/para-comercios", changeFrequency: "monthly", priority: 0.85 },
   { path: "/seguranca-e-privacidade", changeFrequency: "monthly", priority: 0.8 },
   { path: "/faq", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/ajuda", changeFrequency: "monthly", priority: 0.75 },
+  { path: "/status", changeFrequency: "daily", priority: 0.5 },
   { path: "/sobre", changeFrequency: "yearly", priority: 0.6 },
   { path: "/contato", changeFrequency: "yearly", priority: 0.6 },
   { path: "/privacidade", changeFrequency: "yearly", priority: 0.4 },

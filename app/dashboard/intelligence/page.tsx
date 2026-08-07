@@ -30,6 +30,13 @@ const modules = [
       "Padrões revisados de horários, locais e atividades recorrentes.",
     href: "/dashboard/operational-profiles",
   },
+  {
+    eyebrow: "CONTINUIDADE",
+    title: "Passagens entre câmeras",
+    description:
+      "Sequências prováveis por tempo e aparência visível, sempre com hipóteses concorrentes.",
+    href: "/dashboard/intelligence/cross-camera",
+  },
 ] as const;
 
 export default async function IntelligencePage() {

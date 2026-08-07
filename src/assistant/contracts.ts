@@ -13,6 +13,7 @@ export const AssistantPlanSchema = z
       "interaction_sessions",
       "interaction_summary",
       "vehicle_continuity",
+      "cross_camera_sequence",
       "routine_deviation",
       "staff_activity",
       "queue_analysis",

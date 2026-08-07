@@ -1,0 +1,140 @@
+.summaryGrid,
+.cards {
+  display: grid;
+  gap: 16px;
+}
+
+.summaryGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 24px 0;
+}
+
+.summaryGrid article,
+.card,
+.empty,
+.notice {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(10, 24, 42, 0.72);
+}
+
+.summaryGrid article {
+  padding: 20px;
+}
+
+.summaryGrid strong {
+  display: block;
+  color: #f8fafc;
+  font: 700 1.8rem/1 var(--font-display);
+}
+
+.summaryGrid span,
+.muted,
+.card p,
+.notice p {
+  color: #9fb0c5;
+}
+
+.cards {
+  margin: 18px 0 30px;
+}
+
+.card {
+  padding: 20px;
+}
+
+.card header,
+.card footer,
+.sectionHeader,
+.journeyMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.card h2,
+.card h3,
+.sectionHeader h2 {
+  margin: 4px 0 8px;
+  color: #f8fafc;
+}
+
+.eyebrow,
+.sectionHeader span {
+  color: #70d8ff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.badge {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.critical { color: #ff8f8f; }
+.warning { color: #ffd36a; }
+.info { color: #70d8ff; }
+.acknowledged { opacity: 0.76; }
+
+.card footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button,
+.download {
+  border: 1px solid rgba(112, 216, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(30, 119, 154, 0.18);
+  color: #dff7ff;
+  cursor: pointer;
+  padding: 9px 13px;
+  text-decoration: none;
+}
+
+.empty,
+.notice {
+  padding: 24px;
+}
+
+.notice {
+  margin: 20px 0;
+}
+
+.notice h2 { margin: 0 0 8px; }
+.notice p { margin: 0; }
+
+.journeyMeta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  color: #9fb0c5;
+  font-size: 0.82rem;
+}
+
+.eventLinks {
+  display: flex;
+  gap: 12px;
+}
+
+.eventLinks a { color: #70d8ff; }
+
+@media (max-width: 760px) {
+  .summaryGrid { grid-template-columns: 1fr; }
+  .card header { align-items: flex-start; }
+}
+

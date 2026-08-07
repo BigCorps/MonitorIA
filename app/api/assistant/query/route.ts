@@ -464,7 +464,26 @@ export async function POST(request: Request) {
     let retrievedData: unknown = {};
     let candidateEvidenceIds: string[] = [];
 
-    if (plan.intent === "vehicle_continuity") {
+    if (plan.intent === "cross_camera_sequence") {
+      const result = await supabase.rpc("cross_camera_summary_v1", {
+        p_organization_id: organization.id,
+        p_from: fromIso,
+        p_to: toIso,
+        p_site_id: plan.siteId,
+      });
+      if (result.error) throw new Error(result.error.message);
+      const payload = objectValue(result.data);
+      candidateEvidenceIds = Array.isArray(payload.evidenceEventIds)
+        ? payload.evidenceEventIds.filter((id): id is string => typeof id === "string")
+        : [];
+      retrievedData = {
+        crossCameraSequence: result.data,
+        definitions: {
+          probableSequence: "Hipótese temporária baseada em janela de passagem e características visíveis não biométricas.",
+          competingHypothesis: "Pessoas ou veículos diferentes podem ter aparência semelhante; a sequência não confirma identidade.",
+        },
+      };
+    } else if (plan.intent === "vehicle_continuity") {
       const result = await supabase.rpc(
         "assistant_vehicle_continuity_summary",
         {
@@ -1018,6 +1037,7 @@ export async function POST(request: Request) {
           "resumir atividade provável de funcionários sem identificação biométrica",
           "analisar sinais explícitos de fila e espera",
           "informar incidentes de qualidade e enquadramento das câmeras",
+          "mostrar passagens prováveis entre câmeras com hipóteses concorrentes",
           "gerar um resumo diário de eventos, sessões, rotinas, processos e saúde",
           "resumir períodos",
           "estimar aparições de clientes e funcionários",

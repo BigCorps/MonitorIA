@@ -26,6 +26,10 @@
       "schedule": "4-59/5 * * * *"
     },
     {
+      "path": "/api/cron/operations",
+      "schedule": "1-59/5 * * * *"
+    },
+    {
       "path": "/api/cron/routines",
       "schedule": "7-59/15 * * * *"
     },
