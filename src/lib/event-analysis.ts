@@ -80,7 +80,10 @@ export function normalizeAnalyzedEventZones(
       ...object,
       zoneIds: allowedZoneIds(object.zoneIds, allowed),
     })),
-    schemaVersion: "1.5",
+    // Preserva a versão de entrada até o preprocessamento do contrato.
+    // Para 1.1–1.4, AnalyzedEventSchema preenche appearance/sceneComplexity
+    // ausentes e então migra o resultado validado para 1.5.
+    schemaVersion: event.schemaVersion,
     stateObservations: normalizeVisualStateObservations(
       event.stateObservations ?? [],
       visualEntities,

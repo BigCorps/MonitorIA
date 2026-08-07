@@ -80,6 +80,18 @@ export function startCameraEventMonitor(options: {
   onFatalError: (error: Error) => void;
 }): CameraEventMonitor {
   const plan = getAgentPlan(options.camera.plan);
+  const configuredMaximumFrames = Number(
+    options.camera.maximumAnalysisFrames ?? plan.maximumFrames,
+  );
+  const maximumFrames = Math.max(
+    1,
+    Math.min(
+      plan.maximumFrames,
+      Number.isFinite(configuredMaximumFrames)
+        ? Math.floor(configuredMaximumFrames)
+        : plan.maximumFrames,
+    ),
+  );
   const calibration = new AdaptiveMotionCalibration();
 
   const configuredStartThreshold = Math.max(
@@ -225,7 +237,7 @@ export function startCameraEventMonitor(options: {
             const frame = event.frames[label];
             return frame ? [{ label, frame }] : [];
           }),
-      ).slice(0, 4);
+      ).slice(0, maximumFrames);
     } else {
       selected = uniqueFrames(
         (["start", "peak", "end"] as EventLabel[])
@@ -233,7 +245,7 @@ export function startCameraEventMonitor(options: {
             const frame = event.frames[label];
             return frame ? [{ label, frame }] : [];
           }),
-      ).slice(0, 3);
+      ).slice(0, maximumFrames);
     }
 
     const selectedPaths = new Set(

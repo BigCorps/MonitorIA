@@ -117,6 +117,9 @@ export type EventAsset = {
   width: number | null;
   height: number | null;
   byteSize: number | null;
+  kind: string;
+  mimeType: string;
+  retentionClass: string;
 };
 
 export type EventUsage = {
@@ -439,7 +442,7 @@ export async function getEventDetail(
     supabase
       .from("storage_assets")
       .select(
-        "id,storage_path,captured_at,width,height,byte_size",
+        "id,storage_path,captured_at,width,height,byte_size,kind,mime_type,frame_label,retention_class",
       )
       .eq("organization_id", organizationId)
       .eq("event_id", eventId)
@@ -572,7 +575,9 @@ export async function getEventDetail(
     })),
     assets: (assetsResult.data ?? []).map((row: any) => ({
       id: String(row.id),
-      label: eventAssetLabel(String(row.storage_path)),
+      label: row.frame_label
+        ? String(row.frame_label)
+        : eventAssetLabel(String(row.storage_path)),
       capturedAt: row.captured_at
         ? String(row.captured_at)
         : null,
@@ -580,6 +585,9 @@ export async function getEventDetail(
       height: row.height === null ? null : Number(row.height),
       byteSize:
         row.byte_size === null ? null : Number(row.byte_size),
+      kind: String(row.kind ?? "analysis_frame"),
+      mimeType: String(row.mime_type ?? "application/octet-stream"),
+      retentionClass: String(row.retention_class ?? "temporary"),
     })),
     usage: (usageResult.data ?? []).map((row: any) => ({
       model: String(row.model),

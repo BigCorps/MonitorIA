@@ -9,6 +9,7 @@ import { persistAnalysisRoutingDecision } from "@/src/lib/analysis-routing";
 import { persistEventVehicleAppearanceAndContinuity } from "@/src/lib/event-vehicle-continuity";
 import { persistEventPersonAppearanceAndContinuity } from "@/src/lib/event-continuity";
 import { normalizeAnalysisPlan } from "@/src/lib/analysis-plans";
+import { createMonitoriaClipUploadRequest } from "@/src/lib/clip-generation";
 import {
   estimateVisionCostBreakdown,
   estimateVisionCostUsd,
@@ -433,9 +434,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (existingJob?.status === "completed") {
     const { data: existingEvent } = await supabase
       .from("events")
-      .select("id,summary,primary_event_type,confidence,requires_review")
+      .select("id,summary,primary_event_type,confidence,requires_review,started_at,ended_at")
       .eq("analysis_job_id", existingJob.id)
       .maybeSingle();
+
+    const duplicateClipRequest = existingEvent
+      ? await createMonitoriaClipUploadRequest({
+          supabase,
+          organizationId: authenticated.camera.organizationId,
+          cameraId,
+          agentId: authenticated.agent.id,
+          analysisJobId: String(existingJob.id),
+          eventId: String(existingEvent.id),
+          planCode,
+          startedAt: String(existingEvent.started_at),
+          endedAt: String(existingEvent.ended_at),
+        })
+      : null;
 
     return NextResponse.json(
       {
@@ -455,6 +470,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         requiresReview: existingEvent
           ? Boolean(existingEvent.requires_review)
           : false,
+        clipRequest: duplicateClipRequest,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -1090,6 +1106,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
           })
         : null;
 
+    const clipRequest =
+      relevant && eventId
+        ? await createMonitoriaClipUploadRequest({
+            supabase,
+            organizationId:
+              authenticated.camera.organizationId,
+            cameraId,
+            agentId: authenticated.agent.id,
+            analysisJobId,
+            eventId,
+            planCode,
+            startedAt: startedAt.toISOString(),
+            endedAt: endedAt.toISOString(),
+          })
+        : null;
+
     await persistAnalysisRoutingDecision({
       supabase,
       organizationId: authenticated.camera.organizationId,
@@ -1146,6 +1178,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         continuity,
         vehicleContinuity,
         routing: outcome.routing,
+        clipRequest,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

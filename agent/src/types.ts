@@ -42,6 +42,14 @@ export type RemoteCamera = {
   monitoringEnabled: boolean;
   activeProfileId: string | null;
   activeProfileVersion: number | null;
+  accessSource?: string;
+  monitoringAllowed?: boolean;
+  longTermKeyframes?: number | null;
+  temporaryFrameDays?: number | null;
+  maximumAnalysisFrames?: number | null;
+  clipEnabled?: boolean;
+  clipDurationSeconds?: number | null;
+  clipRetentionDays?: number | null;
 };
 
 export type PairResponse = {
@@ -145,6 +153,13 @@ export type LocalMotionEvent = {
     motionRegionCount: number;
     motionSpreadPercent: number;
     closeReason: string;
+    sourceFrameCount?: number;
+    submittedFrameCount?: number;
+    submittedFrameLabels?: string[];
+    droppedFrameLabels?: string[];
+    reencodedFrameLabels?: string[];
+    submittedEvidenceBytes?: number;
+    evidenceBudgetBytes?: number;
   };
   frames: LocalEventFrame[];
 };
@@ -158,6 +173,18 @@ export type CaptureSessionResponse = {
   eventsCreated?: number;
 };
 
+export type ClipUploadRequest = {
+  requestId: string;
+  assetId: string;
+  eventId: string;
+  signedUrl: string;
+  storagePath: string;
+  clipStartsAt: string;
+  clipEndsAt: string;
+  durationSeconds: number;
+  uploadExpiresAt: string;
+};
+
 export type EventSubmissionResponse = {
   ok: true;
   duplicate: boolean;
@@ -169,4 +196,5 @@ export type EventSubmissionResponse = {
   type: string | null;
   confidence: number | null;
   requiresReview: boolean;
+  clipRequest?: ClipUploadRequest | null;
 };

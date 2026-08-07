@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type {
   CapturedFrame,
@@ -7,6 +8,7 @@ import type {
   LocalMotionEvent,
   PairResponse,
 } from "./types.js";
+import { prepareEventFramesForUpload } from "./evidence-budget.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -312,69 +314,17 @@ export async function closeCaptureSession(
   );
 }
 
-async function eventFrames(event: LocalMotionEvent) {
-  const maximumFrameBytes = 2 * 1024 * 1024;
-  const maximumTotalBytes = 3 * 1024 * 1024;
-
-  const loaded = [];
-
-  for (const item of event.frames) {
-    const bytes = await readFile(item.frame.path);
-
-    if (
-      bytes.length < 1024 ||
-      bytes.length > maximumFrameBytes
-    ) {
-      continue;
-    }
-
-    loaded.push({
-      label: item.label,
-      capturedAt: item.frame.capturedAt,
-      imageBase64: bytes.toString("base64"),
-      width: item.frame.width,
-      height: item.frame.height,
-      byteSize: bytes.length,
-    });
-  }
-
-  const priority = ["peak", "start", "end", "extra"];
-  loaded.sort(
-    (left, right) =>
-      priority.indexOf(left.label) -
-      priority.indexOf(right.label),
-  );
-
-  const selected = [];
-  let total = 0;
-
-  for (const frame of loaded) {
-    if (total + frame.byteSize > maximumTotalBytes) continue;
-    selected.push(frame);
-    total += frame.byteSize;
-  }
-
-  selected.sort(
-    (left, right) =>
-      ["start", "peak", "end", "extra"].indexOf(left.label) -
-      ["start", "peak", "end", "extra"].indexOf(right.label),
-  );
-
-  if (!selected.length) {
-    throw new Error(
-      "Nenhum quadro do evento cabe no limite seguro de envio.",
-    );
-  }
-
-  return selected;
-}
-
 export async function submitCameraEvent(
   baseUrl: string,
   token: string,
   event: LocalMotionEvent,
+  ffmpegPath: string,
 ) {
-  const frames = await eventFrames(event);
+  const prepared = await prepareEventFramesForUpload(
+    ffmpegPath,
+    event,
+  );
+  const frames = prepared.frames;
 
   return requestJson<EventSubmissionResponse>(
     baseUrl,
@@ -390,10 +340,82 @@ export async function submitCameraEvent(
         sessionId: event.sessionId,
         startedAt: event.startedAt,
         endedAt: event.endedAt,
-        localMetrics: event.localMetrics,
+        localMetrics: {
+          ...event.localMetrics,
+          ...prepared.diagnostics,
+        },
         frames,
       }),
     },
     300_000,
+  );
+}
+
+
+export async function uploadClipToSignedUrl(
+  signedUrl: string,
+  filePath: string,
+) {
+  const target = new URL(signedUrl);
+  if (target.protocol !== "https:") {
+    throw new Error("A URL assinada do clipe não usa HTTPS.");
+  }
+
+  const bytes = await readFile(filePath);
+  const body = new FormData();
+  body.append(
+    "file",
+    new Blob([new Uint8Array(bytes)], { type: "video/mp4" }),
+    "clip.mp4",
+  );
+  body.append("cacheControl", "3600");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120_000);
+
+  try {
+    const response = await fetch(target, {
+      method: "PUT",
+      headers: { "x-upsert": "true" },
+      body,
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 500);
+      throw new Error(
+        `Upload do clipe falhou com HTTP ${response.status}: ${detail}`,
+      );
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+
+  return {
+    byteSize: bytes.length,
+    contentSha256: createHash("sha256")
+      .update(bytes)
+      .digest("hex"),
+  };
+}
+
+export async function completeClipRequest(
+  baseUrl: string,
+  token: string,
+  requestId: string,
+  body: JsonObject,
+) {
+  return requestJson<{ ok: true }>(
+    baseUrl,
+    `/api/agent/clips/${encodeURIComponent(requestId)}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(body),
+    },
+    30_000,
   );
 }

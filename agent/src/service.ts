@@ -1,15 +1,18 @@
 import { createHash } from "node:crypto";
 import { rm } from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
 import {
   ApiError,
   closeCaptureSession,
+  completeClipRequest,
   fetchAgentConfig,
   pairAgent,
   sendCameraStatus,
   sendHeartbeat,
   startCaptureSession,
   submitCameraEvent,
+  uploadClipToSignedUrl,
   uploadSnapshot,
 } from "./api.js";
 import {
@@ -41,9 +44,10 @@ import {
   type DiscoveryResult,
 } from "./discovery/index.js";
 import type { Credentials } from "./discovery/types.js";
-import type { RemoteCamera } from "./types.js";
+import { CircularClipBuffer } from "./clip-buffer.js";
+import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.9.0";
+export const AGENT_VERSION = "0.10.0";
 /**
  * Domínio canônico.
  *
@@ -63,6 +67,7 @@ type CameraRuntime = {
   signature: string;
   sessionId: string;
   monitor: CameraEventMonitor;
+  clipBuffer: CircularClipBuffer | null;
 };
 
 function errorMessage(error: unknown) {
@@ -99,6 +104,9 @@ function cameraSignature(camera: RemoteCamera, localRtsp: string | null) {
     cooldown: camera.motionCooldownSeconds,
     schedule: camera.monitoringSchedule,
     ignore: camera.motionIgnorePolygons,
+    maximumAnalysisFrames: camera.maximumAnalysisFrames,
+    clipEnabled: camera.clipEnabled,
+    clipDurationSeconds: camera.clipDurationSeconds,
   });
 }
 
@@ -288,6 +296,7 @@ export class AgentService {
 
     try {
       await runtime.monitor.stop(reason);
+      await runtime.clipBuffer?.stop();
     } catch (error) {
       this.logger.warn(`Falha ao parar monitor ${cameraId}: ${errorMessage(error)}`);
     }
@@ -425,10 +434,31 @@ export class AgentService {
           },
         });
 
+        let clipBuffer: CircularClipBuffer | null = null;
+
+        if (camera.clipEnabled === true) {
+          try {
+            clipBuffer = new CircularClipBuffer({
+              cameraId: camera.id,
+              cameraName: camera.name,
+              ffmpegPath,
+              rtspUrl,
+              log: (message) => this.logger.info(message),
+            });
+            await clipBuffer.start();
+          } catch (clipError) {
+            clipBuffer = null;
+            this.logger.warn(
+              `O monitoramento continuará sem clipe em "${camera.name}": ${errorMessage(clipError)}`,
+            );
+          }
+        }
+
         this.runtimes.set(camera.id, {
           signature,
           sessionId: session.sessionId,
           monitor,
+          clipBuffer,
         });
 
         this.cameraBackoff.delete(camera.id);
@@ -604,8 +634,9 @@ export class AgentService {
 
     const config = this.config;
     const token = this.token;
+    const ffmpegPath = this.ffmpegPath;
 
-    if (!config || !token || this.unauthorized) return;
+    if (!config || !token || !ffmpegPath || this.unauthorized) return;
 
     this.queueBusy = true;
 
@@ -613,7 +644,20 @@ export class AgentService {
       const entry = await this.queue.next();
       if (!entry) return;
 
-      await submitCameraEvent(config.apiBaseUrl, token, entry.event);
+      const submitted = await submitCameraEvent(
+        config.apiBaseUrl,
+        token,
+        entry.event,
+        ffmpegPath,
+      );
+
+      if (submitted.clipRequest) {
+        await this.processClipRequest(
+          entry.event.cameraId,
+          submitted.clipRequest,
+        );
+      }
+
       await this.queue.complete(entry.id);
       this.logger.info(`Evento ${entry.id} enviado.`);
     } catch (error) {
@@ -631,6 +675,97 @@ export class AgentService {
       }
     } finally {
       this.queueBusy = false;
+    }
+  }
+
+  private async processClipRequest(
+    cameraId: string,
+    request: ClipUploadRequest,
+  ) {
+    const config = this.config;
+    const token = this.token;
+    const buffer = this.runtimes.get(cameraId)?.clipBuffer;
+
+    if (!config || !token) return;
+
+    if (!buffer) {
+      await completeClipRequest(
+        config.apiBaseUrl,
+        token,
+        request.requestId,
+        {
+          status: "failed",
+          assetId: request.assetId,
+          byteSize: 0,
+          contentSha256: null,
+          durationSeconds: null,
+          generationMs: 0,
+          segmentsUsed: 0,
+          errorCode: "clip_buffer_unavailable",
+          errorMessage:
+            "O buffer local não estava disponível para este evento.",
+        },
+      ).catch(() => undefined);
+      return;
+    }
+
+    let built: Awaited<ReturnType<CircularClipBuffer["buildClip"]>> | null = null;
+
+    try {
+      built = await buffer.buildClip(request);
+      const uploaded = await uploadClipToSignedUrl(
+        request.signedUrl,
+        built.path,
+      );
+
+      await completeClipRequest(
+        config.apiBaseUrl,
+        token,
+        request.requestId,
+        {
+          status: "ready",
+          assetId: request.assetId,
+          byteSize: uploaded.byteSize,
+          contentSha256: uploaded.contentSha256,
+          durationSeconds: built.durationSeconds,
+          generationMs: built.generationMs,
+          segmentsUsed: built.segmentsUsed,
+          errorCode: null,
+          errorMessage: null,
+        },
+      );
+
+      this.logger.info(
+        `Clipe do evento ${request.eventId} enviado diretamente ao Storage.`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `O evento foi salvo, mas o clipe falhou: ${errorMessage(error)}`,
+      );
+
+      await completeClipRequest(
+        config.apiBaseUrl,
+        token,
+        request.requestId,
+        {
+          status: "failed",
+          assetId: request.assetId,
+          byteSize: 0,
+          contentSha256: null,
+          durationSeconds: null,
+          generationMs: built?.generationMs ?? 0,
+          segmentsUsed: built?.segmentsUsed ?? 0,
+          errorCode: "clip_generation_or_upload_failed",
+          errorMessage: errorMessage(error).slice(0, 900),
+        },
+      ).catch(() => undefined);
+    } finally {
+      if (built?.path) {
+        await rm(path.dirname(built.path), {
+          recursive: true,
+          force: true,
+        });
+      }
     }
   }
 

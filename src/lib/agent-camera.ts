@@ -64,10 +64,19 @@ export async function authenticateAgentCamera(
 
   if (cameraError || !camera) return null;
 
+  const { data: entitlement } = await supabase
+    .from("camera_entitlements")
+    .select("plan_code,monitoring_allowed")
+    .eq("organization_id", agent.organizationId)
+    .eq("camera_id", cameraId)
+    .maybeSingle();
+
+  const effectivePlan =
+    entitlement?.plan_code ?? camera.analysis_plan_code;
   const plan =
-    camera.analysis_plan_code === "basic" ||
-    camera.analysis_plan_code === "intensive"
-      ? camera.analysis_plan_code
+    effectivePlan === "basic" ||
+    effectivePlan === "intensive"
+      ? effectivePlan
       : "standard";
 
   return {

@@ -12,6 +12,9 @@ import {
   reviewLabel,
 } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "../../dashboard-sidebar";
+import { DashboardSectionTabs } from "../../dashboard-section-tabs";
+import { expectedLongTermEvidenceCount } from "@/src/clips/policy";
+import { EventMedia } from "./event-media";
 import {
   deleteEventAction,
   reviewEventAction,
@@ -161,6 +164,15 @@ export default async function EventDetailPage({
       total + Number(item.estimatedCostUsd ?? 0),
     0,
   );
+  const imageAssets = event.assets.filter(
+    (asset) => asset.kind !== "preserved_clip",
+  );
+  const clipAsset =
+    event.assets.find(
+      (asset) => asset.kind === "preserved_clip",
+    ) ?? null;
+  const expectedEvidenceCount =
+    expectedLongTermEvidenceCount(event.analysisPlanCode);
 
   return (
     <main className="dashboard-shell">
@@ -190,6 +202,8 @@ export default async function EventDetailPage({
             ← Voltar aos eventos
           </Link>
         </header>
+
+        <DashboardSectionTabs group="monitoring" />
 
         {scalar(rawSearchParams.saved) === "1" ? (
           <div className={styles.success}>
@@ -226,12 +240,12 @@ export default async function EventDetailPage({
                 <dd>{event.vehicles.length}</dd>
               </div>
               <div>
-                <dt>Objetos</dt>
-                <dd>{event.objects.length}</dd>
+                <dt>Imagens</dt>
+                <dd>{imageAssets.length}</dd>
               </div>
               <div>
-                <dt>Quadros</dt>
-                <dd>{event.assets.length}</dd>
+                <dt>Clipe</dt>
+                <dd>{clipAsset ? "Sim" : "—"}</dd>
               </div>
             </dl>
           </aside>
@@ -241,40 +255,32 @@ export default async function EventDetailPage({
           <div className={styles.sectionHeading}>
             <div>
               <span>EVIDÊNCIAS VISUAIS</span>
-              <h2>Início, pico e encerramento</h2>
+              <h2>Imagens e clipe do acontecimento</h2>
             </div>
             <small>
-              Imagens temporárias protegidas por URL assinada
+              {imageAssets.length}/{expectedEvidenceCount} imagens preservadas
+              {clipAsset ? " · clipe disponível" : ""}
             </small>
           </div>
 
-          {event.assets.length ? (
-            <div className={styles.frames}>
-              {event.assets.map((asset) => (
-                <figure key={asset.id}>
-                  <img
-                    src={`/api/storage-assets/${asset.id}`}
-                    alt={`Quadro ${frameLabel(asset.label)} do evento`}
-                  />
-                  <figcaption>
-                    <strong>{frameLabel(asset.label)}</strong>
-                    <span>
-                      {asset.capturedAt
-                        ? formatDate(
-                            asset.capturedAt,
-                            event.timezone,
-                          )
-                        : "Horário indisponível"}
-                    </span>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          ) : (
-            <div className={styles.emptyBlock}>
-              Nenhum quadro disponível para este evento.
-            </div>
-          )}
+          <EventMedia
+            invoiceSafeTitle={event.headline}
+            images={imageAssets.map((asset) => ({
+              id: asset.id,
+              label: asset.label,
+              capturedAt: asset.capturedAt,
+            }))}
+            clip={
+              clipAsset
+                ? {
+                    id: clipAsset.id,
+                    byteSize: clipAsset.byteSize,
+                  }
+                : null
+            }
+            expectedEvidenceCount={expectedEvidenceCount}
+            timezone={event.timezone}
+          />
         </section>
 
         <div className={styles.twoColumns}>
@@ -575,6 +581,20 @@ export default async function EventDetailPage({
                     <dt>Modo</dt>
                     <dd>
                       {event.analysisPlanCode ?? "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Evidências enviadas</dt>
+                    <dd>
+                      {String(
+                        event.localMetrics.submittedFrameCount ??
+                          imageAssets.length,
+                      )}
+                      {" / "}
+                      {String(
+                        event.localMetrics.sourceFrameCount ??
+                          imageAssets.length,
+                      )}
                     </dd>
                   </div>
                   <div>

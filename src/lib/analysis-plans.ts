@@ -46,8 +46,8 @@ export const CAMERA_ANALYSIS_PLANS = {
 export type AnalysisPlanCode = keyof typeof CAMERA_ANALYSIS_PLANS;
 
 export function normalizeAnalysisPlan(value: unknown): AnalysisPlanCode {
-  const candidate = String(value ?? "basic");
+  const candidate = String(value ?? "standard");
   return candidate in CAMERA_ANALYSIS_PLANS
     ? (candidate as AnalysisPlanCode)
-    : "basic";
+    : "standard";
 }

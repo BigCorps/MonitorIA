@@ -515,3 +515,97 @@
     flex-direction: column;
   }
 }
+
+
+.mediaTabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 4px;
+  width: fit-content;
+  border: 1px solid #dfe7ee;
+  border-radius: 10px;
+  background: #f6f9fb;
+}
+
+.mediaTabs button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 7px;
+  color: #61758a;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.mediaTabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.mediaTabs .mediaTabActive {
+  color: #08745f;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(15, 31, 52, 0.08);
+}
+
+.evidenceNotice {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  color: #765714;
+  border: 1px solid #ead9ac;
+  border-radius: 9px;
+  background: #fffaf0;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.clipPanel {
+  overflow: hidden;
+  border: 1px solid #dce4eb;
+  border-radius: 13px;
+  background: #06131f;
+}
+
+.clipPanel video {
+  width: 100%;
+  max-height: min(68vh, 720px);
+  display: block;
+  background: #02070c;
+}
+
+.clipMeta {
+  padding: 11px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #b9c7d5;
+  background: #0a1929;
+}
+
+.clipMeta strong {
+  font-size: 9px;
+}
+
+.clipMeta span {
+  color: #7f94aa;
+  font-size: 8px;
+}
+
+@media (max-width: 650px) {
+  .mediaTabs {
+    width: 100%;
+  }
+
+  .mediaTabs button {
+    flex: 1;
+  }
+
+  .clipMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

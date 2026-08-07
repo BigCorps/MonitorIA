@@ -7,7 +7,7 @@ import {
 
 const zoneId = randomUUID();
 
-test("aceita um evento visual válido", () => {
+test("aceita um evento visual legado e o migra para o schema atual", () => {
   const parsed = AnalyzedEventSchema.parse({
     schemaVersion: "1.1",
     headline: "Veículo branco entrou na área",
@@ -45,7 +45,7 @@ test("aceita um evento visual válido", () => {
 
   assert.equal(
     parsed.schemaVersion,
-    "1.1",
+    "1.5",
   );
   assert.equal(
     parsed.vehicles[0]?.plateSuggestion,

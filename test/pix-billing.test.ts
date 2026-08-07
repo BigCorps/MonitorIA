@@ -12,14 +12,20 @@ import {
   normalizeBankStatus,
 } from "../supabase/functions/_shared/pix.js";
 
-test("normaliza QR Code em base64 para data URL", () => {
+test("normaliza somente base64 que realmente representa uma imagem", () => {
+  const pngBase64 = "iVBORw0KGgoAAA";
+
   assert.equal(
-    normalizeQrCodeSource("ABC123"),
-    "data:image/png;base64,ABC123",
+    normalizeQrCodeSource(pngBase64),
+    `data:image/png;base64,${pngBase64}`,
   );
   assert.equal(
     normalizeQrCodeSource("data:image/png;base64,ABC123"),
     "data:image/png;base64,ABC123",
+  );
+  assert.equal(
+    normalizeQrCodeSource("ABC123"),
+    null,
   );
 });
 
