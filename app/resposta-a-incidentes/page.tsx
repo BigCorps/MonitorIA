@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ContentSection, InfoList, InfoListItem, MarketingPage, Note, Prose } from "@/src/components/marketing/content-page";
+import { appConfig } from "@/src/lib/app-config";
 import { createPageMetadata } from "@/src/lib/seo";
 
 export const metadata = createPageMetadata({
@@ -27,7 +28,7 @@ export default function IncidentesPage() {
 
       <ContentSection label="Canal" title="Como reportar uma suspeita.">
         <Prose>
-          <p>Use a <Link href="/contato">página de contato</Link> e identifique o assunto como “Incidente de segurança”. Informe o horário aproximado, a tela ou recurso afetado e como podemos retornar. Não inclua senhas, tokens, chaves RTSP ou imagens sensíveis desnecessárias.</p>
+          <p>Envie um e-mail para <a href={`mailto:${appConfig.legal.securityEmail}?subject=Incidente%20de%20seguran%C3%A7a`}>{appConfig.legal.securityEmail}</a> com o assunto “Incidente de segurança”, ou use o telefone institucional <a href={appConfig.legal.institutionalPhoneHref}>{appConfig.legal.institutionalPhone}</a>. Informe o horário aproximado, a tela ou recurso afetado e como podemos retornar. Não inclua senhas, tokens, chaves RTSP ou imagens sensíveis desnecessárias.</p>
           <p>Clientes autenticados também podem registrar solicitações relacionadas a dados em <Link href="/dashboard/profile">Perfil e empresa</Link>.</p>
           <Note>A confirmação de recebimento não significa que houve violação de dados. A classificação depende da investigação e das responsabilidades de controlador e operador.</Note>
         </Prose>

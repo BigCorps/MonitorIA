@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ContentSection, MarketingPage, Note, Prose } from "@/src/components/marketing/content-page";
+import { appConfig } from "@/src/lib/app-config";
 import { createPageMetadata } from "@/src/lib/seo";
 
 export const metadata = createPageMetadata({
@@ -18,7 +19,8 @@ export default function PrivacidadePage() {
       <ContentSection label="Política" title="Informações essenciais sobre o tratamento.">
         <Prose>
           <h2>1. Responsável pelo serviço</h2>
-          <p>O MonitorIA.cam é fornecido pela BigCorps. Usuários autenticados podem registrar e acompanhar solicitações em <Link href="/dashboard/profile">Perfil e empresa</Link>. Outros titulares podem utilizar a página de contato.</p>
+          <p>O MonitorIA.cam é fornecido por {appConfig.legal.legalName}, nome fantasia {appConfig.legal.tradeName}, inscrita no CNPJ sob nº {appConfig.legal.taxId}, com endereço em {appConfig.legal.address}.</p>
+          <p>O encarregado pelo tratamento de dados é {appConfig.legal.dataOfficer.name}, {appConfig.legal.dataOfficer.role}. Solicitações podem ser enviadas para <a href={`mailto:${appConfig.legal.privacyEmail}`}>{appConfig.legal.privacyEmail}</a> ou pelo telefone <a href={appConfig.legal.dataOfficer.phoneHref}>{appConfig.legal.dataOfficer.phone}</a>. Usuários autenticados também podem registrar e acompanhar protocolos em <Link href="/dashboard/profile">Perfil e empresa</Link>.</p>
 
           <h2>2. Dados tratados</h2>
           <p>Podemos tratar dados de cadastro e autenticação, informações da organização, configurações de locais e câmeras, registros técnicos do Agent, quadros selecionados de acontecimentos, descrições geradas, eventos estruturados, mensagens enviadas ao assistente e registros de auditoria.</p>
@@ -56,7 +58,7 @@ export default function PrivacidadePage() {
           <h2>13. Alterações</h2>
           <p>Esta política pode ser atualizada para refletir mudanças no produto, fornecedores ou legislação. A data da versão será atualizada nesta página.</p>
 
-          <Note>Antes do lançamento comercial amplo, recomenda-se revisão desta política por profissional jurídico com os dados societários completos da BigCorps e os contratos definitivos dos fornecedores.</Note>
+          <Note>Para imagens captadas em estabelecimentos de clientes, a organização responsável pelo local normalmente atua como controladora. A BigCorps atende no papel definido pelo contrato e pelas instruções documentadas.</Note>
         </Prose>
       </ContentSection>
     </MarketingPage>

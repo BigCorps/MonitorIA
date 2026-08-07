@@ -77,6 +77,6 @@ Não ativar silenciosamente:
 
 Qualquer proposta futura exige add-on separado, avaliação de impacto, base legal, retenção própria, acesso reforçado, revisão jurídica e nova decisão arquitetural.
 
-## Pendência externa inevitável
+## Identificação jurídica aplicada
 
-Os textos públicos são uma base técnica consistente, mas o aceite de produção comercial exige revisão por advogado com razão social, CNPJ, endereço, foro, contratos dos fornecedores, mecanismo de transferência internacional e contato formal do encarregado. Esses dados não devem ser inventados no código.
+Os textos públicos usam os dados fornecidos e juridicamente revisados da BigCorps Tecnologia LTA, CNPJ 14.282.244/0001-19, com foro em São Paulo/SP e Ithiel Almeida como encarregado pelo tratamento de dados. Alterações societárias ou de contato devem ser atualizadas na fonte única `src/lib/app-config.ts`.
