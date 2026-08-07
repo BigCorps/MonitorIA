@@ -3,6 +3,7 @@ export type OperationalAlertStatus = "open" | "acknowledged" | "resolved";
 
 export type OperationalAlert = {
   id: string;
+  source: "operational" | "intelligent";
   code: string;
   severity: OperationalAlertSeverity;
   status: OperationalAlertStatus;
@@ -16,6 +17,10 @@ export type OperationalAlert = {
   firstObservedAt: string;
   lastObservedAt: string;
   occurrenceCount: number;
+  confidence: number | null;
+  reason: string | null;
+  recommendation: string | null;
+  evidenceEventIds: string[];
 };
 
 export type OperationalAlertOverview = {
@@ -40,4 +45,3 @@ export type CrossCameraJourney = {
   summary: string;
   competingHypotheses: Array<Record<string, unknown>>;
 };
-

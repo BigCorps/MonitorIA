@@ -18,9 +18,20 @@ export const supportErrorCatalog: SupportErrorEntry[] = [
   { code: "trial_overdue", title: "Trial encerrado", action: "Abra Planos e cobrança para escolher as câmeras que continuarão ativas." },
   { code: "outdated_agent", title: "Agent desatualizado", action: "Baixe a versão recomendada na página de instalação e execute o instalador no mesmo computador." },
   { code: "assistant_unavailable", title: "Assistente indisponível", action: "Tente novamente em alguns minutos; nenhuma interação é consumida quando a resposta falha." },
+  { code: "opening_late", title: "Abertura atrasada", action: "Confira a evidência e valide se houve uma exceção conhecida na rotina do local." },
+  { code: "closing_missing", title: "Fechamento não observado", action: "Verifique se o local encerrou a operação e se a câmera responsável pelo estado de fechamento está online." },
+  { code: "reopened_activity", title: "Atividade após o fechamento", action: "Confira a evidência e valide se a atividade estava autorizada; o alerta não presume intenção." },
+  { code: "restricted_access", title: "Acesso em área restrita", action: "Revise os capítulos da sessão e confirme se o acesso estava autorizado." },
+  { code: "object_removed", title: "Objeto retirado", action: "Confira a evidência e valide se a retirada fazia parte da operação esperada." },
+  { code: "equipment_after_hours", title: "Equipamento fora do horário", action: "Confirme se havia atividade autorizada e se o estado visual do equipamento está correto." },
+  { code: "queue_excessive", title: "Fila acima do limite", action: "Confira a evidência e avalie reforço temporário no atendimento." },
+  { code: "session_long", title: "Sessão longa", action: "Verifique se a atividade continua ou se a sessão deve ser encerrada por inatividade." },
+  { code: "camera_obstructed", title: "Câmera possivelmente obstruída", action: "Verifique a lente e remova obstruções antes de recalibrar a referência visual." },
+  { code: "camera_drift", title: "Enquadramento alterado", action: "Confirme a posição física da câmera antes de aprovar uma nova referência." },
+  { code: "camera_low_quality", title: "Qualidade visual reduzida", action: "Verifique iluminação, foco, lente e conexão da câmera." },
+  { code: "process_incomplete", title: "Processo incompleto", action: "Revise as etapas observadas e confirme se o procedimento precisa ser concluído." },
 ];
 
 export function supportErrorEntry(code: string) {
   return supportErrorCatalog.find((entry) => entry.code === code) ?? null;
 }
-

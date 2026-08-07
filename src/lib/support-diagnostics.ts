@@ -10,7 +10,7 @@ export async function buildSupportDiagnostics(input: {
   const expiredBefore = now.toISOString();
   const recentFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [agents, cameras, alerts, analysisFailures, clipFailures, expiredAssets] =
+  const [agents, cameras, alerts, intelligentAlerts, analysisFailures, clipFailures, expiredAssets] =
     await Promise.all([
       supabase
         .from("agents")
@@ -25,6 +25,13 @@ export async function buildSupportDiagnostics(input: {
       supabase
         .from("operational_alerts")
         .select("alert_code,severity,status,last_observed_at,condition")
+        .eq("organization_id", input.organizationId)
+        .in("status", ["open", "acknowledged"])
+        .order("last_observed_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("intelligent_alerts")
+        .select("alert_code,severity,status,last_observed_at,confidence,reason,threshold")
         .eq("organization_id", input.organizationId)
         .in("status", ["open", "acknowledged"])
         .order("last_observed_at", { ascending: false })
@@ -49,7 +56,7 @@ export async function buildSupportDiagnostics(input: {
         .is("deleted_at", null),
     ]);
 
-  const queryErrors = [agents, cameras, alerts, analysisFailures, clipFailures, expiredAssets]
+  const queryErrors = [agents, cameras, alerts, intelligentAlerts, analysisFailures, clipFailures, expiredAssets]
     .map((result) => result.error?.code)
     .filter(Boolean);
 
@@ -94,6 +101,7 @@ export async function buildSupportDiagnostics(input: {
       healthLastObservedAt: camera.health_last_observed_at,
     })),
     activeAlerts: alerts.data ?? [],
+    activeIntelligentAlerts: intelligentAlerts.data ?? [],
     last24Hours: {
       failedAnalyses: analysisFailures.count ?? null,
       failedClips: clipFailures.count ?? null,

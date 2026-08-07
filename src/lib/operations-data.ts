@@ -15,12 +15,16 @@ function objectValue(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function mapAlert(row: any): OperationalAlert {
+function mapAlert(
+  row: any,
+  source: OperationalAlert["source"],
+): OperationalAlert {
   const camera = relationOne<{ name?: string }>(row.camera);
   const agent = relationOne<{ name?: string }>(row.agent);
   const site = relationOne<{ name?: string }>(row.site);
   return {
     id: String(row.id),
+    source,
     code: String(row.alert_code),
     severity: String(row.severity) as OperationalAlert["severity"],
     status: String(row.status) as OperationalAlert["status"],
@@ -34,6 +38,17 @@ function mapAlert(row: any): OperationalAlert {
     firstObservedAt: String(row.first_observed_at),
     lastObservedAt: String(row.last_observed_at),
     occurrenceCount: Number(row.occurrence_count ?? 1),
+    confidence:
+      row.confidence === null || row.confidence === undefined
+        ? null
+        : Number(row.confidence),
+    reason: row.reason ? String(row.reason) : null,
+    recommendation: row.recommendation
+      ? String(row.recommendation)
+      : null,
+    evidenceEventIds: Array.isArray(row.evidence_event_ids)
+      ? row.evidence_event_ids.map(String)
+      : [],
   };
 }
 
@@ -43,11 +58,18 @@ const ALERT_SELECT = `
   camera:cameras(name),agent:agents(name),site:sites(name)
 `;
 
+const INTELLIGENT_ALERT_SELECT = `
+  id,alert_code,severity,status,title,summary,condition,
+  first_observed_at,last_observed_at,occurrence_count,
+  confidence,reason,recommendation,evidence_event_ids,
+  camera:cameras(name),site:sites(name)
+`;
+
 export async function getOperationalAlertOverview(
   organizationId: string,
 ): Promise<OperationalAlertOverview> {
   const supabase = await createClient();
-  const [activeResult, resolvedResult] = await Promise.all([
+  const [activeResult, resolvedResult, intelligentActive, intelligentResolved] = await Promise.all([
     supabase
       .from("operational_alerts")
       .select(ALERT_SELECT)
@@ -63,6 +85,20 @@ export async function getOperationalAlertOverview(
       .eq("status", "resolved")
       .order("resolved_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("intelligent_alerts")
+      .select(INTELLIGENT_ALERT_SELECT)
+      .eq("organization_id", organizationId)
+      .in("status", ["open", "acknowledged"])
+      .order("last_observed_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("intelligent_alerts")
+      .select(INTELLIGENT_ALERT_SELECT)
+      .eq("organization_id", organizationId)
+      .eq("status", "resolved")
+      .order("resolved_at", { ascending: false })
+      .limit(20),
   ]);
 
   if (activeResult.error) {
@@ -71,11 +107,29 @@ export async function getOperationalAlertOverview(
   if (resolvedResult.error) {
     throw new Error(`resolved_alerts_unavailable:${resolvedResult.error.message}`);
   }
+  if (intelligentActive.error) {
+    throw new Error(`intelligent_alerts_unavailable:${intelligentActive.error.message}`);
+  }
+  if (intelligentResolved.error) {
+    throw new Error(`resolved_intelligent_alerts_unavailable:${intelligentResolved.error.message}`);
+  }
 
-  const active = (activeResult.data ?? []).map(mapAlert);
+  const severityOrder = { critical: 0, warning: 1, info: 2 } as const;
+  const active = [
+    ...(activeResult.data ?? []).map((row) => mapAlert(row, "operational")),
+    ...(intelligentActive.data ?? []).map((row) => mapAlert(row, "intelligent")),
+  ].sort((left, right) =>
+    (severityOrder[left.severity] ?? 3) - (severityOrder[right.severity] ?? 3)
+    || new Date(right.lastObservedAt).getTime() - new Date(left.lastObservedAt).getTime()
+  );
   return {
     active,
-    recentResolved: (resolvedResult.data ?? []).map(mapAlert),
+    recentResolved: [
+      ...(resolvedResult.data ?? []).map((row) => mapAlert(row, "operational")),
+      ...(intelligentResolved.data ?? []).map((row) => mapAlert(row, "intelligent")),
+    ].sort((left, right) =>
+      new Date(right.lastObservedAt).getTime() - new Date(left.lastObservedAt).getTime()
+    ).slice(0, 20),
     counts: {
       critical: active.filter((alert) => alert.severity === "critical").length,
       warning: active.filter((alert) => alert.severity === "warning").length,
@@ -128,4 +182,3 @@ export async function getCrossCameraJourneys(
     };
   });
 }
-

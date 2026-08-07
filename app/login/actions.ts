@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 import { normalizeNextPath } from "@/src/lib/auth";
+import { generalSignupEnabled } from "@/src/lib/release";
 
 async function appOrigin() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -128,6 +129,13 @@ export async function createAccount(
   const fullName = String(
     formData.get("full_name") ?? "",
   ).trim();
+
+  if (!generalSignupEnabled()) {
+    authError(
+      "Novos cadastros estão em liberação gradual. Solicite acesso pelo canal comercial.",
+      next,
+    );
+  }
 
   if (
     !email ||

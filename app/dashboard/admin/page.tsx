@@ -6,6 +6,7 @@ export const metadata = { title: "Painel Admin" };
 export const dynamic = "force-dynamic";
 
 const cards = [
+  ["RELEASE 1.0", "Gate de lançamento", "Build, segurança, operação e evidências externas antes de abrir cadastros.", "/dashboard/admin/launch"],
   ["OPERAÇÃO", "Operações", "Acompanhamento diário, incidentes, câmeras e Agents.", "/dashboard/admin/operations"],
   ["INTELIGÊNCIA", "IA e custos", "Modelos, margem, projeções, alertas e testes de visão.", "/dashboard/admin/ai"],
   ["PLATAFORMA", "Infraestrutura", "Agent, armazenamento, saúde e serviços da plataforma.", "/dashboard/admin/infrastructure"],

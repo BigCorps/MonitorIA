@@ -64,5 +64,5 @@ export const appConfig = {
   language: "pt-BR",
   whatsappNumber: "5511926828418",
   whatsappUrl: `https://wa.me/5511926828418?text=${whatsappMessage}`,
-  version: "0.8.2",
+  version: "1.0.0",
 } as const;

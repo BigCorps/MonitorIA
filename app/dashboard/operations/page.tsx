@@ -54,19 +54,21 @@ export default async function OperationsPage() {
                   <article className={`${styles.card} ${styles[alert.status] ?? ""}`} key={alert.id}>
                     <header>
                       <div>
-                        <span className={styles.eyebrow}>{[alert.siteName, alert.cameraName ?? alert.agentName].filter(Boolean).join(" · ") || "Organização"}</span>
+                        <span className={styles.eyebrow}>{alert.source === "intelligent" ? "ALERTA INTELIGENTE · " : "SISTEMA · "}{[alert.siteName, alert.cameraName ?? alert.agentName].filter(Boolean).join(" · ") || "Organização"}</span>
                         <h3>{alert.title}</h3>
                       </div>
                       <span className={`${styles.badge} ${styles[alert.severity]}`}>{severityLabel[alert.severity]}</span>
                     </header>
                     <p>{alert.summary}</p>
-                    {guidance ? <p><strong>Próxima ação:</strong> {guidance.action}</p> : null}
+                    {alert.confidence !== null ? <p><strong>Confiança:</strong> {Math.round(alert.confidence * 100)}%{alert.reason ? ` · ${alert.reason}` : ""}</p> : null}
+                    {alert.recommendation || guidance ? <p><strong>Próxima ação:</strong> {alert.recommendation ?? guidance?.action}</p> : null}
+                    {alert.evidenceEventIds.length ? <p className={styles.eventLinks}>{alert.evidenceEventIds.slice(0, 4).map((eventId, index) => <Link href={`/dashboard/events/${eventId}`} key={eventId}>Evidência {index + 1}</Link>)}</p> : null}
                     <footer>
                       <span className={styles.muted}>Última ocorrência: {new Date(alert.lastObservedAt).toLocaleString("pt-BR")} · {alert.occurrenceCount} verificação(ões)</span>
                       {canManage ? (
                         <div className={styles.actions}>
-                          {alert.status === "open" ? <form action={acknowledgeOperationalAlertAction}><input type="hidden" name="alert_id" value={alert.id} /><button type="submit">Marcar em tratamento</button></form> : null}
-                          <form action={resolveOperationalAlertAction}><input type="hidden" name="alert_id" value={alert.id} /><button type="submit">Resolver</button></form>
+                          {alert.status === "open" ? <form action={acknowledgeOperationalAlertAction}><input type="hidden" name="alert_id" value={alert.id} /><input type="hidden" name="source" value={alert.source} /><button type="submit">Marcar em tratamento</button></form> : null}
+                          <form action={resolveOperationalAlertAction}><input type="hidden" name="alert_id" value={alert.id} /><input type="hidden" name="source" value={alert.source} /><button type="submit">Resolver</button></form>
                         </div>
                       ) : null}
                     </footer>
@@ -80,4 +82,3 @@ export default async function OperationsPage() {
     </main>
   );
 }
-

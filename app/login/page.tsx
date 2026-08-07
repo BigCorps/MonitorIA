@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { AuthButtons } from "./auth-buttons";
 import { appConfig } from "@/src/lib/app-config";
+import { generalSignupEnabled } from "@/src/lib/release";
 
 export const metadata = { title: "Entrar" };
 export const dynamic = "force-dynamic";
@@ -55,7 +56,9 @@ export default async function LoginPage({
   const next = normalizeNextPath(
     firstValue(params.next) ?? "/dashboard",
   );
-  const wantsSignup = params.criar === "1";
+  const signupEnabled = generalSignupEnabled();
+  const signupRequested = params.criar === "1";
+  const wantsSignup = signupEnabled && signupRequested;
 
   return (
     <main className="auth-page">
@@ -123,6 +126,12 @@ export default async function LoginPage({
           {error ? (
             <div className="form-alert error">
               {error}
+            </div>
+          ) : null}
+
+          {signupRequested && !signupEnabled ? (
+            <div className="form-alert success">
+              Novos cadastros estão em liberação gradual. Entre em uma conta existente ou solicite acesso à equipe MonitorIA.
             </div>
           ) : null}
 
@@ -249,22 +258,25 @@ export default async function LoginPage({
             </span>
           </div>
 
-          <Link
-            className="auth-submit secondary"
-            href={
-              wantsSignup
-                ? `/login?next=${encodeURIComponent(
-                    next,
-                  )}`
-                : `/login?criar=1&next=${encodeURIComponent(
-                    next,
-                  )}`
-            }
-          >
-            {wantsSignup
-              ? "Voltar para o login"
-              : "Criar uma nova conta"}
-          </Link>
+          {wantsSignup ? (
+            <Link
+              className="auth-submit secondary"
+              href={`/login?next=${encodeURIComponent(next)}`}
+            >
+              Voltar para o login
+            </Link>
+          ) : signupEnabled ? (
+            <Link
+              className="auth-submit secondary"
+              href={`/login?criar=1&next=${encodeURIComponent(next)}`}
+            >
+              Criar uma nova conta
+            </Link>
+          ) : (
+            <a className="auth-submit secondary" href={appConfig.whatsappUrl}>
+              Solicitar acesso
+            </a>
+          )}
         </div>
       </section>
     </main>
