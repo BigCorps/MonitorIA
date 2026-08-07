@@ -34,6 +34,7 @@ export type VisionRoutingDecision = {
     | "reuse_state"
     | "await_more_frames";
   verificationRequested: boolean;
+  verificationLimitedByPlan: boolean;
   critical: boolean;
   reasons: VisionRoutingReason[];
 };
@@ -221,6 +222,7 @@ export function assessPreflightComplexity(
     cappedByPlan: capped.capped,
     deterministicDisposition,
     verificationRequested: false,
+    verificationLimitedByPlan: false,
     critical: Boolean(
       input.localMetrics.afterConfirmedClosing ||
         candidateEntityIds.length > 0,

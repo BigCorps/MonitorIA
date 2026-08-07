@@ -113,6 +113,11 @@ export async function runVisionModel(
 export async function analyzeEventThroughGateway(
   input: AnalyzeEventInput,
   planCode: AnalysisPlanCode,
+  options?: {
+    allowVerification?: (
+      decision: VisionRoutingDecision,
+    ) => Promise<boolean>;
+  },
 ): Promise<VisionPlanOutcome> {
   const preflight = assessPreflightComplexity(input, planCode);
   const execution = resolveVisionRouteExecution(
@@ -200,10 +205,18 @@ export async function analyzeEventThroughGateway(
 
   const attempts: VisionAnalysisAttempt[] = [primary];
 
-  if (
+  const verifierWouldRepeatPrimary = Boolean(
+    execution.route === "strong" &&
+      execution.verifierModel === execution.model,
+  );
+  const verificationAllowed =
     postflight.verificationRequested &&
-    execution.verifierModel
-  ) {
+    execution.verifierModel &&
+    !verifierWouldRepeatPrimary
+      ? await options?.allowVerification?.(postflight) ?? true
+      : false;
+
+  if (verificationAllowed && execution.verifierModel) {
     const verifierInput: AnalyzeEventInput = {
       ...input,
       analysisMode: "detailed",
@@ -242,6 +255,10 @@ export async function analyzeEventThroughGateway(
     attempts,
     escalated: false,
     verified: false,
-    routing: postflight,
+    routing: {
+      ...postflight,
+      verificationLimitedByPlan:
+        postflight.verificationRequested && !verificationAllowed,
+    },
   };
 }

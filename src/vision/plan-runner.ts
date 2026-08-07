@@ -22,6 +22,7 @@ export function shouldEscalate(result: VisionAnalysisResult) {
 export async function analyzeEventForPlan(
   input: AnalyzeEventInput,
   planCode: AnalysisPlanCode,
+  options?: Parameters<typeof analyzeEventThroughGateway>[2],
 ): Promise<VisionPlanOutcome> {
-  return analyzeEventThroughGateway(input, planCode);
+  return analyzeEventThroughGateway(input, planCode, options);
 }

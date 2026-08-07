@@ -885,6 +885,30 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const outcome = await analyzeEventForPlan(
       visionInput,
       planCode,
+      {
+        allowVerification: async () => {
+          const { data, error } = await supabase.rpc(
+            "reserve_monitoria_analysis_verification",
+            {
+              p_analysis_job_id: analysisJobId,
+              p_camera_id: cameraId,
+              p_organization_id:
+                authenticated.camera.organizationId,
+              p_plan_code: planCode,
+            },
+          );
+
+          if (error) {
+            console.error(
+              "Falha ao reservar verificação seletiva:",
+              error.message,
+            );
+            return false;
+          }
+
+          return Boolean(data);
+        },
+      },
     );
 
     const attempts = [...outcome.attempts];
@@ -919,6 +943,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const uniqueAttempts = distinctAttempts(attempts);
     const finalAnalysis = outcome.final;
+    const finalAttemptRole =
+      outcome.attempts.at(-1)?.role ?? "primary";
     const allowedZones = new Set(
       cameraProfile.zones.map((zone) => zone.id),
     );
@@ -994,7 +1020,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         estimated_cost_usd: finalCost.totalCostUsd,
         metadata: {
           purpose: "continuous_event",
-          role: "final",
+          role: finalAttemptRole,
           response_id: finalAnalysis.responseId,
           latency_ms: finalAnalysis.latencyMs,
           plan_code: planCode,

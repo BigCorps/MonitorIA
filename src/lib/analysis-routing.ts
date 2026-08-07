@@ -25,6 +25,8 @@ export async function persistAnalysisRoutingDecision(input: {
     capped_by_plan: input.outcome.routing.cappedByPlan,
     verification_requested:
       input.outcome.routing.verificationRequested,
+    verification_limited_by_plan:
+      input.outcome.routing.verificationLimitedByPlan,
     verified: input.outcome.verified,
     critical: input.outcome.routing.critical,
     provider: finalAttempt?.provider ?? input.outcome.final.provider,

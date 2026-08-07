@@ -166,7 +166,7 @@ export function resolveVisionRouteExecution(
   return {
     route: "balanced",
     mode: "balanced",
-    model: code === "intensive" ? strongModel : balancedModel,
+    model: balancedModel,
     detail: detail(process.env.VISION_DETAIL_BALANCED, "low"),
     maxOutputTokens: positiveInteger(
       process.env.VISION_MAX_OUTPUT_BALANCED,

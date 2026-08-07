@@ -32,7 +32,16 @@ Experimentos `ab_candidate` continuam sendo custo real, mas não contaminam a pr
 
 Compara a taxa observada de jobs escalonados ao limite comercial do catálogo.
 
-Até a INT-3.5 ser aplicada, o indicador é derivado de `analysis_jobs.model_chain`.
+Na Fase 9, a verificação adicional passa por uma reserva atômica antes da
+segunda chamada. A reserva respeita simultaneamente:
+
+- o percentual mensal máximo do plano;
+- o orçamento acumulado de IA até o dia atual, limitado ao patamar de aviso
+  do teto de COGS;
+- uma margem de segurança baseada no custo recente das verificações.
+
+A telemetria considera os papéis `verifier` e `escalation`. Registros antigos
+gravados como `final` são reconciliados a partir de `model_chain`.
 
 ### Integridade
 
