@@ -1,39 +1,62 @@
+/*
+ * Estilos compartilhados por três telas:
+ *   app/dashboard/operations/page.tsx                 (Alertas operacionais)
+ *   app/dashboard/support/page.tsx                    (Diagnóstico e ajuda)
+ *   app/dashboard/intelligence/cross-camera/page.tsx  (Passagens entre câmeras)
+ *
+ * Este arquivo tinha sido escrito para fundo escuro — cartões em
+ * rgba(10,24,42,.72) e textos quase brancos. Só que o dashboard é claro
+ * (.dashboard-shell usa #f2f5f9), o que produzia dois defeitos opostos:
+ *
+ *   1. Títulos SEM cor declarada (.notice h2, .empty h3) herdavam o texto
+ *      escuro do shell e caíam sobre o cartão escuro — escuro no escuro.
+ *   2. Títulos COM cor clara (.sectionHeader h2, em #f8fafc) ficavam fora
+ *      do cartão, direto sobre o fundo claro — branco no branco.
+ *
+ * A paleta abaixo é a mesma de overview.module.css e da .metric-card em
+ * globals.css. Nenhuma cor nova foi inventada.
+ *
+ *   superfície      #ffffff
+ *   borda           #dbe7ef  /  #e1e7ef nos cartões de número
+ *   painel suave    #f8fbfd com borda #e2ebf0
+ *   título          #12212d
+ *   texto corrente  #6b7d8f
+ *   texto discreto  #718399
+ *   acento          #087f6a sobre #f1fbf8, borda #b9ddd4
+ */
+
 .summaryGrid,
 .cards {
   display: grid;
   gap: 16px;
 }
 
+/* --- Cartões de número (8 críticos / 54 pedem atenção / 0 em tratamento) --- */
+
 .summaryGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 24px 0;
 }
 
-.summaryGrid article,
-.card,
-.empty,
-.notice {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 18px;
-  background: rgba(10, 24, 42, 0.72);
-}
-
 .summaryGrid article {
   padding: 20px;
+  border: 1px solid #e1e7ef;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 31, 52, 0.035);
 }
 
 .summaryGrid strong {
   display: block;
-  color: #f8fafc;
+  color: #12212d;
   font: 700 1.8rem/1 var(--font-display);
 }
 
-.summaryGrid span,
-.muted,
-.card p,
-.notice p {
-  color: #9fb0c5;
+.summaryGrid span {
+  color: #718399;
 }
+
+/* --- Cartões de conteúdo --------------------------------------------------- */
 
 .cards {
   margin: 18px 0 30px;
@@ -41,6 +64,10 @@
 
 .card {
   padding: 20px;
+  border: 1px solid #dbe7ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
 }
 
 .card header,
@@ -54,20 +81,41 @@
 }
 
 .card h2,
-.card h3,
+.card h3 {
+  margin: 4px 0 8px;
+  color: #12212d;
+}
+
+.card p,
+.muted,
+.notice p,
+.empty p {
+  color: #6b7d8f;
+}
+
+/* "Confiança:" e "Próxima ação:" precisam se destacar do corpo do texto. */
+.card p strong {
+  color: #12212d;
+  font-weight: 700;
+}
+
+/* --- Cabeçalho de seção: fica FORA do cartão, sobre o fundo claro ---------- */
+
 .sectionHeader h2 {
   margin: 4px 0 8px;
-  color: #f8fafc;
+  color: #12212d;
 }
 
 .eyebrow,
 .sectionHeader span {
-  color: #70d8ff;
+  color: #087f6a;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
+/* --- Selos de severidade --------------------------------------------------- */
 
 .badge {
   flex: 0 0 auto;
@@ -77,17 +125,36 @@
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.critical { color: #ff8f8f; }
-.warning { color: #ffd36a; }
-.info { color: #70d8ff; }
-.acknowledged { opacity: 0.76; }
+.critical {
+  color: #b42318;
+  background: #fef3f2;
+}
+
+.warning {
+  color: #b54708;
+  background: #fffaeb;
+}
+
+.info {
+  color: #026aa2;
+  background: #f0f9ff;
+}
+
+/* Alerta já em tratamento: recua sem apagar o texto. */
+.acknowledged {
+  background: #f8fbfd;
+  opacity: 0.88;
+}
+
+/* --- Rodapé e ações do cartão ---------------------------------------------- */
 
 .card footer {
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-top: 1px solid #e6edf3;
   flex-wrap: wrap;
 }
 
@@ -98,31 +165,77 @@
 
 .actions button,
 .download {
-  border: 1px solid rgba(112, 216, 255, 0.45);
+  display: inline-block;
+  border: 1px solid #b9ddd4;
   border-radius: 10px;
-  background: rgba(30, 119, 154, 0.18);
-  color: #dff7ff;
+  background: #f1fbf8;
+  color: #087f6a;
   cursor: pointer;
   padding: 9px 13px;
+  font: inherit;
+  font-weight: 700;
   text-decoration: none;
 }
 
-.empty,
-.notice {
-  padding: 24px;
+.actions button:hover,
+.download:hover {
+  background: #e7f8f3;
 }
 
+/* --- Avisos e estados vazios ----------------------------------------------- */
+
+.notice,
+.empty {
+  padding: 24px;
+  border-radius: 18px;
+}
+
+/* Aviso informativo: tom de acento, para não ser lido como mais um cartão. */
 .notice {
   margin: 20px 0;
+  border: 1px solid #b9ddd4;
+  background: #f1fbf8;
 }
 
-.notice h2 { margin: 0 0 8px; }
-.notice p { margin: 0; }
+.notice h2 {
+  margin: 0 0 8px;
+  color: #12212d;
+}
+
+.notice p {
+  margin: 0;
+}
+
+/* O botão de download vinha dentro de um <p> e encavalava na linha de cima. */
+.notice p + p {
+  margin-top: 14px;
+}
+
+.notice a {
+  color: #087f6a;
+}
+
+/* Estado vazio: painel neutro, mais discreto que um cartão. */
+.empty {
+  border: 1px solid #e2ebf0;
+  background: #f8fbfd;
+}
+
+.empty h3 {
+  margin: 0 0 8px;
+  color: #12212d;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* --- Metadados e links de evidência ---------------------------------------- */
 
 .journeyMeta {
   justify-content: flex-start;
   flex-wrap: wrap;
-  color: #9fb0c5;
+  color: #718399;
   font-size: 0.82rem;
 }
 
@@ -131,10 +244,22 @@
   gap: 12px;
 }
 
-.eventLinks a { color: #70d8ff; }
-
-@media (max-width: 760px) {
-  .summaryGrid { grid-template-columns: 1fr; }
-  .card header { align-items: flex-start; }
+.eventLinks a {
+  color: #087f6a;
+  font-weight: 700;
+  text-decoration: none;
 }
 
+.eventLinks a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .card header {
+    align-items: flex-start;
+  }
+}
