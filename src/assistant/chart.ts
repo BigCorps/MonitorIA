@@ -387,11 +387,20 @@ export function buildAssistantChart(input: {
     });
   }
 
-  if (input.plan.intent !== "period_summary") return null;
+  if (
+    input.plan.intent !== "period_summary" &&
+    input.plan.intent !== "daily_operations"
+  ) {
+    return null;
+  }
 
   return periodSummaryChart({
     plan: input.plan,
-    summary: objectValue(retrievedData.summary),
+    summary: objectValue(
+      input.plan.intent === "daily_operations"
+        ? retrievedData.periodSummary
+        : retrievedData.summary,
+    ),
     fromDate: input.fromDate,
     toDate: input.toDate,
   });

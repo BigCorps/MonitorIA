@@ -26,6 +26,10 @@ import {
 } from "@/src/lib/event-search-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
+import {
+  consumeRateLimit,
+  rateLimitHeaders,
+} from "@/src/lib/rate-limit";
 import { estimateVisionCostBreakdown } from "@/src/vision/cost";
 
 export const runtime = "nodejs";
@@ -186,6 +190,42 @@ function evidenceIdsFromRows(rows: SearchEventRow[]) {
   return rows.map((row) => row.id);
 }
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function evidenceIdsFromOperationalData(value: unknown) {
+  const found = new Set<string>();
+
+  function visit(current: unknown, key = "", depth = 0) {
+    if (depth > 8 || found.size >= 24 || current == null) return;
+
+    if (typeof current === "string") {
+      if (
+        uuidPattern.test(current) &&
+        /(evidence|event)/i.test(key) &&
+        !/(session|profile|observation)/i.test(key)
+      ) {
+        found.add(current);
+      }
+      return;
+    }
+
+    if (Array.isArray(current)) {
+      for (const item of current) visit(item, key, depth + 1);
+      return;
+    }
+
+    if (typeof current === "object") {
+      for (const [childKey, child] of Object.entries(current)) {
+        visit(child, childKey, depth + 1);
+      }
+    }
+  }
+
+  visit(value);
+  return [...found];
+}
+
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
   if (!user) {
@@ -244,19 +284,25 @@ export async function POST(request: Request) {
   const currentDate = currentDateInZone(timeZone);
 
   const admin = createAdminClient();
-  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-  const { count: recentCount } = await admin
-    .from("assistant_messages")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organization.id)
-    .eq("created_by", user.id)
-    .eq("role", "user")
-    .gte("created_at", oneMinuteAgo);
+  let rateLimit;
+  try {
+    rateLimit = await consumeRateLimit({
+      scope: "assistant-query",
+      subject: `${organization.id}:${user.id}`,
+      limit: 15,
+      windowSeconds: 60,
+    });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "rate_limit_unavailable" },
+      { status: 503 },
+    );
+  }
 
-  if ((recentCount ?? 0) >= 15) {
+  if (!rateLimit.allowed) {
     return NextResponse.json(
       { ok: false, error: "too_many_requests" },
-      { status: 429 },
+      { status: 429, headers: rateLimitHeaders(rateLimit) },
     );
   }
 
@@ -456,7 +502,10 @@ export async function POST(request: Request) {
             "Veículos visualmente semelhantes podem ser indistinguíveis sem característica distintiva ou sequência suficiente.",
         },
       };
-    } else if (plan.intent === "interaction_sessions") {
+    } else if (
+      plan.intent === "interaction_sessions" ||
+      plan.intent === "interaction_summary"
+    ) {
       const result = await supabase.rpc(
         "assistant_operational_sessions_summary",
         {
@@ -498,6 +547,207 @@ export async function POST(request: Request) {
             "Encerramento calculado quando não houve novo capítulo dentro da janela configurada.",
         },
       };
+    } else if (plan.intent === "routine_deviation") {
+      const result = await supabase.rpc(
+        "assistant_routine_deviation_summary",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) throw new Error(result.error.message);
+      candidateEvidenceIds = evidenceIdsFromOperationalData(result.data);
+      retrievedData = {
+        routineDeviation: result.data,
+        definitions: {
+          baseline:
+            "Faixa esperada calculada a partir de observações históricas comparáveis.",
+          deviation:
+            "Diferença mensurável em relação à faixa esperada; não prova causa ou intenção.",
+        },
+      };
+    } else if (plan.intent === "staff_activity") {
+      const [profiles, sessions, routines] = await Promise.all([
+        supabase.rpc("assistant_staff_operational_profile_summary_v1", {
+          p_organization_id: organization.id,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+        supabase.rpc("assistant_operational_sessions_summary", {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+        supabase.rpc("assistant_routine_deviation_summary", {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+      ]);
+
+      const rpcError = profiles.error ?? sessions.error ?? routines.error;
+      if (rpcError) throw new Error(rpcError.message);
+      retrievedData = {
+        staffOperationalProfiles: profiles.data,
+        operationalSessions: sessions.data,
+        routineDeviation: routines.data,
+        definitions: {
+          staffProfile:
+            "Perfil operacional aprovado por aparência ampla e contexto; não identifica uma pessoa civil nem usa biometria facial.",
+          probablePresence:
+            "Presença provável inferida dos eventos disponíveis, sujeita a oclusões e lacunas de captura.",
+        },
+      };
+      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
+    } else if (plan.intent === "queue_analysis") {
+      const [queue, sessions] = await Promise.all([
+        supabase.rpc("assistant_queue_analysis_v1", {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+        supabase.rpc("assistant_operational_sessions_summary", {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+      ]);
+
+      const rpcError = queue.error ?? sessions.error;
+      if (rpcError) throw new Error(rpcError.message);
+      retrievedData = {
+        queueAnalysis: queue.data,
+        relatedOperationalSessions: sessions.data,
+      };
+      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
+    } else if (
+      plan.intent === "object_history" ||
+      plan.intent === "equipment_history"
+    ) {
+      const [states, matchingEvents] = await Promise.all([
+        supabase.rpc("assistant_visual_state_summary", {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        }),
+        searchEvents(organization.id, {
+          query: plan.query || body.message,
+          from: fromIso,
+          to: toIso,
+          cameraId: plan.cameraId,
+          siteId: plan.siteId,
+          limit: plan.evidenceLimit,
+          offset: 0,
+        }),
+      ]);
+
+      if (states.error) throw new Error(states.error.message);
+      retrievedData = {
+        visualStateHistory: states.data,
+        matchingEvents: matchingEvents.rows,
+        matchingEventsTotal: matchingEvents.total,
+        subject:
+          plan.intent === "equipment_history" ? "equipment" : "object",
+        definitions: {
+          absence:
+            "Ausência visual no enquadramento observado; não confirma perda, furto ou localização fora da câmera.",
+        },
+      };
+      candidateEvidenceIds = [
+        ...evidenceIdsFromRows(matchingEvents.rows),
+        ...evidenceIdsFromOperationalData(states.data),
+      ];
+    } else if (plan.intent === "camera_health") {
+      const result = await supabase.rpc(
+        "assistant_camera_health_summary_v1",
+        {
+          p_organization_id: organization.id,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (result.error) throw new Error(result.error.message);
+      retrievedData = {
+        cameraHealth: result.data,
+        definitions: {
+          incident:
+            "Sinal técnico de qualidade ou enquadramento comparado ao baseline; não determina a causa.",
+        },
+      };
+      candidateEvidenceIds = evidenceIdsFromOperationalData(result.data);
+    } else if (plan.intent === "daily_operations") {
+      const [summary, sessions, routines, processes, health] =
+        await Promise.all([
+          supabase.rpc("assistant_period_summary", {
+            p_organization_id: organization.id,
+            p_from: fromIso,
+            p_to: toIso,
+            p_camera_id: plan.cameraId,
+            p_site_id: plan.siteId,
+          }),
+          supabase.rpc("assistant_operational_sessions_summary", {
+            p_organization_id: organization.id,
+            p_from: fromIso,
+            p_to: toIso,
+            p_camera_id: plan.cameraId,
+            p_site_id: plan.siteId,
+          }),
+          supabase.rpc("assistant_routine_deviation_summary", {
+            p_organization_id: organization.id,
+            p_from: fromIso,
+            p_to: toIso,
+            p_camera_id: plan.cameraId,
+            p_site_id: plan.siteId,
+          }),
+          supabase.rpc("assistant_operational_process_summary_v1", {
+            p_organization_id: organization.id,
+            p_from: fromIso,
+            p_to: toIso,
+            p_camera_id: plan.cameraId,
+            p_site_id: plan.siteId,
+          }),
+          supabase.rpc("assistant_camera_health_summary_v1", {
+            p_organization_id: organization.id,
+            p_camera_id: plan.cameraId,
+            p_site_id: plan.siteId,
+          }),
+        ]);
+
+      const rpcError =
+        summary.error ??
+        sessions.error ??
+        routines.error ??
+        processes.error ??
+        health.error;
+      if (rpcError) throw new Error(rpcError.message);
+
+      retrievedData = {
+        periodSummary: summary.data,
+        operationalSessions: sessions.data,
+        routineDeviation: routines.data,
+        operationalProcesses: processes.data,
+        cameraHealth: health.data,
+        definitions: {
+          operationalMemory:
+            "Combinação de eventos, sessões, rotinas, processos e saúde técnica já calculados pelo banco.",
+        },
+      };
+      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
     } else if (plan.intent === "continuity_summary") {
       const result = await supabase.rpc(
         "assistant_continuity_summary",
@@ -764,6 +1014,11 @@ export async function POST(request: Request) {
           "informar abertura e fechamento visualmente confirmados",
           "consultar o estado atual de entidades configuradas",
           "localizar mudanças em caixas, armários, objetos, equipamentos e áreas",
+          "comparar a operação com rotinas históricas e explicar desvios",
+          "resumir atividade provável de funcionários sem identificação biométrica",
+          "analisar sinais explícitos de fila e espera",
+          "informar incidentes de qualidade e enquadramento das câmeras",
+          "gerar um resumo diário de eventos, sessões, rotinas, processos e saúde",
           "resumir períodos",
           "estimar aparições de clientes e funcionários",
           "localizar entregas, objetos e veículos",

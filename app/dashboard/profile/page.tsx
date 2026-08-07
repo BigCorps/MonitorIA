@@ -3,6 +3,7 @@ import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getProfileData } from "@/src/lib/profile-data";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import {
+  createPrivacyRequest,
   sendProfileMagicLink,
   updateOrganizationProfile,
   updatePersonalProfile,
@@ -30,6 +31,27 @@ const roleLabels: Record<string, string> = {
   viewer: "Visualizador",
 };
 
+const privacyTypeLabels: Record<string, string> = {
+  confirmation: "Confirmação de tratamento",
+  access: "Acesso aos dados",
+  correction: "Correção",
+  information: "Informações sobre uso e compartilhamento",
+  restriction: "Anonimização, bloqueio ou restrição",
+  deletion: "Exclusão",
+  portability: "Portabilidade",
+  opposition: "Oposição ao tratamento",
+  review: "Revisão de decisão automatizada",
+};
+
+const privacyStatusLabels: Record<string, string> = {
+  received: "Recebida",
+  identity_check: "Validação de identidade",
+  in_progress: "Em atendimento",
+  completed: "Concluída",
+  rejected: "Não atendida",
+  cancelled: "Cancelada",
+};
+
 function firstValue(
   value: string | string[] | undefined,
 ) {
@@ -41,6 +63,12 @@ function accountDate(value: string | null) {
 
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "long",
+  }).format(new Date(value));
+}
+
+function shortDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
   }).format(new Date(value));
 }
 
@@ -343,6 +371,93 @@ export default async function ProfilePage({
             <SecuritySettings
               userEmail={profile.user.email}
             />
+          </section>
+
+          <section
+            className={`${styles.card} ${styles.fullWidth}`}
+          >
+            <div className={styles.cardHeading}>
+              <div>
+                <span>PRIVACIDADE E LGPD</span>
+                <h2>Solicitações sobre seus dados</h2>
+              </div>
+              <small>
+                Canal autenticado com protocolo e acompanhamento.
+              </small>
+            </div>
+
+            {!profile.privacy.tableReady ? (
+              <div className={`${styles.notice} ${styles.warning}`}>
+                A migration da Fase 10 ainda não foi aplicada no Supabase.
+              </div>
+            ) : (
+              <div className={styles.privacyGrid}>
+                <form action={createPrivacyRequest} className={styles.form}>
+                  <div className={styles.twoColumns}>
+                    <label className={styles.field}>
+                      <span>Tipo de solicitação</span>
+                      <select name="request_type" defaultValue="access" required>
+                        {Object.entries(privacyTypeLabels).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className={styles.field}>
+                      <span>Escopo</span>
+                      <select name="scope" defaultValue="account" required>
+                        <option value="account">Conta e uso do serviço</option>
+                        <option value="monitoring">Imagens e monitoramento</option>
+                        <option value="all">Todos os dados relacionados</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className={styles.field}>
+                    <span>Detalhes</span>
+                    <textarea
+                      name="details"
+                      minLength={10}
+                      maxLength={2000}
+                      required
+                      placeholder="Explique quais dados ou período estão envolvidos. Não envie senhas ou credenciais."
+                    />
+                  </label>
+
+                  <div className={styles.formFooter}>
+                    <span>
+                      Podemos pedir confirmação de identidade antes de fornecer ou excluir dados.
+                    </span>
+                    <button type="submit">Registrar solicitação</button>
+                  </div>
+                </form>
+
+                <div className={styles.privacyHistory}>
+                  <strong>Protocolos recentes</strong>
+                  {profile.privacy.requests.length ? (
+                    <ul>
+                      {profile.privacy.requests.map((request) => (
+                        <li key={request.id}>
+                          <div>
+                            <strong>
+                              {privacyTypeLabels[request.requestType] ?? request.requestType}
+                            </strong>
+                            <span>
+                              {privacyStatusLabels[request.status] ?? request.status}
+                            </span>
+                          </div>
+                          <small>
+                            Protocolo {request.id.slice(0, 8).toUpperCase()} · recebido em {shortDate(request.createdAt)}
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Nenhuma solicitação registrada por esta conta.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           <section

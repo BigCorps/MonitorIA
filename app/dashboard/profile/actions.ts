@@ -9,6 +9,7 @@ import {
   getCurrentOrganization,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
+import { consumeRateLimit } from "@/src/lib/rate-limit";
 
 function clean(
   formData: FormData,
@@ -508,5 +509,85 @@ export async function sendProfileMagicLink() {
   profileRedirect(
     "message",
     "Enviamos um novo link de acesso para seu e-mail.",
+  );
+}
+
+const privacyRequestTypes = new Set([
+  "confirmation",
+  "access",
+  "correction",
+  "information",
+  "restriction",
+  "deletion",
+  "portability",
+  "opposition",
+  "review",
+]);
+
+const privacyScopes = new Set(["account", "monitoring", "all"]);
+
+export async function createPrivacyRequest(formData: FormData) {
+  const user = await requireAuthenticatedUser();
+  const organization = await getCurrentOrganization(user.id);
+  if (!organization) redirect("/onboarding");
+
+  const requestType = clean(formData, "request_type", 40);
+  const scope = clean(formData, "scope", 40);
+  const details = clean(formData, "details", 2000);
+
+  if (!privacyRequestTypes.has(requestType) || !privacyScopes.has(scope)) {
+    profileRedirect("error", "Selecione uma solicitação de privacidade válida.");
+  }
+
+  if (details.length < 10) {
+    profileRedirect(
+      "error",
+      "Descreva sua solicitação de privacidade com pelo menos 10 caracteres.",
+    );
+  }
+
+  let limit;
+  try {
+    limit = await consumeRateLimit({
+      scope: "privacy-request",
+      subject: `${organization.id}:${user.id}`,
+      limit: 5,
+      windowSeconds: 3600,
+    });
+  } catch {
+    profileRedirect(
+      "error",
+      "O canal de privacidade está temporariamente indisponível.",
+    );
+  }
+
+  if (!limit.allowed) {
+    profileRedirect(
+      "error",
+      "Limite temporário de solicitações atingido. Tente novamente mais tarde.",
+    );
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("privacy_requests").insert({
+    organization_id: organization.id,
+    requester_user_id: user.id,
+    request_type: requestType,
+    scope,
+    details,
+  });
+
+  if (error) {
+    console.error("Falha ao registrar solicitação de privacidade:", error.code);
+    profileRedirect(
+      "error",
+      "Não foi possível registrar a solicitação de privacidade.",
+    );
+  }
+
+  revalidatePath("/dashboard/profile");
+  profileRedirect(
+    "message",
+    "Solicitação de privacidade registrada. Acompanhe o status nesta página.",
   );
 }

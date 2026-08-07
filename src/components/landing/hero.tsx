@@ -48,6 +48,8 @@ export function LandingFooter() {
           <Link href="/seguranca-e-privacidade">Segurança</Link>
           <Link href="/contato">Contato</Link>
           <Link href="/privacidade">Privacidade</Link>
+          <Link href="/retencao">Retenção</Link>
+          <Link href="/subprocessadores">Subprocessadores</Link>
           <Link href="/termos">Termos</Link>
         </nav>
       </div>

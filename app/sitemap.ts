@@ -17,6 +17,11 @@ const pages: Array<{
   { path: "/sobre", changeFrequency: "yearly", priority: 0.6 },
   { path: "/contato", changeFrequency: "yearly", priority: 0.6 },
   { path: "/privacidade", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/retencao", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/subprocessadores", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/dpa", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/resposta-a-incidentes", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/aviso-de-monitoramento", changeFrequency: "yearly", priority: 0.3 },
   { path: "/termos", changeFrequency: "yearly", priority: 0.4 },
 ];
 

@@ -43,6 +43,17 @@ export type ProfileData = {
     logoUrl: string | null;
     tableReady: boolean;
   };
+  privacy: {
+    tableReady: boolean;
+    requests: Array<{
+      id: string;
+      requestType: string;
+      scope: string;
+      status: string;
+      responseDueAt: string;
+      createdAt: string;
+    }>;
+  };
   site: {
     id: string | null;
     name: string;
@@ -141,6 +152,15 @@ export async function getProfileData(
     .eq("organization_id", organization.id)
     .maybeSingle();
 
+  const { data: privacyRows, error: privacyError } = await supabase
+    .from("privacy_requests")
+    .select(
+      "id,request_type,scope,status,response_due_at,created_at",
+    )
+    .eq("requester_user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
   if (
     companyError &&
     companyError.code !== "PGRST205" &&
@@ -186,6 +206,17 @@ export async function getProfileData(
         ? String(companyRow.logo_url)
         : null,
       tableReady: !companyError,
+    },
+    privacy: {
+      tableReady: !privacyError,
+      requests: (privacyRows ?? []).map((request) => ({
+        id: String(request.id),
+        requestType: String(request.request_type),
+        scope: String(request.scope),
+        status: String(request.status),
+        responseDueAt: String(request.response_due_at),
+        createdAt: String(request.created_at),
+      })),
     },
     site: {
       id: siteRow?.id ?? null,

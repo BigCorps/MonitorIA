@@ -20,6 +20,10 @@ import {
 } from "@/src/lib/event-export";
 import { eventTypeLabel, reviewLabel } from "@/src/lib/event-labels";
 import { createClient } from "@/src/lib/supabase/server";
+import {
+  consumeRateLimit,
+  rateLimitHeaders,
+} from "@/src/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,6 +136,28 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { ok: false, error: "organization_not_found" },
       { status: 404 },
+    );
+  }
+
+  let rateLimit;
+  try {
+    rateLimit = await consumeRateLimit({
+      scope: "events-export",
+      subject: `${organization.id}:${user.id}`,
+      limit: 10,
+      windowSeconds: 60,
+    });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "rate_limit_unavailable" },
+      { status: 503 },
+    );
+  }
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "too_many_requests" },
+      { status: 429, headers: rateLimitHeaders(rateLimit) },
     );
   }
 
