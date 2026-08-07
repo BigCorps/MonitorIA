@@ -3,6 +3,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/client";
+import {
+  authCallbackUrl,
+  ensureCanonicalAuthOrigin,
+  logPasskeyDiagnostics,
+  supportsWebAuthn,
+} from "@/src/lib/auth-origin";
 import styles from "./login-auth.module.css";
 
 type Props = {
@@ -21,7 +27,7 @@ function authMessage(error: unknown) {
     normalized.includes("auth_method_disabled") ||
     normalized.includes("method disabled")
   ) {
-    return "Esta forma de acesso não está disponível para esta conta. Use outro método autorizado.";
+    return "Esta forma de entrar não está liberada para a sua conta. Tente outra opção da lista.";
   }
 
   if (
@@ -29,17 +35,17 @@ function authMessage(error: unknown) {
     normalized.includes("cancel") ||
     normalized.includes("timed out")
   ) {
-    return "A autenticação foi cancelada ou expirou. Tente novamente.";
+    return "O acesso foi cancelado ou demorou demais. Tente de novo.";
   }
 
   if (
     normalized.includes("passkey_disabled") ||
     normalized.includes("webauthn")
   ) {
-    return "A biometria não pôde ser utilizada neste aparelho ou ainda não está habilitada no projeto.";
+    return "Não foi possível usar a biometria neste aparelho. Entre com senha, Google ou link no e-mail.";
   }
 
-  return "Não foi possível concluir a autenticação. Tente novamente.";
+  return "Não foi possível concluir a entrada. Tente de novo.";
 }
 
 export function AuthButtons({ next }: Props) {
@@ -53,13 +59,19 @@ export function AuthButtons({ next }: Props) {
   );
 
   async function signInWithGoogle() {
+    // Se a página não estiver na origem canônica, canonicaliza e para aqui.
+    // O PKCE guarda o code_verifier na origem atual; começar em www e voltar
+    // em monitoria.cam perde o verifier e derruba o usuário na landing.
+    if (!ensureCanonicalAuthOrigin()) return;
+
     setLoading("google");
     setError(null);
 
     try {
-      const redirectTo =
-        `${window.location.origin}/auth/callback?next=` +
-        encodeURIComponent(next);
+      // Sempre https://monitoria.cam/auth/callback, nunca window.location.
+      // O redirectTo precisa bater exatamente com a lista de Redirect URLs
+      // do Supabase; quando não bate, ele cai na Site URL (a landing).
+      const redirectTo = authCallbackUrl(next);
 
       const { error: authError } =
         await supabase.auth.signInWithOAuth({
@@ -77,6 +89,17 @@ export function AuthButtons({ next }: Props) {
   }
 
   async function signInWithPasskey() {
+    // A cerimônia WebAuthn valida o RP ID contra a origem da página. Ela só
+    // pode começar depois que a navegação canônica terminou.
+    if (!ensureCanonicalAuthOrigin()) return;
+
+    if (!supportsWebAuthn()) {
+      setError(
+        "Este aparelho ou navegador não tem suporte a biometria. Entre com senha, Google ou link no e-mail.",
+      );
+      return;
+    }
+
     setLoading("passkey");
     setError(null);
 
@@ -89,6 +112,7 @@ export function AuthButtons({ next }: Props) {
       router.replace(next);
       router.refresh();
     } catch (authError) {
+      logPasskeyDiagnostics("signin", authError);
       setError(authMessage(authError));
       setLoading(null);
     }

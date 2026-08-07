@@ -95,13 +95,13 @@ export default async function OnboardingPage({
         <h1>
           {organization
             ? "Cadastre o primeiro local"
-            : "Prepare o MonitorIA para sua empresa"}
+            : "Vamos preparar o MonitorIA para o seu negócio"}
         </h1>
 
         <p>
           {organization
-            ? `A organização ${organization.name} está criada. Agora informe onde a primeira câmera será instalada.`
-            : "Crie a empresa e a primeira unidade. As câmeras e o agente local serão configurados na próxima etapa."}
+            ? `A empresa ${organization.name} está criada. Agora diga onde fica a primeira câmera.`
+            : "Comece pelo nome da empresa e pelo primeiro local. As câmeras e o programa da loja vêm na próxima etapa."}
         </p>
 
         {error ? (
@@ -111,12 +111,12 @@ export default async function OnboardingPage({
         ) : null}
 
         {/*
-         * Aviso da conta atualmente autenticada.
+         * Aviso da conta que está conectada agora.
          * O botão envia um POST para a rota de logout,
          * encerra a sessão atual e abre a tela de login.
          */}
         <div className="onboarding-note">
-          <strong>Conta atualmente conectada</strong>
+          <strong>Você está entrando por esta conta</strong>
 
           <span>
             Você está conectado como{" "}
@@ -124,8 +124,8 @@ export default async function OnboardingPage({
           </span>
 
           <span>
-            Caso seu cadastro esteja em outro e-mail,
-            entre novamente com a conta correta.
+            Se o seu cadastro estiver em outro e-mail,
+            entre novamente com a conta certa.
           </span>
 
           <form
@@ -153,7 +153,7 @@ export default async function OnboardingPage({
               <input
                 name="organization_name"
                 type="text"
-                placeholder="Ex.: Loja de Serviços"
+                placeholder="Ex.: Mercado São Jorge"
                 minLength={2}
                 required
               />
@@ -166,7 +166,7 @@ export default async function OnboardingPage({
             <input
               name="site_name"
               type="text"
-              placeholder="Ex.: Unidade principal"
+              placeholder="Ex.: Loja do centro"
               required
             />
           </label>
@@ -193,9 +193,10 @@ export default async function OnboardingPage({
             <strong>O que acontece agora?</strong>
 
             <span>
-              O usuário atual será proprietário da
-              empresa. A política padrão guardará frames
-              por 3 dias e metadados por 365 dias.
+              Você fica como responsável pela conta.
+              Guardamos as imagens dos acontecimentos
+              por 3 dias e o registro do que aconteceu
+              por 1 ano.
             </span>
           </div>
 
@@ -205,7 +206,7 @@ export default async function OnboardingPage({
           >
             {organization
               ? "Cadastrar local e abrir painel"
-              : "Criar ambiente e abrir painel"}
+              : "Criar minha conta e abrir o painel"}
           </button>
         </form>
       </section>

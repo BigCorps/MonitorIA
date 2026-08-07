@@ -259,12 +259,12 @@ export function SceneHero() {
   );
 }
 
-/** Etapa 1: Agent instalado no Windows da loja. */
+/** Etapa 1: o programa da loja instalado no Windows. */
 export function SceneAgentInstall() {
   return (
     <svg className={styles.svgScene} viewBox="0 0 800 500" role="img"
-      aria-label="Janela do Agent do MonitorIA no Windows, com instalação concluída, status conectado, versão e identificador.">
-      <Frame title="MonitorIA Agent" right="v1.0.0" />
+      aria-label="Janela do programa do MonitorIA no Windows, com instalação concluída, status conectado, versão e identificação.">
+      <Frame title="Programa MonitorIA" right="v1.0.0" />
 
       <rect x="120" y="86" width="560" height="330" rx="10" fill={C.panel} stroke={C.line} />
 
@@ -282,7 +282,7 @@ export function SceneAgentInstall() {
       </g>
 
       <Line x={400} y={228} size={22} fill={C.ink} weight={700} anchor="middle" delay={1.8}>
-        Agent conectado
+        Programa conectado
       </Line>
       <Line x={400} y={254} size={13} fill={C.ink2} anchor="middle" delay={2.0}>
         O serviço inicia junto com o sistema. Nada mais a fazer aqui.
@@ -296,8 +296,8 @@ export function SceneAgentInstall() {
       {[
         ["Status", "Conectado", C.mint],
         ["Versão", "1.0.0", C.ink],
-        ["Agent ID", "ag_7f3c9b21", C.ink],
-        ["Sistema", "Windows 11 x64", C.ink],
+        ["Identificação", "ag_7f3c9b21", C.ink],
+        ["Sistema", "Windows 11", C.ink],
       ].map(([k, v, color], i) => (
         <g key={k} className={styles.sIn} style={d(2.4 + i * 0.18)}>
           <line x1="184" y1={320 + i * 24} x2="616" y2={320 + i * 24} stroke={C.line} />
@@ -316,10 +316,10 @@ export function SceneAgentInstall() {
 /** Etapa 2: descoberta automática das câmeras. */
 export function SceneCameraDiscovery() {
   const cams = [
-    ["Entrada principal", "ONVIF", C.mint],
-    ["Caixa 1", "ONVIF", C.mint],
+    ["Entrada principal", "DIRETA", C.mint],
+    ["Caixa 1", "DIRETA", C.mint],
     ["Estoque", "DVR", C.blue],
-    ["Calçada", "RTSP", C.amber],
+    ["Calçada", "APP", C.amber],
   ];
 
   return (
@@ -331,7 +331,7 @@ export function SceneCameraDiscovery() {
         Procurando câmeras na rede
       </Line>
       <Line x={28} y={106} size={13} fill={C.ink2} delay={0.4}>
-        ONVIF, depois DVR e NVR, depois endereços RTSP conhecidos.
+        Testamos cada forma de conexão do seu equipamento, uma por uma.
       </Line>
 
       <rect x="28" y="128" width="744" height="240" rx="8" fill={C.panelDeep} stroke={C.line} />
@@ -381,7 +381,7 @@ export function SceneCameraDiscovery() {
           fontFamily={FONT}
           textAnchor="middle"
         >
-          Parear as 4 câmeras
+          Ativar as 4 câmeras
         </text>
       </g>
     </svg>
@@ -464,7 +464,7 @@ export function SceneSearchAnswer() {
   return (
     <svg className={styles.svgScene} viewBox="0 0 800 500" role="img"
       aria-label="Pergunta escrita em português e resposta do MonitorIA com o horário exato e a evidência usada.">
-      <Frame title="Assistente" right="90 interações no mês" />
+      <Frame title="Assistente" right="90 perguntas no mês" />
 
       {/* pergunta */}
       <g className={styles.sIn} style={d(0.3)}>
@@ -519,10 +519,10 @@ export function SceneSearchAnswer() {
           Filtrar, pesquisar, ver gráfico e exportar
         </text>
         <text x="500" y="392" fill={C.mint} fontSize="18" fontWeight="700" fontFamily={FONT}>
-          não consomem interação
+          não gastam pergunta
         </text>
         <text x="500" y="422" fill={C.ink3} fontSize="11" fontFamily={FONT}>
-          Só a pergunta respondida desconta da franquia.
+          Só a pergunta respondida entra na conta do mês.
         </text>
       </g>
     </svg>

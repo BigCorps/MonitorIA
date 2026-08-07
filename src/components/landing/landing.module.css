@@ -617,8 +617,9 @@
 
 .sectorCard {
   position: relative;
-  /* Aumentamos a altura mínima no mobile para dar espaço ao efeito sticky */
-  min-height: clamp(280px, 45vh, 400px);
+  /* Altura no mobile alinhada à proporção do desktop (era 45vh / até 400px,
+     o que deixava o card bem mais alto que na versão grande). */
+  min-height: clamp(210px, 32vh, 270px);
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--hair);

@@ -123,7 +123,7 @@ export function createSocialImage() {
                 fontWeight: 800,
               }}
             >
-              Sua câmera vê. O MonitorIA lembra.
+              {appConfig.slogan}
             </div>
 
             <div

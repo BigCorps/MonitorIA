@@ -4,11 +4,30 @@ import {
 } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
 import { normalizeNextPath } from "@/src/lib/auth";
+import { AUTH_CANONICAL_ORIGIN } from "@/src/lib/auth-origin";
 
+/**
+ * Destino final do callback.
+ *
+ * Em produção NÃO derivamos a origem de `x-forwarded-host`. Esse header vem
+ * do proxy e pode trazer www, um alias *.vercel.app ou o domínio antigo —
+ * jogando o usuário para fora da origem em que a sessão foi criada. É por
+ * isso que o Google autenticava e devolvia para a landing.
+ *
+ * Fora de produção, mantemos o comportamento anterior para não quebrar
+ * localhost nem os previews.
+ *
+ * `path` é sempre um caminho relativo já sanitizado por normalizeNextPath,
+ * então `new URL(path, origin)` não abre brecha para open redirect.
+ */
 function appDestination(
   request: NextRequest,
   path: string,
 ) {
+  if (process.env.VERCEL_ENV === "production") {
+    return new URL(path, AUTH_CANONICAL_ORIGIN).toString();
+  }
+
   const forwardedHost =
     request.headers.get("x-forwarded-host");
   const forwardedProto =
@@ -89,7 +108,7 @@ export async function GET(request: NextRequest) {
     return loginError(
       request,
       normalized.includes("auth_method_disabled")
-        ? "Esta forma de acesso não está disponível para esta conta. Use outro método autorizado."
+        ? "Esta forma de entrar não está liberada para a sua conta. Tente outra opção da lista."
         : "Não foi possível concluir o acesso. Tente novamente.",
     );
   }

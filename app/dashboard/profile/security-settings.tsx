@@ -7,6 +7,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/client";
+import {
+  authCallbackUrl,
+  ensureCanonicalAuthOrigin,
+  logPasskeyDiagnostics,
+  supportsWebAuthn,
+} from "@/src/lib/auth-origin";
 import styles from "./security-settings.module.css";
 
 type PreferredMethod =
@@ -552,6 +558,10 @@ export function SecuritySettings({
   async function linkGoogle() {
     if (!settings) return;
 
+    // Canonicaliza antes de gravar preferências: se a página navegar, o
+    // clique é perdido e não queremos ter persistido allowGoogle à toa.
+    if (!ensureCanonicalAuthOrigin()) return;
+
     setBusy("google");
     setError(null);
     setNotice(null);
@@ -569,9 +579,9 @@ export function SecuritySettings({
         encodeURIComponent(
           "Conta Google vinculada com sucesso.",
         );
-      const redirectTo =
-        `${window.location.origin}/auth/callback?next=` +
-        encodeURIComponent(profilePath);
+      // Callback sempre canônico. Nunca derivar a origem do OAuth de um
+      // hostname arbitrário do navegador.
+      const redirectTo = authCallbackUrl(profilePath);
 
       const { error: linkError } =
         await supabase.auth.linkIdentity({
@@ -590,6 +600,17 @@ export function SecuritySettings({
 
   async function registerPasskey() {
     if (!settings) return;
+
+    // Origem canônica antes de criar a credencial: o RP ID gravado na
+    // passkey vem da origem da página no momento do registro.
+    if (!ensureCanonicalAuthOrigin()) return;
+
+    if (!supportsWebAuthn()) {
+      setError(
+        "Este aparelho ou navegador não tem suporte a biometria.",
+      );
+      return;
+    }
 
     setBusy("register-passkey");
     setError(null);
@@ -611,6 +632,7 @@ export function SecuritySettings({
       );
       await loadAll();
     } catch (registerError) {
+      logPasskeyDiagnostics("register", registerError);
       setError(humanError(registerError));
     } finally {
       setBusy(null);

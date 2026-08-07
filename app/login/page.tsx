@@ -10,6 +10,7 @@ import {
   sendMagicLink,
 } from "./actions";
 import { AuthButtons } from "./auth-buttons";
+import { appConfig } from "@/src/lib/app-config";
 
 export const metadata = { title: "Entrar" };
 export const dynamic = "force-dynamic";
@@ -72,27 +73,28 @@ export default async function LoginPage({
           </span>
           <h1>Sua memória visual começa aqui.</h1>
           <p>
-            Entre para configurar locais, câmeras,
-            retenção e a linha do tempo pesquisável da
-            sua empresa.
+            Entre para configurar seus locais, suas
+            câmeras e por quanto tempo cada coisa fica
+            guardada.
           </p>
           <ul>
             <li>
-              Dados isolados por organização com RLS
+              Os dados de cada empresa ficam separados
             </li>
             <li>
-              Credenciais RTSP permanecem no agente
-              local
+              As senhas das câmeras não saem do seu
+              computador
             </li>
             <li>
-              Passkeys, Google, senha e link mágico
+              Entre por biometria, Google, senha ou link
+              no e-mail
             </li>
           </ul>
         </div>
 
         <small>
-          Desenvolvido por BigCorps · Sua câmera vê. O
-          MonitorIA lembra.
+          Desenvolvido por {appConfig.company} ·{" "}
+          {appConfig.slogan}
         </small>
       </section>
 
@@ -107,8 +109,8 @@ export default async function LoginPage({
             </h2>
             <p>
               {wantsSignup
-                ? "O teste grátis começa depois que o Agent estiver pareado e a primeira câmera online."
-                : "Escolha uma das formas de acesso autorizadas para sua conta."}
+                ? "Seu teste começa quando a primeira câmera estiver ligada — não na hora do cadastro."
+                : "Como você prefere entrar?"}
             </p>
           </div>
 
@@ -229,11 +231,11 @@ export default async function LoginPage({
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="E-mail para receber o link"
+                  placeholder="Seu e-mail para receber o link"
                   required
                 />
                 <button type="submit">
-                  Enviar link mágico
+                  Enviar link de acesso
                 </button>
               </form>
             </>

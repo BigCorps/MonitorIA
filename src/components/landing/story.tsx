@@ -1,4 +1,11 @@
-import { boundaries, problems, sectors, steps } from "@/src/lib/landing-content";
+import {
+  problems,
+  retentionNote,
+  retentionScales,
+  sectors,
+  steps,
+  understands,
+} from "@/src/lib/landing-content";
 import { MediaSlot, posterUrl, videoUrl, type SectorMediaId } from "./media-slot";
 import {
   SceneAgentInstall,
@@ -21,6 +28,15 @@ function StepScene({ media }: { media: keyof typeof stepScenes }) {
   return <Scene />;
 }
 
+/**
+ * O problema.
+ *
+ * Absorveu a antiga seção <Retention />. Os dois blocos defendiam a mesma
+ * ideia — "a gravação desaparece antes de você precisar dela" — em duas
+ * seções separadas. Agora a dor vem nos três cartões e a prova vem logo
+ * abaixo, na régua de tempo de retenção. Uma seção a menos, argumento
+ * inteiro no mesmo lugar.
+ */
 export function Problem() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
@@ -32,8 +48,8 @@ export function Problem() {
           </p>
           <h2 className={styles.h2}>A câmera não é o problema. A memória é.</h2>
           <p className={styles.lede}>
-            Você já tem as câmeras. Elas já gravam. O que falta é conseguir achar o momento
-            certo antes que a gravação suma.
+            Você já tem as câmeras e elas já gravam. O que falta é achar o momento certo
+            antes que a gravação desapareça.
           </p>
         </div>
 
@@ -44,6 +60,29 @@ export function Problem() {
               <p>{item.text}</p>
             </article>
           ))}
+        </div>
+
+        {/* Prova do argumento acima. Reaproveita .includes como moldura e as
+            classes de régua (.scaleRow / .scaleTrack / .scaleMine) que já
+            existiam na seção de retenção. Nenhuma classe nova. */}
+        <div className={`${styles.includes} ${styles.reveal}`}>
+          <p className={styles.tableCaption}>Quanto tempo cada coisa sobrevive</p>
+
+          {retentionScales.map((scale) => (
+            <div className={styles.scaleRow} key={scale.label}>
+              <div className={styles.scaleHead}>
+                <strong>{scale.label}</strong>
+                <span className={styles.mono}>{scale.span}</span>
+              </div>
+              <div
+                className={`${styles.scaleTrack} ${scale.mine ? styles.scaleMine : ""}`}
+              >
+                <i style={{ width: scale.width }} />
+              </div>
+            </div>
+          ))}
+
+          <p className={styles.scaleNote}>{retentionNote}</p>
         </div>
       </div>
     </section>
@@ -61,8 +100,8 @@ export function HowItWorks() {
           </p>
           <h2 className={styles.h2}>Da instalação à primeira resposta.</h2>
           <p className={styles.lede}>
-            Instalação por você mesmo, sem taxa e sem visita técnica. O suporte por WhatsApp
-            existe para dúvida, não para depender dele.
+            Você instala sozinho, sem taxa e sem visita técnica. O suporte no WhatsApp
+            existe para dúvida, não para você depender dele.
           </p>
         </div>
 
@@ -145,89 +184,40 @@ export function Sectors() {
   );
 }
 
-export function Boundaries() {
+/**
+ * O que ele entende sozinho.
+ *
+ * Seção nova. Cobre os módulos que já existiam no código e não apareciam
+ * na página: sessões operacionais, rotina aprendida, saúde da câmera,
+ * estado visual, perfil de equipe e continuidade.
+ *
+ * São 6 itens de propósito: fecham a grade 3×2 do .problemGrid e casam com
+ * os seis passos declarados em .stagger no CSS. Um sétimo item entraria sem
+ * animação de cascata.
+ */
+export function Understands() {
   return (
-    <section className={styles.section}>
+    <section className={styles.section} id="inteligencia">
       <div className={`${styles.container} ${styles.recede}`}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
-            <span>Limites declarados</span>
+            <span>Inteligência</span>
           </p>
-          <h2 className={styles.h2}>O que o MonitorIA não faz.</h2>
+          <h2 className={styles.h2}>Ele não só guarda. Ele entende.</h2>
           <p className={styles.lede}>
-            É mais rápido entender o produto pelo que ele recusa. Nada aqui está em
-            desenvolvimento: são decisões de projeto da versão 1.
+            Cada imagem vira informação organizada. O MonitorIA junta os acontecimentos
+            soltos, aprende a rotina da sua operação e avisa quando algo sai do normal.
           </p>
         </div>
 
-        <div className={`${styles.boundaryGrid} ${styles.stagger}`}>
-          {boundaries.map((item) => (
-            <p className={styles.boundaryItem} key={item}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M5 12h14" strokeLinecap="round" />
-              </svg>
-              {item}
-            </p>
+        <div className={`${styles.problemGrid} ${styles.stagger}`}>
+          {understands.map((item) => (
+            <article className={styles.problemCard} key={item.title}>
+              <h3 className={styles.h3}>{item.title}</h3>
+              <p>{item.text}</p>
+            </article>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function Retention() {
-  return (
-    <section className={`${styles.section} ${styles.sectionDeep}`}>
-      <div className={`${styles.container} ${styles.retention} ${styles.reveal} ${styles.recede}`}>
-        <div>
-          <p className={styles.eyebrow}>
-            <span className={styles.eyebrowTime}>365</span>
-            <span>dias</span>
-          </p>
-          <h2 className={styles.h2}>A gravação some. O registro fica.</h2>
-          <p className={styles.lede}>
-            O HD do DVR se sobrescreve sozinho e a gravação em nuvem é cara justamente porque
-            guarda vídeo. O MonitorIA guarda o registro escrito e as imagens do acontecimento
-            por um ano — em todos os planos, sem cobrar a mais por isso.
-          </p>
-        </div>
-
-        <div>
-          <div className={styles.scaleRow}>
-            <div className={styles.scaleHead}>
-              <strong>Gravação em nuvem comum</strong>
-              <span className={styles.mono}>3 a 7 dias</span>
-            </div>
-            <div className={styles.scaleTrack}>
-              <i style={{ width: "2%" }} />
-            </div>
-          </div>
-
-          <div className={styles.scaleRow}>
-            <div className={styles.scaleHead}>
-              <strong>HD do seu DVR</strong>
-              <span className={styles.mono}>15 a 30 dias</span>
-            </div>
-            <div className={styles.scaleTrack}>
-              <i style={{ width: "8%" }} />
-            </div>
-          </div>
-
-          <div className={styles.scaleRow}>
-            <div className={styles.scaleHead}>
-              <strong>Histórico no MonitorIA.cam</strong>
-              <span className={styles.mono}>365 dias</span>
-            </div>
-            <div className={`${styles.scaleTrack} ${styles.scaleMine}`}>
-              <i style={{ width: "100%" }} />
-            </div>
-          </div>
-
-          <p className={styles.scaleNote}>
-            O MonitorIA guarda horário, descrição, pessoas, veículos, objetos, zonas e as
-            imagens do acontecimento. O vídeo contínuo permanece no seu equipamento.
-          </p>
         </div>
       </div>
     </section>

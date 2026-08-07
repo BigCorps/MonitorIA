@@ -109,7 +109,7 @@ export async function loginWithPassword(
 
     if (isMethodDisabledError(error)) {
       authError(
-        "Esta forma de acesso não está disponível para esta conta. Use outro método autorizado.",
+        "Esta forma de entrar não está liberada para a sua conta. Tente outra opção da lista.",
         next,
       );
     }
@@ -161,7 +161,7 @@ export async function createAccount(
 
     if (isWeakPasswordError(error)) {
       authError(
-        "A senha escolhida é muito comum ou já apareceu em vazamentos. Use uma combinação mais forte e exclusiva.",
+        "Essa senha é muito comum ou já apareceu em vazamentos. Escolha outra, mais difícil de adivinhar.",
         next,
       );
     }
@@ -180,7 +180,7 @@ export async function createAccount(
       error.status === 500
     ) {
       authError(
-        "A conta não pôde ser concluída porque o serviço de e-mail está indisponível. Verifique a configuração SMTP.",
+        "Não conseguimos enviar o e-mail de confirmação agora. Tente em alguns minutos ou fale com a gente no WhatsApp.",
         next,
       );
     }
@@ -242,7 +242,7 @@ export async function sendMagicLink(
       error.status === 500
     ) {
       authError(
-        "O serviço de e-mail não conseguiu enviar o link. Verifique a configuração SMTP.",
+        "Não conseguimos enviar o link agora. Tente em alguns minutos ou fale com a gente no WhatsApp.",
         next,
       );
     }

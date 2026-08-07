@@ -9,3 +9,23 @@ coverage/
 .vercel/
 *.log
 .DS_Store
+
+# --- TWA / Android (Bubblewrap) --------------------------------------------
+# NUNCA versione a keystore nem as senhas: perder a chave de upload significa
+# não conseguir mais publicar atualizações do app com esse packageId.
+twa/android.keystore
+twa/*.keystore
+twa/*.jks
+twa/signing-key-info.txt
+twa/app-release-bundle.aab
+twa/app-release-signed.apk
+twa/*.aab
+twa/*.apk
+twa/.gradle/
+twa/build/
+twa/app/build/
+twa/gradle/
+twa/gradlew
+twa/gradlew.bat
+twa/store_icon.png
+twa/*.keystore.md5

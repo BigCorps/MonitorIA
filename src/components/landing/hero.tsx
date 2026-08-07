@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { appConfig } from "@/src/lib/app-config";
-import { primaryCta, secondaryCta } from "@/src/lib/landing-content";
+import { compatibility, primaryCta, secondaryCta } from "@/src/lib/landing-content";
 import { CtaLink } from "./cta-link";
 import { MediaSlot } from "./media-slot";
 import { SceneHero } from "./scenes";
@@ -23,7 +23,9 @@ export function LandingHeader() {
       <Brand />
       <nav className={styles.nav} aria-label="Navegação principal">
         <Link href="#como-funciona">Como funciona</Link>
+        <Link href="#inteligencia">Inteligência</Link>
         <Link href="#planos">Planos</Link>
+        <Link href="/recursos">Recursos</Link>
         <Link href="#duvidas">Dúvidas</Link>
       </nav>
       <div className={styles.headerCta}>
@@ -67,14 +69,19 @@ export function Hero() {
             <span>Loja aberta</span>
           </p>
 
+          {/* Lê de appConfig.sloganParts: o slogan não é mais escrito à mão
+              aqui. A primeira metade fica em .heroSlogan (bloco próprio, tom
+              mais apagado) e a segunda herda o branco do h1. */}
           <h1 className={styles.h1}>
-            <span className={styles.heroSlogan}>Sua câmera vê.</span>O MonitorIA lembra.
+            <span className={styles.heroSlogan}>{appConfig.sloganParts.first}</span>
+            {appConfig.sloganParts.second}
           </h1>
 
+          {/* Enxugado: uma promessa, uma prova. O detalhe do DVR desceu para
+              a seção do problema — na primeira dobra ele só atrapalhava. */}
           <p className={styles.lede}>
-            Pergunte o que aconteceu na sua loja e receba o horário exato. O vídeo continua
-            no seu DVR — o MonitorIA guarda o registro escrito de cada acontecimento por 365
-            dias e encontra o minuto certo em segundos.
+            Pergunte o que aconteceu na sua loja e receba o horário exato. O registro de
+            cada acontecimento fica guardado por um ano, pronto para consulta.
           </p>
 
           <div className={styles.actions}>
@@ -82,13 +89,17 @@ export function Hero() {
             <CtaLink cta={secondaryCta} variant="ghost" />
           </div>
 
+          {/* Compatibilidade na primeira dobra: é a primeira objeção de quem
+              chega. Reaproveita .trialNote — nenhuma classe nova. */}
+          <p className={styles.trialNote}>{compatibility.short}</p>
+
           <dl className={`${styles.proof} ${styles.stagger}`}>
             <div className={styles.proofItem}>
               <strong className={styles.mono}>R$ 39,90</strong>
               <span>por câmera, por mês. Sem mensalidade fixa.</span>
             </div>
             <div className={styles.proofItem}>
-              <strong className={styles.mono}>365 dias</strong>
+              <strong className={styles.mono}>1 ano</strong>
               <span>de histórico pesquisável em todos os planos.</span>
             </div>
             <div className={styles.proofItem}>

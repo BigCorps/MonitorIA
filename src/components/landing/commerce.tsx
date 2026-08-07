@@ -1,5 +1,8 @@
 import {
+  assistantExamples,
   assistantFree,
+  boundaries,
+  compatibility,
   primaryCta,
   secondaryCta,
   trialCta,
@@ -7,6 +10,7 @@ import {
   trialNote,
   discountTiers,
   faq,
+  integration,
   invoiceExample,
   landingPlans,
   planIncludes,
@@ -26,8 +30,8 @@ export function Plans() {
           </p>
           <h2 className={styles.h2}>Você escolhe câmera a câmera.</h2>
           <p className={styles.lede}>
-            Não existe mensalidade por conta, por empresa nem por local. A cobrança é somente
-            por câmera ativa, e o plano é definido em cada câmera. Uma fatura por empresa.
+            Não existe mensalidade por conta, por empresa nem por local. Você paga só pelas
+            câmeras ativas e escolhe o plano de cada uma. Uma fatura por empresa.
           </p>
         </div>
 
@@ -38,7 +42,9 @@ export function Plans() {
               key={plan.code}
               data-featured={plan.code === "standard"}
             >
-              <span className={styles.planCode}>Câmera {plan.name}</span>
+              {/* Antes este selo repetia o nome do plano ("Câmera Atenta" com
+                  "Atenta" logo abaixo). Agora carrega o posicionamento. */}
+              <span className={styles.planCode}>{plan.badge}</span>
               <h3 className={styles.planName}>{plan.name}</h3>
               <p className={styles.planPrice}>
                 <b className={styles.mono}>R$ {plan.price}</b>
@@ -49,7 +55,7 @@ export function Plans() {
               <ul className={styles.planSpecs}>
                 <li>
                   {plan.history} de histórico
-                  <span>Metadados pesquisáveis</span>
+                  <span>Tudo pesquisável</span>
                 </li>
                 <li>
                   {plan.images}
@@ -73,9 +79,11 @@ export function Plans() {
           </ul>
         </div>
 
+        {/* Desconto e fatura no mesmo bloco: a régua explica a regra, a fatura
+            prova a regra. Antes eram dois argumentos soltos em sequência. */}
         <div className={`${styles.discount} ${styles.reveal}`}>
           <div className={styles.tierTable}>
-            <p className={styles.tableCaption}>Desconto por câmera adicional</p>
+            <p className={styles.tableCaption}>Cada câmera nova entra mais barata</p>
             {discountTiers.map((tier) => (
               <div className={styles.tierRow} key={tier.range}>
                 <span>{tier.range}</span>
@@ -83,8 +91,8 @@ export function Plans() {
               </div>
             ))}
             <p className={styles.scaleNote}>
-              O desconto vale para a posição, não para a conta inteira. Cada câmera nova entra
-              na faixa seguinte e mantém o preço dela.
+              O desconto vale para a posição, não para a conta inteira. Cada câmera nova
+              entra na faixa seguinte e mantém o preço dela.
             </p>
           </div>
 
@@ -101,7 +109,7 @@ export function Plans() {
               <b className={`${styles.mono} ${styles.dim}`}>{invoiceExample.subtotal}</b>
             </div>
             <div className={styles.invoiceRow}>
-              <span className={styles.dim}>Desconto progressivo</span>
+              <span className={styles.dim}>Desconto</span>
               <b className={`${styles.mono} ${styles.dim}`}>− {invoiceExample.discount}</b>
             </div>
             <div className={`${styles.invoiceRow} ${styles.invoiceTotal}`}>
@@ -115,6 +123,14 @@ export function Plans() {
   );
 }
 
+/**
+ * Assistente.
+ *
+ * Invertido: antes a seção abria explicando o limite de uso — vendia a
+ * fatura, não o produto. Agora a capacidade vem primeiro, a cota mensal
+ * desceu para nota de rodapé do cartão da direita, e a integração com
+ * ChatGPT e Claude entrou aqui em vez de virar uma seção própria.
+ */
 export function Assistant() {
   return (
     <section className={`${styles.section} ${styles.sectionDeep}`}>
@@ -122,15 +138,27 @@ export function Assistant() {
         <div>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>—</span>
-            <span>Assistente IA</span>
+            <span>Assistente</span>
           </p>
-          <h2 className={styles.h2}>Perguntar custa. Procurar, não.</h2>
+          <h2 className={styles.h2}>Pergunte com as suas palavras.</h2>
           <p className={styles.lede}>
-            A franquia só é consumida quando você faz uma pergunta ao Assistente e ela é
-            respondida. Todo o resto do produto — pesquisa, filtro, gráfico, exportação — é
-            ilimitado e não desconta nada.
+            Você escreve como falaria com um funcionário. Ele responde com o horário, um
+            resumo e as imagens que serviram de prova — e daí você abre aquele minuto no
+            seu equipamento.
           </p>
 
+          <div className={styles.includes}>
+            <p className={styles.tableCaption}>Perguntas que ele responde</p>
+            <ul className={styles.includesList}>
+              {assistantExamples.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <p className={styles.tableCaption} style={{ marginTop: "26px" }}>
+            Não gasta pergunta
+          </p>
           <ul className={styles.freeList}>
             {assistantFree.map((item) => (
               <li key={item}>
@@ -141,22 +169,40 @@ export function Assistant() {
           </ul>
         </div>
 
-        <div className={styles.quotaCard}>
-          <p className={`${styles.quotaNumber} ${styles.mono}`}>90</p>
-          <p className={styles.quotaCaption}>
-            interações por mês, por empresa — não por usuário e não por câmera.
-          </p>
-          <p className={styles.scaleNote}>
-            A franquia renova na confirmação da fatura e não acumula. Uma resposta que falhou
-            não consome. Se acabar, o Assistente é bloqueado com uma oferta de pacote extra —
-            nunca vira cobrança surpresa.
-          </p>
+        <div>
+          <div className={styles.quotaCard}>
+            <p className={`${styles.quotaNumber} ${styles.mono}`}>90</p>
+            <p className={styles.quotaCaption}>
+              perguntas por mês, por empresa — não por usuário e não por câmera.
+            </p>
+            <p className={styles.scaleNote}>
+              A conta renova quando a fatura é confirmada e não acumula. Pergunta que
+              falhou não conta. Se acabar, o Assistente é bloqueado com uma oferta de
+              pacote extra — nunca vira cobrança surpresa.
+            </p>
+          </div>
+
+          <div className={styles.includes}>
+            <p className={styles.tableCaption}>{integration.title}</p>
+            <ul className={styles.includesList}>
+              {integration.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
+/**
+ * Teste grátis.
+ *
+ * Absorveu a antiga seção <Boundaries />. Os limites declarados continuam na
+ * página — e num lugar melhor: encostados no botão, onde respondem a última
+ * objeção em vez de interromper a narrativa no meio.
+ */
 export function Trial() {
   return (
     <section className={styles.section}>
@@ -170,8 +216,8 @@ export function Trial() {
             <h2 className={styles.h2}>Uma câmera, um dia real.</h2>
             <p className={styles.lede}>
               {trialIsLive
-                ? "O teste só começa quando o Agent estiver pareado, a câmera online e o primeiro quadro recebido — e quando você clicar em iniciar. Assim as 24 horas contam tempo de análise de verdade, não tempo de instalação."
-                : "Será assim: o teste só começa depois que o Agent estiver pareado, a câmera online e o primeiro quadro recebido — e quando você clicar em iniciar. Assim as 24 horas contam tempo de análise de verdade, não tempo de instalação."}
+                ? "O teste começa quando a primeira câmera estiver ligada e você clicar em iniciar — não quando você se cadastra. Assim as 24 horas contam análise de verdade, e não tempo de instalação."
+                : "Será assim: o teste começa quando a primeira câmera estiver ligada e você clicar em iniciar — não quando você se cadastra. Assim as 24 horas contam análise de verdade, e não tempo de instalação."}
             </p>
           </div>
 
@@ -190,6 +236,21 @@ export function Trial() {
             </div>
             <p className={styles.trialNote}>{trialNote}</p>
           </div>
+        </div>
+
+        <div className={`${styles.includes} ${styles.reveal}`}>
+          <p className={styles.tableCaption}>Sem surpresas</p>
+          <div className={`${styles.boundaryGrid} ${styles.stagger}`}>
+            {boundaries.map((item) => (
+              <p className={styles.boundaryItem} key={item}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14" strokeLinecap="round" />
+                </svg>
+                {item}
+              </p>
+            ))}
+          </div>
+          <p className={styles.scaleNote}>{compatibility.exception}</p>
         </div>
       </div>
     </section>

@@ -1,4 +1,5 @@
 import { appConfig } from "@/src/lib/app-config";
+import { faq } from "@/src/lib/landing-content";
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -38,14 +39,27 @@ const structuredData = {
       description: appConfig.description,
       provider: { "@id": `${appConfig.url}/#organization` },
       image: `${appConfig.url}/opengraph-image`,
+      /*
+       * Aqui o vocabulário técnico é bem-vindo: esta lista é lida por
+       * mecanismo de busca, não por cliente. Os seis últimos itens
+       * correspondem à nova seção "Ele não só guarda. Ele entende."
+       */
       featureList: [
         "Organização automática de acontecimentos captados por câmeras",
         "Pesquisa em português sobre eventos visuais",
         "Localização do horário exato para conferência no DVR",
         "Descrição de movimentações, entregas, objetos e veículos",
-        "Funcionamento com câmeras e DVRs já instalados",
+        "Funcionamento com câmeras, DVRs e NVRs já instalados",
+        "Compatibilidade com câmeras que expõem vídeo por ONVIF ou RTSP",
         "Credenciais de câmera mantidas no computador local",
         "Sem reconhecimento facial no produto padrão",
+        "Agrupamento de eventos em sessões de atendimento, entrega e visita",
+        "Aprendizado da rotina de abertura e fechamento com alerta de desvio",
+        "Diagnóstico de saúde da câmera: lente obstruída, imagem congelada, enquadramento alterado",
+        "Acompanhamento de estado visual de portões, portas e cofres",
+        "Perfil operacional de equipe por padrão de turno, sem biometria",
+        "Continuidade de pessoas e veículos entre acontecimentos diferentes",
+        "Consulta às câmeras por assistentes externos via MCP",
       ],
       areaServed: {
         "@type": "Country",
@@ -95,8 +109,27 @@ const structuredData = {
         price: "0",
         priceCurrency: "BRL",
         description:
-          "1 câmera, 24 horas de análise real, 7 dias para explorar os resultados e 21 interações com o Assistente IA. Sem cartão de crédito.",
+          "1 câmera, 24 horas de análise real, 7 dias para explorar os resultados e 21 perguntas ao Assistente. Sem cartão de crédito.",
       },
+    },
+    /*
+     * FAQPage gerado a partir do mesmo array que a página renderiza.
+     * Assim a marcação nunca sai de sincronia com o texto visível — que é
+     * exatamente o que o Google exige para exibir o rich result.
+     */
+    {
+      "@type": "FAQPage",
+      "@id": `${appConfig.url}/#faq`,
+      inLanguage: appConfig.language,
+      isPartOf: { "@id": `${appConfig.url}/#website` },
+      mainEntity: faq.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.a,
+        },
+      })),
     },
   ],
 };
