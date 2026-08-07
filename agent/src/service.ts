@@ -47,7 +47,7 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.0";
+export const AGENT_VERSION = "0.10.1";
 /**
  * Domínio canônico.
  *
