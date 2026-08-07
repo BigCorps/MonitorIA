@@ -52,7 +52,17 @@ export function LandingFooter() {
         </nav>
       </div>
       <div className={styles.footerRow}>
-        <span>© 2026 {appConfig.company}. Todos os direitos reservados.</span>
+        <span>
+          ©&nbsp;2026{" "}
+          
+            href="https://bigcorps.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {appConfig.company}
+          </a>
+          . Todos os direitos reservados.
+        </span>
         <span>{appConfig.slogan}</span>
       </div>
     </footer>
