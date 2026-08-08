@@ -63,6 +63,17 @@ export type EventSearchResult = {
   total: number;
 };
 
+export type EventNavigationItem = {
+  id: string;
+  headline: string;
+  startedAt: string;
+};
+
+export type EventNavigation = {
+  previous: EventNavigationItem | null;
+  next: EventNavigationItem | null;
+};
+
 export type EventObservation = {
   type: string;
   offsetSeconds: number;
@@ -108,6 +119,7 @@ export type EventReview = {
   correctedEventType: string | null;
   notes: string;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type EventAsset = {
@@ -315,6 +327,116 @@ export async function searchEvents(
   };
 }
 
+function navigationItem(row: any): EventNavigationItem | null {
+  if (!row?.id || !row?.started_at) return null;
+  return {
+    id: String(row.id),
+    headline: String(row.headline ?? "Acontecimento registrado"),
+    startedAt: String(row.started_at),
+  };
+}
+
+/**
+ * Localiza os vizinhos na mesma ordem da lista (mais recente → mais antigo),
+ * preservando os filtros usados pelo usuário. O evento atual não precisa
+ * continuar atendendo ao filtro depois de ser revisado.
+ */
+export async function getEventNavigation(
+  organizationId: string,
+  input: {
+    startedAt: string;
+    from?: string | null;
+    to?: string | null;
+    cameraId?: string | null;
+    siteId?: string | null;
+    eventType?: string | null;
+    reviewFilter?: string | null;
+  },
+): Promise<EventNavigation> {
+  const supabase = await createClient();
+  const safeEventType = /^[a-z_]{1,80}$/.test(
+    input.eventType ?? "",
+  )
+    ? input.eventType
+    : null;
+  const reviewFilter = [
+    "all",
+    "pending",
+    "required",
+    "reviewed",
+    "useful",
+    "irrelevant",
+    "incorrect",
+  ].includes(input.reviewFilter ?? "all")
+    ? input.reviewFilter ?? "all"
+    : "all";
+
+  const query = (direction: "previous" | "next") => {
+    let builder = supabase
+      .from("events")
+      .select("id,headline,started_at")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null);
+
+    if (input.from) builder = builder.gte("started_at", input.from);
+    if (input.to) builder = builder.lt("started_at", input.to);
+    if (input.cameraId) builder = builder.eq("camera_id", input.cameraId);
+    if (input.siteId) builder = builder.eq("site_id", input.siteId);
+    if (safeEventType) {
+      builder = builder.or(
+        `corrected_event_type.eq.${safeEventType},and(corrected_event_type.is.null,primary_event_type.eq.${safeEventType})`,
+      );
+    }
+
+    if (reviewFilter === "pending") {
+      builder = builder.eq("review_status", "pending");
+    } else if (reviewFilter === "required") {
+      builder = builder.eq("requires_review", true);
+    } else if (reviewFilter === "reviewed") {
+      builder = builder.not("human_reviewed_at", "is", null);
+    } else if (reviewFilter !== "all") {
+      builder = builder.eq("human_verdict", reviewFilter);
+    }
+
+    if (direction === "previous") {
+      return builder
+        .gt("started_at", input.startedAt)
+        .order("started_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+    }
+
+    return builder
+      .lt("started_at", input.startedAt)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+  };
+
+  const [previousResult, nextResult] = await Promise.all([
+    query("previous"),
+    query("next"),
+  ]);
+
+  if (previousResult.error) {
+    console.error(
+      "Falha ao localizar acontecimento anterior:",
+      previousResult.error.message,
+    );
+  }
+  if (nextResult.error) {
+    console.error(
+      "Falha ao localizar próximo acontecimento:",
+      nextResult.error.message,
+    );
+  }
+
+  return {
+    previous: navigationItem(previousResult.data),
+    next: navigationItem(nextResult.data),
+  };
+}
+
 export async function comparePeriods(
   organizationId: string,
   input: {
@@ -434,11 +556,12 @@ export async function getEventDetail(
     supabase
       .from("event_reviews")
       .select(
-        "id,verdict,corrected_event_type,notes,created_at",
+        "id,verdict,corrected_event_type,notes,created_at,updated_at",
       )
       .eq("organization_id", organizationId)
       .eq("event_id", eventId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false }),
     supabase
       .from("storage_assets")
       .select(
@@ -572,6 +695,7 @@ export async function getEventDetail(
         : null,
       notes: String(row.notes ?? ""),
       createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at ?? row.created_at),
     })),
     assets: (assetsResult.data ?? []).map((row: any) => ({
       id: String(row.id),

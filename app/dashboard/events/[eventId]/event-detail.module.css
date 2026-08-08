@@ -8,6 +8,65 @@
   font-size: 10px;
 }
 
+.eventNavigation {
+  margin-top: 18px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  border: 1px solid #dfe6ee;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.eventNavigationItem {
+  min-height: 58px;
+  padding: 10px 12px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  color: #36506a;
+  border: 1px solid #e1e8ee;
+  border-radius: 9px;
+  background: #f8fafc;
+  text-decoration: none;
+}
+
+.eventNavigationItem span {
+  color: #16836e;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.eventNavigationItem strong {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventNavigationNext {
+  text-align: right;
+}
+
+.eventNavigationBack {
+  padding: 0 12px;
+  display: grid;
+  place-items: center;
+  color: #60758b;
+  font-size: 8px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+
+.eventNavigationDisabled {
+  opacity: 0.48;
+}
+
 .hero {
   margin-top: 24px;
   padding: 26px;
@@ -383,6 +442,45 @@
   line-height: 1.6;
 }
 
+.reviewEditor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e4eaef;
+}
+
+.reviewEditor > summary {
+  width: fit-content;
+  color: #08745f;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.reviewEditor .reviewForm {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #dce5ec;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.reviewDeleteForm {
+  margin-top: 9px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reviewDeleteForm button {
+  padding: 8px 10px;
+  color: #9a3448;
+  border: 1px solid #e4b9c1;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .emptyBlock {
   padding: 17px;
   color: #7d8d9f;
@@ -513,6 +611,20 @@
   .danger {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .eventNavigation {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .eventNavigationBack {
+    min-height: 36px;
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .eventNavigationItem {
+    min-width: 0;
   }
 }
 

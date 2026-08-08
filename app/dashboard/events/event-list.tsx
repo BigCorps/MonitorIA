@@ -14,7 +14,17 @@ type Props = {
   rows: SearchEventRow[];
   timezone?: string;
   emptyMessage?: string;
+  detailParams?: Record<string, string>;
 };
+
+function detailHref(
+  eventId: string,
+  detailParams: Record<string, string> | undefined,
+) {
+  const query = new URLSearchParams(detailParams);
+  const suffix = query.toString();
+  return `/dashboard/events/${eventId}${suffix ? `?${suffix}` : ""}`;
+}
 
 function formatDate(value: string, timezone: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -35,6 +45,7 @@ export function EventList({
   rows,
   timezone = "America/Sao_Paulo",
   emptyMessage = "Nenhum evento encontrado com esses filtros.",
+  detailParams,
 }: Props) {
   if (!rows.length) {
     return (
@@ -51,7 +62,7 @@ export function EventList({
       {rows.map((event) => (
         <Link
           key={event.id}
-          href={`/dashboard/events/${event.id}`}
+          href={detailHref(event.id, detailParams)}
           className={styles.card}
         >
           <div className={styles.thumbnail}>

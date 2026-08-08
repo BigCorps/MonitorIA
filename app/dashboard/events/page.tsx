@@ -13,6 +13,7 @@ import {
   siteTimezone,
 } from "@/src/lib/event-search-data";
 import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
+import { paginationWindow } from "@/src/lib/pagination";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { EventExportButtons } from "./event-export-buttons";
 import { EventList } from "./event-list";
@@ -111,6 +112,7 @@ export default async function EventsPage({
     eventType,
     review !== "all" ? review : "",
   ].filter(Boolean).length;
+  const visiblePages = paginationWindow(page, totalPages, 5);
 
   return (
     <main className="dashboard-shell">
@@ -284,7 +286,14 @@ export default async function EventsPage({
           </div>
         </div>
 
-        <EventList rows={result.rows} timezone={timeZone} />
+        <EventList
+          rows={result.rows}
+          timezone={timeZone}
+          detailParams={{
+            ...preserved,
+            page: String(page),
+          }}
+        />
 
         {totalPages > 1 ? (
           <nav
@@ -292,21 +301,67 @@ export default async function EventsPage({
             aria-label="Paginação dos eventos"
           >
             {page > 1 ? (
-              <Link href={pageHref(preserved, page - 1)}>
+              <Link
+                className={styles.paginationDirection}
+                href={pageHref(preserved, page - 1)}
+              >
                 ← Anterior
               </Link>
             ) : (
-              <span />
+              <span className={styles.paginationDirectionDisabled}>
+                ← Anterior
+              </span>
             )}
-            <span>
-              {page} / {totalPages}
-            </span>
+
+            <div className={styles.paginationPages}>
+              {visiblePages.hasPreviousBlock ? (
+                <Link
+                  href={pageHref(
+                    preserved,
+                    visiblePages.previousBlockPage,
+                  )}
+                  aria-label="Mostrar as cinco páginas anteriores"
+                >
+                  …
+                </Link>
+              ) : null}
+
+              {visiblePages.pages.map((pageNumber) => (
+                <Link
+                  key={pageNumber}
+                  href={pageHref(preserved, pageNumber)}
+                  aria-current={
+                    pageNumber === page ? "page" : undefined
+                  }
+                >
+                  {pageNumber}
+                </Link>
+              ))}
+
+              {visiblePages.hasNextBlock ? (
+                <Link
+                  href={pageHref(
+                    preserved,
+                    visiblePages.nextBlockPage,
+                  )}
+                  aria-label="Mostrar as próximas cinco páginas"
+                >
+                  …
+                </Link>
+              ) : null}
+            </div>
+
             {page < totalPages ? (
-              <Link href={pageHref(preserved, page + 1)}>
+              <Link
+                className={styles.paginationDirection}
+                href={pageHref(preserved, page + 1)}
+              >
                 Próxima →
               </Link>
             ) : (
-              <span />
+              <span className={styles.paginationDirectionDisabled}>
+                Próxima →
+              </span>
             )}
           </nav>
         ) : null}

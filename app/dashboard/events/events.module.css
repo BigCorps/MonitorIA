@@ -248,23 +248,58 @@
 .pagination {
   margin-top: 17px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
   align-items: center;
+  gap: 14px;
 }
 
-.pagination a,
-.pagination > span {
+.paginationDirection,
+.paginationDirectionDisabled {
   color: #4d657f;
   font-size: 9px;
   font-weight: 750;
 }
 
-.pagination a:last-child {
+.paginationDirection:last-child,
+.paginationDirectionDisabled:last-child {
   justify-self: end;
 }
 
-.pagination > span:nth-child(2) {
-  color: #8a98a9;
+.paginationDirectionDisabled {
+  color: #aab5c0;
+}
+
+.paginationPages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.paginationPages a {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  color: #526a82;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.paginationPages a:hover {
+  color: #08745f;
+  border-color: #b9ddd4;
+  background: #f3faf8;
+}
+
+.paginationPages a[aria-current="page"] {
+  color: #071711;
+  border-color: #43d1b4;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
 }
 
 @media (max-width: 1150px) {
@@ -295,5 +330,19 @@
 @media (max-width: 480px) {
   .filters {
     grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .paginationPages {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .paginationDirection,
+  .paginationDirectionDisabled {
+    grid-row: 2;
   }
 }

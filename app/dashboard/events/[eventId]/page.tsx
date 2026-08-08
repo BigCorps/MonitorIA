@@ -4,8 +4,16 @@ import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { isInternalOperatorEmail } from "@/src/lib/internal-operator";
 import {
   getCurrentOrganization,
+  getOrganizationSites,
 } from "@/src/lib/dashboard-data";
-import { getEventDetail } from "@/src/lib/event-search-data";
+import {
+  addDaysToDateOnly,
+  dateOnlyToIso,
+  getEventDetail,
+  getEventNavigation,
+  siteTimezone,
+  type EventNavigation,
+} from "@/src/lib/event-search-data";
 import {
   EVENT_TYPE_OPTIONS,
   eventTypeLabel,
@@ -20,6 +28,7 @@ import {
   deleteEventAction,
   reviewEventAction,
 } from "../actions";
+import { ReviewDeleteForm } from "./review-delete-form";
 import styles from "./event-detail.module.css";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +44,102 @@ function scalar(
   value: string | string[] | undefined,
 ) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+const DETAIL_QUERY_KEYS = [
+  "from",
+  "to",
+  "site",
+  "camera",
+  "type",
+  "review",
+  "page",
+] as const;
+
+function detailContext(
+  raw: Record<string, string | string[] | undefined>,
+) {
+  const params = new URLSearchParams();
+
+  for (const key of DETAIL_QUERY_KEYS) {
+    const value = scalar(raw[key]).slice(0, 160);
+    if (value) params.set(key, value);
+  }
+
+  return params;
+}
+
+function navigationHref(
+  eventId: string,
+  query: string,
+) {
+  return `/dashboard/events/${eventId}${query ? `?${query}` : ""}`;
+}
+
+function EventNavigationBar({
+  navigation,
+  detailQuery,
+  listHref,
+  page,
+}: {
+  navigation: EventNavigation;
+  detailQuery: string;
+  listHref: string;
+  page: number;
+}) {
+  return (
+    <nav
+      className={styles.eventNavigation}
+      aria-label="Navegação entre acontecimentos"
+    >
+      {navigation.previous ? (
+        <Link
+          href={navigationHref(
+            navigation.previous.id,
+            detailQuery,
+          )}
+          className={styles.eventNavigationItem}
+        >
+          <span>← Anterior</span>
+          <strong>{navigation.previous.headline}</strong>
+        </Link>
+      ) : (
+        <span
+          className={`${styles.eventNavigationItem} ${styles.eventNavigationDisabled}`}
+        >
+          <span>← Anterior</span>
+          <strong>Início da seleção</strong>
+        </span>
+      )}
+
+      <Link
+        href={listHref}
+        className={styles.eventNavigationBack}
+      >
+        Voltar à página {page}
+      </Link>
+
+      {navigation.next ? (
+        <Link
+          href={navigationHref(
+            navigation.next.id,
+            detailQuery,
+          )}
+          className={`${styles.eventNavigationItem} ${styles.eventNavigationNext}`}
+        >
+          <span>Próximo →</span>
+          <strong>{navigation.next.headline}</strong>
+        </Link>
+      ) : (
+        <span
+          className={`${styles.eventNavigationItem} ${styles.eventNavigationNext} ${styles.eventNavigationDisabled}`}
+        >
+          <span>Próximo →</span>
+          <strong>Fim da seleção</strong>
+        </span>
+      )}
+    </nav>
+  );
 }
 
 function formatDate(value: string, timeZone: string) {
@@ -149,12 +254,44 @@ export default async function EventDetailPage({
 
   if (!organization) redirect("/onboarding");
 
-  const event = await getEventDetail(
-    organization.id,
-    eventId,
-  );
+  const [event, sites] = await Promise.all([
+    getEventDetail(organization.id, eventId),
+    getOrganizationSites(organization.id),
+  ]);
 
   if (!event) notFound();
+
+  const contextParams = detailContext(rawSearchParams);
+  const detailQuery = contextParams.toString();
+  const listHref = `/dashboard/events${
+    detailQuery ? `?${detailQuery}` : ""
+  }`;
+  const contextPage = Math.max(
+    1,
+    Number.parseInt(contextParams.get("page") ?? "1", 10) || 1,
+  );
+  const navigationTimeZone = siteTimezone(
+    sites,
+    contextParams.get("site"),
+  );
+  const toDate = contextParams.get("to");
+  const navigation = await getEventNavigation(organization.id, {
+    startedAt: event.startedAt,
+    from: dateOnlyToIso(
+      contextParams.get("from"),
+      navigationTimeZone,
+    ),
+    to: toDate
+      ? dateOnlyToIso(
+          addDaysToDateOnly(toDate, 1),
+          navigationTimeZone,
+        )
+      : null,
+    cameraId: contextParams.get("camera"),
+    siteId: contextParams.get("site"),
+    eventType: contextParams.get("type"),
+    reviewFilter: contextParams.get("review"),
+  });
 
   const canDelete = ["owner", "admin"].includes(
     organization.role,
@@ -183,6 +320,7 @@ export default async function EventDetailPage({
     ) ?? null;
   const expectedEvidenceCount =
     expectedLongTermEvidenceCount(event.analysisPlanCode);
+  const currentReview = event.reviews[0] ?? null;
 
   return (
     <main className="dashboard-shell">
@@ -206,7 +344,7 @@ export default async function EventDetailPage({
           </div>
 
           <Link
-            href="/dashboard/events"
+            href={listHref}
             className="back-link"
           >
             ← Voltar aos eventos
@@ -215,9 +353,29 @@ export default async function EventDetailPage({
 
         <DashboardSectionTabs group="monitoring" />
 
+        <EventNavigationBar
+          navigation={navigation}
+          detailQuery={detailQuery}
+          listHref={listHref}
+          page={contextPage}
+        />
+
         {scalar(rawSearchParams.saved) === "1" ? (
           <div className={styles.success}>
-            Avaliação salva e adicionada ao histórico.
+            Avaliação salva.
+          </div>
+        ) : null}
+
+        {scalar(rawSearchParams.updated) === "1" ? (
+          <div className={styles.success}>
+            Revisão atualizada.
+          </div>
+        ) : null}
+
+        {scalar(rawSearchParams.review_deleted) === "1" ? (
+          <div className={styles.success}>
+            Revisão excluída. O estado atual foi recalculado pelo
+            histórico restante.
           </div>
         ) : null}
 
@@ -445,7 +603,11 @@ export default async function EventDetailPage({
             <div className={styles.sectionHeading}>
               <div>
                 <span>REVISÃO HUMANA</span>
-                <h2>Avalie este evento</h2>
+                <h2>
+                  {currentReview
+                    ? "Edite a avaliação atual"
+                    : "Avalie este evento"}
+                </h2>
               </div>
             </div>
 
@@ -469,13 +631,27 @@ export default async function EventDetailPage({
                 name="event_id"
                 value={event.id}
               />
+              <input
+                type="hidden"
+                name="detail_query"
+                value={detailQuery}
+              />
+              {currentReview ? (
+                <input
+                  type="hidden"
+                  name="review_id"
+                  value={currentReview.id}
+                />
+              ) : null}
 
               <label>
                 <span>Avaliação</span>
                 <select
                   name="verdict"
                   defaultValue={
-                    event.humanVerdict ?? "useful"
+                    currentReview?.verdict ??
+                    event.humanVerdict ??
+                    "useful"
                   }
                   required
                 >
@@ -498,7 +674,9 @@ export default async function EventDetailPage({
                 <select
                   name="corrected_event_type"
                   defaultValue={
-                    event.correctedEventType ?? event.eventType
+                    currentReview?.correctedEventType ??
+                    event.correctedEventType ??
+                    event.eventType
                   }
                 >
                   {EVENT_TYPE_OPTIONS.map((option) => (
@@ -517,13 +695,17 @@ export default async function EventDetailPage({
                 <textarea
                   name="notes"
                   maxLength={2000}
-                  defaultValue={event.reviewNotes}
+                  defaultValue={
+                    currentReview?.notes ?? event.reviewNotes
+                  }
                   placeholder="Explique por que o evento é útil, irrelevante ou está classificado incorretamente."
                 />
               </label>
 
               <button type="submit">
-                Salvar avaliação
+                {currentReview
+                  ? "Atualizar avaliação"
+                  : "Salvar avaliação"}
               </button>
             </form>
           </section>
@@ -538,17 +720,23 @@ export default async function EventDetailPage({
 
             {event.reviews.length ? (
               <div className={styles.reviewHistory}>
-                {event.reviews.map((review) => (
+                {event.reviews.map((review, index) => (
                   <article key={review.id}>
                     <div>
                       <strong>
+                        {index === 0 ? "Atual · " : ""}
                         {reviewLabel(review.verdict)}
                       </strong>
                       <time>
-                        {formatDate(
-                          review.createdAt,
-                          event.timezone,
-                        )}
+                        {review.updatedAt !== review.createdAt
+                          ? `Editada em ${formatDate(
+                              review.updatedAt,
+                              event.timezone,
+                            )}`
+                          : formatDate(
+                              review.createdAt,
+                              event.timezone,
+                            )}
                       </time>
                     </div>
 
@@ -564,6 +752,88 @@ export default async function EventDetailPage({
                     {review.notes ? (
                       <p>{review.notes}</p>
                     ) : null}
+
+                    <details className={styles.reviewEditor}>
+                      <summary>Editar revisão</summary>
+                      <form
+                        action={reviewEventAction}
+                        className={styles.reviewForm}
+                      >
+                        <input
+                          type="hidden"
+                          name="event_id"
+                          value={event.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="review_id"
+                          value={review.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="detail_query"
+                          value={detailQuery}
+                        />
+
+                        <label>
+                          <span>Avaliação</span>
+                          <select
+                            name="verdict"
+                            defaultValue={review.verdict}
+                            required
+                          >
+                            <option value="useful">
+                              Útil e corretamente classificado
+                            </option>
+                            <option value="irrelevant">
+                              Irrelevante para a operação
+                            </option>
+                            <option value="incorrect">
+                              Classificação incorreta
+                            </option>
+                          </select>
+                        </label>
+
+                        <label>
+                          <span>Tipo correto</span>
+                          <select
+                            name="corrected_event_type"
+                            defaultValue={
+                              review.correctedEventType ??
+                              event.eventType
+                            }
+                          >
+                            {EVENT_TYPE_OPTIONS.map((option) => (
+                              <option
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label>
+                          <span>Observações</span>
+                          <textarea
+                            name="notes"
+                            maxLength={2000}
+                            defaultValue={review.notes}
+                          />
+                        </label>
+
+                        <button type="submit">
+                          Salvar alterações
+                        </button>
+                      </form>
+
+                      <ReviewDeleteForm
+                        eventId={event.id}
+                        reviewId={review.id}
+                        detailQuery={detailQuery}
+                      />
+                    </details>
                   </article>
                 ))}
               </div>
@@ -574,6 +844,13 @@ export default async function EventDetailPage({
             )}
           </section>
         </div>
+
+        <EventNavigationBar
+          navigation={navigation}
+          detailQuery={detailQuery}
+          listHref={listHref}
+          page={contextPage}
+        />
 
         <section className={styles.section}>
           <details className={styles.technical}>
