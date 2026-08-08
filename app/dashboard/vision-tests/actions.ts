@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { requireInternalOperator } from "@/src/lib/internal-operator";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createClient } from "@/src/lib/supabase/server";
 
@@ -17,7 +17,10 @@ const PreferenceSchema = z.enum([
 export async function rateVisionExperimentAction(
   formData: FormData,
 ) {
-  const user = await requireAuthenticatedUser();
+  // Acompanha a página: homologação é interna. A checagem de papel na
+  // organização continua abaixo, porque o experimento é gravado no escopo
+  // dela — operador interno sem vínculo não deve escrever.
+  const user = await requireInternalOperator();
   const organization = await getCurrentOrganization(user.id);
 
   if (
