@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { requireInternalOperator } from "@/src/lib/internal-operator";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createClient } from "@/src/lib/supabase/server";
 import { DashboardSidebar } from "../dashboard-sidebar";
@@ -73,7 +73,10 @@ function ResultColumn({
 }
 
 export default async function VisionTestsPage() {
-  const user = await requireAuthenticatedUser();
+  // Tela interna de homologação: expõe modelo, latência e custo em USD.
+  // O painel admin já a lista em "IA e custos"; ela nunca esteve na
+  // navegação do cliente, mas antes bastava digitar a URL estando logado.
+  const user = await requireInternalOperator();
   const organization = await getCurrentOrganization(user.id);
 
   if (!organization) redirect("/onboarding");
