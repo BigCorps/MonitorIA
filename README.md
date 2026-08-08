@@ -1,6 +1,6 @@
 # MonitorIA.cam
 
-**Sua câmera vê. A IA lembra.**
+**Sua câmera vê, o MonitorIA lembra!**
 
 O MonitorIA.cam transforma câmeras de segurança comuns em uma memória visual pesquisável. O vídeo contínuo permanece no equipamento do cliente; somente quadros selecionados de acontecimentos são enviados para análise.
 
