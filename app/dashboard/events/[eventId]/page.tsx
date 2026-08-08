@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { isInternalOperatorEmail } from "@/src/lib/internal-operator";
 import {
   getCurrentOrganization,
 } from "@/src/lib/dashboard-data";
@@ -158,6 +159,15 @@ export default async function EventDetailPage({
   const canDelete = ["owner", "admin"].includes(
     organization.role,
   );
+
+  /*
+   * Modelo de IA e custo em dólar são informação interna da BigCorps.
+   * Exibi-los ao cliente entrega a estrutura de custo por evento — com o
+   * volume mensal dele, dá para calcular a margem exata do plano. Latência
+   * e contagem de evidências continuam visíveis: são úteis para o cliente
+   * e não revelam nada nosso.
+   */
+  const isInternal = isInternalOperatorEmail(user.email);
 
   const totalCostUsd = event.usage.reduce(
     (total, item) =>
@@ -567,16 +577,22 @@ export default async function EventDetailPage({
 
         <section className={styles.section}>
           <details className={styles.technical}>
-            <summary>Dados técnicos e custo</summary>
+            <summary>
+              {isInternal
+                ? "Dados técnicos e custo"
+                : "Dados técnicos"}
+            </summary>
 
             <div className={styles.technicalGrid}>
               <div>
                 <h3>Análise</h3>
                 <dl>
-                  <div>
-                    <dt>Modelo final</dt>
-                    <dd>{event.model ?? "—"}</dd>
-                  </div>
+                  {isInternal ? (
+                    <div>
+                      <dt>Modelo final</dt>
+                      <dd>{event.model ?? "—"}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt>Modo</dt>
                     <dd>
@@ -607,13 +623,15 @@ export default async function EventDetailPage({
                           ).toFixed(1)}s`}
                     </dd>
                   </div>
-                  <div>
-                    <dt>Custo total</dt>
-                    <dd>
-                      US${" "}
-                      {totalCostUsd.toFixed(6)}
-                    </dd>
-                  </div>
+                  {isInternal ? (
+                    <div>
+                      <dt>Custo total</dt>
+                      <dd>
+                        US${" "}
+                        {totalCostUsd.toFixed(6)}
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
               </div>
 
