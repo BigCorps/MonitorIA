@@ -404,8 +404,7 @@ begin
   if RunSetup() then
   begin
     if MsgBox(
-      'As câmeras que aceitaram este usuário e esta senha foram conectadas.' +
-      #13#10#13#10 +
+      'As câmeras que aceitaram este usuário e esta senha foram conectadas.' + #13#10#13#10 +
       'Existe outra câmera na mesma rede que usa usuário ou senha diferente?',
       mbConfirmation,
       MB_YESNO

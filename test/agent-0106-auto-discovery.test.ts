@@ -12,6 +12,7 @@ test("instalador 0.10.6 procura a rede sem exigir endereço IP", async () => {
   assert.match(installer, /varre a rede local/);
   assert.doesNotMatch(installer, /CameraPage\.Add\('Endereço IP/);
   assert.doesNotMatch(installer, /cameraHost/);
+  assert.doesNotMatch(installer, /^\s*#\d/m);
   assert.match(cli, /callAgent\("discovery\.configure"/);
   assert.doesNotMatch(cli, /hosts: \[input\.cameraHost\]/);
 });
