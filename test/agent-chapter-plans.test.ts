@@ -4,24 +4,22 @@ import {
   getAgentPlan,
 } from "../agent/src/plans.js";
 
-test("modo equilibrado limita capítulos a 150 segundos", () => {
+test("modo equilibrado mantém pausas curtas no mesmo capítulo", () => {
   const plan = getAgentPlan("standard");
 
   assert.equal(
     plan.chapterMaximumSeconds,
-    150,
+    180,
   );
   assert.equal(
     plan.chapterMinimumSeconds,
-    30,
+    45,
   );
 });
 
-test("modo detalhado usa capítulos menores", () => {
-  assert.ok(
-    getAgentPlan("intensive")
-      .chapterMaximumSeconds <
-      getAgentPlan("basic")
-        .chapterMaximumSeconds,
-  );
+test("modo detalhado evita recortar o mesmo atendimento a cada cena", () => {
+  const plan = getAgentPlan("intensive");
+  assert.equal(plan.chapterMinimumSeconds, 60);
+  assert.equal(plan.chapterMaximumSeconds, 240);
+  assert.equal(plan.regionShiftThreshold, 0.28);
 });

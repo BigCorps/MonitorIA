@@ -24,6 +24,10 @@ import {
   siteTimezone,
   type SearchEventRow,
 } from "@/src/lib/event-search-data";
+import {
+  assistantPeriodLabel,
+  localizeAssistantPayload,
+} from "@/src/lib/assistant-display";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
 import {
@@ -1053,9 +1057,48 @@ export async function POST(request: Request) {
       };
     }
 
+    if (plan.intent !== "general_help") {
+      const calibrated = await supabase.rpc(
+        "assistant_calibrated_activity_summary_v1",
+        {
+          p_organization_id: organization.id,
+          p_from: fromIso,
+          p_to: toIso,
+          p_camera_id: plan.cameraId,
+          p_site_id: plan.siteId,
+        },
+      );
+
+      if (!calibrated.error) {
+        retrievedData = {
+          ...objectValue(retrievedData),
+          calibratedActivity: calibrated.data,
+          calibratedDefinitions: {
+            qualifiedCustomerVisits:
+              "Visitas prováveis que realmente alcançaram o balcão e apresentaram sinal visual de atendimento; pessoas na rua e simples passagens ficam fora.",
+            probableDistinctStaff:
+              "Funcionários distintos prováveis após continuidade temporal não biométrica; aparições repetidas não são somadas como novos funcionários.",
+            probableDistinctParkedVehicles:
+              "Veículos distintos prováveis após agrupar permanências compatíveis; não usa placa nem confirma identidade do veículo.",
+          },
+        };
+      } else {
+        console.error(
+          "Falha ao carregar métricas calibradas do Assistente:",
+          calibrated.error.message,
+        );
+      }
+    }
+
     candidateEvidenceIds = [
       ...new Set(candidateEvidenceIds),
     ].slice(0, 12);
+
+    const displayPeriodLabel = assistantPeriodLabel(
+      fromDate,
+      toDate,
+      effectiveTimeZone,
+    );
 
     const answered = await answerAssistantQuery({
       organizationId: organization.id,
@@ -1065,7 +1108,10 @@ export async function POST(request: Request) {
         fromDate,
         toDate,
       },
-      retrievedData,
+      retrievedData: localizeAssistantPayload(
+        retrievedData,
+        effectiveTimeZone,
+      ),
       allowedEvidenceIds: candidateEvidenceIds,
       history,
     });
@@ -1098,7 +1144,7 @@ export async function POST(request: Request) {
       ...plan,
       fromDate,
       toDate,
-      periodLabel: answered.answer.periodLabel,
+      periodLabel: displayPeriodLabel,
       caution: answered.answer.caution,
       suggestions: answered.answer.suggestions,
       chart,
@@ -1189,7 +1235,7 @@ export async function POST(request: Request) {
           content: answered.answer.answer,
           createdAt: String(assistantMessage.created_at),
           evidenceEventIds: evidenceIds,
-          periodLabel: answered.answer.periodLabel,
+          periodLabel: displayPeriodLabel,
           caution: answered.answer.caution,
           suggestions: answered.answer.suggestions,
           chart,

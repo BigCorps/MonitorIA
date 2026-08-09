@@ -8,13 +8,13 @@ import {
 import { frameDecodeArguments } from "../agent/src/discovery/validate.js";
 import { CAMERA_ANALYSIS_PLANS } from "../src/lib/analysis-plans.js";
 
-test("Agent e defaults de produção apontam para 0.10.4", async () => {
+test("Agent e defaults de produção apontam para 0.10.5", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../agent/package.json", import.meta.url), "utf8"),
   ) as { version: string };
 
-  assert.equal(AGENT_VERSION, "0.10.4");
-  assert.equal(packageJson.version, "0.10.4");
+  assert.equal(AGENT_VERSION, "0.10.5");
+  assert.equal(packageJson.version, "0.10.5");
 });
 
 test("instalador só considera utilizável um pareamento autenticável", () => {
@@ -43,7 +43,7 @@ test("plano detalhado agrupa atividade para reduzir chamadas", () => {
   assert.equal(plan.motionStartConsecutiveFrames, 3);
   assert.equal(plan.motionEndConsecutiveFrames, 8);
   assert.equal(plan.motionCooldownSeconds, 15);
-  assert.equal(plan.eventCloseAfterSeconds, 15);
+  assert.equal(plan.eventCloseAfterSeconds, 25);
   assert.equal(plan.consolidationIntervalSeconds, 5);
 });
 

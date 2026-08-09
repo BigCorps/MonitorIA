@@ -48,9 +48,9 @@ export function getAgentPlan(
       maximumFrames: 4,
       maxWidth: 1280,
       jpegQuality: 4,
-      chapterMinimumSeconds: 30,
-      chapterMaximumSeconds: 180,
-      regionShiftThreshold: 0.22,
+      chapterMinimumSeconds: 60,
+      chapterMaximumSeconds: 240,
+      regionShiftThreshold: 0.28,
     };
   }
 
@@ -60,8 +60,8 @@ export function getAgentPlan(
     maximumFrames: 3,
     maxWidth: 960,
     jpegQuality: 5,
-    chapterMinimumSeconds: 30,
-    chapterMaximumSeconds: 150,
-    regionShiftThreshold: 0.28,
+    chapterMinimumSeconds: 45,
+    chapterMaximumSeconds: 180,
+    regionShiftThreshold: 0.3,
   };
 }

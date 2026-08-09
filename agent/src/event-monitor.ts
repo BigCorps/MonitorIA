@@ -126,9 +126,15 @@ export function startCameraEventMonitor(options: {
     ),
   );
 
+  const planCloseFloorSeconds =
+    plan.code === "intensive"
+      ? 25
+      : plan.code === "standard"
+        ? 20
+        : 30;
   const closeAfterMs =
     Math.max(
-      3,
+      planCloseFloorSeconds,
       Math.min(300, options.camera.eventCloseAfterSeconds),
     ) * 1000;
 

@@ -1,4 +1,5 @@
 import type { AnalyzedEvent } from "@/src/contracts/analyzed-event";
+import { classifyOperationalPerson } from "@/src/lib/operational-person-role";
 
 export type ContinuityProcessingResult = {
   enabled: boolean;
@@ -36,6 +37,8 @@ export async function persistEventPersonAppearanceAndContinuity(input: {
   organizationId: string;
   eventId: string;
   people: AnalyzedEvent["people"];
+  sessionSignals: AnalyzedEvent["sessionSignals"];
+  zones: Array<{ id: string; personRoleHint: string }>;
 }): Promise<ContinuityProcessingResult | null> {
   const { data: rows, error: peopleError } = await input.supabase
     .from("event_people")
@@ -71,11 +74,22 @@ export async function persistEventPersonAppearanceAndContinuity(input: {
     const [row] = availableRows.splice(effectiveIndex, 1);
     if (!row) continue;
 
+    const classification = classifyOperationalPerson({
+      person,
+      sessionSignals: input.sessionSignals,
+      zones: input.zones,
+    });
+
     const { error } = await input.supabase
       .from("event_people")
       .update({
         appearance: person.appearance,
         appearance_confidence: person.appearance.confidence,
+        model_role: classification.modelRole,
+        operational_role: classification.operationalRole,
+        engaged_at_counter: classification.engagedAtCounter,
+        operational_role_reason: classification.reason,
+        role: classification.operationalRole,
       })
       .eq("id", String(row.id))
       .eq("organization_id", input.organizationId);
@@ -102,6 +116,18 @@ export async function persistEventPersonAppearanceAndContinuity(input: {
   }
 
   const value = objectValue(data);
+
+  const { error: reconcileError } = await input.supabase.rpc(
+    "reconcile_event_people_memory_v2",
+    { p_event_id: input.eventId },
+  );
+
+  if (reconcileError) {
+    console.error(
+      "Falha ao reconciliar a memória operacional de pessoas:",
+      reconcileError.message,
+    );
+  }
 
   return {
     enabled: Boolean(value.enabled),

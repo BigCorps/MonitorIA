@@ -869,6 +869,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       modelGroup: `${visionPlan.mode}:${promptHash.slice(0, 12)}`,
     });
 
+    const [recentEventsResult, recentStatesResult] = await Promise.all([
+      supabase
+        .from("events")
+        .select("started_at,ended_at,headline,primary_event_type,summary")
+        .eq("organization_id", authenticated.camera.organizationId)
+        .eq("camera_id", cameraId)
+        .lt("started_at", startedAt.toISOString())
+        .is("deleted_at", null)
+        .order("started_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("visual_entity_current_states")
+        .select("entity_id,current_state,last_observed_at,confidence")
+        .eq("organization_id", authenticated.camera.organizationId)
+        .eq("camera_id", cameraId),
+    ]);
+
     const visionInput: AnalyzeEventInput = {
       organizationId: authenticated.camera.organizationId,
       eventId: input.eventId,
@@ -880,6 +897,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       planCode,
       analysisMode: visionPlan.mode,
       promptCacheKey: cacheKey,
+      recentOperationalContext: (recentEventsResult.data ?? [])
+        .reverse()
+        .map((event: any) => ({
+          startedAt: String(event.started_at),
+          endedAt: String(event.ended_at),
+          headline: String(event.headline ?? ""),
+          primaryEventType: String(event.primary_event_type),
+          summary: String(event.summary ?? "").slice(0, 320),
+        })),
+      recentVisualStates: (recentStatesResult.data ?? []).map(
+        (state: any) => ({
+          entityId: String(state.entity_id),
+          state: String(state.current_state),
+          lastObservedAt: String(state.last_observed_at),
+          confidence: Number(state.confidence ?? 0),
+        }),
+      ),
     };
 
     const outcome = await analyzeEventForPlan(
@@ -1116,6 +1150,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
               authenticated.camera.organizationId,
             eventId,
             people: normalizedEvent.people,
+            sessionSignals: normalizedEvent.sessionSignals,
+            zones: cameraProfile.zones.map((zone) => ({
+              id: zone.id,
+              personRoleHint: zone.personRoleHint,
+            })),
           })
         : null;
 

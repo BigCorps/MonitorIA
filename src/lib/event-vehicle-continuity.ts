@@ -98,6 +98,18 @@ export async function persistEventVehicleAppearanceAndContinuity(input: {
 
   const value = objectValue(data);
 
+  const { error: reconcileError } = await input.supabase.rpc(
+    "reconcile_event_vehicle_memory_v2",
+    { p_event_id: input.eventId },
+  );
+
+  if (reconcileError) {
+    console.error(
+      "Falha ao reconciliar a memória temporária de veículos:",
+      reconcileError.message,
+    );
+  }
+
   return {
     enabled: Boolean(value.enabled),
     eventId: String(value.eventId ?? input.eventId),

@@ -68,8 +68,9 @@ export type MotionQualityInput = Pick<
  */
 export function isLikelyCameraNoise(sample: MotionQualityInput) {
   const globalIlluminationChange =
-    sample.activeRegionCount >= 7 &&
-    sample.motionSpreadPercent >= 75 &&
+    sample.activeRegionCount >= 8 &&
+    sample.motionSpreadPercent >= 92 &&
+    sample.motionDensityPercent >= 65 &&
     sample.directionalChangeRatio >= 0.82 &&
     Math.abs(sample.meanLumaDelta) >= 2.5;
 

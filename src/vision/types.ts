@@ -53,6 +53,19 @@ export interface AnalyzeEventInput {
   promptCacheKey?: string;
   routingDecision?: VisionRoutingDecision;
   verificationCandidate?: AnalyzedEvent;
+  recentOperationalContext?: Array<{
+    startedAt: string;
+    endedAt: string;
+    headline: string;
+    primaryEventType: string;
+    summary: string;
+  }>;
+  recentVisualStates?: Array<{
+    entityId: string;
+    state: string;
+    lastObservedAt: string;
+    confidence: number;
+  }>;
 }
 
 export interface AnalyzeCameraProfileInput {
