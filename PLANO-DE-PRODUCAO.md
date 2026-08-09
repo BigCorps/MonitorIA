@@ -7,7 +7,6 @@
 **Responsável:** BigCorps Tecnologia
 
 ---
-
 ## 1. Objetivo deste documento
 
 Este documento define a ordem oficial de implementação necessária para transformar o MonitorIA.cam em um produto comercial completo, seguro, autônomo e pronto para divulgação.
