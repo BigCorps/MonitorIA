@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "0.10.2"
+  AGENT_VERSION: "0.10.6"
 
   # Dependências fixadas por hash. Nada de "latest": um binário que muda
   # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
@@ -48,7 +48,7 @@ jobs:
         run: npx tsc --noEmit -p agent/tsconfig.json
 
       # Os dois executáveis são gerados na mesma etapa de propósito. O Agent
-      # 0.10.2 não pode passar ao autoteste sem o cofre DPAPI ao lado dele.
+      # só pode passar ao autoteste com o cofre DPAPI ao lado dele.
       - name: Gerar Agent e componente de segurança
         shell: pwsh
         run: |

@@ -29,6 +29,8 @@ export type IpcCommand =
   | "sync"
   /** Varre a rede e valida os streams encontrados. Demorado. */
   | "discovery.scan"
+  /** Varre a rede, cadastra e vincula automaticamente todas as câmeras válidas. */
+  | "discovery.configure"
   /** Devolve o resultado da última varredura, sem repeti-la. */
   | "discovery.results"
   /** Vincula um stream validado a uma câmera do painel. */

@@ -1,7 +1,7 @@
 ; Instalador do MonitorIA Agent para Windows.
 ;
 ; Compilar com Inno Setup 6.3 ou superior:
-;   ISCC.exe /DAppVersion=0.10.5 installer\monitoria.iss
+;   ISCC.exe /DAppVersion=0.10.6 installer\monitoria.iss
 ;
 ; Para assinar, adicione ao comando:
 ;   /DSignCommand="<comando de assinatura>"
@@ -168,18 +168,15 @@ begin
 
   CameraPage := CreateInputQueryPage(
     PairingPage.ID,
-    'Conectar a câmera',
-    'Informe os dados da câmera ou do gravador',
-    'O MonitorIA procura o vídeo somente no endereço informado, valida o ' +
-    'stream e escolhe automaticamente a opção mais leve e compatível.'
+    'Encontrar câmeras automaticamente',
+    'Informe o usuário e a senha das câmeras',
+    'O MonitorIA varre a rede local, encontra todos os aparelhos que aceitam ' +
+    'estes dados e escolhe automaticamente o vídeo mais compatível.'
   );
 
-  CameraPage.Add('Endereço IP (ex.: 192.168.1.108):', False);
   CameraPage.Add('Usuário:', False);
   CameraPage.Add('Senha:', True);
-  CameraPage.Add('Canal do gravador:', False);
-  CameraPage.Values[1] := 'admin';
-  CameraPage.Values[3] := '1';
+  CameraPage.Values[0] := 'admin';
 end;
 
 function IniciarServico(): Boolean;
@@ -272,25 +269,15 @@ var
   ResultCode: Integer;
   SetupFile: String;
   Json: String;
-  Channel: Integer;
 begin
   Result := False;
-
-  Channel := StrToIntDef(Trim(CameraPage.Values[3]), 0);
-  if Channel <= 0 then
-  begin
-    UltimoCodigoConfiguracao := SAIDA_ENTRADA_INVALIDA;
-    Exit;
-  end;
 
   SetupFile := ExpandConstant('{tmp}\monitoria-initial-setup.json');
   Json :=
     '{' +
     '"code":"' + JsonEscape(Trim(PairingPage.Values[0])) + '",' +
-    '"cameraHost":"' + JsonEscape(Trim(CameraPage.Values[0])) + '",' +
-    '"username":"' + JsonEscape(Trim(CameraPage.Values[1])) + '",' +
-    '"password":"' + JsonEscape(CameraPage.Values[2]) + '",' +
-    '"channel":' + IntToStr(Channel) +
+    '"username":"' + JsonEscape(Trim(CameraPage.Values[0])) + '",' +
+    '"password":"' + JsonEscape(CameraPage.Values[1]) + '"' +
     '}';
 
   if not SaveStringToFile(SetupFile, Json, False) then
@@ -302,7 +289,7 @@ begin
   WizardForm.NextButton.Enabled := False;
   WizardForm.BackButton.Enabled := False;
   WizardForm.StatusLabel.Caption :=
-    'Validando a câmera. Isso pode levar alguns minutos...';
+    'Procurando e validando câmeras na rede. Isso pode levar alguns minutos...';
 
   try
     if not Exec(
@@ -346,12 +333,11 @@ begin
       'Gere um código novo e tente de novo.'
   else if UltimoCodigoConfiguracao = SAIDA_CAMERA_NAO_CONFIGURADA then
     Result :=
-      'Não foi possível abrir o vídeo da câmera.' + #13#10#13#10 +
-      'Confira o endereço IP, usuário, senha e canal. Verifique também nas ' +
-      'configurações da câmera se os serviços ONVIF e RTSP estão habilitados.'
+      'Nenhuma câmera nova aceitou estes dados.' + #13#10#13#10 +
+      'Confira o usuário e a senha. Verifique também nas configurações das ' +
+      'câmeras se os serviços ONVIF e RTSP estão habilitados.'
   else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
-    Result :=
-      'Preencha um endereço IPv4 privado, o usuário e um número de canal válido.'
+    Result := 'Informe o usuário utilizado nas câmeras.'
   else
     Result :=
       'Não foi possível concluir a configuração.' + #13#10#13#10 +
@@ -404,11 +390,10 @@ begin
   if CurPageID <> CameraPage.ID then
     Exit;
 
-  if (Trim(CameraPage.Values[0]) = '') or
-     (Trim(CameraPage.Values[1]) = '') then
+  if Trim(CameraPage.Values[0]) = '' then
   begin
     MsgBox(
-      'Informe o endereço IP e o usuário da câmera.',
+      'Informe o usuário utilizado nas câmeras.',
       mbError,
       MB_OK
     );
@@ -418,10 +403,23 @@ begin
 
   if RunSetup() then
   begin
+    if MsgBox(
+      'As câmeras que aceitaram este usuário e esta senha foram conectadas.' +
+      #13#10#13#10 +
+      'Existe outra câmera na mesma rede que usa usuário ou senha diferente?',
+      mbConfirmation,
+      MB_YESNO
+    ) = IDYES then
+    begin
+      CameraPage.Values[1] := '';
+      Result := False;
+      Exit;
+    end;
+
     MsgBox(
       'Configuração concluída.' + #13#10#13#10 +
-      'O MonitorIA já está conectado à câmera e inicia automaticamente com ' +
-      'o Windows. Você pode fechar o instalador e acompanhar tudo pelo painel.',
+      'O MonitorIA inicia automaticamente com o Windows. Você pode fechar o ' +
+      'instalador e acompanhar as câmeras encontradas pelo painel.',
       mbInformation,
       MB_OK
     );

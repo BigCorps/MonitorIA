@@ -1,4 +1,4 @@
-# MonitorIA Agent v0.10.5
+# MonitorIA Agent v0.10.6
 
 O Agent mantém o vídeo contínuo no computador local e envia somente quadros
 selecionados de acontecimentos reais.
@@ -9,16 +9,20 @@ O usuário final utiliza apenas o `MonitorIA-Setup.exe`:
 
 1. gera o código de pareamento da câmera no painel;
 2. abre o instalador e confirma a solicitação do Windows;
-3. informa código, IP, usuário, senha e canal da câmera ou DVR;
-4. aguarda a validação automática do vídeo.
+3. informa o código, o usuário e a senha usados nas câmeras;
+4. aguarda a busca automática em toda a rede local;
+5. se outro grupo de câmeras usar credenciais diferentes, informa apenas o
+   outro usuário e a outra senha quando o instalador perguntar.
 
-O instalador registra e inicia o serviço, faz o pareamento, descobre o stream
-RTSP compatível e configura a inicialização automática. Nenhum terminal ou
-shell é necessário. Atualizações preservam pareamento e câmeras já configuradas.
+O instalador registra e inicia o serviço, encontra todos os aparelhos que
+aceitam cada credencial, descobre o stream RTSP compatível e configura a
+inicialização automática. Câmeras que já existem no painel são reaproveitadas;
+as demais são cadastradas automaticamente. Nenhum terminal ou shell é
+necessário. Atualizações preservam pareamento e câmeras já configuradas.
 
 ## Movimento e custo
 
-A versão 0.10.5 rejeita localmente mudanças globais de exposição, comutação
+A versão 0.10.6 rejeita localmente mudanças globais de exposição, comutação
 de infravermelho e ruído difuso de sensor em baixa luz. Esses quadros não são
 enviados ao servidor e não geram chamada de modelo.
 

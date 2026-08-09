@@ -106,10 +106,8 @@ class SetupError extends Error {
 type SetupInput = {
   code?: string;
   apiBaseUrl?: string;
-  cameraHost: string;
   username: string;
   password?: string;
-  channel?: number;
 };
 
 function setupInput(value: unknown): SetupInput {
@@ -118,24 +116,19 @@ function setupInput(value: unknown): SetupInput {
   }
 
   const candidate = value as Record<string, unknown>;
-  const cameraHost =
-    typeof candidate.cameraHost === "string"
-      ? candidate.cameraHost.trim()
-      : "";
   const username =
     typeof candidate.username === "string"
       ? candidate.username.trim()
       : "";
 
-  if (!cameraHost || !username) {
+  if (!username) {
     throw new SetupError(
-      "O endereço e o usuário da câmera são obrigatórios.",
+      "O usuário da câmera é obrigatório.",
       "input",
     );
   }
 
   return {
-    cameraHost,
     username,
     password:
       typeof candidate.password === "string"
@@ -149,12 +142,6 @@ function setupInput(value: unknown): SetupInput {
       typeof candidate.apiBaseUrl === "string"
         ? candidate.apiBaseUrl.trim()
         : DEFAULT_API_URL,
-    channel:
-      typeof candidate.channel === "number" &&
-      Number.isInteger(candidate.channel) &&
-      candidate.channel > 0
-        ? candidate.channel
-        : 1,
   };
 }
 
@@ -182,92 +169,42 @@ async function commandSetup() {
   }
 
   const status = await callAgent("status");
-  let cameraId: string | null = null;
 
   if (!status.paired) {
     if (!input.code) {
       throw new SetupError("O código de pareamento é obrigatório.", "input");
     }
 
-    const paired = await callAgent("pair", {
+    await callAgent("pair", {
       code: input.code,
       apiBaseUrl: input.apiBaseUrl ?? DEFAULT_API_URL,
     });
-    cameraId = String(paired.cameraId ?? "") || null;
-  } else {
-    const listed = await callAgent("camera.list");
-    const cameras = Array.isArray(listed.cameras)
-      ? listed.cameras
-      : [];
-    const target = cameras.find((raw) => {
-      const camera = raw as Record<string, unknown>;
-      return camera.rtspConfigured !== true;
-    }) as Record<string, unknown> | undefined;
-
-    if (!target) {
-      console.log("O MonitorIA já está pareado e com câmera configurada.");
-      return;
-    }
-
-    cameraId = String(target.id ?? "") || null;
   }
 
-  if (!cameraId) {
-    throw new SetupError(
-      "Nenhuma câmera disponível para receber a configuração.",
-      "camera",
-    );
-  }
-
-  let discovery: Record<string, unknown>;
+  let configured: Record<string, unknown>;
 
   try {
-    discovery = await callAgent("discovery.scan", {
+    configured = await callAgent("discovery.configure", {
       username: input.username,
       password: input.password ?? "",
-      channels: [input.channel ?? 1],
-      hosts: [input.cameraHost],
+      channels: [1],
     });
   } catch (error) {
     throw new SetupError(
-      `Não foi possível validar a câmera: ${errorMessage(error)}`,
+      `Não foi possível procurar as câmeras: ${errorMessage(error)}`,
       "camera",
     );
   }
 
-  const devices = Array.isArray(discovery.devices)
-    ? discovery.devices
-    : [];
-  const device = devices.find((raw) => {
-    const candidate = raw as Record<string, unknown>;
-    return (
-      candidate.host === input.cameraHost &&
-      Array.isArray(candidate.streams) &&
-      candidate.streams.length > 0
-    );
-  }) as Record<string, unknown> | undefined;
-
-  if (!device) {
+  const connected = Number(configured.connected ?? 0);
+  if (!Number.isFinite(connected) || connected < 1) {
     throw new SetupError(
-      "A câmera foi localizada, mas nenhum vídeo pôde ser validado. Confira IP, usuário, senha, canal e se o RTSP está habilitado.",
+      "Nenhuma câmera nova aceitou estes dados. Confira o usuário, a senha e se ONVIF/RTSP estão habilitados.",
       "camera",
     );
   }
 
-  try {
-    await callAgent("discovery.bind", {
-      deviceId: String(device.deviceId),
-      cameraId,
-      streamIndex: 0,
-    });
-  } catch (error) {
-    throw new SetupError(
-      `A câmera foi validada, mas não pôde ser vinculada: ${errorMessage(error)}`,
-      "camera",
-    );
-  }
-
-  console.log("Pareamento e câmera configurados com sucesso.");
+  console.log(`${connected} câmera(s) configurada(s) com sucesso.`);
 }
 
 async function commandCheckReady(requireCamera: boolean) {

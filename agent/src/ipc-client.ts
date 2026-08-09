@@ -62,7 +62,7 @@ export async function callAgent(
 
       responseTimer = setTimeout(() => {
         finish(new Error("O serviço MonitorIA não respondeu a tempo."));
-      }, command === "discovery.scan"
+      }, command === "discovery.scan" || command === "discovery.configure"
         ? DISCOVERY_RESPONSE_TIMEOUT_MS
         : RESPONSE_TIMEOUT_MS);
 

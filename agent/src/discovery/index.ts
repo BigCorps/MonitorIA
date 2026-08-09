@@ -394,7 +394,7 @@ export async function discoverDeviceStreams(options: {
   return result;
 }
 
-/** Passos 1 e 2: encontra dispositivos por ONVIF e, se preciso, por varredura. */
+/** Passos 1 e 2: combina ONVIF e varredura TCP para não perder câmeras. */
 export async function discoverDevices(options?: {
   log?: (message: string) => void;
   skipScan?: boolean;
@@ -405,9 +405,7 @@ export async function discoverDevices(options?: {
 
   const probeOptions = logger ? { log: logger } : {};
 
-  // O instalador recebe o IP informado pelo usuário. Nesse modo não fazemos
-  // multicast nem varremos os outros 253 endereços da rede: a configuração
-  // fica mais rápida, previsível e não toca equipamentos de terceiros.
+  // O modo manual continua aceitando uma lista explícita de endereços.
   if (options?.hosts?.length) {
     return scanLocalNetwork({
       ...probeOptions,
@@ -419,11 +417,13 @@ export async function discoverDevices(options?: {
     byHost.set(device.host, device);
   }
 
-  if (byHost.size > 0 || options?.skipScan) return [...byHost.values()];
+  if (options?.skipScan) return [...byHost.values()];
 
   log(
     logger,
-    "Nenhum dispositivo respondeu ao ONVIF. Partindo para varredura da rede local.",
+    byHost.size > 0
+      ? "Completando a descoberta ONVIF com a varredura da rede local."
+      : "Nenhum dispositivo respondeu ao ONVIF. Partindo para varredura da rede local.",
   );
 
   for (const device of await scanLocalNetwork(probeOptions)) {

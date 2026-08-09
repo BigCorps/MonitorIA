@@ -8,6 +8,7 @@ import {
   completeClipRequest,
   fetchAgentConfig,
   pairAgent,
+  registerDiscoveredCamera,
   sendCameraStatus,
   sendHeartbeat,
   startCaptureSession,
@@ -47,7 +48,7 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.5";
+export const AGENT_VERSION = "0.10.6";
 
 export type TokenState = "ok" | "locked" | "missing";
 
@@ -156,6 +157,13 @@ function privateIpv4(value: string) {
     (first === 172 && (second ?? 0) >= 16 && (second ?? 0) <= 31) ||
     (first === 192 && second === 168)
   );
+}
+
+function ipv4Order(value: string) {
+  return value
+    .split(".")
+    .map(Number)
+    .reduce((total, part) => total * 256 + part, 0);
 }
 
 /**
@@ -927,6 +935,8 @@ export class AgentService {
         })),
       }),
       "discovery.scan": async (payload) => this.runDiscovery(payload),
+      "discovery.configure": async (payload) =>
+        this.autoConfigureDiscovered(payload),
       "discovery.results": async () => ({
         runningSince: this.discoveryRunningAt,
         devices: this.discovery.map((entry) => this.summarizeDiscovery(entry)),
@@ -1065,6 +1075,7 @@ export class AgentService {
     return {
       deviceId: entry.device.id,
       host: entry.device.host,
+      name: entry.device.nameHint,
       source: entry.device.source,
       onvifSupported: entry.onvifSupported,
       vendor: entry.information?.manufacturer ?? entry.vendor,
@@ -1160,6 +1171,132 @@ export class AgentService {
     } finally {
       this.discoveryRunningAt = null;
     }
+  }
+
+  /** Hosts já protegidos no cofre local, sem usuário, senha ou caminho. */
+  private async configuredHosts() {
+    const hosts = new Set<string>();
+    const config = this.config;
+    if (!config) return hosts;
+
+    for (const local of Object.values(config.cameras)) {
+      try {
+        const rtspUrl = await this.vault.open(local.protectedRtsp);
+        const host = new URL(rtspUrl).hostname;
+        if (host) hosts.add(host);
+      } catch (error) {
+        this.logger.warn(
+          `Não foi possível comparar uma câmera já configurada: ${errorMessage(error)}`,
+        );
+      }
+    }
+
+    return hosts;
+  }
+
+  /**
+   * Fluxo usado pelo instalador 0.10.6.
+   *
+   * Uma credencial pode abrir várias câmeras. O usuário repete a mesma tela
+   * somente quando algum grupo usa outro usuário ou outra senha. Cada host já
+   * vinculado é ignorado nas tentativas seguintes, evitando duplicatas.
+   */
+  private async autoConfigureDiscovered(payload: Record<string, unknown>) {
+    const config = this.config;
+    const token = this.token;
+
+    if (!config || !token) {
+      throw new IpcError("not_paired", "O Agent ainda não foi pareado.");
+    }
+
+    await this.runDiscovery(payload);
+
+    const configuredHosts = await this.configuredHosts();
+    const entries = this.discovery
+      .filter(
+        (entry) =>
+          !configuredHosts.has(entry.device.host) &&
+          entry.streams.some((stream) => stream.validation.success),
+      )
+      .sort(
+        (left, right) =>
+          ipv4Order(left.device.host) - ipv4Order(right.device.host),
+      );
+
+    if (entries.length === 0) {
+      return {
+        connected: 0,
+        configuredTotal: Object.keys(config.cameras).length,
+        found: this.discovery.length,
+      };
+    }
+
+    const availableCameraIds = this.cameras
+      .filter((camera) => !config.cameras[camera.id]?.protectedRtsp)
+      .map((camera) => camera.id);
+    const assignments: Array<{
+      entry: DiscoveryResult;
+      cameraId: string;
+    }> = [];
+    let registrations = 0;
+
+    for (const entry of entries) {
+      let cameraId = availableCameraIds.shift() ?? null;
+
+      if (!cameraId) {
+        try {
+          const registered = await registerDiscoveredCamera(
+            config.apiBaseUrl,
+            token,
+            {
+              suggestedName: entry.device.nameHint,
+              vendor:
+                entry.information?.manufacturer ?? entry.vendor ?? null,
+              model:
+                entry.information?.model ?? entry.device.hardwareHint ?? null,
+            },
+          );
+          cameraId = registered.camera.id;
+          registrations += 1;
+        } catch (error) {
+          this.logger.warn(
+            `Não foi possível cadastrar a câmera encontrada: ${errorMessage(error)}`,
+          );
+          continue;
+        }
+      }
+
+      assignments.push({ entry, cameraId });
+    }
+
+    if (registrations > 0) {
+      // Torna as câmeras recém-cadastradas conhecidas antes de iniciar os
+      // monitores. As URLs ainda não existem e permanecem só no cofre local.
+      await this.syncConfiguration();
+    }
+
+    let connected = 0;
+
+    for (const assignment of assignments) {
+      try {
+        await this.bindDiscovered({
+          deviceId: assignment.entry.device.id,
+          cameraId: assignment.cameraId,
+          streamIndex: 0,
+        });
+        connected += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Não foi possível vincular ${assignment.entry.device.host}: ${errorMessage(error)}`,
+        );
+      }
+    }
+
+    return {
+      connected,
+      configuredTotal: Object.keys(config.cameras).length,
+      found: this.discovery.length,
+    };
   }
 
   /**

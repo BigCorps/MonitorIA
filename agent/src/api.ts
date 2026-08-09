@@ -178,6 +178,35 @@ export async function fetchAgentConfig(
   );
 }
 
+/**
+ * Cadastra no painel uma câmera física que o próprio Agent já validou.
+ *
+ * O endereço IP e a URL RTSP continuam exclusivamente na máquina da loja.
+ * O servidor recebe somente um nome amigável e dados de fabricante/modelo,
+ * suficientes para o usuário reconhecer a câmera e escolher o plano depois.
+ */
+export async function registerDiscoveredCamera(
+  baseUrl: string,
+  token: string,
+  input: {
+    suggestedName?: string | null;
+    vendor?: string | null;
+    model?: string | null;
+  },
+) {
+  return requestJson<{
+    ok: true;
+    camera: { id: string; name: string };
+  }>(baseUrl, "/api/agent/cameras/discovered", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify(input),
+  });
+}
+
 export async function sendHeartbeat(
   baseUrl: string,
   token: string,
