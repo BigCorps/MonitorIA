@@ -12,7 +12,7 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#07111F",
   "enableNotifications": true,
-  "startUrl": "/",
+  "startUrl": "/login",
   "iconUrl": "https://monitoria.cam/android-chrome-512x512.png",
   "maskableIconUrl": "https://monitoria.cam/maskable-icon-512x512.png",
   "splashScreenFadeOutDuration": 300,

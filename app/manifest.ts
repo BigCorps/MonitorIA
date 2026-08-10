@@ -29,7 +29,23 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: appConfig.productName,
     description: appConfig.shortDescription,
 
-    start_url: "/",
+    /*
+     * Abre em /login, não na landing.
+     *
+     * Dois motivos. O primeiro é de produto: quem instalou o aplicativo já
+     * decidiu comprar, e abrir numa página de vendas toda vez é estranho.
+     * /login manda quem já tem sessão direto para /dashboard.
+     *
+     * O segundo é de privacidade: a landing carrega o Microsoft Clarity,
+     * que grava sessão. Passando por ela, o aplicativo teria de declarar à
+     * Play Store compartilhamento de dados com terceiros. Fora do caminho
+     * do app, o Clarity continua medindo o site normalmente — o funil de
+     * marketing não perde nada.
+     *
+     * `scope` continua em "/" para o aplicativo poder navegar por todo o
+     * domínio sem sair da janela.
+     */
+    start_url: "/login",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
