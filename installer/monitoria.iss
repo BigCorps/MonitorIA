@@ -16,7 +16,7 @@
 ; TROCAR pela razão social exata que constar no certificado OV. O Windows
 ; compara o editor exibido com o da assinatura; divergência é tratada como
 ; inconsistência pelo SmartScreen.
-#define AppPublisher "BIGCORPS"
+#define AppPublisher "BIGCORPS TECNOLOGIA LTA"
 #define AppName "MonitorIA"
 #define ServiceName "MonitorIAAgent"
 

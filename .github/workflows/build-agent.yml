@@ -153,12 +153,36 @@ jobs:
         shell: pwsh
         env:
           SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
         run: |
           $enabled = -not [string]::IsNullOrWhiteSpace($env:SSL_COM_USERNAME)
           "enabled=$($enabled.ToString().ToLower())" | Out-File -Append $env:GITHUB_OUTPUT
-          if (-not $enabled) {
-            Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído."
+
+          if ($enabled) {
+            # Os outros três não podem faltar. Antes, só USERNAME era
+            # conferido: com ele presente e os demais vazios, o passo de
+            # assinatura rodava e falhava lá na frente, com erro obscuro.
+            $faltando = @()
+            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_PASSWORD))      { $faltando += "SSL_COM_PASSWORD" }
+            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_CREDENTIAL_ID)) { $faltando += "SSL_COM_CREDENTIAL_ID" }
+            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_TOTP_SECRET))   { $faltando += "SSL_COM_TOTP_SECRET" }
+            if ($faltando.Count -gt 0) {
+              throw "Credenciais incompletas. Faltando: $($faltando -join ', ')"
+            }
+            Write-Host "Credenciais de assinatura presentes."
+            return
           }
+
+          # Sem credenciais: em branch tudo bem, serve para testar. Em tag de
+          # release NÃO pode passar — um instalador sem assinatura publicado
+          # queima a reputação do SmartScreen no mesmo nome de arquivo.
+          if ("${{ github.ref }}".StartsWith("refs/tags/agent-v")) {
+            throw "Release em tag exige assinatura, e os segredos do eSigner não estão configurados."
+          }
+
+          Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído." 
 
       # Cada binário é assinado individualmente. Antivírus inspecionam os
       # componentes, não só o instalador.
@@ -243,11 +267,34 @@ jobs:
         run: |
           $setup = Get-Item dist\MonitorIA-Setup.exe
           $mb = [math]::Round($setup.Length / 1MB, 1)
-          $sig = (Get-AuthenticodeSignature $setup.FullName).Status
+          $assinatura = Get-AuthenticodeSignature $setup.FullName
+          $sig = $assinatura.Status
+          $editor = if ($assinatura.SignerCertificate) {
+            $assinatura.SignerCertificate.Subject
+          } else { "(sem assinatura)" }
+          $carimbo = if ($assinatura.TimeStamperCertificate) { "sim" } else { "NAO" }
 
-          Write-Host "Instalador: $mb MB"
-          Write-Host "Assinatura: $sig"
-          "Instalador: **$mb MB** · assinatura: **$sig**" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          Write-Host "Instalador : $mb MB"
+          Write-Host "Assinatura : $sig"
+          Write-Host "Editor     : $editor"
+          Write-Host "Carimbo    : $carimbo"
+
+          @"
+          | Item | Valor |
+          |---|---|
+          | Instalador | **$mb MB** |
+          | Assinatura | **$sig** |
+          | Editor | $editor |
+          | Carimbo de tempo | $carimbo |
+          "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+          # Falhar aqui é melhor que descobrir no cliente. Sem carimbo de
+          # tempo, a assinatura para de valer quando o certificado vencer,
+          # e todo instalador já baixado passa a ser recusado.
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            if ($sig -ne 'Valid') { throw "Assinatura invalida: $sig" }
+            if (-not $assinatura.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
+          }
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4
