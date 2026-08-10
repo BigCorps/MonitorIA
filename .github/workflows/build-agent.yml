@@ -262,7 +262,7 @@ jobs:
           credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           dir_path: ${{ github.workspace }}\sign-stage
-          output_path: ${{ github.workspace }}\sign-stage
+          output_path: ${{ github.workspace }}\sign-stage-signed
           malware_block: true
           environment_name: PROD
 
@@ -270,11 +270,11 @@ jobs:
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
-          Copy-Item sign-stage\monitoria-dpapi.exe   build\        -Force
-          Copy-Item sign-stage\monitoria-service.exe build\        -Force
-          Copy-Item sign-stage\ffmpeg.exe            build\ffmpeg\ -Force
-          Copy-Item sign-stage\ffprobe.exe           build\ffmpeg\ -Force
-          Copy-Item sign-stage\*.dll                 build\ffmpeg\ -Force
+          Copy-Item sign-stage-signed\monitoria-dpapi.exe   build\        -Force
+          Copy-Item sign-stage-signed\monitoria-service.exe build\        -Force
+          Copy-Item sign-stage-signed\ffmpeg.exe            build\ffmpeg\ -Force
+          Copy-Item sign-stage-signed\ffprobe.exe           build\ffmpeg\ -Force
+          Copy-Item sign-stage-signed\*.dll                 build\ffmpeg\ -Force
 
           # Conferir antes de embalar. Descobrir componente sem assinatura
           # depois que o instalador ja foi publicado custa muito mais caro.
@@ -302,9 +302,18 @@ jobs:
           credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\agent\dist\monitoria-agent.exe
-          output_path: ${{ github.workspace }}\agent\dist
+          output_path: ${{ github.workspace }}\agent-signed
           malware_block: true
           environment_name: PROD
+
+      - name: Devolver o Agent assinado
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          Copy-Item agent-signed\monitoria-agent.exe agent\dist\ -Force
+          $status = (Get-AuthenticodeSignature "agent\dist\monitoria-agent.exe").Status
+          Write-Host "monitoria-agent.exe -> $status"
+          if ($status -ne 'Valid') { throw "Agent sem assinatura valida: $status" }
 
       # ------------------------------------------------------- instalador
 
@@ -350,9 +359,16 @@ jobs:
           credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\dist\MonitorIA-Setup.exe
-          output_path: ${{ github.workspace }}\dist
+          output_path: ${{ github.workspace }}\installer-signed
           malware_block: true
           environment_name: PROD
+
+      - name: Devolver o instalador assinado
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          # O resumo e o upload leem de dist\, entao o assinado volta pra la.
+          Copy-Item installer-signed\MonitorIA-Setup.exe dist\ -Force
 
       - name: Resumo do build
         shell: pwsh
