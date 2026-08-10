@@ -263,7 +263,7 @@ jobs:
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           dir_path: ${{ github.workspace }}\sign-stage
           output_path: ${{ github.workspace }}\sign-stage
-          malware_block: false
+          malware_block: true
           environment_name: PROD
 
       - name: Devolver binários assinados
@@ -303,7 +303,7 @@ jobs:
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\agent\dist\monitoria-agent.exe
           output_path: ${{ github.workspace }}\agent\dist
-          malware_block: false
+          malware_block: true
           environment_name: PROD
 
       # ------------------------------------------------------- instalador
@@ -351,7 +351,7 @@ jobs:
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\dist\MonitorIA-Setup.exe
           output_path: ${{ github.workspace }}\dist
-          malware_block: false
+          malware_block: true
           environment_name: PROD
 
       - name: Resumo do build
