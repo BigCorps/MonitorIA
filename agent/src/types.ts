@@ -79,6 +79,21 @@ export type PairResponse = {
   };
 };
 
+/**
+ * Pedido de busca criado no painel.
+ *
+ * Chega junto da configuração porque o Agent já consulta esse endereço de
+ * tempos em tempos. Nenhuma conexão permanente, nenhuma porta aberta na rede
+ * da loja. A senha vem em claro nesta resposta e só existe em memória: nunca
+ * é gravada em disco fora do cofre.
+ */
+export type DiscoveryRequest = {
+  id: string;
+  username: string;
+  password: string;
+  cameraCountHint: number;
+};
+
 export type ConfigResponse = {
   ok: true;
   agent: {
@@ -86,6 +101,9 @@ export type ConfigResponse = {
     name: string;
   };
   cameras: RemoteCamera[];
+  discovery?: DiscoveryRequest | null;
+  /** Segundos até a próxima consulta. O servidor encurta durante uma busca. */
+  pollSeconds?: number;
   serverTime: string;
 };
 

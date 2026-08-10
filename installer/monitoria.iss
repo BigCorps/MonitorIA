@@ -103,8 +103,6 @@ Type: filesandordirs; Name: "{commonappdata}\MonitorIA\frames"
 [Code]
 var
   PairingPage: TInputQueryWizardPage;
-  CameraPage: TInputQueryWizardPage;
-  DiscoveryStatusLabel: TNewStaticText;
   ServicoPronto: Boolean;
 
 function ServicoInstalado(): Boolean;
@@ -166,29 +164,6 @@ begin
   );
 
   PairingPage.Add('Código de pareamento:', False);
-
-  CameraPage := CreateInputQueryPage(
-    PairingPage.ID,
-    'Encontrar câmeras automaticamente',
-    'Informe o usuário e a senha das câmeras',
-    'O MonitorIA varre a rede local, encontra todos os aparelhos que aceitam ' +
-    'estes dados e escolhe automaticamente o vídeo mais compatível.'
-  );
-
-  CameraPage.Add('Usuário:', False);
-  CameraPage.Add('Senha:', True);
-  CameraPage.Values[0] := 'admin';
-
-  DiscoveryStatusLabel := TNewStaticText.Create(WizardForm);
-  DiscoveryStatusLabel.Parent := CameraPage.Surface;
-  DiscoveryStatusLabel.Left := 0;
-  DiscoveryStatusLabel.Top := CameraPage.Edits[1].Top + CameraPage.Edits[1].Height + 22;
-  DiscoveryStatusLabel.Width := CameraPage.SurfaceWidth;
-  DiscoveryStatusLabel.Height := 44;
-  DiscoveryStatusLabel.AutoSize := False;
-  DiscoveryStatusLabel.WordWrap := True;
-  DiscoveryStatusLabel.Font.Style := [fsBold];
-  DiscoveryStatusLabel.Caption := '';
 end;
 
 function IniciarServico(): Boolean;
@@ -251,19 +226,12 @@ begin
   Result := ServicoPronto and AgentCheck('paired-check');
 end;
 
-function AgentConfigurado(): Boolean;
-begin
-  Result := ServicoPronto and AgentCheck('ready-check');
-end;
-
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
   if PageID = PairingPage.ID then
-    Result := AgentPareado()
-  else if PageID = CameraPage.ID then
-    Result := AgentConfigurado();
+    Result := AgentPareado();
 end;
 
 function JsonEscape(Value: String): String;
@@ -285,11 +253,11 @@ begin
   Result := False;
 
   SetupFile := ExpandConstant('{tmp}\monitoria-initial-setup.json');
+  { Só o código de pareamento. As câmeras são adicionadas pelo painel, onde
+    a janela não trava e dá para mostrar progresso de verdade. }
   Json :=
     '{' +
-    '"code":"' + JsonEscape(Trim(PairingPage.Values[0])) + '",' +
-    '"username":"' + JsonEscape(Trim(CameraPage.Values[0])) + '",' +
-    '"password":"' + JsonEscape(CameraPage.Values[1]) + '"' +
+    '"code":"' + JsonEscape(Trim(PairingPage.Values[0])) + '"' +
     '}';
 
   if not SaveStringToFile(SetupFile, Json, False) then
@@ -298,12 +266,11 @@ begin
     Exit;
   end;
 
+  { O pareamento é uma chamada curta. A janela ainda para durante ela, mas
+    por instantes, não pelo minuto que a busca de câmeras levava. }
   WizardForm.NextButton.Enabled := False;
   WizardForm.BackButton.Enabled := False;
-  WizardForm.StatusLabel.Caption :=
-    'Procurando e validando câmeras na rede...';
-  DiscoveryStatusLabel.Caption :=
-    'Procurando câmeras e testando a imagem. Normalmente leva menos de um minuto.';
+  WizardForm.StatusLabel.Caption := 'Conectando ao painel...';
   WizardForm.Refresh;
 
   try
@@ -321,7 +288,6 @@ begin
     WizardForm.NextButton.Enabled := True;
     WizardForm.BackButton.Enabled := True;
     WizardForm.StatusLabel.Caption := '';
-    DiscoveryStatusLabel.Caption := '';
   end;
 
   UltimoCodigoConfiguracao := ResultCode;
@@ -347,17 +313,12 @@ begin
       'O painel recusou este código de pareamento.' + #13#10#13#10 +
       'Ele vale 15 minutos e só pode ser usado uma vez. ' +
       'Gere um código novo e tente de novo.'
-  else if UltimoCodigoConfiguracao = SAIDA_CAMERA_NAO_CONFIGURADA then
-    Result :=
-      'Nenhuma câmera nova aceitou estes dados.' + #13#10#13#10 +
-      'Confira o usuário e a senha. Verifique também nas configurações das ' +
-      'câmeras se os serviços ONVIF e RTSP estão habilitados.'
   else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
-    Result := 'Informe o usuário utilizado nas câmeras.'
+    Result := 'Informe o código gerado no painel do MonitorIA.'
   else
     Result :=
-      'Não foi possível concluir a configuração.' + #13#10#13#10 +
-      'Verifique a internet e os dados da câmera e tente novamente.';
+      'Não foi possível conectar este computador ao painel.' + #13#10#13#10 +
+      'Verifique a internet e tente novamente.';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -386,30 +347,15 @@ var
 begin
   Result := True;
 
-  if CurPageID = PairingPage.ID then
-  begin
-    Code := Trim(PairingPage.Values[0]);
-
-    if Code = '' then
-    begin
-      MsgBox(
-        'Informe o código gerado no painel do MonitorIA.',
-        mbError,
-        MB_OK
-      );
-      Result := False;
-    end;
-
-    Exit;
-  end;
-
-  if CurPageID <> CameraPage.ID then
+  if CurPageID <> PairingPage.ID then
     Exit;
 
-  if Trim(CameraPage.Values[0]) = '' then
+  Code := Trim(PairingPage.Values[0]);
+
+  if Code = '' then
   begin
     MsgBox(
-      'Informe o usuário utilizado nas câmeras.',
+      'Informe o código gerado no painel do MonitorIA.',
       mbError,
       MB_OK
     );
@@ -419,22 +365,11 @@ begin
 
   if RunSetup() then
   begin
-    if MsgBox(
-      'As câmeras que aceitaram este usuário e esta senha foram conectadas.' + #13#10#13#10 +
-      'Existe outra câmera na mesma rede que usa usuário ou senha diferente?',
-      mbConfirmation,
-      MB_YESNO
-    ) = IDYES then
-    begin
-      CameraPage.Values[1] := '';
-      Result := False;
-      Exit;
-    end;
-
     MsgBox(
-      'Configuração concluída.' + #13#10#13#10 +
-      'O MonitorIA inicia automaticamente com o Windows. Você pode fechar o ' +
-      'instalador e acompanhar as câmeras encontradas pelo painel.',
+      'Pronto! Este computador está conectado ao painel.' + #13#10#13#10 +
+      'Agora abra o painel do MonitorIA e clique em "Procurar câmeras". ' +
+      'Ele encontra as câmeras sozinho e mostra o andamento na tela.' + #13#10#13#10 +
+      'O MonitorIA inicia junto com o Windows. Pode fechar o instalador.',
       mbInformation,
       MB_OK
     );

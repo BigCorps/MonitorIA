@@ -87,8 +87,10 @@ export function CameraSetupForm({ sites }: Props) {
       <div className="camera-security-note">
         <strong>Os dados de acesso da câmera não serão informados aqui.</strong>
         <p>
-          O endereço, usuário e senha da câmera ficarão somente no computador
-          onde o aplicativo MonitorIA será instalado.
+          O endereço, o usuário e a senha da câmera ficam guardados no
+          computador onde o MonitorIA for instalado. Quando você usa a busca
+          pelo painel, a senha é usada apenas para conectar naquele momento e
+          é descartada assim que a busca termina.
         </p>
       </div>
 

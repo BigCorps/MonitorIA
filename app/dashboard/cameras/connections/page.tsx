@@ -16,7 +16,7 @@ const sourceTypes = [
     title: "Câmera IP",
     badge: "Conexão pela rede",
     description:
-      "O MonitorIA acessa a câmera pela rede local. O usuário e a senha ficam guardados somente no computador instalado.",
+      "O MonitorIA acessa a câmera pela rede local. O usuário e a senha ficam guardados no computador instalado; ao usar a busca pelo painel, a senha serve apenas para conectar e é descartada em seguida.",
     steps: [
       "Encontre o endereço da câmera na rede.",
       "Ative a transmissão local nas configurações da câmera.",

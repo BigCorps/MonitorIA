@@ -145,9 +145,10 @@ export default async function InstallerPage() {
                   <strong>Informe o código, o usuário e a senha</strong>
                   <p>
                     O MonitorIA procura automaticamente todas as câmeras que
-                    aceitam esses dados. A senha fica somente no computador.
-                    Se as câmeras ainda não estiverem prontas, deixe em branco
-                    e conclua: dá para conectá-las depois por aqui.
+                    aceitam esses dados. A senha é usada só para conectar e
+                    fica guardada no computador da loja. Se as câmeras ainda
+                    não estiverem prontas, deixe em branco e conclua: dá para
+                    conectá-las depois por aqui.
                   </p>
                 </div>
               </li>

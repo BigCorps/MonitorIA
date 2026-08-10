@@ -59,8 +59,11 @@ export default async function CamerasPage() {
             </p>
           </div>
 
-          <Link href="/dashboard/cameras/new" className="panel-primary-action">
-            Adicionar câmera
+          <Link
+            href="/dashboard/cameras/discovery"
+            className="panel-primary-action"
+          >
+            Procurar câmeras
           </Link>
         </header>
 

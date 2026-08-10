@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { createClient } from "@/src/lib/supabase/server";
+import { notifyPrivacyRequest } from "@/src/lib/privacy-notification";
 import {
   getCurrentOrganization,
   getOrganizationSites,
@@ -569,13 +570,17 @@ export async function createPrivacyRequest(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("privacy_requests").insert({
-    organization_id: organization.id,
-    requester_user_id: user.id,
-    request_type: requestType,
-    scope,
-    details,
-  });
+  const { data: inserted, error } = await supabase
+    .from("privacy_requests")
+    .insert({
+      organization_id: organization.id,
+      requester_user_id: user.id,
+      request_type: requestType,
+      scope,
+      details,
+    })
+    .select("id,response_due_at")
+    .maybeSingle();
 
   if (error) {
     console.error("Falha ao registrar solicitação de privacidade:", error.code);
@@ -584,6 +589,26 @@ export async function createPrivacyRequest(formData: FormData) {
       "Não foi possível registrar a solicitação de privacidade.",
     );
   }
+
+  /*
+   * Aviso por e-mail. O prazo legal é de 15 dias e o pedido ficava só no
+   * banco, visível apenas para quem lembrasse de olhar.
+   *
+   * O await é proposital: em ambiente sem servidor, disparar sem esperar faz
+   * a função encerrar antes do envio sair. Falha de e-mail não derruba o
+   * pedido — notifyPrivacyRequest trata os próprios erros.
+   */
+  await notifyPrivacyRequest({
+    // A tabela não tem coluna de protocolo; o id é o identificador.
+    protocol: String((inserted as any)?.id ?? "sem identificador"),
+    dueAt: (inserted as any)?.response_due_at ?? null,
+    requestType,
+    scope,
+    details,
+    userEmail: user.email ?? null,
+    organizationName: organization.name,
+    organizationId: organization.id,
+  });
 
   revalidatePath("/dashboard/profile");
   profileRedirect(

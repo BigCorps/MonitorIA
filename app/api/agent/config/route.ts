@@ -1,9 +1,128 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authenticateAgent } from "@/src/lib/agent-auth";
+import { openCredentials } from "@/src/lib/discovery-crypto";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * Intervalo que o Agent deve usar entre consultas de configuração.
+ *
+ * Sem pedido de busca, 20s. É mais que os 60s antigos porque o cliente que
+ * clica em "Procurar câmeras" não pode esperar um minuto para a tela sair do
+ * lugar. Com busca em andamento, cai para 5s: o painel mostra progresso real
+ * e cada etapa precisa chegar rápido.
+ */
+const IDLE_POLL_SECONDS = 20;
+const ACTIVE_POLL_SECONDS = 5;
+
+type PendingDiscovery = {
+  id: string;
+  username: string;
+  password: string;
+  cameraCountHint: number;
+};
+
+/**
+ * Marca como expirados os pedidos que passaram do prazo e entrega ao Agent o
+ * pedido pendente, se houver.
+ *
+ * A troca de `pending` para `running` acontece aqui, condicionada ao estado
+ * anterior. Duas consultas seguidas do mesmo Agent não disparam duas buscas.
+ */
+async function claimDiscoveryRequest(
+  supabase: ReturnType<typeof createAdminClient>,
+  agentId: string,
+): Promise<{ pending: PendingDiscovery | null; active: boolean }> {
+  const nowIso = new Date().toISOString();
+
+  await supabase
+    .from("discovery_runs")
+    .update({
+      status: "expired",
+      finished_at: nowIso,
+      username: null,
+      credentials_sealed: null,
+      failure_code: "expired",
+      failure_message:
+        "A busca demorou demais e foi encerrada. Você pode tentar de novo.",
+    })
+    .eq("agent_id", agentId)
+    .in("status", ["pending", "running"])
+    .lt("expires_at", nowIso);
+
+  const { data: claimed, error: claimError } = await supabase
+    .from("discovery_runs")
+    .update({
+      status: "running",
+      started_at: nowIso,
+      progress_step: "starting",
+      progress_percent: 5,
+      progress_message: "O programa da loja recebeu o pedido e vai começar.",
+      progress_updated_at: nowIso,
+    })
+    .eq("agent_id", agentId)
+    .eq("status", "pending")
+    .select("id,username,credentials_sealed,camera_count_hint")
+    .maybeSingle();
+
+  if (claimError) {
+    console.error(
+      "Falha ao entregar pedido de busca ao Agent:",
+      claimError.message,
+    );
+    return { pending: null, active: false };
+  }
+
+  if (claimed) {
+    const credentials = openCredentials(
+      (claimed as { credentials_sealed: string | null }).credentials_sealed,
+    );
+
+    if (!credentials) {
+      // Sem credencial legível não há busca possível. Encerra com texto de
+      // tela e guarda o motivo técnico só no registro.
+      await supabase
+        .from("discovery_runs")
+        .update({
+          status: "failed",
+          finished_at: new Date().toISOString(),
+          username: null,
+          credentials_sealed: null,
+          failure_code: "credentials_unreadable",
+          failure_message:
+            "Não conseguimos usar o usuário e a senha informados. " +
+            "Preencha de novo e tente mais uma vez.",
+          failure_detail:
+            "credentials_sealed ausente ou não decifrável na entrega ao Agent.",
+        })
+        .eq("id", String((claimed as { id: string }).id));
+
+      return { pending: null, active: false };
+    }
+
+    return {
+      pending: {
+        id: String((claimed as { id: string }).id),
+        username: credentials.username,
+        password: credentials.password,
+        cameraCountHint: Number(
+          (claimed as { camera_count_hint: number }).camera_count_hint ?? 4,
+        ),
+      },
+      active: true,
+    };
+  }
+
+  const { count } = await supabase
+    .from("discovery_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("agent_id", agentId)
+    .eq("status", "running");
+
+  return { pending: null, active: (count ?? 0) > 0 };
+}
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -356,12 +475,16 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  const discovery = await claimDiscoveryRequest(supabase, agent.id);
+
   return NextResponse.json(
     {
       ok: true,
-      configVersion: 3,
+      configVersion: 4,
       agent: { id: agent.id, name: agent.name },
       cameras,
+      discovery: discovery.pending,
+      pollSeconds: discovery.active ? ACTIVE_POLL_SECONDS : IDLE_POLL_SECONDS,
       serverTime: new Date().toISOString(),
     },
     { headers: { "Cache-Control": "private, no-store" } },

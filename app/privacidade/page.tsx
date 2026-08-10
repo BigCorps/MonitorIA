@@ -14,7 +14,7 @@ export default function PrivacidadePage() {
     <MarketingPage
       eyebrow="Política de privacidade"
       title="Como o MonitorIA.cam trata dados pessoais e eventos visuais."
-      lead="Última atualização: 7 de agosto de 2026. Esta política descreve o tratamento realizado pela BigCorps no fornecimento do MonitorIA.cam."
+      lead="Última atualização: 10 de agosto de 2026. Esta política descreve o tratamento realizado pela BigCorps no fornecimento do MonitorIA.cam."
     >
       <ContentSection label="Política" title="Informações essenciais sobre o tratamento.">
         <Prose>
@@ -26,7 +26,8 @@ export default function PrivacidadePage() {
           <p>Podemos tratar dados de cadastro e autenticação, informações da organização, configurações de locais e câmeras, registros técnicos do Agent, quadros selecionados de acontecimentos, descrições geradas, eventos estruturados, mensagens enviadas ao assistente e registros de auditoria.</p>
 
           <h2>3. Dados que permanecem no ambiente do cliente</h2>
-          <p>A gravação contínua e as credenciais RTSP permanecem no ambiente local do cliente. O Agent utiliza as credenciais para acessar as câmeras, mas não as envia ao provedor de inteligência artificial.</p>
+          <p>A gravação contínua permanece integralmente no ambiente local do cliente: no DVR, no NVR, na câmera ou no computador onde o programa do MonitorIA está instalado. Nós não recebemos e não armazenamos essa gravação.</p>
+          <p>O usuário e a senha das câmeras são armazenados de forma durável apenas no computador do cliente, protegidos pelos recursos de cofre do sistema operacional. Quando o cliente utiliza a busca de câmeras pelo painel, esses dados trafegam pelos nossos servidores exclusivamente para permitir a conexão: são cifrados com AES-256-GCM enquanto a busca aguarda execução e eliminados assim que ela termina, por qualquer desfecho. Em nenhuma hipótese são enviados a provedores de inteligência artificial.</p>
 
           <h2>4. Finalidades</h2>
           <p>Os dados são utilizados para autenticar usuários, conectar câmeras, analisar acontecimentos selecionados, organizar eventos, oferecer pesquisa e relatórios, manter segurança, prevenir abuso, prestar suporte e cumprir obrigações legais.</p>
@@ -43,8 +44,14 @@ export default function PrivacidadePage() {
           <h2>8. Compartilhamento</h2>
           <p>Não vendemos dados pessoais. O compartilhamento ocorre somente com fornecedores necessários à operação, por instrução do cliente, em operações societárias legítimas ou quando exigido por lei.</p>
 
+          <h2>8.1. Conexão com assistentes externos</h2>
+          <p>O MonitorIA oferece, como funcionalidade opcional, a conexão com assistentes de inteligência artificial de terceiros — por exemplo ChatGPT e Claude — por meio do protocolo MCP (Model Context Protocol).</p>
+          <p>Essa conexão só existe se o cliente a autorizar expressamente, autenticando-se e concedendo permissão. Enquanto estiver ativa, o assistente escolhido pelo cliente pode consultar acontecimentos, descrições, horários e indicadores da organização a que o usuário pertence, respeitando as mesmas permissões que ele já possui no painel.</p>
+          <p>Quando o cliente utiliza essa funcionalidade, os dados consultados passam a ser tratados também pelo fornecedor do assistente, sob a política de privacidade daquele fornecedor, sobre a qual não temos controle. A autorização pode ser revogada a qualquer momento em Perfil e empresa, na seção de conexões, encerrando o acesso de imediato.</p>
+
           <h2>9. Retenção e exclusão</h2>
           <p>Os prazos variam conforme o tipo de dado, plano, política da organização e necessidade de segurança. Frames temporários possuem prazos menores; metadados e registros operacionais podem ser mantidos por períodos mais longos. Dados podem ser preservados quando necessários ao cumprimento de obrigação legal ou defesa de direitos. Consulte a <Link href="/retencao">Política de retenção e exclusão</Link>.</p>
+          <p>Para solicitar a exclusão da conta e dos dados, incluindo o passo a passo, o que é apagado e o que é mantido por obrigação legal, consulte <Link href="/excluir-conta">Excluir conta e dados</Link>. Respondemos em até 15 dias contados do pedido.</p>
 
           <h2>10. Segurança</h2>
           <p>Adotamos controles de autenticação, isolamento por organização, conexões criptografadas, proteção local de credenciais, registros de auditoria e políticas de acesso. Nenhum sistema é totalmente imune a riscos.</p>
@@ -54,6 +61,7 @@ export default function PrivacidadePage() {
 
           <h2>12. Direitos dos titulares</h2>
           <p>Conforme aplicável, o titular pode solicitar confirmação, acesso, correção, informação sobre compartilhamento, anonimização, bloqueio, eliminação, portabilidade, oposição, revisão e outras medidas previstas na legislação. A identidade e a legitimidade da solicitação podem ser verificadas antes do atendimento.</p>
+          <p>As solicitações podem ser registradas por usuários autenticados em <Link href="/dashboard/profile">Perfil e empresa</Link>, na seção de privacidade, com acompanhamento do andamento na mesma tela. Quem não conseguir acessar a conta pode escrever para <a href={`mailto:${appConfig.legal.privacyEmail}`}>{appConfig.legal.privacyEmail}</a>. O prazo de resposta é de até 15 dias.</p>
 
           <h2>13. Alterações</h2>
           <p>Esta política pode ser atualizada para refletir mudanças no produto, fornecedores ou legislação. A data da versão será atualizada nesta página.</p>

@@ -6,7 +6,9 @@ import {
   ApiError,
   closeCaptureSession,
   completeClipRequest,
+  completeDiscoveryRun,
   fetchAgentConfig,
+  reportDiscoveryProgress,
   pairAgent,
   registerDiscoveredCamera,
   sendCameraStatus,
@@ -46,7 +48,11 @@ import {
 } from "./discovery/index.js";
 import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
-import type { ClipUploadRequest, RemoteCamera } from "./types.js";
+import type {
+  ClipUploadRequest,
+  DiscoveryRequest,
+  RemoteCamera,
+} from "./types.js";
 
 export const AGENT_VERSION = "0.10.7";
 
@@ -78,9 +84,27 @@ export const DEFAULT_API_URL = "https://www.monitoria.cam";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const CAMERA_CHECK_INTERVAL_MS = 5 * 60_000;
-/** O plano de produção pede sincronização de configuração a cada minuto. */
-const CONFIG_SYNC_INTERVAL_MS = 60_000;
+/**
+ * Intervalo entre consultas de configuração.
+ *
+ * Era um minuto fixo. Com a busca de câmeras no painel, um minuto vira uma
+ * tela parada enquanto o cliente olha: ele clicou em "Procurar câmeras" e
+ * nada acontece. O servidor agora devolve `pollSeconds` em cada resposta —
+ * curto quando há busca em andamento, folgado quando não há. Os valores
+ * abaixo são só o piso e o teto do que se aceita do servidor.
+ */
+const CONFIG_SYNC_INTERVAL_MS = 20_000;
+const CONFIG_SYNC_MIN_MS = 3_000;
+const CONFIG_SYNC_MAX_MS = 120_000;
 const QUEUE_TICK_MS = 3_000;
+
+/** Relato de etapa durante uma busca de câmeras. */
+type DiscoveryProgress = (update: {
+  step: "starting" | "scanning" | "testing" | "saving" | "done";
+  percent: number;
+  message?: string;
+  found?: number;
+}) => Promise<void>;
 
 type CameraRuntime = {
   signature: string;
@@ -236,6 +260,10 @@ export class AgentService {
   private lastSyncAt: string | null = null;
   private discovery: DiscoveryResult[] = [];
   private discoveryRunningAt: string | null = null;
+  private configSyncIntervalMs = CONFIG_SYNC_INTERVAL_MS;
+  private configTimer: NodeJS.Timeout | null = null;
+  /** Pedido em execução vindo do painel. Impede busca dupla. */
+  private serverDiscoveryRunId: string | null = null;
   private lastHeartbeatAt: string | null = null;
   private startedAt = new Date().toISOString();
 
@@ -291,7 +319,7 @@ export class AgentService {
     this.timers.push(setInterval(() => void this.tickQueue(), QUEUE_TICK_MS));
     this.timers.push(setInterval(() => void this.tickHeartbeat(), HEARTBEAT_INTERVAL_MS));
     this.timers.push(setInterval(() => void this.tickCameras(), CAMERA_CHECK_INTERVAL_MS));
-    this.timers.push(setInterval(() => void this.tickConfig(), CONFIG_SYNC_INTERVAL_MS));
+    this.scheduleConfigSync();
 
     process.once("SIGINT", () => void this.stop());
     process.once("SIGTERM", () => void this.stop());
@@ -333,6 +361,11 @@ export class AgentService {
 
     for (const timer of this.timers) clearInterval(timer);
     this.timers = [];
+
+    if (this.configTimer) {
+      clearTimeout(this.configTimer);
+      this.configTimer = null;
+    }
 
     this.logger.info("Encerrando o serviço MonitorIA...");
 
@@ -613,6 +646,7 @@ export class AgentService {
       this.cameras = remote.cameras;
       this.lastSyncAt = new Date().toISOString();
       this.everAuthenticated = true;
+      this.applyPollInterval(remote.pollSeconds);
 
       if (this.unauthorized) {
         this.unauthorized = false;
@@ -621,6 +655,12 @@ export class AgentService {
       }
 
       await this.syncMonitoring();
+
+      // A busca roda fora desta sincronização: pode levar dezenas de
+      // segundos e não pode segurar o ciclo de configuração.
+      if (remote.discovery) {
+        void this.runServerDiscovery(remote.discovery);
+      }
     } catch (error) {
       if (classifyError(error) === "unauthorized") {
         this.handleUnauthorized();
@@ -928,6 +968,34 @@ export class AgentService {
 
   private configBusy = false;
 
+  /**
+   * Reagenda a próxima consulta em vez de usar intervalo fixo.
+   *
+   * O servidor decide o ritmo: durante uma busca de câmeras ele pede
+   * segundos, no resto do tempo pede o intervalo folgado. O piso e o teto
+   * existem para que um servidor com resposta estranha não transforme o
+   * Agent em uma máquina de requisições.
+   */
+  private scheduleConfigSync() {
+    if (this.shuttingDown) return;
+
+    if (this.configTimer) clearTimeout(this.configTimer);
+
+    this.configTimer = setTimeout(() => {
+      void this.tickConfig().finally(() => this.scheduleConfigSync());
+    }, this.configSyncIntervalMs);
+  }
+
+  private applyPollInterval(seconds: unknown) {
+    const parsed = Number(seconds);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+    this.configSyncIntervalMs = Math.min(
+      CONFIG_SYNC_MAX_MS,
+      Math.max(CONFIG_SYNC_MIN_MS, Math.round(parsed * 1000)),
+    );
+  }
+
   private async tickConfig() {
     if (this.configBusy || this.shuttingDown) return;
 
@@ -1097,6 +1165,135 @@ export class AgentService {
 
   // ------------------------------------------------------------ descoberta
 
+  /**
+   * Busca pedida pelo painel.
+   *
+   * Diferente da busca do instalador em dois pontos: relata etapa por etapa
+   * enquanto trabalha, e sempre encerra o pedido no servidor — inclusive
+   * quando falha. É o encerramento que apaga a senha guardada; sair sem
+   * avisar deixaria a credencial parada no banco até expirar.
+   */
+  private async runServerDiscovery(request: DiscoveryRequest) {
+    const config = this.config;
+    const token = this.token;
+
+    if (!config || !token) return;
+    if (this.serverDiscoveryRunId) return;
+
+    this.serverDiscoveryRunId = request.id;
+
+    let abandoned = false;
+
+    const report: DiscoveryProgress = async (update) => {
+      if (abandoned) return;
+
+      try {
+        const active = await reportDiscoveryProgress(
+          config.apiBaseUrl,
+          token,
+          {
+            runId: request.id,
+            step: update.step,
+            percent: update.percent,
+            ...(update.message ? { message: update.message } : {}),
+            ...(typeof update.found === "number"
+              ? { found: update.found }
+              : {}),
+          },
+        );
+
+        // O cliente cancelou ou o pedido expirou. Não vale terminar.
+        if (!active) abandoned = true;
+      } catch (error) {
+        this.logger.warn(
+          `Não foi possível relatar o progresso da busca: ${errorMessage(error)}`,
+        );
+      }
+    };
+
+    this.logger.info(`Busca de câmeras solicitada pelo painel (${request.id}).`);
+
+    try {
+      await report({
+        step: "starting",
+        percent: 10,
+        message: "Preparando a busca.",
+      });
+
+      // "Quantas câmeras você tem?" vira teto de canais a sondar. Os canais
+      // acima de 1 só entram no plano B, para aparelhos sem ONVIF.
+      const channels = Array.from(
+        { length: Math.min(Math.max(request.cameraCountHint, 1), 64) },
+        (_, index) => index + 1,
+      );
+
+      const summary = await this.autoConfigureDiscovered(
+        {
+          username: request.username,
+          password: request.password,
+          channels,
+        },
+        report,
+      );
+
+      const connectedHosts = await this.configuredHosts();
+      const devices = this.discovery.map((entry) => ({
+        ...this.summarizeDiscovery(entry),
+        connected: connectedHosts.has(entry.device.host),
+      }));
+
+      await completeDiscoveryRun(config.apiBaseUrl, token, {
+        runId: request.id,
+        status: "completed",
+        found: summary.found,
+        connected: summary.connected,
+        alreadyConnected: summary.alreadyConnected,
+        devices,
+      });
+
+      this.logger.info(
+        `Busca concluída: ${summary.found} encontrado(s), ` +
+          `${summary.connected} conectado(s).`,
+      );
+    } catch (error) {
+      if (classifyError(error) === "unauthorized") {
+        this.handleUnauthorized();
+        this.serverDiscoveryRunId = null;
+        return;
+      }
+
+      const detail = errorMessage(error);
+      this.logger.warn(`Falha na busca pedida pelo painel: ${detail}`);
+
+      try {
+        await completeDiscoveryRun(config.apiBaseUrl, token, {
+          runId: request.id,
+          status: "failed",
+          found: this.discovery.length,
+          connected: 0,
+          alreadyConnected: 0,
+          devices: this.discovery.map((entry) =>
+            this.summarizeDiscovery(entry),
+          ),
+          failure: {
+            code: "discovery_failed",
+            // O que vai para a tela do cliente. O detalhe fica só no registro.
+            message:
+              "A busca não terminou. Confira se as câmeras estão ligadas " +
+              "e no mesmo roteador do computador, e tente de novo.",
+            detail,
+          },
+        });
+      } catch (reportError) {
+        this.logger.warn(
+          `Não foi possível encerrar a busca no servidor: ${errorMessage(reportError)}`,
+        );
+      }
+    } finally {
+      this.serverDiscoveryRunId = null;
+    }
+  }
+
   private summarizeDiscovery(entry: DiscoveryResult) {
     const ranked = rankStreams(entry.streams.filter((item) => item.validation.success));
 
@@ -1137,7 +1334,10 @@ export class AgentService {
    * Varredura completa. Pode levar dezenas de segundos, por isso o cliente do
    * canal local usa tempo de resposta longo e a interface mostra progresso.
    */
-  private async runDiscovery(payload: Record<string, unknown>) {
+  private async runDiscovery(
+    payload: Record<string, unknown>,
+    onProgress?: DiscoveryProgress,
+  ) {
     if (this.discoveryRunningAt) {
       throw new IpcError("busy", "Já existe uma varredura em andamento.");
     }
@@ -1168,6 +1368,12 @@ export class AgentService {
         resolveFfprobe(),
       ]);
 
+      await onProgress?.({
+        step: "scanning",
+        percent: 15,
+        message: "Procurando câmeras na rede da loja.",
+      });
+
       const devices = await discoverDevices({
         log: (message) => this.logger.info(message),
         ...(requestedHosts.length > 0
@@ -1176,6 +1382,16 @@ export class AgentService {
       });
 
       this.logger.info(`Descoberta encontrou ${devices.length} aparelho(s).`);
+
+      await onProgress?.({
+        step: "testing",
+        percent: 45,
+        found: devices.length,
+        message:
+          devices.length === 1
+            ? "Encontramos 1 aparelho. Testando a imagem."
+            : `Encontramos ${devices.length} aparelhos. Testando a imagem de cada um.`,
+      });
 
       // Um aparelho inválido não pode impedir a validação da câmera correta.
       // Quatro workers limitam o uso de FFmpeg sem voltar ao processamento
@@ -1231,7 +1447,10 @@ export class AgentService {
    * somente quando algum grupo usa outro usuário ou outra senha. Cada host já
    * vinculado é ignorado nas tentativas seguintes, evitando duplicatas.
    */
-  private async autoConfigureDiscovered(payload: Record<string, unknown>) {
+  private async autoConfigureDiscovered(
+    payload: Record<string, unknown>,
+    onProgress?: DiscoveryProgress,
+  ) {
     const config = this.config;
     const token = this.token;
 
@@ -1239,7 +1458,7 @@ export class AgentService {
       throw new IpcError("not_paired", "O Agent ainda não foi pareado.");
     }
 
-    await this.runDiscovery(payload);
+    await this.runDiscovery(payload, onProgress);
 
     const configuredHosts = await this.configuredHosts();
     const alreadyConnected = this.discovery.filter(
@@ -1304,6 +1523,16 @@ export class AgentService {
 
       assignments.push({ entry, cameraId });
     }
+
+    await onProgress?.({
+      step: "saving",
+      percent: 80,
+      found: this.discovery.length,
+      message:
+        assignments.length === 1
+          ? "Salvando 1 câmera."
+          : `Salvando ${assignments.length} câmeras.`,
+    });
 
     if (registrations > 0) {
       // Torna as câmeras recém-cadastradas conhecidas antes de iniciar os

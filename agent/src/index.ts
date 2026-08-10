@@ -106,7 +106,14 @@ class SetupError extends Error {
 type SetupInput = {
   code?: string;
   apiBaseUrl?: string;
-  username: string;
+  /**
+   * Usuário das câmeras. Opcional desde que a busca passou para o painel.
+   *
+   * O instalador atual manda só o código de pareamento. Instaladores antigos
+   * ainda mandam usuário e senha, e continuam funcionando: quando o campo
+   * vem preenchido, a busca roda como antes.
+   */
+  username?: string;
   password?: string;
 };
 
@@ -120,13 +127,6 @@ function setupInput(value: unknown): SetupInput {
     typeof candidate.username === "string"
       ? candidate.username.trim()
       : "";
-
-  if (!username) {
-    throw new SetupError(
-      "O usuário da câmera é obrigatório.",
-      "input",
-    );
-  }
 
   return {
     username,
@@ -179,6 +179,14 @@ async function commandSetup() {
       code: input.code,
       apiBaseUrl: input.apiBaseUrl ?? DEFAULT_API_URL,
     });
+  }
+
+  // Sem usuário de câmera não há busca a fazer: o instalador só conecta o
+  // computador ao painel e o cliente adiciona as câmeras por lá, sem janela
+  // travada e sem precisar do eletricista no mesmo dia.
+  if (!input.username) {
+    console.log("Computador conectado ao painel.");
+    return;
   }
 
   let configured: Record<string, unknown>;

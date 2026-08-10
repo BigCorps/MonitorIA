@@ -448,3 +448,72 @@ export async function completeClipRequest(
     30_000,
   );
 }
+
+/**
+ * Progresso parcial de uma busca de câmeras.
+ *
+ * Devolve false quando o servidor responde que o pedido não está mais ativo
+ * — expirado ou cancelado pelo cliente. Quem chama usa isso para abandonar a
+ * busca em vez de terminar um trabalho que ninguém está mais esperando.
+ */
+export async function reportDiscoveryProgress(
+  baseUrl: string,
+  token: string,
+  input: {
+    runId: string;
+    step: "starting" | "scanning" | "testing" | "saving" | "done";
+    percent: number;
+    message?: string;
+    found?: number;
+  },
+) {
+  try {
+    await requestJson<{ ok: true }>(
+      baseUrl,
+      "/api/agent/discovery/progress",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        body: JSON.stringify(input),
+      },
+      10_000,
+    );
+
+    return true;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) return false;
+    throw error;
+  }
+}
+
+/** Resultado final. É este envio que faz o servidor apagar a senha guardada. */
+export async function completeDiscoveryRun(
+  baseUrl: string,
+  token: string,
+  input: {
+    runId: string;
+    status: "completed" | "failed";
+    found: number;
+    connected: number;
+    alreadyConnected: number;
+    devices: JsonObject[];
+    failure?: { code: string; message: string; detail?: string };
+  },
+) {
+  return requestJson<{ ok: boolean }>(
+    baseUrl,
+    "/api/agent/discovery/complete",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(input),
+    },
+    20_000,
+  );
+}
