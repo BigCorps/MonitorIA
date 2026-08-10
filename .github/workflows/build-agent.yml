@@ -152,12 +152,12 @@ jobs:
         id: signing
         shell: pwsh
         env:
-          SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
-          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
-          SSL_COM_CREDENTIAL_ID: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
-          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
-          $enabled = -not [string]::IsNullOrWhiteSpace($env:SSL_COM_USERNAME)
+          $enabled = -not [string]::IsNullOrWhiteSpace($env:ESIGNER_USERNAME)
           "enabled=$($enabled.ToString().ToLower())" | Out-File -Append $env:GITHUB_OUTPUT
 
           if ($enabled) {
@@ -165,9 +165,9 @@ jobs:
             # conferido: com ele presente e os demais vazios, o passo de
             # assinatura rodava e falhava lá na frente, com erro obscuro.
             $faltando = @()
-            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_PASSWORD))      { $faltando += "SSL_COM_PASSWORD" }
-            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_CREDENTIAL_ID)) { $faltando += "SSL_COM_CREDENTIAL_ID" }
-            if ([string]::IsNullOrWhiteSpace($env:SSL_COM_TOTP_SECRET))   { $faltando += "SSL_COM_TOTP_SECRET" }
+            if ([string]::IsNullOrWhiteSpace($env:ESIGNER_PASSWORD))      { $faltando += "ESIGNER_PASSWORD" }
+            if ([string]::IsNullOrWhiteSpace($env:ESIGNER_CREDENTIAL_ID)) { $faltando += "ESIGNER_CREDENTIAL_ID" }
+            if ([string]::IsNullOrWhiteSpace($env:ESIGNER_TOTP_SECRET))   { $faltando += "ESIGNER_TOTP_SECRET" }
             if ($faltando.Count -gt 0) {
               throw "Credenciais incompletas. Faltando: $($faltando -join ', ')"
             }
@@ -191,10 +191,10 @@ jobs:
         uses: sslcom/esigner-codesign@v1.3.2
         with:
           command: batch_sign
-          username: ${{ secrets.SSL_COM_USERNAME }}
-          password: ${{ secrets.SSL_COM_PASSWORD }}
-          credential_id: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.SSL_COM_TOTP_SECRET }}
+          username: ${{ secrets.ESIGNER_USERNAME }}
+          password: ${{ secrets.ESIGNER_PASSWORD }}
+          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           dir_path: ${{ github.workspace }}\build
           output_path: ${{ github.workspace }}\build
           malware_block: false
@@ -205,10 +205,10 @@ jobs:
         uses: sslcom/esigner-codesign@v1.3.2
         with:
           command: sign
-          username: ${{ secrets.SSL_COM_USERNAME }}
-          password: ${{ secrets.SSL_COM_PASSWORD }}
-          credential_id: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.SSL_COM_TOTP_SECRET }}
+          username: ${{ secrets.ESIGNER_USERNAME }}
+          password: ${{ secrets.ESIGNER_PASSWORD }}
+          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\agent\dist\monitoria-agent.exe
           output_path: ${{ github.workspace }}\agent\dist
           malware_block: false
@@ -253,10 +253,10 @@ jobs:
         uses: sslcom/esigner-codesign@v1.3.2
         with:
           command: sign
-          username: ${{ secrets.SSL_COM_USERNAME }}
-          password: ${{ secrets.SSL_COM_PASSWORD }}
-          credential_id: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.SSL_COM_TOTP_SECRET }}
+          username: ${{ secrets.ESIGNER_USERNAME }}
+          password: ${{ secrets.ESIGNER_PASSWORD }}
+          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
           file_path: ${{ github.workspace }}\dist\MonitorIA-Setup.exe
           output_path: ${{ github.workspace }}\dist
           malware_block: false
