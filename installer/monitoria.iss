@@ -1,7 +1,7 @@
 ; Instalador do MonitorIA Agent para Windows.
 ;
 ; Compilar com Inno Setup 6.3 ou superior:
-;   ISCC.exe /DAppVersion=0.10.6 installer\monitoria.iss
+;   ISCC.exe /DAppVersion=0.10.7 installer\monitoria.iss
 ;
 ; Para assinar, adicione ao comando:
 ;   /DSignCommand="<comando de assinatura>"
@@ -104,6 +104,7 @@ Type: filesandordirs; Name: "{commonappdata}\MonitorIA\frames"
 var
   PairingPage: TInputQueryWizardPage;
   CameraPage: TInputQueryWizardPage;
+  DiscoveryStatusLabel: TNewStaticText;
   ServicoPronto: Boolean;
 
 function ServicoInstalado(): Boolean;
@@ -177,6 +178,17 @@ begin
   CameraPage.Add('Usuário:', False);
   CameraPage.Add('Senha:', True);
   CameraPage.Values[0] := 'admin';
+
+  DiscoveryStatusLabel := TNewStaticText.Create(WizardForm);
+  DiscoveryStatusLabel.Parent := CameraPage.Surface;
+  DiscoveryStatusLabel.Left := 0;
+  DiscoveryStatusLabel.Top := CameraPage.Edits[1].Top + CameraPage.Edits[1].Height + 22;
+  DiscoveryStatusLabel.Width := CameraPage.SurfaceWidth;
+  DiscoveryStatusLabel.Height := 44;
+  DiscoveryStatusLabel.AutoSize := False;
+  DiscoveryStatusLabel.WordWrap := True;
+  DiscoveryStatusLabel.Font.Style := [fsBold];
+  DiscoveryStatusLabel.Caption := '';
 end;
 
 function IniciarServico(): Boolean;
@@ -289,7 +301,10 @@ begin
   WizardForm.NextButton.Enabled := False;
   WizardForm.BackButton.Enabled := False;
   WizardForm.StatusLabel.Caption :=
-    'Procurando e validando câmeras na rede. Isso pode levar alguns minutos...';
+    'Procurando e validando câmeras na rede...';
+  DiscoveryStatusLabel.Caption :=
+    'Procurando câmeras e testando a imagem. Normalmente leva menos de um minuto.';
+  WizardForm.Refresh;
 
   try
     if not Exec(
@@ -306,6 +321,7 @@ begin
     WizardForm.NextButton.Enabled := True;
     WizardForm.BackButton.Enabled := True;
     WizardForm.StatusLabel.Caption := '';
+    DiscoveryStatusLabel.Caption := '';
   end;
 
   UltimoCodigoConfiguracao := ResultCode;

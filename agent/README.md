@@ -1,4 +1,4 @@
-# MonitorIA Agent v0.10.6
+# MonitorIA Agent v0.10.7
 
 O Agent mantém o vídeo contínuo no computador local e envia somente quadros
 selecionados de acontecimentos reais.
@@ -22,7 +22,7 @@ necessário. Atualizações preservam pareamento e câmeras já configuradas.
 
 ## Movimento e custo
 
-A versão 0.10.6 rejeita localmente mudanças globais de exposição, comutação
+A versão 0.10.7 rejeita localmente mudanças globais de exposição, comutação
 de infravermelho e ruído difuso de sensor em baixa luz. Esses quadros não são
 enviados ao servidor e não geram chamada de modelo.
 

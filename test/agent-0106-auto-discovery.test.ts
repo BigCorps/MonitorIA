@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("instalador 0.10.6 procura a rede sem exigir endereço IP", async () => {
+test("instalador 0.10.7 procura a rede sem exigir endereço IP", async () => {
   const [installer, cli] = await Promise.all([
     readFile(new URL("../installer/monitoria.iss", import.meta.url), "utf8"),
     readFile(new URL("../agent/src/index.ts", import.meta.url), "utf8"),
@@ -48,4 +48,18 @@ test("cadastro automático preserva segredos localmente e limita o Agent", async
   assert.match(service, /configuredHosts/);
   assert.match(service, /registerDiscoveredCamera/);
   assert.match(service, /!configuredHosts\.has\(entry\.device\.host\)/);
+});
+
+test("descoberta não deixa aparelho inválido bloquear a câmera correta", async () => {
+  const [service, discovery, client] = await Promise.all([
+    readFile(new URL("../agent/src/service.ts", import.meta.url), "utf8"),
+    readFile(new URL("../agent/src/discovery/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../agent/src/ipc-client.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(service, /mapWithConcurrency/);
+  assert.match(service, /alreadyConnected/);
+  assert.match(discovery, /nonRtspPorts/);
+  assert.match(discovery, /não respondeu como RTSP/);
+  assert.match(client, /DISCOVERY_RESPONSE_TIMEOUT_MS = 120_000/);
 });

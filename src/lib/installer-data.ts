@@ -48,6 +48,19 @@ export const INSTALLER_ENV_VARS: Record<InstallerPlatform, string> = {
   "linux-arm64": "AGENT_LINUX_ARM64_DOWNLOAD_URL",
 };
 
+/**
+ * Endereços permanentes. A versão muda na release, não no painel nem na
+ * Vercel. Assim um deploy antigo continua baixando o Agent mais recente.
+ */
+export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
+  windows:
+    "https://github.com/BigCorps/MonitorIA/releases/latest/download/MonitorIA-Setup.exe",
+  "linux-x64":
+    "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-x64.tar.gz",
+  "linux-arm64":
+    "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-arm64.tar.gz",
+};
+
 const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
   windows: "Windows 10/11 · 64 bits",
   "linux-x64": "Linux · x86_64",
@@ -55,7 +68,21 @@ const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
 };
 
 export function installerUrlFor(platform: InstallerPlatform) {
-  return process.env[INSTALLER_ENV_VARS[platform]]?.trim() || null;
+  const configured = process.env[INSTALLER_ENV_VARS[platform]]?.trim();
+
+  // URLs antigas continham a tag da versão e quebravam a cada atualização.
+  // Quando o destino é a release oficial, normalizamos para o endereço
+  // permanente. Uma CDN própria configurada pelo operador continua aceita.
+  if (
+    !configured ||
+    configured.startsWith(
+      "https://github.com/BigCorps/MonitorIA/releases/",
+    )
+  ) {
+    return DEFAULT_INSTALLER_URLS[platform];
+  }
+
+  return configured;
 }
 
 export function isInstallerPlatform(value: string): value is InstallerPlatform {
@@ -180,7 +207,7 @@ export async function getInstallerWorkspace(
       (camera: any) => camera.pairing_status === "paired",
     ).length,
     recommendedVersion:
-      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.6",
+      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.7",
     downloads,
     downloadAvailable: downloads.some((download) => download.available),
   };

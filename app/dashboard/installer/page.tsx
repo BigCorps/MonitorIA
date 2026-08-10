@@ -117,30 +117,30 @@ export default async function InstallerPage() {
               <li>
                 <span>1</span>
                 <div>
-                  <strong>Gere o código da câmera</strong>
+                  <strong>Baixe e abra o instalador</strong>
                   <p>
-                    Em Câmeras, abra a câmera que será conectada e gere o
-                    código de pareamento. Ele vale 15 minutos.
+                    Dê dois cliques no arquivo e confirme a solicitação de
+                    administrador do Windows.
                   </p>
                 </div>
               </li>
               <li>
                 <span>2</span>
                 <div>
-                  <strong>Baixe e abra o instalador</strong>
+                  <strong>Quando solicitado, gere o código da câmera</strong>
                   <p>
-                    Dê dois cliques no arquivo baixado e confirme a
-                    solicitação de administrador do Windows.
+                    Em Câmeras, abra a câmera e gere o código de pareamento.
+                    Ele vale 15 minutos, por isso gere somente nesta etapa.
                   </p>
                 </div>
               </li>
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Informe o código e os dados da câmera</strong>
+                  <strong>Informe o código, o usuário e a senha</strong>
                   <p>
-                    O assistente pede o IP, usuário, senha e canal do gravador.
-                    A senha fica protegida somente neste computador.
+                    O MonitorIA procura automaticamente todas as câmeras que
+                    aceitam esses dados. A senha fica somente no computador.
                   </p>
                 </div>
               </li>

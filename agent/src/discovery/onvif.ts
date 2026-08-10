@@ -230,8 +230,11 @@ export async function getSnapshotUri(
 export function withCredentials(uri: string, credentials: Credentials) {
   try {
     const parsed = new URL(uri);
-    parsed.username = encodeURIComponent(credentials.username);
-    parsed.password = encodeURIComponent(credentials.password);
+    // URL já faz a codificação percentual. Aplicar encodeURIComponent antes
+    // daqui transformava @ em %2540 e invalidava senhas com caracteres
+    // especiais, embora o usuário e a senha estivessem corretos.
+    parsed.username = credentials.username;
+    parsed.password = credentials.password;
     return parsed.toString();
   } catch {
     return uri;

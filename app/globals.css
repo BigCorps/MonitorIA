@@ -307,8 +307,9 @@ svg { display: block; }
 .auth-form { display: grid; gap: 15px; }
 .auth-form label, .onboarding-form label { display: grid; gap: 7px; }
 .auth-form label > span, .onboarding-form label > span { color: #55667c; font-size: 11px; font-weight: 700; }
-.auth-form input, .magic-form input, .onboarding-form input, .onboarding-form select { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid #dce4ed; border-radius: 10px; outline: none; color: #142033; background: #fbfcfe; font-size: 13px; transition: border-color .2s, box-shadow .2s; }
-.auth-form input:focus, .magic-form input:focus, .onboarding-form input:focus, .onboarding-form select:focus { border-color: #3bcdb0; box-shadow: 0 0 0 4px rgba(59,205,176,.1); }
+.auth-form input, .magic-form input, .onboarding-form input, .onboarding-form select, .onboarding-form textarea { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid #dce4ed; border-radius: 10px; outline: none; color: #142033; background: #fbfcfe; font-size: 13px; transition: border-color .2s, box-shadow .2s; }
+.onboarding-form textarea { padding-top: 12px; padding-bottom: 12px; resize: vertical; }
+.auth-form input:focus, .magic-form input:focus, .onboarding-form input:focus, .onboarding-form select:focus, .onboarding-form textarea:focus { border-color: #3bcdb0; box-shadow: 0 0 0 4px rgba(59,205,176,.1); }
 .auth-inline-row { display: flex; justify-content: flex-end; margin-top: -4px; }
 .auth-inline-row a, .simple-back { color: #3972d7; font-size: 10px; font-weight: 700; }
 .auth-submit { min-height: 47px; border: 0; border-radius: 10px; color: #061712; background: linear-gradient(135deg, #61e8ce, #3fd0b3); font-weight: 800; cursor: pointer; box-shadow: 0 12px 28px rgba(38,203,168,.16); }

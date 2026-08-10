@@ -34,6 +34,11 @@ export type CameraSummary = {
   createdAt: string;
 };
 
+export type SetupCameraSummary = Pick<
+  CameraSummary,
+  "id" | "siteId" | "siteName" | "name" | "status" | "pairingStatus"
+>;
+
 export type EventSummary = {
   id: string;
   startedAt: string;
@@ -824,6 +829,35 @@ export async function getOrganizationCameras(
       createdAt: String(
         row.created_at,
       ),
+    };
+  });
+}
+
+/** Leitura mínima usada pelo guia inicial; evita consultar perfis e imagens. */
+export async function getOrganizationSetupCameras(
+  organizationId: string,
+): Promise<SetupCameraSummary[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cameras")
+    .select("id,site_id,name,status,pairing_status,site:sites(name)")
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Falha ao carregar o guia das câmeras:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row: any) => {
+    const relation = Array.isArray(row.site) ? row.site[0] : row.site;
+    return {
+      id: String(row.id),
+      siteId: String(row.site_id),
+      siteName: String(relation?.name ?? "Local"),
+      name: String(row.name),
+      status: String(row.status),
+      pairingStatus: String(row.pairing_status),
     };
   });
 }

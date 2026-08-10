@@ -324,6 +324,7 @@ export async function discoverDeviceStreams(options: {
   );
 
   let lastFailure: StreamValidationResult | null = null;
+  const nonRtspPorts = new Set<number>();
 
   for (const candidate of candidates) {
     for (const channel of channels) {
@@ -336,6 +337,8 @@ export async function discoverDeviceStreams(options: {
       });
 
       for (const port of portas) {
+        if (nonRtspPorts.has(port)) continue;
+
         const rtspUrl = buildCandidateUrl({
           candidate,
           host: device.host,
@@ -360,6 +363,14 @@ export async function discoverDeviceStreams(options: {
               validation.errorMessage ?? "Usuário ou senha da câmera incorretos.",
           };
           return result;
+        }
+
+        // Porta 80/88/8080 aberta muitas vezes é apenas o painel HTTP. Se a
+        // primeira tentativa nem sequer recebeu uma resposta RTSP, repetir
+        // dez caminhos nessa mesma porta só adiciona minutos de timeout.
+        if (validation.rtspStatus === 0) {
+          nonRtspPorts.add(port);
+          log(logger, `A porta ${port} não respondeu como RTSP e será ignorada.`);
         }
 
         if (validation.success) {

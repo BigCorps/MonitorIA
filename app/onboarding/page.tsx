@@ -100,8 +100,8 @@ export default async function OnboardingPage({
 
         <p>
           {organization
-            ? `A empresa ${organization.name} está criada. Agora diga onde fica a primeira câmera.`
-            : "Comece pelo nome da empresa e pelo primeiro local. As câmeras e o programa da loja vêm na próxima etapa."}
+            ? `A empresa ${organization.name} está criada. Agora cadastre o primeiro local e a primeira câmera.`
+            : "Informe a empresa, o primeiro local e a primeira câmera uma única vez. O painel continuará a instalação com esses mesmos dados."}
         </p>
 
         {error ? (
@@ -172,6 +172,33 @@ export default async function OnboardingPage({
           </label>
 
           <label>
+            <span>Nome da primeira câmera</span>
+
+            <input
+              name="camera_name"
+              type="text"
+              placeholder="Ex.: Entrada da loja"
+              minLength={2}
+              maxLength={160}
+              required
+            />
+          </label>
+
+          <label>
+            <span>O que essa câmera deve acompanhar? (opcional)</span>
+
+            <textarea
+              name="monitoring_goals"
+              rows={4}
+              maxLength={2200}
+              placeholder={[
+                "Registrar entrada e saída de pessoas",
+                "Identificar atendimentos no balcão",
+              ].join("\n")}
+            />
+          </label>
+
+          <label>
             <span>Fuso horário</span>
 
             <select
@@ -193,7 +220,9 @@ export default async function OnboardingPage({
             <strong>O que acontece agora?</strong>
 
             <span>
-              Você fica como responsável pela conta.
+              Você fica como responsável pela conta. Ao abrir o painel,
+              mostraremos apenas os próximos passos para baixar o MonitorIA,
+              gerar o código e conectar a câmera.
               Guardamos as imagens dos acontecimentos
               por 3 dias e o registro do que aconteceu
               por 1 ano.
@@ -205,8 +234,8 @@ export default async function OnboardingPage({
             type="submit"
           >
             {organization
-              ? "Cadastrar local e abrir painel"
-              : "Criar minha conta e abrir o painel"}
+              ? "Salvar local e câmera"
+              : "Salvar e continuar a instalação"}
           </button>
         </form>
       </section>

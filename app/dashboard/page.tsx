@@ -4,11 +4,13 @@ import { requireAuthenticatedUser } from "@/src/lib/auth";
 import {
   getCurrentOrganization,
   getDashboardData,
+  getOrganizationSetupCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { eventTypeLabel } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import styles from "./overview.module.css";
+import { FirstRunSetup } from "./first-run-setup";
 
 export const metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
@@ -56,9 +58,30 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (!sites.length) redirect("/onboarding");
 
   const site = sites[0];
-  const data = await getDashboardData(organization, site);
+  const [data, cameras] = await Promise.all([
+    getDashboardData(organization, site),
+    getOrganizationSetupCameras(organization.id),
+  ]);
   const params = await searchParams;
   const message = typeof params.message === "string" ? params.message : null;
+
+  const firstCameraOnline = cameras.some(
+    (camera) =>
+      camera.pairingStatus === "paired" && camera.status === "online",
+  );
+
+  if (!firstCameraOnline) {
+    return (
+      <FirstRunSetup
+        organizationName={organization.name}
+        userEmail={user.email ?? null}
+        site={site}
+        cameras={cameras}
+        agentsOnline={data.agentsOnline}
+        message={message}
+      />
+    );
+  }
 
   const progress = [true, data.cameras > 0, data.agentsOnline > 0];
   const completed = progress.filter(Boolean).length;

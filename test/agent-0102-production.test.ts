@@ -8,13 +8,13 @@ import {
 import { frameDecodeArguments } from "../agent/src/discovery/validate.js";
 import { CAMERA_ANALYSIS_PLANS } from "../src/lib/analysis-plans.js";
 
-test("Agent e defaults de produção apontam para 0.10.6", async () => {
+test("Agent e defaults de produção apontam para 0.10.7", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../agent/package.json", import.meta.url), "utf8"),
   ) as { version: string };
 
-  assert.equal(AGENT_VERSION, "0.10.6");
-  assert.equal(packageJson.version, "0.10.6");
+  assert.equal(AGENT_VERSION, "0.10.7");
+  assert.equal(packageJson.version, "0.10.7");
 });
 
 test("instalador só considera utilizável um pareamento autenticável", () => {
@@ -74,6 +74,6 @@ test("instalador Windows não exige terminal e inclui DPAPI nativo", async () =>
   assert.doesNotMatch(page, /Unblock-File|powershell|Prompt de Comando/i);
   assert.doesNotMatch(windowsSecret, /powershell\.exe|EncodedCommand/i);
   assert.match(workflow, /agent\\native\\dpapi\.c/);
-  assert.match(workflow, /AGENT_VERSION: "0\.10\.6"/);
-  assert.match(linuxWorkflow, /AGENT_VERSION: "0\.10\.6"/);
+  assert.match(workflow, /AGENT_VERSION: "0\.10\.7"/);
+  assert.match(linuxWorkflow, /AGENT_VERSION: "0\.10\.7"/);
 });

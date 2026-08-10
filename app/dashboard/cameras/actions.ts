@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
-import { CAMERA_ANALYSIS_PLANS } from "@/src/lib/analysis-plans";
+import {
+  monitoringGoalsFrom,
+  pendingCameraValues,
+} from "@/src/lib/camera-registration";
 import {
   generatePairingCode,
   hashPairingCode,
@@ -11,15 +14,6 @@ import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createClient } from "@/src/lib/supabase/server";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import type { CameraActionState } from "./camera-action-state";
-
-function parseGoals(value: FormDataEntryValue | null) {
-  return String(value ?? "")
-    .split(/\r?\n/)
-    .map((goal) => goal.trim())
-    .filter(Boolean)
-    .slice(0, 12)
-    .map((goal) => goal.slice(0, 180));
-}
 
 async function issuePairingCode(cameraId: string, createdBy: string) {
   const code = generatePairingCode();
@@ -75,7 +69,7 @@ export async function createCameraAction(
     .trim()
     .slice(0, 500);
   const siteId = String(formData.get("site_id") ?? "").trim();
-  const monitoringGoals = parseGoals(
+  const monitoringGoals = monitoringGoalsFrom(
     formData.get("monitoring_goals"),
   );
 
@@ -101,43 +95,15 @@ export async function createCameraAction(
     };
   }
 
-  // Câmeras novas nascem no perfil técnico mais econômico.
-  // A seleção comercial definitiva acontece em /dashboard/plans
-  // e só será ativada depois da confirmação do pagamento/trial.
-  const plan = "basic" as const;
-  const settings = CAMERA_ANALYSIS_PLANS[plan];
-
   const { data: camera, error: cameraError } = await supabase
     .from("cameras")
-    .insert({
-      organization_id: organization.id,
-      site_id: siteId,
+    .insert(pendingCameraValues({
+      organizationId: organization.id,
+      siteId,
       name,
       description,
-      analysis_plan_code: plan,
-      monitoring_goals: monitoringGoals,
-      capture_interval_seconds:
-        settings.captureIntervalSeconds,
-      consolidation_interval_seconds:
-        settings.consolidationIntervalSeconds,
-      motion_start_threshold:
-        settings.motionStartThreshold,
-      motion_continue_threshold:
-        settings.motionContinueThreshold,
-      event_close_after_seconds:
-        settings.eventCloseAfterSeconds,
-      motion_start_consecutive_frames:
-        settings.motionStartConsecutiveFrames,
-      motion_end_consecutive_frames:
-        settings.motionEndConsecutiveFrames,
-      motion_cooldown_seconds:
-        settings.motionCooldownSeconds,
-      motion_adaptive_enabled: true,
-      motion_overlay_mask: "auto",
-      monitoring_schedule: { mode: "always" },
-      status: "pending",
-      pairing_status: "unpaired",
-    })
+      monitoringGoals,
+    }))
     .select("id,name")
     .single();
 

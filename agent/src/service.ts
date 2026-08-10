@@ -48,7 +48,7 @@ import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type { ClipUploadRequest, RemoteCamera } from "./types.js";
 
-export const AGENT_VERSION = "0.10.6";
+export const AGENT_VERSION = "0.10.7";
 
 export type TokenState = "ok" | "locked" | "missing";
 
@@ -164,6 +164,34 @@ function ipv4Order(value: string) {
     .split(".")
     .map(Number)
     .reduce((total, part) => total * 256 + part, 0);
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  limit: number,
+  mapper: (value: T) => Promise<R>,
+) {
+  const results = new Array<R>(values.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < values.length) {
+      const index = cursor;
+      cursor += 1;
+      const value = values[index];
+      if (value === undefined) continue;
+      results[index] = await mapper(value);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, limit), values.length) },
+      () => worker(),
+    ),
+  );
+
+  return results;
 }
 
 /**
@@ -1149,19 +1177,21 @@ export class AgentService {
 
       this.logger.info(`Descoberta encontrou ${devices.length} aparelho(s).`);
 
-      const results: DiscoveryResult[] = [];
-
-      for (const device of devices) {
-        results.push(
-          await discoverDeviceStreams({
+      // Um aparelho inválido não pode impedir a validação da câmera correta.
+      // Quatro workers limitam o uso de FFmpeg sem voltar ao processamento
+      // sequencial que levou quase cinco minutos na primeira conta real.
+      const results = await mapWithConcurrency(
+        devices,
+        4,
+        (device) =>
+          discoverDeviceStreams({
             device,
             credentials,
             channels: channels.length > 0 ? channels : [1],
             tools: { ffmpegPath, ffprobePath },
             log: (message) => this.logger.info(message),
           }),
-        );
-      }
+      );
 
       this.discovery = results;
 
@@ -1195,7 +1225,7 @@ export class AgentService {
   }
 
   /**
-   * Fluxo usado pelo instalador 0.10.6.
+   * Fluxo usado pelo instalador 0.10.7.
    *
    * Uma credencial pode abrir várias câmeras. O usuário repete a mesma tela
    * somente quando algum grupo usa outro usuário ou outra senha. Cada host já
@@ -1212,6 +1242,11 @@ export class AgentService {
     await this.runDiscovery(payload);
 
     const configuredHosts = await this.configuredHosts();
+    const alreadyConnected = this.discovery.filter(
+      (entry) =>
+        configuredHosts.has(entry.device.host) &&
+        entry.streams.some((stream) => stream.validation.success),
+    ).length;
     const entries = this.discovery
       .filter(
         (entry) =>
@@ -1226,6 +1261,7 @@ export class AgentService {
     if (entries.length === 0) {
       return {
         connected: 0,
+        alreadyConnected,
         configuredTotal: Object.keys(config.cameras).length,
         found: this.discovery.length,
       };
@@ -1294,6 +1330,7 @@ export class AgentService {
 
     return {
       connected,
+      alreadyConnected,
       configuredTotal: Object.keys(config.cameras).length,
       found: this.discovery.length,
     };
@@ -1331,7 +1368,17 @@ export class AgentService {
     };
 
     await saveConfig(config);
-    await this.syncMonitoring();
+
+    // O endereço já está protegido e persistido neste ponto. Falha ao abrir
+    // o monitor agora deve aparecer no diagnóstico e ser retentada pelo
+    // serviço, mas não pode fazer o instalador afirmar que nada foi salvo.
+    try {
+      await this.syncMonitoring();
+    } catch (error) {
+      this.logger.warn(
+        `A câmera foi vinculada, mas o monitor iniciará em nova tentativa: ${errorMessage(error)}`,
+      );
+    }
 
     // A base de compatibilidade recebe fabricante, modelo e caminho
     // normalizado. Nunca a senha, nunca o IP.

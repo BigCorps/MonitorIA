@@ -197,14 +197,23 @@ async function commandSetup() {
   }
 
   const connected = Number(configured.connected ?? 0);
-  if (!Number.isFinite(connected) || connected < 1) {
+  const alreadyConnected = Number(configured.alreadyConnected ?? 0);
+  if (
+    !Number.isFinite(connected) ||
+    !Number.isFinite(alreadyConnected) ||
+    connected + alreadyConnected < 1
+  ) {
     throw new SetupError(
       "Nenhuma câmera nova aceitou estes dados. Confira o usuário, a senha e se ONVIF/RTSP estão habilitados.",
       "camera",
     );
   }
 
-  console.log(`${connected} câmera(s) configurada(s) com sucesso.`);
+  console.log(
+    connected > 0
+      ? `${connected} câmera(s) configurada(s) com sucesso.`
+      : `${alreadyConnected} câmera(s) já estava(m) configurada(s) e foi(ram) confirmada(s).`,
+  );
 }
 
 async function commandCheckReady(requireCamera: boolean) {

@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   };
 
   const alertResult = await supabase.rpc("refresh_operational_alerts_v1", {
-    p_recommended_agent_version: process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.6",
+    p_recommended_agent_version: process.env.AGENT_RECOMMENDED_VERSION?.trim() || "0.10.7",
   });
   if (alertResult.error) {
     console.error("Falha ao atualizar alertas operacionais:", alertResult.error.message);

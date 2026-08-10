@@ -59,10 +59,21 @@ export function PairingResult({ state }: Props) {
         legível é exibido somente agora.
       </small>
 
+      <div className="camera-security-note">
+        <strong>Agora baixe e abra o MonitorIA no computador da loja.</strong>
+        <p>
+          O instalador pedirá este código e, na tela seguinte, o usuário e a
+          senha das câmeras. Os endereços serão encontrados automaticamente.
+        </p>
+      </div>
+
       <div className="pairing-result-actions">
+        <a href="/api/installer/windows" className="panel-primary-action">
+          Baixar MonitorIA para Windows
+        </a>
         <Link
           href={`/dashboard/cameras/${state.cameraId}`}
-          className="panel-primary-action"
+          className="panel-secondary-action"
         >
           Abrir câmera
         </Link>

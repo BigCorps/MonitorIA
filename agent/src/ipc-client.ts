@@ -22,7 +22,7 @@ import {
 
 const CONNECT_TIMEOUT_MS = 5_000;
 const RESPONSE_TIMEOUT_MS = 120_000;
-const DISCOVERY_RESPONSE_TIMEOUT_MS = 300_000;
+const DISCOVERY_RESPONSE_TIMEOUT_MS = 120_000;
 
 export async function callAgent(
   command: IpcCommand,
