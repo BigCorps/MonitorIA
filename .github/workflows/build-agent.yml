@@ -184,8 +184,31 @@ jobs:
 
           Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído." 
 
-      # Cada binário é assinado individualmente. Antivírus inspecionam os
-      # componentes, não só o instalador.
+      # O batch_sign do CodeSignTool recusa subpasta dentro do diretório de
+      # entrada ("Directory must not be present: ffmpeg") e também não sabe
+      # o que fazer com arquivo que não é executável, como os .txt da
+      # licença do FFmpeg.
+      #
+      # Por isso montamos uma pasta plana contendo só binários, assinamos
+      # tudo numa chamada, e devolvemos cada arquivo ao lugar de origem.
+      # Os nomes são únicos, então não há risco de um sobrescrever o outro.
+      - name: Reunir binários para assinatura
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path sign-stage | Out-Null
+          Copy-Item build\monitoria-dpapi.exe   sign-stage\ -Force
+          Copy-Item build\monitoria-service.exe sign-stage\ -Force
+          Copy-Item build\ffmpeg\*.exe          sign-stage\ -Force
+          Copy-Item build\ffmpeg\*.dll          sign-stage\ -Force
+
+          Write-Host "Arquivos que serao assinados:"
+          Get-ChildItem sign-stage | ForEach-Object {
+            Write-Host ("  {0}" -f $_.Name)
+          }
+
+      # Antivírus inspecionam os componentes, não só o instalador. Por isso
+      # assinamos também o FFmpeg e o serviço, e não apenas o Agent.
       - name: Assinar binários
         if: steps.signing.outputs.enabled == 'true'
         uses: sslcom/esigner-codesign@v1.3.2
@@ -195,10 +218,36 @@ jobs:
           password: ${{ secrets.ESIGNER_PASSWORD }}
           credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
-          dir_path: ${{ github.workspace }}\build
-          output_path: ${{ github.workspace }}\build
+          dir_path: ${{ github.workspace }}\sign-stage
+          output_path: ${{ github.workspace }}\sign-stage
           malware_block: false
           environment_name: PROD
+
+      - name: Devolver binários assinados
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          Copy-Item sign-stage\monitoria-dpapi.exe   build\        -Force
+          Copy-Item sign-stage\monitoria-service.exe build\        -Force
+          Copy-Item sign-stage\ffmpeg.exe            build\ffmpeg\ -Force
+          Copy-Item sign-stage\ffprobe.exe           build\ffmpeg\ -Force
+          Copy-Item sign-stage\*.dll                 build\ffmpeg\ -Force
+
+          # Conferir antes de embalar. Descobrir componente sem assinatura
+          # depois que o instalador ja foi publicado custa muito mais caro.
+          $alvos = @(
+            "build\monitoria-dpapi.exe",
+            "build\monitoria-service.exe",
+            "build\ffmpeg\ffmpeg.exe",
+            "build\ffmpeg\ffprobe.exe"
+          )
+          foreach ($alvo in $alvos) {
+            $status = (Get-AuthenticodeSignature $alvo).Status
+            Write-Host ("{0,-34} {1}" -f $alvo, $status)
+            if ($status -ne 'Valid') {
+              throw "Binario sem assinatura valida: $alvo ($status)"
+            }
+          }
 
       - name: Assinar o executável do Agent
         if: steps.signing.outputs.enabled == 'true'
