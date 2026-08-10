@@ -82,7 +82,7 @@ function planFeatures(plan: CommercialPlan) {
   if (plan.clipEnabled) {
     features.push(
       <Feature key="clip">
-        Clipe de {plan.clipDurationSeconds}s por{" "}
+        Vídeo do acontecimento por{" "}
         {plan.clipRetentionDays} dias
       </Feature>,
     );

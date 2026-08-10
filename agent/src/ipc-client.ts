@@ -22,7 +22,19 @@ import {
 
 const CONNECT_TIMEOUT_MS = 5_000;
 const RESPONSE_TIMEOUT_MS = 120_000;
-const DISCOVERY_RESPONSE_TIMEOUT_MS = 120_000;
+/*
+ * 75 segundos, e não 120.
+ *
+ * Durante a descoberta o instalador fica com a janela congelada — o Inno
+ * Setup espera o processo terminar e a fila de mensagens do Windows para.
+ * Dois minutos de janela travada fazem qualquer pessoa achar que o programa
+ * morreu e forçar o fechamento pelo gerenciador de tarefas.
+ *
+ * 75s continua folgado para uma rede local: a descoberta bem-sucedida leva
+ * segundos. O tempo longo só acontece quando não há o que encontrar — e
+ * nesse caso é melhor falhar rápido e oferecer a saída.
+ */
+const DISCOVERY_RESPONSE_TIMEOUT_MS = 75_000;
 
 export async function callAgent(
   command: IpcCommand,

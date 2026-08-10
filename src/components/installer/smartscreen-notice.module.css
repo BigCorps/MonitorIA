@@ -1,0 +1,109 @@
+/*
+ * Paleta idêntica à do dashboard claro: superfície #fff, borda #dbe7ef,
+ * título #12212d, texto #64748b, acento #087f6a sobre #f1fbf8.
+ *
+ * O texto corrente usa #64748b em vez do #6b7d8f do resto do painel porque
+ * este bloco precisa ser lido com atenção por alguém hesitante — 4,76 de
+ * contraste contra 4,24, acima do mínimo AA.
+ */
+
+.notice {
+  margin: 22px 0;
+  padding: 22px 24px;
+  border: 1px solid #b9ddd4;
+  border-radius: 16px;
+  background: #f1fbf8;
+  display: grid;
+  gap: 12px;
+}
+
+.compact {
+  padding: 16px 18px;
+  gap: 8px;
+  border-radius: 12px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #087f6a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: #12212d;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.compact .title {
+  font-size: 0.95rem;
+}
+
+.text {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.text strong,
+.footnote strong {
+  color: #12212d;
+  font-weight: 700;
+}
+
+/* Os dois passos precisam saltar aos olhos: é o que a pessoa vai fazer. */
+.steps {
+  margin: 2px 0;
+  padding: 14px 16px;
+  border: 1px solid #dbe7ef;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.stepsTitle {
+  margin: 0 0 8px;
+  color: #12212d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.9;
+}
+
+.list strong {
+  color: #087f6a;
+  font-weight: 700;
+}
+
+.footnote {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid #cfe8e0;
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.help {
+  margin: 0;
+  color: #087f6a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .notice {
+    padding: 18px;
+  }
+}

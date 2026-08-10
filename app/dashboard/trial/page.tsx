@@ -297,7 +297,7 @@ export default async function TrialPage({ searchParams }: Props) {
                           <li>Histórico pesquisável por 365 dias</li>
                           <li>
                             {plan.clipEnabled
-                              ? `Clipes de ${plan.clipDurationSeconds ?? 15}s`
+                              ? "Vídeo do acontecimento inteiro"
                               : "Análise por imagens selecionadas"}
                           </li>
                         </ul>

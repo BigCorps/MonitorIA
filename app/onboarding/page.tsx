@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { SmartScreenNotice } from "@/src/components/installer/smartscreen-notice";
 import {
   getCurrentOrganization,
   getOrganizationSites,
@@ -228,6 +229,10 @@ export default async function OnboardingPage({
               por 1 ano.
             </span>
           </div>
+
+          {/* O próximo passo depois desta tela é baixar o programa. Avisar
+              aqui evita o susto quando o Windows mostrar a tela azul. */}
+          <SmartScreenNotice variant="compact" />
 
           <button
             className="auth-submit"

@@ -7,6 +7,7 @@ import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./installer.module.css";
 
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
+import { SmartScreenNotice } from "@/src/components/installer/smartscreen-notice";
 
 export const metadata = { title: "Instalação" };
 export const dynamic = "force-dynamic";
@@ -103,6 +104,10 @@ export default async function InstallerPage() {
           </article>
         </div>
 
+        {/* Explica o aviso do Windows ANTES do botão de download, para o
+            cliente já saber o que vai acontecer quando abrir o arquivo. */}
+        <SmartScreenNotice />
+
         <div className={styles.layout}>
           <section className={styles.installCard}>
             <div className={styles.cardHeading}>
@@ -141,6 +146,8 @@ export default async function InstallerPage() {
                   <p>
                     O MonitorIA procura automaticamente todas as câmeras que
                     aceitam esses dados. A senha fica somente no computador.
+                    Se as câmeras ainda não estiverem prontas, deixe em branco
+                    e conclua: dá para conectá-las depois por aqui.
                   </p>
                 </div>
               </li>

@@ -1,6 +1,8 @@
 import {
-  MONITORIA_CLIP_DURATION_SECONDS,
+  MONITORIA_CLIP_MAX_DURATION_SECONDS,
+  MONITORIA_CLIP_PRE_ROLL_SECONDS,
   MONITORIA_CLIP_RETENTION_DAYS,
+  clipDurationForEvent,
   planSupportsClips,
 } from "@/src/clips/policy";
 
@@ -79,12 +81,23 @@ export async function createMonitoriaClipUploadRequest(input: {
 
   if (!clipEnabled) return null;
 
-  const durationSeconds = boundedInteger(
-    entitlement?.clip_duration_seconds,
-    MONITORIA_CLIP_DURATION_SECONDS,
-    5,
-    30,
-  );
+  /*
+   * Antes: 15 segundos fixos, e o boundedInteger travava qualquer
+   * configuração em 30. Agora o clipe cobre o acontecimento inteiro.
+   *
+   * camera_entitlements.clip_duration_seconds passou a ser o LIMITE da
+   * câmera, não a duração. Quem decide o tamanho é o evento.
+   */
+  const durationSeconds = clipDurationForEvent({
+    startedAt: input.startedAt,
+    endedAt: input.endedAt,
+    maxAllowedSeconds: boundedInteger(
+      entitlement?.clip_duration_seconds,
+      MONITORIA_CLIP_MAX_DURATION_SECONDS,
+      5,
+      MONITORIA_CLIP_MAX_DURATION_SECONDS,
+    ),
+  });
   const retentionDays = boundedInteger(
     entitlement?.clip_retention_days,
     MONITORIA_CLIP_RETENTION_DAYS,
@@ -93,7 +106,10 @@ export async function createMonitoriaClipUploadRequest(input: {
   );
 
   const eventStart = new Date(input.startedAt);
-  const clipStartsAt = new Date(eventStart.getTime() - 3_000);
+  // Pré-roll definido na política, junto do cálculo da duração.
+  const clipStartsAt = new Date(
+    eventStart.getTime() - MONITORIA_CLIP_PRE_ROLL_SECONDS * 1000,
+  );
   const clipEndsAt = new Date(
     clipStartsAt.getTime() + durationSeconds * 1000,
   );

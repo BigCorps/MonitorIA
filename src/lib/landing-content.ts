@@ -120,7 +120,7 @@ export const landingPlans = [
     history: "1 ano",
     images: "3 imagens de cada acontecimento",
     imageDetail: "começo, meio e fim",
-    clip: "Clipe de 15 segundos, guardado por 30 dias",
+    clip: "Vídeo do acontecimento inteiro, guardado por 30 dias",
   },
 ] as const;
 
