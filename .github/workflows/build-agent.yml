@@ -192,6 +192,49 @@ jobs:
       # Por isso montamos uma pasta plana contendo só binários, assinamos
       # tudo numa chamada, e devolvemos cada arquivo ao lugar de origem.
       # Os nomes são únicos, então não há risco de um sobrescrever o outro.
+      # PASSO TEMPORARIO. Confere o FORMATO das credenciais sem nunca
+      # imprimir o valor. Remova depois que a assinatura funcionar.
+      - name: Conferir formato das credenciais
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          U: ${{ secrets.ESIGNER_USERNAME }}
+          P: ${{ secrets.ESIGNER_PASSWORD }}
+          C: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          T: ${{ secrets.ESIGNER_TOTP_SECRET }}
+        run: |
+          function Diagnosticar($nome, $valor) {
+            if (-not $valor) { Write-Host "$nome : VAZIO"; return }
+            $tam       = $valor.Length
+            $aparado   = $valor.Trim()
+            $espacoFim = $tam -ne $aparado.Length
+            $temEspaco = $valor -match '\s'
+            Write-Host ("{0,-14} tamanho={1,-4} espaco_no_meio_ou_ponta={2,-6} sobra_nas_bordas={3}" -f `
+              $nome, $tam, $temEspaco, $espacoFim)
+          }
+
+          Diagnosticar "USERNAME"      $env:U
+          Diagnosticar "PASSWORD"      $env:P
+          Diagnosticar "CREDENTIAL_ID" $env:C
+          Diagnosticar "TOTP_SECRET"   $env:T
+
+          Write-Host ""
+          # TOTP precisa ser base32: A-Z e 2-7, sem espaco.
+          if ($env:T -match '^[A-Z2-7]+=*$') {
+            Write-Host "TOTP_SECRET: formato base32 OK ($($env:T.Length) caracteres)"
+          } elseif ($env:T -match '^[0-9]{6}$') {
+            Write-Host "TOTP_SECRET: PROBLEMA - isto e o codigo de 6 digitos, nao a chave base."
+          } else {
+            Write-Host "TOTP_SECRET: PROBLEMA - fora do formato base32 (esperado so A-Z e 2-7)."
+          }
+
+          # Senha com caractere que o cmd.exe interpreta quebra a chamada.
+          if ($env:P -match '[&|<>^%"]') {
+            Write-Host "PASSWORD: ATENCAO - contem caractere especial que o Windows interpreta (& | < > ^ % aspas)."
+          } else {
+            Write-Host "PASSWORD: sem caractere problematico."
+          }
+
       - name: Reunir binários para assinatura
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
