@@ -142,23 +142,21 @@ export default async function InstallerPage() {
               <li>
                 <span>3</span>
                 <div>
-                  <strong>Informe o código, o usuário e a senha</strong>
+                  <strong>Informe o código de pareamento</strong>
                   <p>
-                    O MonitorIA procura automaticamente todas as câmeras que
-                    aceitam esses dados. A senha é usada só para conectar e
-                    fica guardada no computador da loja. Se as câmeras ainda
-                    não estiverem prontas, deixe em branco e conclua: dá para
-                    conectá-las depois por aqui.
+                    É a única coisa que o instalador pede. Ele termina em
+                    poucos segundos.
                   </p>
                 </div>
               </li>
               <li>
                 <span>4</span>
                 <div>
-                  <strong>Pronto</strong>
+                  <strong>Volte ao painel e clique em "Procurar câmeras"</strong>
                   <p>
-                    O instalador valida o vídeo, conecta a câmera e configura
-                    o MonitorIA para iniciar automaticamente com o Windows.
+                    Você informa o usuário e a senha das câmeras lá, e
+                    acompanha a busca na tela. O MonitorIA passa a iniciar
+                    junto com o Windows.
                   </p>
                 </div>
               </li>

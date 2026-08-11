@@ -495,7 +495,7 @@ export async function completeDiscoveryRun(
   token: string,
   input: {
     runId: string;
-    status: "completed" | "failed";
+    status: "completed" | "failed" | "deferred";
     found: number;
     connected: number;
     alreadyConnected: number;

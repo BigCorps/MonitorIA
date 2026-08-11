@@ -62,8 +62,9 @@ export function PairingResult({ state }: Props) {
       <div className="camera-security-note">
         <strong>Agora baixe e abra o MonitorIA no computador da loja.</strong>
         <p>
-          O instalador pedirá este código e, na tela seguinte, o usuário e a
-          senha das câmeras. Os endereços serão encontrados automaticamente.
+          O instalador pede só este código. Depois, volte aqui e clique em
+          "Procurar câmeras" — o computador da loja encontra as câmeras
+          sozinho e mostra o andamento nesta tela.
         </p>
       </div>
 

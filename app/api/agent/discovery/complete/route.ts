@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
   }
 
   const runId = typeof body.runId === "string" ? body.runId : "";
+  const deferred = body.status === "deferred";
   const succeeded = body.status !== "failed";
 
   if (!runId) {
@@ -99,13 +100,47 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const supabase = createAdminClient();
+
+  /**
+   * Adiamento: o computador da loja estava no meio de outra varredura.
+   *
+   * Não é falha, e mostrar erro ao cliente por causa disso seria mentira —
+   * bastaria esperar. O pedido volta para a fila com as credenciais
+   * intactas, e o próprio Agent o pega na consulta seguinte. `expires_at`
+   * continua valendo, então isto não vira espera infinita.
+   */
+  if (deferred) {
+    const { data: requeued } = await supabase
+      .from("discovery_runs")
+      .update({
+        status: "pending",
+        started_at: null,
+        progress_step: "queued",
+        progress_percent: 0,
+        progress_message:
+          "O computador da loja está terminando outra verificação. " +
+          "A busca começa em seguida.",
+        progress_updated_at: new Date().toISOString(),
+      })
+      .eq("id", runId)
+      .eq("agent_id", agent.id)
+      .eq("status", "running")
+      .select("id")
+      .maybeSingle();
+
+    return NextResponse.json(
+      { ok: Boolean(requeued) },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
   const failure =
     body.failure && typeof body.failure === "object"
       ? (body.failure as Record<string, unknown>)
       : null;
 
   const nowIso = new Date().toISOString();
-  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("discovery_runs")

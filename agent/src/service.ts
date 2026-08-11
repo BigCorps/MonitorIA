@@ -1263,6 +1263,35 @@ export class AgentService {
       }
 
       const detail = errorMessage(error);
+
+      // Uma varredura local já em curso não é falha: é hora errada. Antes
+      // isto encerrava o pedido como "não terminou" e o cliente via um erro
+      // que sumiria sozinho em um minuto. Agora o pedido volta para a fila e
+      // o próprio Agent tenta de novo na consulta seguinte.
+      if (error instanceof IpcError && error.code === "busy") {
+        this.logger.info(
+          "Busca adiada: já há uma varredura em andamento neste computador.",
+        );
+
+        try {
+          await completeDiscoveryRun(config.apiBaseUrl, token, {
+            runId: request.id,
+            status: "deferred",
+            found: 0,
+            connected: 0,
+            alreadyConnected: 0,
+            devices: [],
+          });
+        } catch (deferError) {
+          this.logger.warn(
+            `Não foi possível adiar a busca: ${errorMessage(deferError)}`,
+          );
+        }
+
+        this.serverDiscoveryRunId = null;
+        return;
+      }
+
       this.logger.warn(`Falha na busca pedida pelo painel: ${detail}`);
 
       try {

@@ -77,8 +77,8 @@ export function FirstRunSetup({
                 <span>PASSO 2</span>
                 <h2>Cadastre a primeira câmera</h2>
                 <p>
-                  O local já foi salvo. Informe somente os dados da câmera;
-                  usuário e senha serão pedidos no instalador do computador.
+                  O local já foi salvo. Informe somente os dados da câmera —
+                  o usuário e a senha você preenche depois, aqui no painel.
                 </p>
               </div>
               <CameraSetupForm sites={[site]} />
@@ -94,7 +94,7 @@ export function FirstRunSetup({
                 </h2>
                 <p>
                   {codeAccepted
-                    ? "Não é necessário cadastrar a câmera novamente. Mantenha o computador ligado enquanto o instalador procura e valida o vídeo."
+                    ? "Não é necessário cadastrar a câmera novamente. Mantenha o computador ligado e clique em Procurar câmeras para encontrar o vídeo."
                     : "Faça tudo nesta ordem para o código não expirar durante o download."}
                 </p>
               </div>
@@ -117,8 +117,11 @@ export function FirstRunSetup({
                 <li>
                   <span>3</span>
                   <div>
-                    <strong>Informe o usuário e a senha das câmeras</strong>
-                    <p>O MonitorIA procura os endereços automaticamente na rede.</p>
+                    <strong>Volte aqui e clique em "Procurar câmeras"</strong>
+                    <p>
+                      Você informa o usuário e a senha das câmeras nesta tela,
+                      e acompanha a busca sem sair do painel.
+                    </p>
                   </div>
                 </li>
               </ol>
