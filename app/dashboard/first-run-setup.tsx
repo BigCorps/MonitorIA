@@ -3,9 +3,8 @@ import type {
   SetupCameraSummary,
   SiteSummary,
 } from "@/src/lib/dashboard-data";
-import { CameraSetupForm } from "./cameras/camera-setup-form";
-import { PairingCodeGenerator } from "./cameras/pairing-code-generator";
 import { DashboardSidebar } from "./dashboard-sidebar";
+import { SitePairingCode } from "./site-pairing-code";
 import styles from "./overview.module.css";
 
 type Props = {
@@ -13,23 +12,54 @@ type Props = {
   userEmail: string | null;
   site: SiteSummary;
   cameras: SetupCameraSummary[];
-  agentsOnline: number;
+  agentPaired: boolean;
   message: string | null;
 };
 
+/**
+ * Guia de primeiro acesso, na ordem em que as coisas realmente acontecem.
+ *
+ * A ordem anterior pedia os dados da câmera antes de qualquer outra coisa,
+ * porque o código de pareamento nascia preso a uma câmera. Na prática isso
+ * obrigava o dono do mercado a inventar o nome e o endereço de um aparelho
+ * que ele ainda não sabia se estava na rede — e era onde a configuração
+ * empacava.
+ *
+ * Agora: conecta o computador, procura as câmeras, confere o que veio.
+ * Cada passo só existe porque o anterior terminou.
+ */
 export function FirstRunSetup({
   organizationName,
   userEmail,
   site,
   cameras,
-  agentsOnline,
+  agentPaired,
   message,
 }: Props) {
-  const camera = cameras[0] ?? null;
-  const cameraSaved = Boolean(camera);
-  const codeAccepted = camera?.pairingStatus === "paired";
-  const cameraOnline = camera?.status === "online";
-  const progress = [true, cameraSaved, codeAccepted, cameraOnline];
+  const hasCameras = cameras.length > 0;
+  const cameraOnline = cameras.some((camera) => camera.status === "online");
+
+  const steps = [
+    {
+      title: "Conectar o computador",
+      done: agentPaired,
+      detail: agentPaired ? "Computador conectado" : "Comece por aqui",
+    },
+    {
+      title: "Procurar as câmeras",
+      done: hasCameras,
+      detail: hasCameras
+        ? `${cameras.length} ${cameras.length === 1 ? "câmera encontrada" : "câmeras encontradas"}`
+        : "Depois do computador",
+    },
+    {
+      title: "Conferir as câmeras",
+      done: cameraOnline,
+      detail: cameraOnline ? "Recebendo imagem" : "Por último",
+    },
+  ];
+
+  const current = agentPaired ? (hasCameras ? 3 : 2) : 1;
 
   return (
     <main className="dashboard-shell">
@@ -43,10 +73,10 @@ export function FirstRunSetup({
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">PRIMEIRO ACESSO</span>
-            <h1>Vamos colocar sua primeira câmera para funcionar</h1>
+            <h1>Três passos para o MonitorIA começar a olhar</h1>
             <p>
-              Conclua os passos abaixo. O restante do painel aparecerá quando
-              a primeira imagem chegar ao MonitorIA.
+              Local <strong>{site.name}</strong>. Faça na ordem — cada passo
+              depende do anterior.
             </p>
           </div>
         </header>
@@ -55,47 +85,26 @@ export function FirstRunSetup({
 
         <section className={styles.firstRunCard}>
           <div className={styles.firstRunProgress}>
-            {[
-              ["Local salvo", site.name],
-              ["Câmera salva", camera?.name ?? "Cadastre abaixo"],
-              ["Código aceito", codeAccepted ? "Computador pareado" : "Pendente"],
-              ["Imagem recebida", cameraOnline ? "Câmera online" : "Pendente"],
-            ].map(([title, text], index) => (
-              <article key={title} data-complete={progress[index]}>
-                <span>{progress[index] ? "✓" : index + 1}</span>
+            {steps.map((step, index) => (
+              <article key={step.title} data-complete={step.done}>
+                <span>{step.done ? "✓" : index + 1}</span>
                 <div>
-                  <strong>{title}</strong>
-                  <small>{text}</small>
+                  <strong>{step.title}</strong>
+                  <small>{step.detail}</small>
                 </div>
               </article>
             ))}
           </div>
 
-          {!camera ? (
+          {current === 1 ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 2</span>
-                <h2>Cadastre a primeira câmera</h2>
+                <span>PASSO 1 DE 3</span>
+                <h2>Conecte o computador da loja</h2>
                 <p>
-                  O local já foi salvo. Informe somente os dados da câmera —
-                  o usuário e a senha você preenche depois, aqui no painel.
-                </p>
-              </div>
-              <CameraSetupForm sites={[site]} />
-            </div>
-          ) : cameraOnline ? null : (
-            <div className={styles.firstRunBody}>
-              <div className={styles.firstRunHeading}>
-                <span>{codeAccepted ? "ÚLTIMO PASSO" : "PASSOS 3 E 4"}</span>
-                <h2>
-                  {codeAccepted
-                    ? "O computador foi pareado. Aguarde a primeira imagem"
-                    : "Baixe o MonitorIA e use o código no instalador"}
-                </h2>
-                <p>
-                  {codeAccepted
-                    ? "Não é necessário cadastrar a câmera novamente. Mantenha o computador ligado e clique em Procurar câmeras para encontrar o vídeo."
-                    : "Faça tudo nesta ordem para o código não expirar durante o download."}
+                  O MonitorIA funciona a partir de um computador que fica
+                  ligado na loja, no mesmo roteador das câmeras. É ele que
+                  encontra e acompanha as imagens.
                 </p>
               </div>
 
@@ -103,56 +112,163 @@ export function FirstRunSetup({
                 <li>
                   <span>1</span>
                   <div>
-                    <strong>Baixe e abra o MonitorIA no computador da loja</strong>
+                    <strong>Baixe o MonitorIA nesse computador</strong>
                     <p>Confirme a solicitação de administrador do Windows.</p>
                   </div>
                 </li>
                 <li>
                   <span>2</span>
                   <div>
-                    <strong>Quando o instalador pedir, gere o código abaixo</strong>
-                    <p>Copie o código e cole no instalador. Ele vale 15 minutos.</p>
+                    <strong>Quando o instalador pedir, gere o código</strong>
+                    <p>
+                      Gere só nessa hora: ele vale 15 minutos, e o download
+                      costuma levar mais tempo que isso.
+                    </p>
                   </div>
                 </li>
                 <li>
                   <span>3</span>
                   <div>
-                    <strong>Volte aqui e clique em "Procurar câmeras"</strong>
+                    <strong>Digite o código e conclua</strong>
                     <p>
-                      Você informa o usuário e a senha das câmeras nesta tela,
-                      e acompanha a busca sem sair do painel.
+                      É a única coisa que o instalador pede. Termina em poucos
+                      segundos.
                     </p>
                   </div>
                 </li>
               </ol>
 
               <div className={styles.firstRunActions}>
-                <a href="/api/installer/windows" className="panel-primary-action">
+                <a
+                  href="/api/installer/windows"
+                  className="panel-primary-action"
+                >
                   Baixar MonitorIA para Windows
                 </a>
-                <Link href="/dashboard" className="panel-secondary-action">
-                  Atualizar situação
-                </Link>
-                {codeAccepted ? (
-                  <Link
-                    href={`/dashboard/cameras/${camera.id}`}
-                    className="panel-secondary-action"
-                  >
-                    Usar outro computador
-                  </Link>
-                ) : null}
               </div>
 
-              {!codeAccepted ? (
-                <PairingCodeGenerator cameraId={camera.id} paired={false} />
-              ) : (
-                <div className="form-alert info">
-                  Código aceito e computador {agentsOnline > 0 ? "online" : "ainda iniciando"}.
-                  A tela será liberada assim que um quadro real da câmera for recebido.
-                </div>
-              )}
+              <SitePairingCode />
             </div>
-          )}
+          ) : null}
+
+          {current === 2 ? (
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 2 DE 3</span>
+                <h2>Agora vamos encontrar suas câmeras</h2>
+                <p>
+                  O computador está conectado. Ele procura sozinho as câmeras
+                  que estão no mesmo roteador — você só responde quantas tem e
+                  qual o usuário e a senha delas.
+                </p>
+              </div>
+
+              <ol className={styles.firstRunInstructions}>
+                <li>
+                  <span>1</span>
+                  <div>
+                    <strong>Deixe as câmeras ligadas</strong>
+                    <p>
+                      Elas precisam estar no mesmo roteador do computador. Só
+                      são encontradas as que estiverem ligadas agora.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div>
+                    <strong>Tenha o usuário e a senha em mãos</strong>
+                    <p>
+                      Vêm no manual, numa etiqueta do gravador ou no aplicativo
+                      do fabricante. Costumam ser diferentes da senha do
+                      aplicativo.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div>
+                    <strong>Clique em procurar e acompanhe</strong>
+                    <p>
+                      A busca leva de um a cinco minutos, dependendo do tamanho
+                      da rede. Você pode deixar a tela aberta.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+
+              <div className={styles.firstRunActions}>
+                <Link
+                  href="/dashboard/cameras/discovery"
+                  className="panel-primary-action"
+                >
+                  Procurar câmeras
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {current === 3 ? (
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 3 DE 3</span>
+                <h2>Confira as câmeras encontradas</h2>
+                <p>
+                  {cameraOnline
+                    ? "A primeira imagem já chegou. Dê nomes que você reconheça e escolha o que cada câmera deve observar."
+                    : "As câmeras foram salvas e a primeira imagem está a caminho. Enquanto isso, dê nomes que você reconheça."}
+                </p>
+              </div>
+
+              <ol className={styles.firstRunInstructions}>
+                <li>
+                  <span>1</span>
+                  <div>
+                    <strong>Dê um nome a cada câmera</strong>
+                    <p>
+                      "Caixa", "Estoque", "Entrada". É por esse nome que os
+                      avisos vão chegar até você.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div>
+                    <strong>Escolha o que ela deve observar</strong>
+                    <p>
+                      Cada câmera pode ter um objetivo diferente, e isso muda o
+                      que o MonitorIA considera importante.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div>
+                    <strong>Faltou alguma câmera?</strong>
+                    <p>
+                      Se alguma não apareceu, ligue o aparelho e procure de
+                      novo. Câmeras com outra senha exigem uma busca separada.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+
+              <div className={styles.firstRunActions}>
+                <Link
+                  href="/dashboard/cameras"
+                  className="panel-primary-action"
+                >
+                  Conferir minhas câmeras
+                </Link>
+                <Link
+                  href="/dashboard/cameras/discovery"
+                  className="panel-secondary-action"
+                >
+                  Procurar mais câmeras
+                </Link>
+              </div>
+            </div>
+          ) : null}
         </section>
       </section>
     </main>

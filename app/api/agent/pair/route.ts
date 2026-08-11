@@ -64,18 +64,30 @@ export async function POST(request: NextRequest) {
           id: String(result.agent_id),
           token: agentToken,
         },
-        camera: {
-          id: String(result.camera_id),
-          name: String(result.camera_name),
+        // Nulo no pareamento por local: o computador conecta ao painel e as
+        // câmeras entram depois, pela busca.
+        camera: result.camera_id
+          ? {
+              id: String(result.camera_id),
+              name: String(result.camera_name),
+              organizationId: String(result.organization_id),
+              siteId: String(result.site_id),
+              plan: String(result.analysis_plan_code),
+              captureIntervalSeconds: Number(result.capture_interval_seconds),
+              consolidationIntervalSeconds: Number(
+                result.consolidation_interval_seconds,
+              ),
+              motionStartThreshold: Number(result.motion_start_threshold),
+              motionContinueThreshold: Number(result.motion_continue_threshold),
+              eventCloseAfterSeconds: Number(result.event_close_after_seconds),
+              monitoringGoals: Array.isArray(result.monitoring_goals)
+                ? result.monitoring_goals
+                : [],
+            }
+          : null,
+        site: {
           organizationId: String(result.organization_id),
           siteId: String(result.site_id),
-          plan: String(result.analysis_plan_code),
-          captureIntervalSeconds: Number(result.capture_interval_seconds),
-          consolidationIntervalSeconds: Number(result.consolidation_interval_seconds),
-          motionStartThreshold: Number(result.motion_start_threshold),
-          motionContinueThreshold: Number(result.motion_continue_threshold),
-          eventCloseAfterSeconds: Number(result.event_close_after_seconds),
-          monitoringGoals: Array.isArray(result.monitoring_goals) ? result.monitoring_goals : [],
         },
       },
       { headers: { "Cache-Control": "no-store" } },

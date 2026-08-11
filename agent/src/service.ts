@@ -648,6 +648,8 @@ export class AgentService {
       this.everAuthenticated = true;
       this.applyPollInterval(remote.pollSeconds);
 
+      await this.pruneOrphanCameras(remote.cameras);
+
       if (this.unauthorized) {
         this.unauthorized = false;
         this.unauthorizedSince = null;
@@ -669,6 +671,42 @@ export class AgentService {
 
       this.logger.warn(`Falha ao sincronizar configuração: ${errorMessage(error)}`);
     }
+  }
+
+  /**
+   * Remove do arquivo local as câmeras que não existem mais no painel.
+   *
+   * Sem isto, apagar uma câmera pelo painel deixava o endereço dela no
+   * `agent.json` para sempre. E como `configuredHosts()` lê essa lista para
+   * decidir o que já está conectado, o aparelho passava a ser ignorado em
+   * toda busca seguinte: aparecia como "já estava conectada antes" e nunca
+   * mais era vinculado a nada. Foi exatamente o que prendeu a câmera
+   * 192.168.0.140 depois que a câmera de teste saiu do banco.
+   */
+  private async pruneOrphanCameras(remoteCameras: RemoteCamera[]) {
+    const config = this.config;
+    if (!config) return;
+
+    const known = new Set(remoteCameras.map((camera) => camera.id));
+    const orphans = Object.keys(config.cameras).filter(
+      (cameraId) => !known.has(cameraId),
+    );
+
+    if (orphans.length === 0) return;
+
+    for (const cameraId of orphans) {
+      await this.stopRuntime(cameraId, "removida no painel");
+      delete config.cameras[cameraId];
+      this.cameraBackoff.delete(cameraId);
+    }
+
+    await saveConfig(config);
+
+    this.logger.info(
+      orphans.length === 1
+        ? "Uma câmera removida no painel saiu também da configuração local."
+        : `${orphans.length} câmeras removidas no painel saíram da configuração local.`,
+    );
   }
 
   private async checkCamera(camera: RemoteCamera, uploadFirstFrame: boolean) {
@@ -1151,15 +1189,19 @@ export class AgentService {
     await saveConfig(config);
     this.config = config;
 
-    this.logger.info(`Agent pareado com a câmera "${paired.camera.name}".`);
+    this.logger.info(
+      paired.camera
+        ? `Agent pareado com a câmera "${paired.camera.name}".`
+        : "Agent pareado com o local. Aguardando a busca de câmeras pelo painel.",
+    );
 
     await this.bootstrap();
 
     return {
       agentId: paired.agent.id,
       agentName,
-      cameraId: paired.camera.id,
-      cameraName: paired.camera.name,
+      cameraId: paired.camera?.id ?? null,
+      cameraName: paired.camera?.name ?? null,
     };
   }
 

@@ -6,6 +6,7 @@ import {
   getDashboardData,
   getOrganizationSetupCameras,
   getOrganizationSites,
+  getSiteAgentStatus,
 } from "@/src/lib/dashboard-data";
 import { eventTypeLabel } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -58,16 +59,18 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (!sites.length) redirect("/onboarding");
 
   const site = sites[0];
-  const [data, cameras] = await Promise.all([
+  const [data, cameras, agent] = await Promise.all([
     getDashboardData(organization, site),
     getOrganizationSetupCameras(organization.id),
+    getSiteAgentStatus(organization.id),
   ]);
   const params = await searchParams;
   const message = typeof params.message === "string" ? params.message : null;
 
+  // O guia sai de cena quando a primeira imagem chega. Até lá ele é a tela
+  // inicial, porque não há nada de útil para mostrar antes disso.
   const firstCameraOnline = cameras.some(
-    (camera) =>
-      camera.pairingStatus === "paired" && camera.status === "online",
+    (camera) => camera.status === "online",
   );
 
   if (!firstCameraOnline) {
@@ -77,7 +80,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         userEmail={user.email ?? null}
         site={site}
         cameras={cameras}
-        agentsOnline={data.agentsOnline}
+        agentPaired={agent.paired}
         message={message}
       />
     );

@@ -513,3 +513,36 @@
     flex-direction: column;
   }
 }
+
+/* Código de pareamento do local, mostrado no passo 1 do primeiro acesso. */
+.pairingCodeBox {
+  margin-top: 6px;
+  padding: 20px 22px;
+  border: 1px solid #cbeee4;
+  border-radius: 12px;
+  background: #f2fbf8;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.pairingCodeBox > span {
+  color: #2bb99d;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+}
+
+.pairingCodeBox > strong {
+  color: #0d4f42;
+  font-size: 32px;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pairingCodeBox > p {
+  margin: 0;
+  color: #5d7f77;
+  font-size: 10px;
+  line-height: 1.55;
+}

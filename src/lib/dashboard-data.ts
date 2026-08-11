@@ -878,3 +878,34 @@ export async function getOrganizationCamera(
     ) ?? null
   );
 }
+
+/**
+ * Estado do computador da loja, independente de câmera.
+ *
+ * O guia de primeiro acesso precisa saber se o pareamento já aconteceu antes
+ * de existir qualquer câmera — é essa a nova ordem: primeiro o computador,
+ * depois a busca.
+ */
+export async function getSiteAgentStatus(
+  organizationId: string,
+): Promise<{ paired: boolean; online: boolean; name: string | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("name,status")
+    .eq("organization_id", organizationId)
+    .neq("status", "disabled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return { paired: false, online: false, name: null };
+
+  const row = data as unknown as Record<string, unknown>;
+
+  return {
+    paired: true,
+    online: String(row.status ?? "") === "online",
+    name: typeof row.name === "string" ? row.name : null,
+  };
+}

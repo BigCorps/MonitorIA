@@ -58,7 +58,8 @@ export type PairResponse = {
     id: string;
     token: string;
   };
-  camera: Omit<
+  site?: { organizationId: string; siteId: string };
+  camera: null | Omit<
     RemoteCamera,
     | "description"
     | "status"

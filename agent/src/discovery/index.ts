@@ -30,6 +30,15 @@ import type {
 } from "./types.js";
 
 /**
+ * Esperas toleradas numa mesma porta antes de desistir dela.
+ *
+ * Uma porta que aceita a conexão e nunca entrega vídeo custa os tempos
+ * limite do ffprobe a cada caminho testado. Com dez caminhos, isso vira
+ * minutos de tela parada para o cliente.
+ */
+const MAX_TIMEOUTS_PER_PORT = 2;
+
+/**
  * Orquestração da descoberta, na ordem do item 7 da diretriz.
  *
  * ONVIF → caminhos oficiais → candidatos genéricos → URL manual.
@@ -325,6 +334,7 @@ export async function discoverDeviceStreams(options: {
 
   let lastFailure: StreamValidationResult | null = null;
   const nonRtspPorts = new Set<number>();
+  const timeoutsByPort = new Map<number, number>();
 
   for (const candidate of candidates) {
     for (const channel of channels) {
@@ -338,6 +348,13 @@ export async function discoverDeviceStreams(options: {
 
       for (const port of portas) {
         if (nonRtspPorts.has(port)) continue;
+
+        // Porta que fala RTSP mas nunca entrega imagem custa caro: cada
+        // tentativa gasta os tempos limite do ffprobe, e dez caminhos viram
+        // quatro minutos parados. Duas esperas seguidas já dizem que não há
+        // vídeo ali. Foi o que fez a busca do primeiro cliente real levar
+        // mais de cinco minutos para devolver uma câmera só.
+        if ((timeoutsByPort.get(port) ?? 0) >= MAX_TIMEOUTS_PER_PORT) continue;
 
         const rtspUrl = buildCandidateUrl({
           candidate,
@@ -371,6 +388,23 @@ export async function discoverDeviceStreams(options: {
         if (validation.rtspStatus === 0) {
           nonRtspPorts.add(port);
           log(logger, `A porta ${port} não respondeu como RTSP e será ignorada.`);
+        }
+
+        // O ffprobe estourou o tempo sem que o protocolo apontasse um motivo.
+        // Não é credencial nem caminho errado: é aparelho que aceita a
+        // conexão e não manda vídeo. Contar por porta evita desistir de uma
+        // câmera lenta só porque um caminho específico demorou.
+        if (!validation.success && validation.rtspStatus === undefined) {
+          const total = (timeoutsByPort.get(port) ?? 0) + 1;
+          timeoutsByPort.set(port, total);
+
+          if (total >= MAX_TIMEOUTS_PER_PORT) {
+            log(
+              logger,
+              `A porta ${port} aceita conexão mas não entrega vídeo. ` +
+                `Parando após ${total} esperas.`,
+            );
+          }
         }
 
         if (validation.success) {

@@ -129,8 +129,8 @@ export function DiscoveryPanel({ hasAgent }: { hasAgent: boolean }) {
 
         <p className={styles.step}>{status?.message ?? label}</p>
         <p className={styles.hint}>
-          Isso costuma levar menos de um minuto. Você pode deixar esta tela
-          aberta.
+          Costuma levar de um a cinco minutos, dependendo do tamanho da rede.
+          Você pode deixar esta tela aberta e voltar depois.
         </p>
 
         <button
@@ -149,34 +149,49 @@ export function DiscoveryPanel({ hasAgent }: { hasAgent: boolean }) {
 
   if (finished && status) {
     const connected = status.connected;
-    const missing = Math.max(status.cameraCountHint - status.found, 0);
+    // O que o cliente enxerga na lista é o total funcionando, não só o que
+    // entrou nesta busca. Contar diferente do que a lista mostra foi o que
+    // produziu "Nenhuma câmera nova foi conectada" logo acima de um item
+    // marcado como Conectada.
+    const working = status.devices.filter((device) => device.connected).length;
+    const failed = status.devices.length - working;
+    const missing = Math.max(status.cameraCountHint - working, 0);
 
     return (
       <div className={styles.resultCard}>
         {status.status === "completed" ? (
           <>
             <h2>
-              {connected === 0
-                ? "Nenhuma câmera nova foi conectada"
-                : connected === 1
-                  ? "1 câmera conectada"
-                  : `${connected} câmeras conectadas`}
+              {working === 0
+                ? "Nenhuma câmera está enviando imagem"
+                : working === 1
+                  ? "1 câmera pronta"
+                  : `${working} câmeras prontas`}
             </h2>
 
-            {status.alreadyConnected > 0 ? (
+            {connected > 0 ? (
               <p className={styles.hint}>
-                {status.alreadyConnected === 1
-                  ? "Outra câmera já estava conectada antes."
-                  : `Outras ${status.alreadyConnected} câmeras já estavam conectadas antes.`}
+                {connected === 1
+                  ? "1 delas entrou agora nesta busca."
+                  : `${connected} delas entraram agora nesta busca.`}
               </p>
             ) : null}
 
             {missing > 0 ? (
               <p className={styles.hint}>
                 Você disse que tem {status.cameraCountHint}
-                {status.cameraCountHint === 1 ? " câmera" : " câmeras"} e
-                encontramos {status.found}. Confira se as que faltam estão
-                ligadas e no mesmo roteador do computador, e procure de novo.
+                {status.cameraCountHint === 1 ? " câmera" : " câmeras"}. Confira
+                se as que faltam estão ligadas e no mesmo roteador do
+                computador, e procure de novo. Câmeras com outro usuário ou
+                outra senha precisam de uma busca separada.
+              </p>
+            ) : null}
+
+            {failed > 0 ? (
+              <p className={styles.hint}>
+                Os aparelhos abaixo sem a marca "Pronta" podem não ser câmeras
+                — impressoras, TVs e roteadores aparecem na mesma varredura.
+                Se você não reconhece o endereço, pode ignorar.
               </p>
             ) : null}
           </>
@@ -204,7 +219,7 @@ export function DiscoveryPanel({ hasAgent }: { hasAgent: boolean }) {
                   }
                 >
                   {device.connected
-                    ? "Conectada"
+                    ? "Pronta"
                     : (device.failureMessage ?? "Não conseguimos a imagem")}
                 </span>
               </li>
