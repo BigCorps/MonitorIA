@@ -219,3 +219,26 @@
     text-align: left;
   }
 }
+
+/* Avisos sobre rede: endereço que muda e câmera em outro roteador. */
+.tip {
+  padding: 13px 15px;
+  border: 1px solid #e4ebf2;
+  border-left: 3px solid #3fd0b3;
+  border-radius: 10px;
+  background: #f7fafc;
+}
+
+.tip strong {
+  display: block;
+  color: #29435d;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.tip p {
+  margin: 0;
+  color: #74839a;
+  font-size: 12px;
+  line-height: 1.6;
+}

@@ -112,6 +112,19 @@ export type ProtectedCameraConfig = {
   protectedRtsp: string;
   configuredAt: string;
   lastSnapshotUploadedAt?: string;
+  /**
+   * Endereço físico do aparelho, quando foi possível lê-lo da rede.
+   *
+   * É o que permite reencontrar a câmera quando o roteador troca o IP dela.
+   * Ausente nas câmeras configuradas antes desta versão e nas que estão
+   * atrás de outro roteador — nesses casos a recuperação simplesmente não
+   * acontece, e o comportamento é o antigo.
+   */
+  hardwareAddress?: string;
+  /** Canal do aparelho. 1 em câmera IP, 1..N em gravador. */
+  channel?: number;
+  /** Última vez que o endereço foi corrigido automaticamente. */
+  addressRecoveredAt?: string;
 };
 
 export type StoredAgentConfig = {

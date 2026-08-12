@@ -187,6 +187,21 @@ export function DiscoveryPanel({ hasAgent }: { hasAgent: boolean }) {
               </p>
             ) : null}
 
+            {working > 0 ? (
+              <div className={styles.tip}>
+                <strong>Reserve o endereço das câmeras no roteador</strong>
+                <p>
+                  A maioria dos gravadores e câmeras recebe o endereço
+                  automaticamente, e ele pode mudar depois de uma queda de luz.
+                  Quando isso acontece, a câmera aparece como offline sem que
+                  ninguém tenha mexido nela. No seu roteador, procure por
+                  "reserva de IP" ou "DHCP estático" e fixe o endereço de cada
+                  câmera. O MonitorIA tenta reencontrá-las sozinho, mas a
+                  reserva evita o problema antes dele acontecer.
+                </p>
+              </div>
+            ) : null}
+
             {failed > 0 ? (
               <p className={styles.hint}>
                 Os aparelhos abaixo sem a marca "Pronta" podem não ser câmeras
@@ -246,6 +261,16 @@ export function DiscoveryPanel({ hasAgent }: { hasAgent: boolean }) {
         O computador da loja procura as câmeras que estão no mesmo roteador que
         ele. Você só precisa responder duas coisas.
       </p>
+
+      <div className={styles.tip}>
+        <strong>Câmeras em outra rede não são encontradas</strong>
+        <p>
+          Se você tem mais de um roteador ou usa repetidor de sinal, as câmeras
+          ligadas no outro precisam de uma instalação separada. Elas continuam
+          aparecendo no aplicativo do fabricante, porque ele conecta pela
+          internet — mas o computador da loja não as alcança.
+        </p>
+      </div>
 
       <label className={styles.field}>
         <span>Quantas câmeras você tem?</span>

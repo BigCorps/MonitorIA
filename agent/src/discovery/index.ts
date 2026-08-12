@@ -60,6 +60,20 @@ export type DiscoveryResult = {
     stream: "main" | "sub";
     level: ValidationLevel;
     profileToken: string | null;
+    /**
+     * Canal do aparelho. 1 para câmera IP, 1..N para gravador.
+     *
+     * Cada canal vira uma câmera no painel. Dois streams com o mesmo canal
+     * são a mesma câmera em qualidades diferentes.
+     */
+    channel: number;
+    /**
+     * Identificador da fonte de vídeo, quando o ONVIF informa.
+     *
+     * Mais confiável que o número do canal para agrupar: é o próprio
+     * aparelho dizendo quais perfis são a mesma câmera.
+     */
+    sourceKey: string | null;
     validation: StreamValidationResult;
   }>;
   /** Preenchido quando nada funcionou, para a interface explicar o motivo. */
@@ -204,6 +218,8 @@ export async function discoverDeviceStreams(options: {
 
   // Portas anunciadas pelo próprio ONVIF, mesmo que a varredura não as veja.
   const onvifPorts = new Set<number>();
+  // Fonte de vídeo -> número do canal, na ordem em que o aparelho as lista.
+  const canalPorFonte = new Map<string, number>();
 
   const result: DiscoveryResult = {
     device,
@@ -299,6 +315,11 @@ export async function discoverDeviceStreams(options: {
       // testada, e terminava com "não respondeu ao protocolo RTSP".
       if (Number.isFinite(port) && port > 0) onvifPorts.add(port);
 
+      // Agrupa por fonte de vídeo. Num gravador, cada câmera ligada nele é
+      // uma fonte, e o número do canal sai da ordem em que elas aparecem.
+      const chave = profile.sourceToken ?? profile.token;
+      if (!canalPorFonte.has(chave)) canalPorFonte.set(chave, canalPorFonte.size + 1);
+
       result.streams.push({
         rtspUrl,
         displayPath: displayPath(rtspUrl),
@@ -307,6 +328,8 @@ export async function discoverDeviceStreams(options: {
         stream: (profile.height ?? 0) > 0 && (profile.height ?? 0) <= 720 ? "sub" : "main",
         level: "onvif_discovered",
         profileToken: profile.token,
+        channel: canalPorFonte.get(chave) ?? 1,
+        sourceKey: profile.sourceToken ?? null,
         validation,
       });
 
@@ -315,7 +338,24 @@ export async function discoverDeviceStreams(options: {
       }
     }
 
-    if (result.streams.some((entry) => entry.validation.success)) return result;
+    // Antes bastava um stream válido para encerrar. Num gravador isso
+    // devolvia o canal 1 e descartava os outros sete. Agora só encerra
+    // quando toda fonte anunciada tem pelo menos um stream funcionando.
+    const fontesComVideo = new Set(
+      result.streams
+        .filter((entry) => entry.validation.success)
+        .map((entry) => entry.channel),
+    );
+
+    if (fontesComVideo.size > 0 && fontesComVideo.size >= canalPorFonte.size) {
+      if (canalPorFonte.size > 1) {
+        log(
+          logger,
+          `Gravador com ${canalPorFonte.size} canal(is) de vídeo confirmado(s) por ONVIF.`,
+        );
+      }
+      return result;
+    }
   }
 
   // Passos 8 a 10: caminhos oficiais da família, depois genéricos.
@@ -348,94 +388,159 @@ export async function discoverDeviceStreams(options: {
   const nonRtspPorts = new Set<number>();
   const timeoutsByPort = new Map<number, number>();
 
-  for (const candidate of candidates) {
-    for (const channel of channels) {
-      // Só as portas comprovadamente abertas, com a porta padrão do
-      // fabricante primeiro quando ela estiver entre elas.
-      const portas = [...portasAbertas].sort((a, b) => {
-        if (a === candidate.defaultPort) return -1;
-        if (b === candidate.defaultPort) return 1;
-        return a - b;
-      });
+  const provar = async (
+    candidate: (typeof candidates)[number],
+    port: number,
+    channel: number,
+  ) => {
+    const rtspUrl = buildCandidateUrl({
+      candidate,
+      host: device.host,
+      port,
+      channel,
+      credentials,
+    });
 
-      for (const port of portas) {
-        if (nonRtspPorts.has(port)) continue;
+    const validation = await validateStream({
+      ...tools,
+      rtspUrl,
+      credentials,
+      ...(logger ? { log: logger } : {}),
+    });
 
-        // Porta que fala RTSP mas nunca entrega imagem custa caro: cada
-        // tentativa gasta os tempos limite do ffprobe, e dez caminhos viram
-        // quatro minutos parados. Duas esperas seguidas já dizem que não há
-        // vídeo ali. Foi o que fez a busca do primeiro cliente real levar
-        // mais de cinco minutos para devolver uma câmera só.
-        if ((timeoutsByPort.get(port) ?? 0) >= MAX_TIMEOUTS_PER_PORT) continue;
+    return { rtspUrl, validation };
+  };
 
-        const rtspUrl = buildCandidateUrl({
-          candidate,
-          host: device.host,
-          port,
-          channel,
-          credentials,
-        });
+  /**
+   * Fase 1: achar um caminho que funcione, testando só o canal 1.
+   *
+   * A ordem antiga era caminho, depois canal, depois porta — o que fazia o
+   * número de tentativas ser multiplicado pela quantidade de câmeras
+   * informada pelo cliente, inclusive nos caminhos que nunca funcionariam.
+   * Um gravador de oito canais custava oito vezes mais tempo para descobrir
+   * a mesma coisa.
+   */
+  let vencedor: {
+    candidate: (typeof candidates)[number];
+    port: number;
+  } | null = null;
 
-        const validation = await validateStream({
-          ...tools,
-          rtspUrl,
-          credentials,
-          ...(logger ? { log: logger } : {}),
-        });
+  busca: for (const candidate of candidates) {
+    const portas = [...portasAbertas].sort((a, b) => {
+      if (a === candidate.defaultPort) return -1;
+      if (b === candidate.defaultPort) return 1;
+      return a - b;
+    });
 
-        // Credencial errada não melhora com outro caminho: aborta tudo e
-        // devolve a mensagem certa em vez de mil tentativas inúteis.
-        if (validation.rtspStatus === 401 || validation.rtspStatus === 403) {
-          result.failure = {
-            code: "unauthorized",
-            message:
-              validation.errorMessage ?? "Usuário ou senha da câmera incorretos.",
-          };
-          return result;
-        }
+    for (const port of portas) {
+      if (nonRtspPorts.has(port)) continue;
+      if ((timeoutsByPort.get(port) ?? 0) >= MAX_TIMEOUTS_PER_PORT) continue;
 
-        // Porta 80/88/8080 aberta muitas vezes é apenas o painel HTTP. Se a
-        // primeira tentativa nem sequer recebeu uma resposta RTSP, repetir
-        // dez caminhos nessa mesma porta só adiciona minutos de timeout.
-        if (validation.rtspStatus === 0) {
-          nonRtspPorts.add(port);
-          log(logger, `A porta ${port} não respondeu como RTSP e será ignorada.`);
-        }
+      const { rtspUrl, validation } = await provar(candidate, port, 1);
 
-        // O ffprobe estourou o tempo sem que o protocolo apontasse um motivo.
-        // Não é credencial nem caminho errado: é aparelho que aceita a
-        // conexão e não manda vídeo. Contar por porta evita desistir de uma
-        // câmera lenta só porque um caminho específico demorou.
-        if (!validation.success && validation.rtspStatus === undefined) {
-          const total = (timeoutsByPort.get(port) ?? 0) + 1;
-          timeoutsByPort.set(port, total);
-
-          if (total >= MAX_TIMEOUTS_PER_PORT) {
-            log(
-              logger,
-              `A porta ${port} aceita conexão mas não entrega vídeo. ` +
-                `Parando após ${total} esperas.`,
-            );
-          }
-        }
-
-        if (validation.success) {
-          result.streams.push({
-            rtspUrl,
-            displayPath: normalizeForRegistry(candidate),
-            port,
-            stream: candidate.stream,
-            level: candidate.validationLevel,
-            profileToken: null,
-            validation,
-          });
-
-          log(logger, `Stream validado pelo caminho ${candidate.pathTemplate}.`);
-          return result;
-        }
-
-        lastFailure = validation;
+      // Credencial errada não melhora com outro caminho: aborta tudo e
+      // devolve a mensagem certa em vez de mil tentativas inúteis.
+      if (validation.rtspStatus === 401 || validation.rtspStatus === 403) {
+        result.failure = {
+          code: "unauthorized",
+          message:
+            validation.errorMessage ?? "Usuário ou senha da câmera incorretos.",
+        };
+        return result;
       }
+
+      // Porta 80/88/8080 aberta muitas vezes é apenas o painel HTTP. Se a
+      // primeira tentativa nem sequer recebeu resposta RTSP, repetir dez
+      // caminhos nessa mesma porta só adiciona minutos de timeout.
+      if (validation.rtspStatus === 0) {
+        nonRtspPorts.add(port);
+        log(logger, `A porta ${port} não respondeu como RTSP e será ignorada.`);
+      }
+
+      if (!validation.success && validation.rtspStatus === undefined) {
+        const total = (timeoutsByPort.get(port) ?? 0) + 1;
+        timeoutsByPort.set(port, total);
+
+        if (total >= MAX_TIMEOUTS_PER_PORT) {
+          log(
+            logger,
+            `A porta ${port} aceita conexão mas não entrega vídeo. ` +
+              `Parando após ${total} esperas.`,
+          );
+        }
+      }
+
+      if (validation.success) {
+        result.streams.push({
+          rtspUrl,
+          displayPath: normalizeForRegistry(candidate),
+          port,
+          stream: candidate.stream,
+          level: candidate.validationLevel,
+          profileToken: null,
+          channel: 1,
+          sourceKey: null,
+          validation,
+        });
+
+        log(logger, `Stream validado pelo caminho ${candidate.pathTemplate}.`);
+        vencedor = { candidate, port };
+        break busca;
+      }
+
+      lastFailure = validation;
+    }
+  }
+
+  /**
+   * Fase 2: com o caminho já provado, varrer os canais seguintes.
+   *
+   * Só aqui o número de câmeras informado pelo cliente é usado, e sobre um
+   * caminho que comprovadamente responde. Um canal vazio custa uma tentativa,
+   * não dez.
+   */
+  if (vencedor && channels.length > 1) {
+    const seguintes = channels.filter((channel) => channel !== 1);
+    let vazios = 0;
+
+    for (const channel of seguintes) {
+      // Gravador costuma ter canais contíguos. Duas ausências seguidas
+      // significam que a numeração acabou — insistir até 64 seria gastar
+      // minutos para confirmar o que já se sabe.
+      if (vazios >= 2) {
+        log(logger, `Canais encerrados em ${channel - 1}: dois vazios seguidos.`);
+        break;
+      }
+
+      const { rtspUrl, validation } = await provar(
+        vencedor.candidate,
+        vencedor.port,
+        channel,
+      );
+
+      if (validation.success) {
+        vazios = 0;
+        result.streams.push({
+          rtspUrl,
+          displayPath: normalizeForRegistry(vencedor.candidate),
+          port: vencedor.port,
+          stream: vencedor.candidate.stream,
+          level: vencedor.candidate.validationLevel,
+          profileToken: null,
+          channel,
+          sourceKey: null,
+          validation,
+        });
+
+        log(logger, `Canal ${channel} validado no mesmo caminho.`);
+      } else {
+        vazios += 1;
+      }
+    }
+
+    const canais = new Set(result.streams.map((entry) => entry.channel)).size;
+    if (canais > 1) {
+      log(logger, `Gravador com ${canais} canal(is) de vídeo encontrado(s).`);
     }
   }
 

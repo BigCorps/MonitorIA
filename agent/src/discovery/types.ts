@@ -63,6 +63,15 @@ export type StreamValidationResult = {
 export type OnvifProfile = {
   token: string;
   name: string;
+  /**
+   * Token da fonte de vídeo do perfil.
+   *
+   * É o que separa canal de qualidade. Num gravador, cada câmera ligada nele
+   * é uma fonte diferente, e cada fonte costuma ter dois perfis — alta e
+   * baixa resolução. Sem esta informação, os oito canais de um DVR viravam
+   * uma câmera só no painel, e o cliente pagava por oito.
+   */
+  sourceToken: string | null;
   /** ver10 (Media) ou ver20 (Media2). */
   generation: "media" | "media2";
   encoding: string | null;

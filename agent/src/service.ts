@@ -46,6 +46,9 @@ import {
   rankStreams,
   type DiscoveryResult,
 } from "./discovery/index.js";
+import { hostsForMac, macForHost } from "./discovery/mac.js";
+import { scanLocalNetwork } from "./discovery/scan.js";
+import { validateStream } from "./discovery/validate.js";
 import type { Credentials } from "./discovery/types.js";
 import { CircularClipBuffer } from "./clip-buffer.js";
 import type {
@@ -264,6 +267,8 @@ export class AgentService {
   private configTimer: NodeJS.Timeout | null = null;
   /** Pedido em execução vindo do painel. Impede busca dupla. */
   private serverDiscoveryRunId: string | null = null;
+  /** Câmeras com recuperação de endereço em curso, para não repetir. */
+  private readonly recovering = new Set<string>();
   private lastHeartbeatAt: string | null = null;
   private startedAt = new Date().toISOString();
 
@@ -526,6 +531,16 @@ export class AgentService {
               `Monitor de "${camera.name}" falhou (${failure.code}): ${failure.message}`,
             );
 
+            // Três falhas seguidas de conexão têm uma causa comum e barata de
+            // corrigir: o roteador entregou outro IP à câmera depois de uma
+            // queda de luz. O endereço guardado aponta para o vazio, e nada
+            // no sistema percebe isso sozinho. Só vale para falha de rede —
+            // credencial errada ou câmera desligada não melhoram mudando de
+            // endereço.
+            if (attempts >= 3 && failure.code !== "unauthorized") {
+              void this.recoverCameraAddress(camera.id, camera.name);
+            }
+
             // O texto cru fica no log em nível warn, não debug: com debug
             // desligado por padrão, a causa das falhas desaparecia e o
             // suporte remoto ficava sem nada para analisar. O painel segue
@@ -707,6 +722,98 @@ export class AgentService {
         ? "Uma câmera removida no painel saiu também da configuração local."
         : `${orphans.length} câmeras removidas no painel saíram da configuração local.`,
     );
+  }
+
+  /**
+   * Reencontra uma câmera que mudou de IP.
+   *
+   * Procura o MAC guardado na tabela ARP da máquina. Se o mesmo aparelho
+   * estiver em outro endereço, reescreve a URL trocando só o host e valida
+   * antes de gravar — endereço que não entrega vídeo não substitui um que ao
+   * menos já funcionou um dia.
+   *
+   * Não faz nada quando a câmera é anterior a esta versão (sem MAC guardado)
+   * ou está atrás de outro roteador, porque nesses casos o MAC não aparece
+   * na tabela ARP local.
+   */
+  private async recoverCameraAddress(cameraId: string, cameraName: string) {
+    const config = this.config;
+    if (!config) return;
+    if (this.recovering.has(cameraId)) return;
+
+    const local = config.cameras[cameraId];
+    if (!local?.hardwareAddress) return;
+
+    this.recovering.add(cameraId);
+
+    try {
+      const atual = await this.vault.open(local.protectedRtsp);
+      const url = new URL(atual);
+      const hostAtual = url.hostname;
+
+      // A tabela ARP só lista quem foi contactado há pouco. Uma varredura
+      // leve de portas de vídeo provoca o tráfego necessário.
+      await scanLocalNetwork({ log: () => {} }).catch(() => []);
+
+      const candidatos = (await hostsForMac(local.hardwareAddress)).filter(
+        (host) => host !== hostAtual,
+      );
+
+      if (candidatos.length === 0) {
+        this.logger.info(
+          `"${cameraName}" não foi encontrada na rede pelo endereço físico. ` +
+            "Ela pode estar desligada ou em outra rede.",
+        );
+        return;
+      }
+
+      const tools = {
+        ffmpegPath: await resolveFfmpeg(),
+        ffprobePath: await resolveFfprobe(),
+      };
+
+      for (const host of candidatos) {
+        const tentativa = new URL(atual);
+        tentativa.hostname = host;
+
+        const validation = await validateStream({
+          ...tools,
+          rtspUrl: tentativa.toString(),
+          credentials: { username: tentativa.username, password: tentativa.password },
+          log: (message: string) => this.logger.info(message),
+        });
+
+        if (!validation.success) continue;
+
+        config.cameras[cameraId] = {
+          ...local,
+          protectedRtsp: await this.vault.seal(tentativa.toString()),
+          addressRecoveredAt: new Date().toISOString(),
+        };
+
+        await saveConfig(config);
+        this.cameraBackoff.delete(cameraId);
+
+        this.logger.info(
+          `"${cameraName}" mudou de endereço na rede e foi reconectada ` +
+            `automaticamente (${hostAtual} para ${host}).`,
+        );
+
+        await this.syncMonitoring();
+        return;
+      }
+
+      this.logger.info(
+        `"${cameraName}" foi localizada em ${candidatos.join(", ")}, ` +
+          "mas nenhum endereço entregou vídeo.",
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Não foi possível recuperar o endereço de "${cameraName}": ${errorMessage(error)}`,
+      );
+    } finally {
+      this.recovering.delete(cameraId);
+    }
   }
 
   private async checkCamera(camera: RemoteCamera, uploadFirstFrame: boolean) {
@@ -1491,16 +1598,25 @@ export class AgentService {
   }
 
   /** Hosts já protegidos no cofre local, sem usuário, senha ou caminho. */
+  /**
+   * Endereços RTSP já em uso, para não reconectar o que já está conectado.
+   *
+   * Guarda a URL inteira sem credencial, e não só o endereço do aparelho.
+   * Enquanto era só o endereço, um gravador com oito canais era considerado
+   * "já conectado" depois do primeiro — os outros sete nunca entravam.
+   */
   private async configuredHosts() {
-    const hosts = new Set<string>();
+    const chaves = new Set<string>();
     const config = this.config;
-    if (!config) return hosts;
+    if (!config) return chaves;
 
     for (const local of Object.values(config.cameras)) {
       try {
         const rtspUrl = await this.vault.open(local.protectedRtsp);
-        const host = new URL(rtspUrl).hostname;
-        if (host) hosts.add(host);
+        const url = new URL(rtspUrl);
+        url.username = "";
+        url.password = "";
+        if (url.hostname) chaves.add(url.toString());
       } catch (error) {
         this.logger.warn(
           `Não foi possível comparar uma câmera já configurada: ${errorMessage(error)}`,
@@ -1508,7 +1624,19 @@ export class AgentService {
       }
     }
 
-    return hosts;
+    return chaves;
+  }
+
+  /** Mesma normalização usada acima, para comparar maçã com maçã. */
+  private streamKey(rtspUrl: string) {
+    try {
+      const url = new URL(rtspUrl);
+      url.username = "";
+      url.password = "";
+      return url.toString();
+    } catch {
+      return rtspUrl;
+    }
   }
 
   /**
@@ -1531,22 +1659,53 @@ export class AgentService {
 
     await this.runDiscovery(payload, onProgress);
 
-    const configuredHosts = await this.configuredHosts();
-    const alreadyConnected = this.discovery.filter(
-      (entry) =>
-        configuredHosts.has(entry.device.host) &&
-        entry.streams.some((stream) => stream.validation.success),
-    ).length;
-    const entries = this.discovery
-      .filter(
-        (entry) =>
-          !configuredHosts.has(entry.device.host) &&
-          entry.streams.some((stream) => stream.validation.success),
-      )
-      .sort(
-        (left, right) =>
-          ipv4Order(left.device.host) - ipv4Order(right.device.host),
-      );
+    const configuradas = await this.configuredHosts();
+
+    /**
+     * Um canal, uma câmera.
+     *
+     * A unidade era o aparelho: um gravador de oito canais virava uma câmera
+     * no painel e o cliente pagava por oito. Agora cada canal com vídeo
+     * próprio é uma entrada, e os streams do mesmo canal — alta e baixa
+     * resolução — continuam juntos, porque são a mesma câmera.
+     */
+    const candidatas: Array<{
+      entry: DiscoveryResult;
+      channel: number;
+      streams: DiscoveryResult["streams"];
+    }> = [];
+
+    let alreadyConnected = 0;
+
+    for (const entry of this.discovery) {
+      const porCanal = new Map<number, DiscoveryResult["streams"]>();
+
+      for (const stream of entry.streams) {
+        if (!stream.validation.success) continue;
+        const lista = porCanal.get(stream.channel) ?? [];
+        lista.push(stream);
+        porCanal.set(stream.channel, lista);
+      }
+
+      for (const [channel, streams] of porCanal) {
+        const jaExiste = streams.some((stream) =>
+          configuradas.has(this.streamKey(stream.rtspUrl)),
+        );
+
+        if (jaExiste) {
+          alreadyConnected += 1;
+          continue;
+        }
+
+        candidatas.push({ entry, channel, streams });
+      }
+    }
+
+    const entries = candidatas.sort((left, right) => {
+      const ordem =
+        ipv4Order(left.entry.device.host) - ipv4Order(right.entry.device.host);
+      return ordem !== 0 ? ordem : left.channel - right.channel;
+    });
 
     if (entries.length === 0) {
       return {
@@ -1561,13 +1720,28 @@ export class AgentService {
       .filter((camera) => !config.cameras[camera.id]?.protectedRtsp)
       .map((camera) => camera.id);
     const assignments: Array<{
-      entry: DiscoveryResult;
+      candidata: (typeof entries)[number];
       cameraId: string;
     }> = [];
     let registrations = 0;
 
-    for (const entry of entries) {
+    // Um gravador vira várias câmeras, e "Gravador" oito vezes não ajuda
+    // ninguém. Quando há mais de um canal, o nome sugerido leva o número.
+    const canaisPorAparelho = new Map<string, number>();
+    for (const candidata of entries) {
+      const host = candidata.entry.device.host;
+      canaisPorAparelho.set(host, (canaisPorAparelho.get(host) ?? 0) + 1);
+    }
+
+    for (const candidata of entries) {
+      const entry = candidata.entry;
       let cameraId = availableCameraIds.shift() ?? null;
+
+      const multicanal = (canaisPorAparelho.get(entry.device.host) ?? 1) > 1;
+      const nomeBase = entry.device.nameHint;
+      const suggestedName = multicanal
+        ? `${nomeBase ?? "Câmera"} ${candidata.channel}`
+        : nomeBase;
 
       if (!cameraId) {
         try {
@@ -1575,7 +1749,7 @@ export class AgentService {
             config.apiBaseUrl,
             token,
             {
-              suggestedName: entry.device.nameHint,
+              suggestedName,
               vendor:
                 entry.information?.manufacturer ?? entry.vendor ?? null,
               model:
@@ -1592,7 +1766,7 @@ export class AgentService {
         }
       }
 
-      assignments.push({ entry, cameraId });
+      assignments.push({ candidata, cameraId });
     }
 
     await onProgress?.({
@@ -1616,14 +1790,16 @@ export class AgentService {
     for (const assignment of assignments) {
       try {
         await this.bindDiscovered({
-          deviceId: assignment.entry.device.id,
+          deviceId: assignment.candidata.entry.device.id,
           cameraId: assignment.cameraId,
+          channel: assignment.candidata.channel,
           streamIndex: 0,
         });
         connected += 1;
       } catch (error) {
         this.logger.warn(
-          `Não foi possível vincular ${assignment.entry.device.host}: ${errorMessage(error)}`,
+          `Não foi possível vincular ${assignment.candidata.entry.device.host} ` +
+            `canal ${assignment.candidata.channel}: ${errorMessage(error)}`,
         );
       }
     }
@@ -1649,22 +1825,37 @@ export class AgentService {
     const cameraId = requireString(payload, "cameraId");
     const deviceId = requireString(payload, "deviceId");
     const streamIndex = typeof payload.streamIndex === "number" ? payload.streamIndex : 0;
+    // Ausente nas chamadas antigas da interface, que só conheciam aparelho.
+    const channel = typeof payload.channel === "number" ? payload.channel : null;
 
     const entry = this.discovery.find((item) => item.device.id === deviceId);
     if (!entry) {
       throw new IpcError("bad_request", "Aparelho não encontrado na última varredura.");
     }
 
-    const ranked = rankStreams(entry.streams.filter((item) => item.validation.success));
+    const validados = entry.streams.filter((item) => item.validation.success);
+    // Sem canal informado, mantém o comportamento antigo: todos os streams.
+    const doCanal =
+      channel === null
+        ? validados
+        : validados.filter((item) => item.channel === channel);
+
+    const ranked = rankStreams(doCanal);
     const chosen = ranked[streamIndex];
 
     if (!chosen) {
       throw new IpcError("bad_request", "Nenhum stream validado neste índice.");
     }
 
+    // Lido agora, enquanto o aparelho está comprovadamente na rede. Se
+    // falhar, a câmera é salva do mesmo jeito: MAC é melhoria, não requisito.
+    const hardwareAddress = await macForHost(entry.device.host);
+
     config.cameras[cameraId] = {
       protectedRtsp: await this.vault.seal(chosen.rtspUrl),
       configuredAt: new Date().toISOString(),
+      ...(hardwareAddress ? { hardwareAddress } : {}),
+      ...(channel !== null ? { channel } : {}),
     };
 
     await saveConfig(config);
@@ -1684,7 +1875,11 @@ export class AgentService {
     // normalizado. Nunca a senha, nunca o IP.
     void this.reportCompatibility(entry, chosen);
 
-    this.logger.info(`Câmera ${cameraId} vinculada ao aparelho ${entry.device.host}.`);
+    this.logger.info(
+      channel !== null && channel > 1
+        ? `Câmera ${cameraId} vinculada ao canal ${channel} de ${entry.device.host}.`
+        : `Câmera ${cameraId} vinculada ao aparelho ${entry.device.host}.`,
+    );
 
     return {
       cameraId,

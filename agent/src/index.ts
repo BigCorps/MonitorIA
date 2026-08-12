@@ -7,6 +7,11 @@ import {
   AgentNotRunningError,
   callAgent,
 } from "./ipc-client.js";
+import {
+  discoverDeviceStreams,
+  discoverDevices,
+} from "./discovery/index.js";
+import { macForHost } from "./discovery/mac.js";
 import { AdaptiveMotionCalibration } from "./motion-calibration.js";
 import { calculateMotion } from "./motion.js";
 import { forgetPaths, PermissionError, resolvePaths } from "./paths.js";
@@ -55,6 +60,7 @@ function usage() {
   console.log("  monitoria-agent discover             Procura câmeras na rede local");
   console.log("  monitoria-agent status               Situação do serviço");
   console.log("  monitoria-agent diagnose             Diagnóstico local, funciona sem internet");
+  console.log("  monitoria-agent scan-report          Relatório de rede e canais, para análise");
   console.log("  monitoria-agent sync                 Força sincronização com o painel");
   console.log("  monitoria-agent unpair               Remove o pareamento");
   console.log("  monitoria-agent self-test            Testa DPAPI e segmentação de movimento");
@@ -364,6 +370,82 @@ async function commandStatus() {
   }
 }
 
+/**
+ * Relatório de rede para levar à visita ao cliente.
+ *
+ * Existe porque descobrir por que uma câmera não entrou exigia hoje ler o
+ * log bruto do serviço. Num cliente com gravador, isso significa sair da
+ * loja sem resposta. O relatório mostra o que respondeu, em que porta, e o
+ * que o ONVIF disse — que é o suficiente para saber se o caso é porta
+ * fechada, credencial recusada ou canal não enumerado.
+ *
+ * Não imprime senha nem URL completa.
+ */
+async function commandScanReport() {
+  const host = argumentValue("--host");
+  const username = argumentValue("--username") ?? "admin";
+  const password = argumentValue("--password") ?? "";
+
+  console.log("Procurando aparelhos na rede...");
+
+  const devices = await discoverDevices({
+    log: (message) => console.log(`  ${message}`),
+    ...(host ? { hosts: [host] } : {}),
+  });
+
+  if (devices.length === 0) {
+    console.log("Nenhum aparelho respondeu. Verifique se está na mesma rede.");
+    return;
+  }
+
+  console.log(`\n${devices.length} aparelho(s) encontrado(s).\n`);
+
+  for (const device of devices) {
+    const mac = await macForHost(device.host);
+
+    console.log(`=== ${device.host} ===`);
+    console.log(`  origem:  ${device.source}`);
+    console.log(`  mac:     ${mac ?? "não encontrado na tabela ARP"}`);
+    console.log(`  nome:    ${device.nameHint ?? "-"}`);
+
+    const resultado = await discoverDeviceStreams({
+      device,
+      credentials: { username, password },
+      channels: [1, 2, 3, 4, 5, 6, 7, 8],
+      log: (message: string) => console.log(`    ${message}`),
+    });
+
+    console.log(`  onvif:   ${resultado.onvifSupported ? "sim" : "não"}`);
+    console.log(`  marca:   ${resultado.information?.manufacturer ?? "-"}`);
+    console.log(`  modelo:  ${resultado.information?.model ?? "-"}`);
+
+    const canais = new Set(
+      resultado.streams
+        .filter((item) => item.validation.success)
+        .map((item) => item.channel),
+    );
+
+    console.log(`  canais com vídeo: ${canais.size > 0 ? [...canais].join(", ") : "nenhum"}`);
+
+    for (const stream of resultado.streams) {
+      const estado = stream.validation.success
+        ? `ok ${stream.validation.width ?? "?"}x${stream.validation.height ?? "?"} ${stream.validation.codec ?? ""}`
+        : (stream.validation.errorCode ?? "falhou");
+      console.log(
+        `    canal ${stream.channel} porta ${stream.port} ${stream.stream}: ${estado}`,
+      );
+    }
+
+    if (resultado.failure) {
+      console.log(`  falha:   ${resultado.failure.code} — ${resultado.failure.message}`);
+    }
+
+    console.log("");
+  }
+
+  console.log("Copie tudo acima e envie para análise.");
+}
+
 async function commandDiagnose() {
   const report = await callAgent("diagnose");
   const queue = (report.queue ?? {}) as Record<string, unknown>;
@@ -553,6 +635,9 @@ async function main() {
       return;
     case "diagnose":
       await commandDiagnose();
+      return;
+    case "scan-report":
+      await commandScanReport();
       return;
     case "sync":
       await commandSync();

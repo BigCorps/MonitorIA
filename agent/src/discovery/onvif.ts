@@ -121,9 +121,19 @@ function parseProfileBlock(block: string, generation: "media" | "media2"): Onvif
 
   const resolution = tagBlocks(block, "Resolution")[0] ?? "";
 
+  // Media chama de SourceToken dentro de VideoSourceConfiguration; Media2
+  // usa o mesmo nome, mas alguns firmwares só trazem o token do próprio
+  // VideoSourceConfiguration. Aceitamos os dois e caímos para nulo.
+  const fonte = tagBlocks(block, "VideoSourceConfiguration")[0] ?? "";
+  const sourceToken =
+    tagValue(fonte, "SourceToken") ??
+    attributeValue(fonte, "token") ??
+    tagValue(block, "SourceToken");
+
   return {
     token,
     name: tagValue(block, "Name") ?? token,
+    sourceToken: sourceToken ?? null,
     generation,
     encoding: tagValue(block, "Encoding"),
     width: numberOrNull(tagValue(resolution, "Width")),
