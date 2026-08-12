@@ -4,6 +4,7 @@ import type {
   SiteSummary,
 } from "@/src/lib/dashboard-data";
 import { DashboardSidebar } from "./dashboard-sidebar";
+import { FirstRunWaiting } from "./first-run-waiting";
 import { SitePairingCode } from "./site-pairing-code";
 import styles from "./overview.module.css";
 
@@ -13,6 +14,7 @@ type Props = {
   site: SiteSummary;
   cameras: SetupCameraSummary[];
   agentPaired: boolean;
+  stage: 1 | 2 | 3 | 4 | 5;
   message: string | null;
 };
 
@@ -34,32 +36,42 @@ export function FirstRunSetup({
   site,
   cameras,
   agentPaired,
+  stage,
   message,
 }: Props) {
   const hasCameras = cameras.length > 0;
   const cameraOnline = cameras.some((camera) => camera.status === "online");
+  const firstCameraId =
+    cameras.find((camera) => camera.status === "online")?.id ??
+    cameras[0]?.id ??
+    null;
 
   const steps = [
     {
       title: "Conectar o computador",
-      done: agentPaired,
-      detail: agentPaired ? "Computador conectado" : "Comece por aqui",
+      done: stage > 1,
+      detail: stage > 1 ? "Computador conectado" : "Comece por aqui",
     },
     {
       title: "Procurar as câmeras",
-      done: hasCameras,
+      done: stage > 2,
       detail: hasCameras
         ? `${cameras.length} ${cameras.length === 1 ? "câmera encontrada" : "câmeras encontradas"}`
         : "Depois do computador",
     },
     {
-      title: "Conferir as câmeras",
-      done: cameraOnline,
-      detail: cameraOnline ? "Recebendo imagem" : "Por último",
+      title: "Receber a imagem",
+      done: stage > 3,
+      detail: cameraOnline ? "Imagem chegando" : "Automático",
+    },
+    {
+      title: "Explicar o ambiente",
+      done: stage > 4,
+      detail: stage === 4 ? "Falta só isso" : "Por último",
     },
   ];
 
-  const current = agentPaired ? (hasCameras ? 3 : 2) : 1;
+  const current = stage;
 
   return (
     <main className="dashboard-shell">
@@ -73,7 +85,7 @@ export function FirstRunSetup({
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">PRIMEIRO ACESSO</span>
-            <h1>Três passos para o MonitorIA começar a olhar</h1>
+            <h1>Quatro passos para o MonitorIA começar a olhar</h1>
             <p>
               Local <strong>{site.name}</strong>. Faça na ordem — cada passo
               depende do anterior.
@@ -99,7 +111,7 @@ export function FirstRunSetup({
           {current === 1 ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 1 DE 3</span>
+                <span>PASSO 1 DE 4</span>
                 <h2>Conecte o computador da loja</h2>
                 <p>
                   O MonitorIA funciona a partir de um computador que fica
@@ -148,13 +160,19 @@ export function FirstRunSetup({
               </div>
 
               <SitePairingCode />
+
+              <FirstRunWaiting
+                stage={1}
+                waitingFor="Esperando o computador da loja se conectar"
+                detail="Assim que o instalador terminar, esta tela avança sozinha. Você não precisa atualizar a página."
+              />
             </div>
           ) : null}
 
           {current === 2 ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 2 DE 3</span>
+                <span>PASSO 2 DE 4</span>
                 <h2>Agora vamos encontrar suas câmeras</h2>
                 <p>
                   O computador está conectado. Ele procura sozinho as câmeras
@@ -205,60 +223,39 @@ export function FirstRunSetup({
                   Procurar câmeras
                 </Link>
               </div>
+
+              <FirstRunWaiting
+                stage={2}
+                waitingFor="Nenhuma câmera cadastrada ainda"
+                detail="Se você já fez a busca em outra aba, esta tela avança sozinha quando a primeira câmera entrar."
+              />
             </div>
           ) : null}
 
           {current === 3 ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 3 DE 3</span>
-                <h2>Confira as câmeras encontradas</h2>
+                <span>PASSO 3 DE 4</span>
+                <h2>A primeira imagem está a caminho</h2>
                 <p>
-                  {cameraOnline
-                    ? "A primeira imagem já chegou. Dê nomes que você reconheça e escolha o que cada câmera deve observar."
-                    : "As câmeras foram salvas e a primeira imagem está a caminho. Enquanto isso, dê nomes que você reconheça."}
+                  {cameras.length === 1
+                    ? "A câmera foi salva. O computador da loja está buscando o primeiro quadro dela."
+                    : `${cameras.length} câmeras foram salvas. O computador da loja está buscando o primeiro quadro.`}
                 </p>
               </div>
 
-              <ol className={styles.firstRunInstructions}>
-                <li>
-                  <span>1</span>
-                  <div>
-                    <strong>Dê um nome a cada câmera</strong>
-                    <p>
-                      "Caixa", "Estoque", "Entrada". É por esse nome que os
-                      avisos vão chegar até você.
-                    </p>
-                  </div>
-                </li>
-                <li>
-                  <span>2</span>
-                  <div>
-                    <strong>Escolha o que ela deve observar</strong>
-                    <p>
-                      Cada câmera pode ter um objetivo diferente, e isso muda o
-                      que o MonitorIA considera importante.
-                    </p>
-                  </div>
-                </li>
-                <li>
-                  <span>3</span>
-                  <div>
-                    <strong>Faltou alguma câmera?</strong>
-                    <p>
-                      Se alguma não apareceu, ligue o aparelho e procure de
-                      novo. Câmeras com outra senha exigem uma busca separada.
-                    </p>
-                  </div>
-                </li>
-              </ol>
+              <FirstRunWaiting
+                stage={3}
+                waitingFor="Esperando a primeira imagem chegar"
+                detail="Costuma levar até um minuto. Esta tela avança sozinha — não precisa atualizar."
+              />
 
               <div className={styles.firstRunActions}>
                 <Link
                   href="/dashboard/cameras"
-                  className="panel-primary-action"
+                  className="panel-secondary-action"
                 >
-                  Conferir minhas câmeras
+                  Ver as câmeras salvas
                 </Link>
                 <Link
                   href="/dashboard/cameras/discovery"
@@ -269,6 +266,78 @@ export function FirstRunSetup({
               </div>
             </div>
           ) : null}
+
+          {current === 4 ? (
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 4 DE 4</span>
+                <h2>Explique o que a câmera está vendo</h2>
+                <p>
+                  A imagem já está chegando. Falta contar ao MonitorIA o que
+                  ele está olhando — onde ficam funcionários, clientes, caixa e
+                  entrada. Sem isso ele avisa sobre coisas que não importam e
+                  deixa passar as que importam.
+                </p>
+              </div>
+
+              <ol className={styles.firstRunInstructions}>
+                <li>
+                  <span>1</span>
+                  <div>
+                    <strong>Escolha uma foto representativa</strong>
+                    <p>
+                      De preferência com a loja em funcionamento normal, porta
+                      aberta e balcão visível.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>2</span>
+                  <div>
+                    <strong>Descreva o ambiente em uma frase</strong>
+                    <p>
+                      "Funcionários ficam atrás do balcão e clientes na área da
+                      frente." É o bastante para começar.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span>3</span>
+                  <div>
+                    <strong>Aprove a análise</strong>
+                    <p>
+                      Depois disso o monitoramento começa e você acompanha
+                      tudo em Monitoramento.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+
+              <div className={styles.firstRunActions}>
+                {firstCameraId ? (
+                  <Link
+                    href={`/dashboard/cameras/${firstCameraId}`}
+                    className="panel-primary-action"
+                  >
+                    Explicar o que essa câmera vê
+                  </Link>
+                ) : null}
+                <Link
+                  href="/dashboard/cameras"
+                  className="panel-secondary-action"
+                >
+                  Ver todas as câmeras
+                </Link>
+              </div>
+
+              <FirstRunWaiting
+                stage={4}
+                waitingFor="Esperando a primeira análise ser aprovada"
+                detail="Quando você aprovar, esta tela dá lugar ao painel completo."
+              />
+            </div>
+          ) : null}
+
         </section>
       </section>
     </main>

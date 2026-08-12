@@ -202,6 +202,9 @@ export async function discoverDeviceStreams(options: {
   const { device, credentials } = options;
   const logger = options.log;
 
+  // Portas anunciadas pelo próprio ONVIF, mesmo que a varredura não as veja.
+  const onvifPorts = new Set<number>();
+
   const result: DiscoveryResult = {
     device,
     information: null,
@@ -290,6 +293,12 @@ export async function discoverDeviceStreams(options: {
         // Mantém o padrão.
       }
 
+      // A porta que o aparelho declarou vale mais que a varredura: o scan usa
+      // tempo limite de 900ms e perde porta de aparelho lento. Sem isto, uma
+      // câmera que fala ONVIF na 8080 e serve vídeo na 554 nunca tinha a 554
+      // testada, e terminava com "não respondeu ao protocolo RTSP".
+      if (Number.isFinite(port) && port > 0) onvifPorts.add(port);
+
       result.streams.push({
         rtspUrl,
         displayPath: displayPath(rtspUrl),
@@ -314,14 +323,17 @@ export async function discoverDeviceStreams(options: {
   const candidates = candidatesFor({ vendor: result.vendor, includeGeneric: true });
 
   // Sonda as portas uma única vez em vez de testar todo caminho em todas.
-  const portasAbertas = await openRtspPorts(device.host);
+  const varridas = await openRtspPorts(device.host);
+  const portasAbertas = [...new Set([...varridas, ...onvifPorts])];
 
   if (portasAbertas.length === 0) {
     result.failure = {
       code: "no_rtsp_port",
-      message:
-        "Nenhuma porta de vídeo respondeu neste aparelho. " +
-        "Verifique se o serviço RTSP está habilitado na câmera.",
+      message: result.onvifSupported
+        ? "O aparelho responde ao ONVIF, mas não abriu nenhuma porta de vídeo. " +
+          "Verifique se o RTSP está habilitado nas configurações dele."
+        : "Nenhuma porta de vídeo respondeu neste aparelho. " +
+          "Verifique se o serviço RTSP está habilitado na câmera.",
     };
     return result;
   }

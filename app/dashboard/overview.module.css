@@ -546,3 +546,72 @@
   font-size: 10px;
   line-height: 1.55;
 }
+
+/* Botão de copiar do código de pareamento. */
+.pairingCodeRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pairingCopy {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #9fded0;
+  border-radius: 8px;
+  background: white;
+  color: #0d6b59;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.pairingCopy:hover { background: #eafaf5; }
+
+/* Espera ativa entre as etapas do primeiro acesso. */
+.waitingBox {
+  margin-top: 18px;
+  padding: 15px 17px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  border: 1px solid #e8eef3;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.waitingSpinner {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin-top: 1px;
+  border: 2px solid #d5e3ec;
+  border-top-color: #2bb99d;
+  border-radius: 50%;
+  animation: waitingSpin 850ms linear infinite;
+}
+
+@keyframes waitingSpin {
+  to { transform: rotate(360deg); }
+}
+
+.waitingBox strong {
+  color: #29435d;
+  font-size: 11px;
+}
+
+.waitingBox p {
+  margin: 4px 0 0;
+  color: #7a899c;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.waitingSlow { color: #96603a !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .waitingSpinner { animation-duration: 2.5s; }
+}

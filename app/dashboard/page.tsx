@@ -12,6 +12,7 @@ import { eventTypeLabel } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import styles from "./overview.module.css";
 import { FirstRunSetup } from "./first-run-setup";
+import { getFirstRunStatusAction } from "./first-run-status";
 
 export const metadata = { title: "Visão geral" };
 export const dynamic = "force-dynamic";
@@ -67,13 +68,12 @@ export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const message = typeof params.message === "string" ? params.message : null;
 
-  // O guia sai de cena quando a primeira imagem chega. Até lá ele é a tela
-  // inicial, porque não há nada de útil para mostrar antes disso.
-  const firstCameraOnline = cameras.some(
-    (camera) => camera.status === "online",
-  );
+  // O guia sai de cena quando a primeira câmera já tem contexto explicado.
+  // Antes ele saía assim que a imagem chegava, e o cliente era devolvido ao
+  // painel cheio sem nunca ser levado à etapa que faz a análise funcionar.
+  const firstRun = await getFirstRunStatusAction();
 
-  if (!firstCameraOnline) {
+  if (firstRun.stage < 5) {
     return (
       <FirstRunSetup
         organizationName={organization.name}
@@ -81,6 +81,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         site={site}
         cameras={cameras}
         agentPaired={agent.paired}
+        stage={firstRun.stage}
         message={message}
       />
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   createSitePairingCodeAction,
   type SitePairingState,
@@ -15,11 +15,36 @@ export function SitePairingCode() {
     initial,
   );
 
+  const [copied, setCopied] = useState(false);
+
+  async function copy(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2_500);
+    } catch {
+      // Navegador sem permissão de área de transferência. O código continua
+      // visível na tela, então o cliente pode digitar.
+      setCopied(false);
+    }
+  }
+
   if (state.status === "success" && state.code) {
     return (
       <div className={styles.pairingCodeBox}>
         <span>SEU CÓDIGO</span>
-        <strong>{state.code}</strong>
+
+        <div className={styles.pairingCodeRow}>
+          <strong>{state.code}</strong>
+          <button
+            type="button"
+            className={styles.pairingCopy}
+            onClick={() => void copy(state.code as string)}
+          >
+            {copied ? "Copiado" : "Copiar"}
+          </button>
+        </div>
+
         <p>
           Digite no instalador. Vale 15 minutos. Se expirar, volte aqui e gere
           outro.
