@@ -325,7 +325,11 @@ jobs:
             # $f já é substituído pelo próprio Inno pelo caminho do arquivo
             # entre aspas. Não usamos \"...\" aqui porque o parser do ISCC
             # transformava as aspas em barras, causando o erro de -File.
-            $signCommand = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
+            # Use PowerShell 7 (pwsh), o mesmo ambiente em que o workflow já
+            # validou Authenticode com sucesso. O Windows PowerShell 5.1 do
+            # runner não conseguiu carregar Microsoft.PowerShell.Security.
+            $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+            $signCommand = '$q' + $pwsh + '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
             & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
           }
           else {
