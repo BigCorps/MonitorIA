@@ -265,17 +265,25 @@ jobs:
           if (-not (Test-Path $tool)) { throw "CodeSignTool.bat não encontrado." }
           if (-not (Test-Path $FilePath)) { throw "Arquivo para assinatura não encontrado: $FilePath" }
 
-          $outDir = Join-Path $env:RUNNER_TEMP ("monitoria-inno-signed-" + [guid]::NewGuid().ToString('N'))
+          $workDir = Join-Path $env:RUNNER_TEMP ("monitoria-inno-sign-" + [guid]::NewGuid().ToString('N'))
+          $outDir = Join-Path $workDir 'signed'
+          $inputExe = Join-Path $workDir 'monitoria-sign-input.exe'
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
           try {
+            # O Inno entrega o desinstalador temporário como *.tmp. O eSigner
+            # trabalha de forma mais previsível com extensão executável, então
+            # assinamos uma cópia .exe e devolvemos os mesmos bytes ao arquivo
+            # temporário original do Inno.
+            Copy-Item $FilePath $inputExe -Force
+
             $args = @(
               'sign',
               "-username=$env:ESIGNER_USERNAME",
               "-password=$env:ESIGNER_PASSWORD",
               "-credential_id=$env:ESIGNER_CREDENTIAL_ID",
               "-totp_secret=$env:ESIGNER_TOTP_SECRET",
-              "-input_file_path=$FilePath",
+              "-input_file_path=$inputExe",
               "-output_dir_path=$outDir",
               '-malware_block=true'
             )
@@ -283,16 +291,17 @@ jobs:
             & $tool @args
             if ($LASTEXITCODE -ne 0) { throw "CodeSignTool falhou com código $LASTEXITCODE." }
 
-            $signed = Join-Path $outDir ([IO.Path]::GetFileName($FilePath))
+            $signed = Join-Path $outDir ([IO.Path]::GetFileName($inputExe))
             if (-not (Test-Path $signed)) { throw "eSigner não devolveu o arquivo assinado." }
-            Copy-Item $signed $FilePath -Force
 
-            $sig = Get-AuthenticodeSignature $FilePath
+            $sig = Get-AuthenticodeSignature $signed
             if ($sig.Status -ne 'Valid') { throw "Assinatura inválida: $($sig.Status)" }
             if (-not $sig.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
+
+            Copy-Item $signed $FilePath -Force
           }
           finally {
-            Remove-Item $outDir -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
           }
           '@ | Set-Content -Path $wrapper -Encoding utf8
 
@@ -312,7 +321,11 @@ jobs:
             $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
             if (-not (Test-Path $wrapper)) { throw "Wrapper de assinatura do Inno não encontrado." }
 
-            $signCommand = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $wrapper + '" "$f"'
+            # No /S do Inno, $q é a sequência oficial para inserir aspas.
+            # $f já é substituído pelo próprio Inno pelo caminho do arquivo
+            # entre aspas. Não usamos \"...\" aqui porque o parser do ISCC
+            # transformava as aspas em barras, causando o erro de -File.
+            $signCommand = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
             & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
           }
           else {
