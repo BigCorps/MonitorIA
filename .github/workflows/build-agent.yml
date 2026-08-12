@@ -47,8 +47,6 @@ jobs:
       - name: Verificar TypeScript
         run: npx tsc --noEmit -p agent/tsconfig.json
 
-      # Os dois executáveis são gerados na mesma etapa de propósito. O Agent
-      # só pode passar ao autoteste com o cofre DPAPI ao lado dele.
       - name: Gerar Agent e componente de segurança
         shell: pwsh
         run: |
@@ -81,16 +79,10 @@ jobs:
         run: |
           $exe = Resolve-Path "dist/monitoria-agent.exe"
           $dpapi = Resolve-Path "dist/monitoria-dpapi.exe"
-          if ((Get-Item $exe).Length -lt 1000000) {
-            throw "Executável incompleto."
-          }
-          if ((Get-Item $dpapi).Length -lt 10000) {
-            throw "Componente de segurança incompleto."
-          }
+          if ((Get-Item $exe).Length -lt 1000000) { throw "Executável incompleto." }
+          if ((Get-Item $dpapi).Length -lt 10000) { throw "Componente de segurança incompleto." }
           & $exe self-test
           if ($LASTEXITCODE -ne 0) { throw "O autoteste falhou." }
-
-      # ------------------------------------------------------ dependências
 
       - name: Baixar e conferir FFmpeg
         shell: pwsh
@@ -104,10 +96,6 @@ jobs:
           }
 
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
-          # Build shared: ffmpeg.exe e ffprobe.exe compartilham as DLLs. Com
-          # os dois binários exigidos pela diretriz de descoberta, shared
-          # ocupa 43 MB comprimidos contra 66 MB de duas builds estáticas.
-          # ffplay não é usado e fica de fora.
           foreach ($name in @("ffmpeg.exe", "ffprobe.exe")) {
             $source = Get-ChildItem ffmpeg-tmp -Recurse -Filter $name | Select-Object -First 1
             if (-not $source) { throw "$name não encontrado no pacote do FFmpeg." }
@@ -119,8 +107,6 @@ jobs:
           $license = Get-ChildItem ffmpeg-tmp -Recurse -Filter LICENSE.txt | Select-Object -First 1
           Copy-Item $license.FullName build/ffmpeg/LICENSE.txt
 
-          # Registro da origem exata, para atender à obrigação de indicar o
-          # fonte correspondente do binário LGPL redistribuído.
           @"
           FFmpeg redistribuído sem modificação.
 
@@ -135,18 +121,10 @@ jobs:
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri $env:WINSW_URL -OutFile build/monitoria-service.exe
-
           $hash = (Get-FileHash build/monitoria-service.exe -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne $env:WINSW_SHA256) {
             throw "SHA256 do WinSW divergente. Esperado $env:WINSW_SHA256, obtido $hash."
           }
-
-      # -------------------------------------------------------- assinatura
-      #
-      # Os quatro segredos vêm do eSigner da SSL.com. Enquanto não existirem,
-      # todos os passos de assinatura são pulados e o build sai sem assinar,
-      # o que serve para testar na própria loja. No dia em que os segredos
-      # forem cadastrados, a assinatura passa a acontecer sozinha.
 
       - name: Verificar credenciais de assinatura
         id: signing
@@ -161,11 +139,8 @@ jobs:
           "enabled=$($enabled.ToString().ToLower())" | Out-File -Append $env:GITHUB_OUTPUT
 
           if ($enabled) {
-            # Os outros três não podem faltar. Antes, só USERNAME era
-            # conferido: com ele presente e os demais vazios, o passo de
-            # assinatura rodava e falhava lá na frente, com erro obscuro.
             $faltando = @()
-            if ([string]::IsNullOrWhiteSpace($env:ESIGNER_PASSWORD))      { $faltando += "ESIGNER_PASSWORD" }
+            if ([string]::IsNullOrWhiteSpace($env:ESIGNER_PASSWORD))       { $faltando += "ESIGNER_PASSWORD" }
             if ([string]::IsNullOrWhiteSpace($env:ESIGNER_CREDENTIAL_ID)) { $faltando += "ESIGNER_CREDENTIAL_ID" }
             if ([string]::IsNullOrWhiteSpace($env:ESIGNER_TOTP_SECRET))   { $faltando += "ESIGNER_TOTP_SECRET" }
             if ($faltando.Count -gt 0) {
@@ -175,65 +150,11 @@ jobs:
             return
           }
 
-          # Sem credenciais: em branch tudo bem, serve para testar. Em tag de
-          # release NÃO pode passar — um instalador sem assinatura publicado
-          # queima a reputação do SmartScreen no mesmo nome de arquivo.
           if ("${{ github.ref }}".StartsWith("refs/tags/agent-v")) {
             throw "Release em tag exige assinatura, e os segredos do eSigner não estão configurados."
           }
 
-          Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído." 
-
-      # O batch_sign do CodeSignTool recusa subpasta dentro do diretório de
-      # entrada ("Directory must not be present: ffmpeg") e também não sabe
-      # o que fazer com arquivo que não é executável, como os .txt da
-      # licença do FFmpeg.
-      #
-      # Por isso montamos uma pasta plana contendo só binários, assinamos
-      # tudo numa chamada, e devolvemos cada arquivo ao lugar de origem.
-      # Os nomes são únicos, então não há risco de um sobrescrever o outro.
-      # PASSO TEMPORARIO. Confere o FORMATO das credenciais sem nunca
-      # imprimir o valor. Remova depois que a assinatura funcionar.
-      - name: Conferir formato das credenciais
-        if: steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        env:
-          U: ${{ secrets.ESIGNER_USERNAME }}
-          P: ${{ secrets.ESIGNER_PASSWORD }}
-          C: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
-          T: ${{ secrets.ESIGNER_TOTP_SECRET }}
-        run: |
-          function Diagnosticar($nome, $valor) {
-            if (-not $valor) { Write-Host "$nome : VAZIO"; return }
-            $tam       = $valor.Length
-            $aparado   = $valor.Trim()
-            $espacoFim = $tam -ne $aparado.Length
-            $temEspaco = $valor -match '\s'
-            Write-Host ("{0,-14} tamanho={1,-4} espaco_no_meio_ou_ponta={2,-6} sobra_nas_bordas={3}" -f `
-              $nome, $tam, $temEspaco, $espacoFim)
-          }
-
-          Diagnosticar "USERNAME"      $env:U
-          Diagnosticar "PASSWORD"      $env:P
-          Diagnosticar "CREDENTIAL_ID" $env:C
-          Diagnosticar "TOTP_SECRET"   $env:T
-
-          Write-Host ""
-          # TOTP precisa ser base32: A-Z e 2-7, sem espaco.
-          if ($env:T -match '^[A-Z2-7]+=*$') {
-            Write-Host "TOTP_SECRET: formato base32 OK ($($env:T.Length) caracteres)"
-          } elseif ($env:T -match '^[0-9]{6}$') {
-            Write-Host "TOTP_SECRET: PROBLEMA - isto e o codigo de 6 digitos, nao a chave base."
-          } else {
-            Write-Host "TOTP_SECRET: PROBLEMA - fora do formato base32 (esperado so A-Z e 2-7)."
-          }
-
-          # Senha com caractere que o cmd.exe interpreta quebra a chamada.
-          if ($env:P -match '[&|<>^%"]') {
-            Write-Host "PASSWORD: ATENCAO - contem caractere especial que o Windows interpreta (& | < > ^ % aspas)."
-          } else {
-            Write-Host "PASSWORD: sem caractere problematico."
-          }
+          Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído."
 
       - name: Reunir binários para assinatura
         if: steps.signing.outputs.enabled == 'true'
@@ -245,13 +166,6 @@ jobs:
           Copy-Item build\ffmpeg\*.exe          sign-stage\ -Force
           Copy-Item build\ffmpeg\*.dll          sign-stage\ -Force
 
-          Write-Host "Arquivos que serao assinados:"
-          Get-ChildItem sign-stage | ForEach-Object {
-            Write-Host ("  {0}" -f $_.Name)
-          }
-
-      # Antivírus inspecionam os componentes, não só o instalador. Por isso
-      # assinamos também o FFmpeg e o serviço, e não apenas o Agent.
       - name: Assinar binários
         if: steps.signing.outputs.enabled == 'true'
         uses: sslcom/esigner-codesign@v1.3.2
@@ -276,8 +190,6 @@ jobs:
           Copy-Item sign-stage-signed\ffprobe.exe           build\ffmpeg\ -Force
           Copy-Item sign-stage-signed\*.dll                 build\ffmpeg\ -Force
 
-          # Conferir antes de embalar. Descobrir componente sem assinatura
-          # depois que o instalador ja foi publicado custa muito mais caro.
           $alvos = @(
             "build\monitoria-dpapi.exe",
             "build\monitoria-service.exe",
@@ -286,10 +198,7 @@ jobs:
           )
           foreach ($alvo in $alvos) {
             $status = (Get-AuthenticodeSignature $alvo).Status
-            Write-Host ("{0,-34} {1}" -f $alvo, $status)
-            if ($status -ne 'Valid') {
-              throw "Binario sem assinatura valida: $alvo ($status)"
-            }
+            if ($status -ne 'Valid') { throw "Binario sem assinatura valida: $alvo ($status)" }
           }
 
       - name: Assinar o executável do Agent
@@ -315,11 +224,6 @@ jobs:
           Write-Host "monitoria-agent.exe -> $status"
           if ($status -ne 'Valid') { throw "Agent sem assinatura valida: $status" }
 
-      # ------------------------------------------------------- instalador
-
-      # O runner do Windows já traz o Inno Setup. Fixar versão fazia o
-      # Chocolatey falhar por recusar rebaixar uma instalação mais nova.
-      # Aqui apenas localizamos o compilador, e só instalamos se faltar.
       - name: Localizar o Inno Setup
         id: inno
         shell: pwsh
@@ -343,32 +247,79 @@ jobs:
           & $iscc /? | Select-Object -First 1
           "path=$iscc" | Out-File -Append $env:GITHUB_OUTPUT
 
+      - name: Preparar assinatura do Inno Setup
+        if: steps.signing.outputs.enabled == 'true'
+        id: inno_sign
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CODE_SIGN_TOOL_PATH)) {
+            throw "CodeSignTool não ficou disponível após a assinatura dos binários."
+          }
+
+          $wrapper = Join-Path $env:RUNNER_TEMP "monitoria-inno-sign.ps1"
+          @'
+          param([Parameter(Mandatory=$true)][string]$FilePath)
+
+          $ErrorActionPreference = 'Stop'
+          $tool = Join-Path $env:CODE_SIGN_TOOL_PATH 'CodeSignTool.bat'
+          if (-not (Test-Path $tool)) { throw "CodeSignTool.bat não encontrado." }
+          if (-not (Test-Path $FilePath)) { throw "Arquivo para assinatura não encontrado: $FilePath" }
+
+          $outDir = Join-Path $env:RUNNER_TEMP ("monitoria-inno-signed-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+          try {
+            $args = @(
+              'sign',
+              "-username=$env:ESIGNER_USERNAME",
+              "-password=$env:ESIGNER_PASSWORD",
+              "-credential_id=$env:ESIGNER_CREDENTIAL_ID",
+              "-totp_secret=$env:ESIGNER_TOTP_SECRET",
+              "-input_file_path=$FilePath",
+              "-output_dir_path=$outDir",
+              '-malware_block=true'
+            )
+
+            & $tool @args
+            if ($LASTEXITCODE -ne 0) { throw "CodeSignTool falhou com código $LASTEXITCODE." }
+
+            $signed = Join-Path $outDir ([IO.Path]::GetFileName($FilePath))
+            if (-not (Test-Path $signed)) { throw "eSigner não devolveu o arquivo assinado." }
+            Copy-Item $signed $FilePath -Force
+
+            $sig = Get-AuthenticodeSignature $FilePath
+            if ($sig.Status -ne 'Valid') { throw "Assinatura inválida: $($sig.Status)" }
+            if (-not $sig.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
+          }
+          finally {
+            Remove-Item $outDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          '@ | Set-Content -Path $wrapper -Encoding utf8
+
+          "wrapper=$wrapper" | Out-File -Append $env:GITHUB_OUTPUT
+
       - name: Compilar o instalador
         shell: pwsh
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
-          & "${{ steps.inno.outputs.path }}" "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
+          $iscc = "${{ steps.inno.outputs.path }}"
+
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
+            if (-not (Test-Path $wrapper)) { throw "Wrapper de assinatura do Inno não encontrado." }
+
+            $signCommand = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + $wrapper + '" "$f"'
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
+          }
+          else {
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
+          }
+
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador." }
-
-      - name: Assinar o instalador
-        if: steps.signing.outputs.enabled == 'true'
-        uses: sslcom/esigner-codesign@v1.3.2
-        with:
-          command: sign
-          username: ${{ secrets.ESIGNER_USERNAME }}
-          password: ${{ secrets.ESIGNER_PASSWORD }}
-          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
-          file_path: ${{ github.workspace }}\dist\MonitorIA-Setup.exe
-          output_path: ${{ github.workspace }}\installer-signed
-          malware_block: true
-          environment_name: PROD
-
-      - name: Devolver o instalador assinado
-        if: steps.signing.outputs.enabled == 'true'
-        shell: pwsh
-        run: |
-          # O resumo e o upload leem de dist\, entao o assinado volta pra la.
-          Copy-Item installer-signed\MonitorIA-Setup.exe dist\ -Force
 
       - name: Resumo do build
         shell: pwsh
@@ -396,9 +347,6 @@ jobs:
           | Carimbo de tempo | $carimbo |
           "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
-          # Falhar aqui é melhor que descobrir no cliente. Sem carimbo de
-          # tempo, a assinatura para de valer quando o certificado vencer,
-          # e todo instalador já baixado passa a ser recusado.
           if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
             if ($sig -ne 'Valid') { throw "Assinatura invalida: $sig" }
             if (-not $assinatura.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
@@ -412,9 +360,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # A release só é criada em tag. O nome do arquivo é sempre o mesmo,
-      # para a URL /releases/latest/download/MonitorIA-Setup.exe permanecer
-      # estável e a reputação do SmartScreen se acumular num alvo só.
       - name: Publicar release
         if: startsWith(github.ref, 'refs/tags/agent-v')
         uses: softprops/action-gh-release@v2
