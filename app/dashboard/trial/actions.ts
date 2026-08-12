@@ -200,10 +200,12 @@ export async function startTrialAction() {
   }
 
   refreshTrialPaths();
-  trialRedirect(
-    "message",
-    result.duplicate === true
-      ? "O teste já estava em andamento."
-      : "Teste iniciado. A câmera será analisada durante as próximas 24 horas.",
+  redirect(
+    "/dashboard?message=" +
+      encodeURIComponent(
+        result.duplicate === true
+          ? "Seu teste gratuito já estava em andamento."
+          : "Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.",
+      ),
   );
 }

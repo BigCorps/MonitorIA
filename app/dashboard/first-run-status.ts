@@ -5,39 +5,39 @@ import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 
 export type FirstRunStage = 1 | 2 | 3 | 4 | 5;
+export type FirstRunPhase =
+  | "connect"
+  | "discover"
+  | "name"
+  | "profile"
+  | "commercial"
+  | "done";
 
 export type FirstRunStatus = {
-  /** 1 conectar, 2 procurar, 3 aguardar imagem, 4 explicar o ambiente, 5 pronto. */
   stage: FirstRunStage;
+  phase: FirstRunPhase;
   cameras: number;
   camerasOnline: number;
   firstCameraId: string | null;
 };
 
-/**
- * Consulta enxuta, feita para ser chamada de poucos em poucos segundos.
- *
- * Existe porque o cliente precisava atualizar a página à mão para ver que o
- * pareamento deu certo e, depois, para ver a primeira imagem chegar. Quem
- * está configurando não sabe que precisa apertar F5 — ele conclui que travou.
- */
 export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
 
-  const vazio: FirstRunStatus = {
+  const empty: FirstRunStatus = {
     stage: 1,
+    phase: "connect",
     cameras: 0,
     camerasOnline: 0,
     firstCameraId: null,
   };
 
-  if (!organization) return vazio;
+  if (!organization) return empty;
 
   const supabase = createAdminClient();
 
-  const [{ count: agentes }, { data: cameras }, { count: perfis }] =
-    await Promise.all([
+  const [agentsResult, camerasResult, profilesResult] = await Promise.all([
     supabase
       .from("agents")
       .select("id", { count: "exact", head: true })
@@ -45,38 +45,88 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
       .neq("status", "disabled"),
     supabase
       .from("cameras")
-      .select("id,status")
+      .select("id,status,setup_named_at")
       .eq("organization_id", organization.id)
       .order("created_at", { ascending: true }),
     supabase
       .from("camera_profiles")
-      .select("id", { count: "exact", head: true })
+      .select("id,camera_id", { count: "exact" })
       .eq("organization_id", organization.id)
       .eq("is_active", true),
   ]);
 
-  const lista = (cameras ?? []) as unknown as Record<string, unknown>[];
-  const online = lista.filter((row) => String(row.status ?? "") === "online");
+  const list = (camerasResult.data ?? []) as unknown as Record<string, unknown>[];
+  const online = list.filter((row) => String(row.status ?? "") === "online");
+  const firstCameraId = online[0]
+    ? String(online[0].id)
+    : list[0]
+      ? String(list[0].id)
+      : null;
 
-  const stage: FirstRunStage =
-    (agentes ?? 0) === 0
-      ? 1
-      : lista.length === 0
-        ? 2
-        : online.length === 0
-          ? 3
-          : (perfis ?? 0) === 0
-            ? 4
-            : 5;
+  if ((agentsResult.count ?? 0) === 0) {
+    return { ...empty, stage: 1, phase: "connect" };
+  }
+
+  if (list.length === 0) {
+    return {
+      stage: 2,
+      phase: "discover",
+      cameras: 0,
+      camerasOnline: 0,
+      firstCameraId: null,
+    };
+  }
+
+  const unnamed = list.filter((row) => !row.setup_named_at).length;
+  if (unnamed > 0) {
+    return {
+      stage: 3,
+      phase: "name",
+      cameras: list.length,
+      camerasOnline: online.length,
+      firstCameraId,
+    };
+  }
+
+  const activeProfileCameraIds = new Set(
+    (profilesResult.data ?? []).map((row) => String((row as { camera_id: string }).camera_id)),
+  );
+  const firstNamedCameraHasProfile =
+    firstCameraId !== null && activeProfileCameraIds.has(firstCameraId);
+
+  // O teste gratuito existente exige uma câmera online e com perfil ativo.
+  // Portanto o contexto visual vem antes de iniciar o relógio das 24 horas.
+  if (!firstNamedCameraHasProfile) {
+    return {
+      stage: 4,
+      phase: "profile",
+      cameras: list.length,
+      camerasOnline: online.length,
+      firstCameraId,
+    };
+  }
+
+  const { count: allowedCount } = await supabase
+    .from("camera_entitlements")
+    .select("camera_id", { count: "exact", head: true })
+    .eq("organization_id", organization.id)
+    .eq("monitoring_allowed", true);
+
+  if ((allowedCount ?? 0) === 0) {
+    return {
+      stage: 4,
+      phase: "commercial",
+      cameras: list.length,
+      camerasOnline: online.length,
+      firstCameraId,
+    };
+  }
 
   return {
-    stage,
-    cameras: lista.length,
+    stage: 5,
+    phase: "done",
+    cameras: list.length,
     camerasOnline: online.length,
-    firstCameraId: online[0]
-      ? String(online[0].id)
-      : lista[0]
-        ? String(lista[0].id)
-        : null,
+    firstCameraId,
   };
 }
