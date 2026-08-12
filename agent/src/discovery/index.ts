@@ -317,8 +317,18 @@ export async function discoverDeviceStreams(options: {
 
       // Agrupa por fonte de vídeo. Num gravador, cada câmera ligada nele é
       // uma fonte, e o número do canal sai da ordem em que elas aparecem.
-      const chave = profile.sourceToken ?? profile.token;
-      if (!canalPorFonte.has(chave)) canalPorFonte.set(chave, canalPorFonte.size + 1);
+      //
+      // Quando o firmware não declara a fonte, todos os perfis contam como
+      // canal 1. A versão anterior caía para o token do perfil, que é único
+      // por perfil — e isso fazia uma câmera IP comum, com perfil de alta e
+      // de baixa resolução, ser lida como duas câmeras diferentes. Sem fonte
+      // declarada não há como separar canal de qualidade, e supor que há é
+      // pior do que admitir que não há: gravador nessa situação ainda é
+      // atendido pela varredura de canais do plano B.
+      const chave = profile.sourceToken;
+      if (chave && !canalPorFonte.has(chave)) {
+        canalPorFonte.set(chave, canalPorFonte.size + 1);
+      }
 
       result.streams.push({
         rtspUrl,
@@ -328,8 +338,8 @@ export async function discoverDeviceStreams(options: {
         stream: (profile.height ?? 0) > 0 && (profile.height ?? 0) <= 720 ? "sub" : "main",
         level: "onvif_discovered",
         profileToken: profile.token,
-        channel: canalPorFonte.get(chave) ?? 1,
-        sourceKey: profile.sourceToken ?? null,
+        channel: chave ? (canalPorFonte.get(chave) ?? 1) : 1,
+        sourceKey: chave ?? null,
         validation,
       });
 
@@ -347,7 +357,11 @@ export async function discoverDeviceStreams(options: {
         .map((entry) => entry.channel),
     );
 
-    if (fontesComVideo.size > 0 && fontesComVideo.size >= canalPorFonte.size) {
+    // Sem fonte declarada, `canalPorFonte` fica vazio e um stream válido já
+    // encerra — que é o comportamento de sempre para câmera IP.
+    const fontesEsperadas = Math.max(canalPorFonte.size, 1);
+
+    if (fontesComVideo.size > 0 && fontesComVideo.size >= fontesEsperadas) {
       if (canalPorFonte.size > 1) {
         log(
           logger,

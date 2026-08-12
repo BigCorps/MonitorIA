@@ -57,7 +57,7 @@ import type {
   RemoteCamera,
 } from "./types.js";
 
-export const AGENT_VERSION = "0.10.7";
+export const AGENT_VERSION = "0.15.0";
 
 export type TokenState = "ok" | "locked" | "missing";
 
@@ -1385,10 +1385,18 @@ export class AgentService {
         report,
       );
 
-      const connectedHosts = await this.configuredHosts();
+      // Compara por endereço de stream. Enquanto isto comparava com o nome
+      // do host, a checagem era sempre falsa depois que configuredHosts()
+      // passou a guardar a URL inteira — e toda câmera funcionando aparecia
+      // na tela como se não estivesse conectada.
+      const configuradas = await this.configuredHosts();
       const devices = this.discovery.map((entry) => ({
         ...this.summarizeDiscovery(entry),
-        connected: connectedHosts.has(entry.device.host),
+        connected: entry.streams.some(
+          (stream) =>
+            stream.validation.success &&
+            configuradas.has(this.streamKey(stream.rtspUrl)),
+        ),
       }));
 
       await completeDiscoveryRun(config.apiBaseUrl, token, {
@@ -1640,7 +1648,7 @@ export class AgentService {
   }
 
   /**
-   * Fluxo usado pelo instalador 0.10.7.
+   * Fluxo usado pelo instalador 0.15.0.
    *
    * Uma credencial pode abrir várias câmeras. O usuário repete a mesma tela
    * somente quando algum grupo usa outro usuário ou outra senha. Cada host já

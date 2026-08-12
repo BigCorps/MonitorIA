@@ -18,7 +18,10 @@ test("onboarding salva local e primeira câmera sem pedir novamente", async () =
   assert.match(page, /name="monitoring_goals"/);
   assert.match(actions, /pendingCameraValues/);
   assert.match(actions, /\.from\("cameras"\)\.insert/);
-  assert.match(dashboard, /if \(!firstCameraOnline\)/);
+  // O guia deixou de sair de cena na primeira imagem: ele acompanha até a
+  // primeira análise ser aprovada, que é a etapa que faz o produto servir
+  // para alguma coisa.
+  assert.match(dashboard, /if \(firstRun\.stage < 5\)/);
   assert.match(dashboard, /FirstRunSetup/);
 });
 
@@ -29,7 +32,9 @@ test("primeiro acesso mostra download junto do código", async () => {
   ]);
 
   assert.match(guide, /Baixar MonitorIA para Windows/);
-  assert.match(guide, /PairingCodeGenerator/);
+  // O código de pareamento passou a nascer do local, não de uma câmera: sem
+  // isso o passo 1 exigiria cadastrar câmera antes de instalar.
+  assert.match(guide, /SitePairingCode/);
   assert.match(pairing, /\/api\/installer\/windows/);
 });
 

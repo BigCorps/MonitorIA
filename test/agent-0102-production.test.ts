@@ -8,13 +8,13 @@ import {
 import { frameDecodeArguments } from "../agent/src/discovery/validate.js";
 import { CAMERA_ANALYSIS_PLANS } from "../src/lib/analysis-plans.js";
 
-test("Agent e defaults de produção apontam para 0.10.7", async () => {
+test("Agent e defaults de produção apontam para 0.15.0", async () => {
   const packageJson = JSON.parse(
     await readFile(new URL("../agent/package.json", import.meta.url), "utf8"),
   ) as { version: string };
 
-  assert.equal(AGENT_VERSION, "0.10.7");
-  assert.equal(packageJson.version, "0.10.7");
+  assert.equal(AGENT_VERSION, "0.15.0");
+  assert.equal(packageJson.version, "0.15.0");
 });
 
 test("instalador só considera utilizável um pareamento autenticável", () => {
@@ -69,11 +69,13 @@ test("instalador Windows não exige terminal e inclui DPAPI nativo", async () =>
   ]);
 
   assert.match(installer, /setup --file/);
-  assert.match(installer, /ready-check/);
+  // `ready-check` conferia se havia câmera configurada. Não existe mais
+  // câmera no instalador: o que ele precisa confirmar é o pareamento.
+  assert.match(installer, /paired-check/);
   assert.match(installer, /monitoria-dpapi\.exe/);
   assert.doesNotMatch(page, /Unblock-File|powershell|Prompt de Comando/i);
   assert.doesNotMatch(windowsSecret, /powershell\.exe|EncodedCommand/i);
   assert.match(workflow, /agent\\native\\dpapi\.c/);
-  assert.match(workflow, /AGENT_VERSION: "0\.10\.7"/);
-  assert.match(linuxWorkflow, /AGENT_VERSION: "0\.10\.7"/);
+  assert.match(workflow, /AGENT_VERSION: "0\.15\.0"/);
+  assert.match(linuxWorkflow, /AGENT_VERSION: "0\.15\.0"/);
 });
