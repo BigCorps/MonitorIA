@@ -115,8 +115,7 @@ jobs:
 
           systemd-analyze verify "${OUT}/monitoria-agent.service"
 
-          printf '
-' | sudo "${OUT}/install.sh"
+          sudo "${OUT}/install.sh" </dev/null
 
           systemctl is-enabled --quiet monitoria-agent.service
           systemctl is-active --quiet monitoria-agent.service
