@@ -113,9 +113,9 @@ jobs:
           set -euo pipefail
           OUT="monitoria-agent-linux-${{ matrix.arch }}"
 
-          systemd-analyze verify "${OUT}/monitoria-agent.service"
-
           sudo "${OUT}/install.sh" </dev/null
+
+          systemd-analyze verify /etc/systemd/system/monitoria-agent.service
 
           systemctl is-enabled --quiet monitoria-agent.service
           systemctl is-active --quiet monitoria-agent.service
