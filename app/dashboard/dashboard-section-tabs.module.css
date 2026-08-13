@@ -99,6 +99,95 @@
   background: #b7c6d2;
 }
 
+.monitoringNotice {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 13px;
+  align-items: center;
+  margin: -8px 0 22px;
+  padding: 14px 16px;
+  border: 1px solid #d8e6e2;
+  border-radius: 14px;
+  background: #f7fbfa;
+}
+
+.monitoringNotice strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.monitoringNotice p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.noticeIndicator {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #ccfbf1;
+}
+
+.noticeIndicator i {
+  width: 9px;
+  height: 9px;
+  display: block;
+  border-radius: 50%;
+  background: #14b8a6;
+}
+
+.activeNotice .noticeIndicator i {
+  animation: monitoriaPulse 1.5s ease-in-out infinite;
+}
+
+.learningNotice {
+  border-color: #dfe5ee;
+  background: #f8fafc;
+}
+
+.learningNotice .noticeIndicator {
+  background: #e8eef5;
+}
+
+.learningNotice .noticeIndicator i {
+  background: #64748b;
+  animation: monitoriaPulse 1.8s ease-in-out infinite;
+}
+
+.neutralNotice {
+  border-color: #e2e8f0;
+  background: #fafafa;
+}
+
+.neutralNotice .noticeIndicator {
+  background: #eef2f7;
+}
+
+.neutralNotice .noticeIndicator i {
+  background: #94a3b8;
+}
+
+@keyframes monitoriaPulse {
+  0%, 100% {
+    opacity: 0.48;
+    transform: scale(0.72);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (max-width: 760px) {
   :global(.dashboard-content) {
     width: 100%;
@@ -130,5 +219,12 @@
     min-height: 42px;
     padding-inline: 12px;
     font-size: 11px;
+  }
+
+  .monitoringNotice {
+    align-items: start;
+    margin-top: -4px;
+    margin-bottom: 18px;
+    padding: 13px 14px;
   }
 }

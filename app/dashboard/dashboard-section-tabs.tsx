@@ -34,6 +34,91 @@ function itemIsActive(
   );
 }
 
+type MonitoringNotice = {
+  title: string;
+  text: string;
+  tone?: "active" | "learning" | "neutral";
+};
+
+function monitoringNotice(pathname: string): MonitoringNotice | null {
+  if (
+    pathname === "/dashboard/events" ||
+    pathname.startsWith("/dashboard/events?")
+  ) {
+    return {
+      title: "Monitoramento ativo · analisando novos acontecimentos",
+      text:
+        "Os acontecimentos não aparecem instantaneamente. O MonitorIA acompanha o movimento até ele terminar e depois faz a análise com IA. Normalmente um novo registro aparece em 1 a 3 minutos após o fim do acontecimento; movimentos longos podem levar um pouco mais.",
+      tone: "active",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/sessions")) {
+    return {
+      title: "Períodos são formados automaticamente",
+      text:
+        "O MonitorIA agrupa acontecimentos relacionados em períodos operacionais. No começo pode aparecer zero mesmo com acontecimentos já registrados; os primeiros períodos surgem conforme eventos relacionados começam a formar uma sequência.",
+      tone: "learning",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/routines")) {
+    return {
+      title: "Aprendendo a rotina da operação",
+      text:
+        "Rotinas não são inferidas a partir de poucas horas. O sistema compara dias e horários recorrentes e, por segurança, precisa de pelo menos 5 dias observados antes de considerar um padrão confiável.",
+      tone: "learning",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/processes")) {
+    return {
+      title: "Processos são reconstruídos a partir dos períodos",
+      text:
+        "Atendimentos, entregas, abertura, fechamento e outras sequências são montados a partir dos acontecimentos e períodos já observados. Zero no início significa que ainda não houve uma sequência suficiente para fechar um processo.",
+      tone: "learning",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/operational-profiles")) {
+    return {
+      title: "Padrões da operação estão em aprendizado",
+      text:
+        "O MonitorIA usa acontecimentos já analisados para aprender padrões recorrentes sem reconhecimento facial. Uma sugestão só começa a ganhar forma depois de múltiplas observações em dias diferentes e continua sujeita à revisão humana.",
+      tone: "learning",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/camera-health")) {
+    return {
+      title: "Funcionamento é verificado em segundo plano",
+      text:
+        "A imagem é medida periodicamente para observar luz, nitidez, obstrução, congelamento e mudança de enquadramento. As primeiras medições aparecem após o Agent enviar amostras e o sistema começar a formar uma referência.",
+      tone: "active",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/operations")) {
+    return {
+      title: "Zero alertas é um resultado normal",
+      text:
+        "Esta seção mostra situações que realmente pedem atenção. Se câmera, Agent e operação estiverem normais, o esperado é permanecer em zero; as verificações continuam rodando em segundo plano.",
+      tone: "active",
+    };
+  }
+
+  if (pathname.startsWith("/dashboard/intelligence/cross-camera")) {
+    return {
+      title: "Entre câmeras precisa de pelo menos duas câmeras",
+      text:
+        "As passagens aparecem somente quando o mesmo local possui observações compatíveis em câmeras diferentes. Com uma única câmera, zero é o comportamento correto. As hipóteses usam tempo e características visuais, sem reconhecimento facial.",
+      tone: "neutral",
+    };
+  }
+
+  return null;
+}
+
 export function DashboardSectionTabs({
   group,
   density = "comfortable",
@@ -41,35 +126,60 @@ export function DashboardSectionTabs({
 }: Props) {
   const pathname = usePathname();
   const navigation = dashboardNavigationGroups[group];
+  const notice = group === "monitoring" ? monitoringNotice(pathname) : null;
 
   return (
-    <nav
-      className={[
-        styles.tabs,
-        density === "compact" ? styles.compact : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      aria-label={navigation.label}
-      data-dashboard-tabs={group}
-    >
-      <div className={styles.scroller}>
-        {navigation.items.map((item) => {
-          const active = itemIsActive(pathname, item);
+    <>
+      <nav
+        className={[
+          styles.tabs,
+          density === "compact" ? styles.compact : "",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        aria-label={navigation.label}
+        data-dashboard-tabs={group}
+      >
+        <div className={styles.scroller}>
+          {navigation.items.map((item) => {
+            const active = itemIsActive(pathname, item);
 
-          return (
-            <Link
-              href={item.href}
-              key={item.id}
-              className={active ? styles.active : undefined}
-              aria-current={active ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+            return (
+              <Link
+                href={item.href}
+                key={item.id}
+                className={active ? styles.active : undefined}
+                aria-current={active ? "page" : undefined}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {notice ? (
+        <section
+          className={[
+            styles.monitoringNotice,
+            notice.tone === "learning"
+              ? styles.learningNotice
+              : notice.tone === "neutral"
+                ? styles.neutralNotice
+                : styles.activeNotice,
+          ].join(" ")}
+          aria-live="polite"
+        >
+          <span className={styles.noticeIndicator} aria-hidden="true">
+            <i />
+          </span>
+          <div>
+            <strong>{notice.title}</strong>
+            <p>{notice.text}</p>
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }

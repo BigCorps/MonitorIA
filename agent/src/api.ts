@@ -251,6 +251,31 @@ export async function sendCameraStatus(
   );
 }
 
+export async function sendCameraHealth(
+  baseUrl: string,
+  token: string,
+  cameraId: string,
+  body: JsonObject,
+) {
+  return requestJson<{
+    ok: true;
+    ignored?: boolean;
+    observationId?: string;
+  }>(
+    baseUrl,
+    `/api/agent/cameras/${encodeURIComponent(cameraId)}/health`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(body),
+    },
+    30_000,
+  );
+}
+
 export async function uploadSnapshot(
   baseUrl: string,
   token: string,

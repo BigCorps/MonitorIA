@@ -12,6 +12,7 @@ import {
   pairAgent,
   registerDiscoveredCamera,
   sendCameraStatus,
+  sendCameraHealth,
   sendHeartbeat,
   startCaptureSession,
   submitCameraEvent,
@@ -27,6 +28,7 @@ import {
 } from "./config.js";
 import { classifyCameraFailure, retryDelayMs } from "./camera-failure.js";
 import { captureFrame, resolveFfmpeg } from "./ffmpeg.js";
+import { captureCameraHealthSample } from "./health-metrics.js";
 import { IpcError, type IpcHandlerMap } from "./ipc-protocol.js";
 import { startIpcServer, type IpcServerHandle } from "./ipc-server.js";
 import { createLogger, logDiskUsage, type Logger } from "./logger.js";
@@ -269,6 +271,8 @@ export class AgentService {
   private serverDiscoveryRunId: string | null = null;
   /** Câmeras com recuperação de endereço em curso, para não repetir. */
   private readonly recovering = new Set<string>();
+  /** Última amostra de funcionamento enviada por câmera. */
+  private readonly lastHealthSampleAt = new Map<string, number>();
   private lastHeartbeatAt: string | null = null;
   private startedAt = new Date().toISOString();
 
@@ -713,6 +717,7 @@ export class AgentService {
       await this.stopRuntime(cameraId, "removida no painel");
       delete config.cameras[cameraId];
       this.cameraBackoff.delete(cameraId);
+      this.lastHealthSampleAt.delete(cameraId);
     }
 
     await saveConfig(config);
@@ -880,6 +885,49 @@ export class AgentService {
       }
     } finally {
       if (framePath) await rm(framePath, { force: true });
+    }
+  }
+
+  /**
+   * Mede o funcionamento visual sem usar modelo de IA.
+   *
+   * Captura uma amostra 160x90 em tons de cinza e calcula localmente
+   * brilho, contraste, nitidez, pixels escuros/claros e assinatura da grade.
+   * O backend ignora a amostra caso a inteligência esteja desativada.
+   */
+  private async sampleCameraHealth(camera: RemoteCamera) {
+    const config = this.config;
+    const token = this.token;
+    const ffmpegPath = this.ffmpegPath;
+
+    if (!config || !token || !ffmpegPath || this.unauthorized) return;
+
+    const previous = this.lastHealthSampleAt.get(camera.id) ?? 0;
+    if (Date.now() - previous < CAMERA_CHECK_INTERVAL_MS - 5_000) return;
+
+    const local = config.cameras[camera.id];
+    if (!local?.protectedRtsp) return;
+
+    try {
+      const rtspUrl = await this.vault.open(local.protectedRtsp);
+      const sample = await captureCameraHealthSample({
+        ffmpegPath,
+        rtspUrl,
+        source: previous ? "periodic" : "startup",
+      });
+
+      await sendCameraHealth(
+        config.apiBaseUrl,
+        token,
+        camera.id,
+        sample as unknown as Record<string, unknown>,
+      );
+
+      this.lastHealthSampleAt.set(camera.id, Date.now());
+    } catch (error) {
+      this.logger.warn(
+        `Falha na amostra de funcionamento de "${camera.name}": ${errorMessage(error)}`,
+      );
     }
   }
 
@@ -1096,6 +1144,7 @@ export class AgentService {
               calibration: runtime.monitor.calibrationSnapshot(),
             },
           });
+          await this.sampleCameraHealth(camera);
           continue;
         }
 
@@ -1103,6 +1152,7 @@ export class AgentService {
           camera,
           !config.cameras[camera.id]?.lastSnapshotUploadedAt,
         );
+        await this.sampleCameraHealth(camera);
       }
     } catch (error) {
       this.logger.warn(`Falha na verificação de câmeras: ${errorMessage(error)}`);
