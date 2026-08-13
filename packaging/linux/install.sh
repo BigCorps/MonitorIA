@@ -53,7 +53,7 @@ if [[ "$UNINSTALL" -eq 1 ]]; then
   exit 0
 fi
 
-for required in monitoria-agent ffmpeg ffprobe "$UNIT_NAME"; do
+for required in monitoria-agent ffmpeg ffprobe "$UNIT_NAME" lib; do
   [[ -e "${SOURCE_DIR}/${required}" ]] || die "Arquivo ausente no pacote: ${required}"
 done
 
@@ -65,10 +65,12 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
 fi
 
 echo "Instalando em ${PREFIX}..."
-install -d -m 0755 "$PREFIX" "${PREFIX}/ffmpeg"
+install -d -m 0755 "$PREFIX" "${PREFIX}/ffmpeg" "${PREFIX}/ffmpeg/lib"
 install -m 0755 "${SOURCE_DIR}/monitoria-agent" "${PREFIX}/monitoria-agent"
 install -m 0755 "${SOURCE_DIR}/ffmpeg" "${PREFIX}/ffmpeg/ffmpeg"
 install -m 0755 "${SOURCE_DIR}/ffprobe" "${PREFIX}/ffmpeg/ffprobe"
+cp -a "${SOURCE_DIR}/lib/." "${PREFIX}/ffmpeg/lib/"
+chmod -R a+rX "${PREFIX}/ffmpeg/lib"
 
 for extra in LICENSE.txt FFMPEG-ORIGEM.txt; do
   [[ -f "${SOURCE_DIR}/${extra}" ]] && install -m 0644 "${SOURCE_DIR}/${extra}" "${PREFIX}/ffmpeg/${extra}"

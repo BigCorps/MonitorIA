@@ -90,6 +90,8 @@ jobs:
 
           cp agent/dist/monitoria-agent "$OUT/"
           cp ffmpeg-tmp/bin/ffmpeg ffmpeg-tmp/bin/ffprobe "$OUT/"
+          mkdir -p "$OUT/lib"
+          cp -a ffmpeg-tmp/lib/. "$OUT/lib/"
           cp packaging/linux/monitoria-agent.service "$OUT/"
           cp packaging/linux/install.sh "$OUT/"
           chmod +x "$OUT/install.sh" "$OUT/monitoria-agent" "$OUT/ffmpeg" "$OUT/ffprobe"
@@ -126,8 +128,8 @@ jobs:
           test "$(stat -c '%a' /var/lib/monitoria)" = "700"
           test "$(stat -c '%U' /var/lib/monitoria)" = "monitoria"
 
-          /opt/monitoria/ffmpeg/ffmpeg -version | head -n 1
-          /opt/monitoria/ffmpeg/ffprobe -version | head -n 1
+          LD_LIBRARY_PATH=/opt/monitoria/ffmpeg/lib /opt/monitoria/ffmpeg/ffmpeg -version | head -n 1
+          LD_LIBRARY_PATH=/opt/monitoria/ffmpeg/lib /opt/monitoria/ffmpeg/ffprobe -version | head -n 1
 
           for _ in $(seq 1 30); do
             if sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status.txt 2>&1; then
