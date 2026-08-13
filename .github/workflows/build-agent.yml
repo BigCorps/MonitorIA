@@ -338,6 +338,16 @@ jobs:
 
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador." }
 
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
+            $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+            $signCommand = '$q' + $pwsh + '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DStoreBuild=1" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
+          } else {
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DStoreBuild=1" "installer\monitoria.iss"
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador Microsoft Store." }
+
       - name: Resumo do build
         shell: pwsh
         run: |
@@ -377,9 +387,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Publicar artefato Microsoft Store
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonitorIA-Store-Setup-${{ env.AGENT_VERSION }}
+          path: dist/MonitorIA-Store-Setup.exe
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Publicar release
         if: startsWith(github.ref, 'refs/tags/agent-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/MonitorIA-Setup.exe
+          files: |
+            dist/MonitorIA-Setup.exe
+            dist/MonitorIA-Store-Setup.exe
           fail_on_unmatched_files: true

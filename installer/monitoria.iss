@@ -48,7 +48,11 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 OutputDir=..\dist
+#ifdef StoreBuild
+OutputBaseFilename=MonitorIA-Store-Setup
+#else
 OutputBaseFilename=MonitorIA-Setup
+#endif
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMANumBlockThreads=4
