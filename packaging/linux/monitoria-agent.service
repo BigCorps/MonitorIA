@@ -6,6 +6,10 @@ Documentation=https://monitoria.cam
 After=network-online.target
 Wants=network-online.target
 
+# Limite de reinícios pertence à seção [Unit].
+StartLimitIntervalSec=3600
+StartLimitBurst=10
+
 [Service]
 Type=simple
 ExecStart=/opt/monitoria/monitoria-agent service
@@ -21,8 +25,6 @@ StateDirectoryMode=0700
 # Watchdog. Escalonamento evita laço apertado quando a falha é persistente.
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=3600
-StartLimitBurst=10
 
 # O desligamento fecha as sessões de captura no servidor e drena o que está
 # em voo. Mesmo prazo do WinSW no Windows.
