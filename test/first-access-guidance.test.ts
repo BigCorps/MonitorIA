@@ -7,17 +7,20 @@ import {
   installerUrlFor,
 } from "../src/lib/installer-data.js";
 
-test("onboarding salva local e primeira câmera sem pedir novamente", async () => {
+test("onboarding salva o local e deixa a câmera para depois da descoberta", async () => {
   const [page, actions, dashboard] = await Promise.all([
     readFile(new URL("../app/onboarding/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/onboarding/actions.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/dashboard/page.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /name="camera_name"/);
-  assert.match(page, /name="monitoring_goals"/);
-  assert.match(actions, /pendingCameraValues/);
-  assert.match(actions, /\.from\("cameras"\)\.insert/);
+  // A câmera não é mais criada antes da descoberta. O onboarding inicial
+  // salva somente empresa/local; nome e objetivo da câmera entram depois que
+  // o Agent encontra uma câmera real na rede.
+  assert.doesNotMatch(page, /name="camera_name"/);
+  assert.doesNotMatch(page, /name="monitoring_goals"/);
+  assert.doesNotMatch(actions, /pendingCameraValues/);
+  assert.doesNotMatch(actions, /\.from\("cameras"\)\.insert/);
   // O guia deixou de sair de cena na primeira imagem: ele acompanha até a
   // primeira análise ser aprovada, que é a etapa que faz o produto servir
   // para alguma coisa.

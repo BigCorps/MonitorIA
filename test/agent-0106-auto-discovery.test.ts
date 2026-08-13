@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("instalador 0.15.0 só pede o código de pareamento", async () => {
+test("instalador 0.15.1 só pede o código de pareamento", async () => {
   const [installer, cli] = await Promise.all([
     readFile(new URL("../installer/monitoria.iss", import.meta.url), "utf8"),
     readFile(new URL("../agent/src/index.ts", import.meta.url), "utf8"),
@@ -72,5 +72,5 @@ test("descoberta não deixa aparelho inválido bloquear a câmera correta", asyn
   assert.match(service, /alreadyConnected/);
   assert.match(discovery, /nonRtspPorts/);
   assert.match(discovery, /não respondeu como RTSP/);
-  assert.match(client, /DISCOVERY_RESPONSE_TIMEOUT_MS = 120_000/);
+  assert.match(client, /DISCOVERY_RESPONSE_TIMEOUT_MS = 75_000/);
 });
