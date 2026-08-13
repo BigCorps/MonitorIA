@@ -14,8 +14,9 @@ import path from "node:path";
 import { resolvePaths } from "./paths.js";
 import type { ClipUploadRequest } from "./types.js";
 
-const KEEP_BUFFER_MS = 120_000;
+const KEEP_BUFFER_MS = 15 * 60_000;
 const MAX_BUFFER_BYTES = 512 * 1024 * 1024;
+const MAX_CLIP_BYTES = 100 * 1024 * 1024;
 const SEGMENT_SECONDS = 3;
 const MIN_TS_SEGMENT_BYTES = 188;
 
@@ -374,8 +375,8 @@ export class CircularClipBuffer {
       throw new Error("O clipe remuxado está vazio ou incompleto.");
     }
 
-    if (outputStat.size > 25 * 1024 * 1024) {
-      throw new Error("O clipe ultrapassou 25 MB.");
+    if (outputStat.size > MAX_CLIP_BYTES) {
+      throw new Error("O clipe ultrapassou 100 MB.");
     }
 
     const cpuUsed = process.cpuUsage(cpuStarted);

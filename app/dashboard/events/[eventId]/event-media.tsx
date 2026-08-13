@@ -27,6 +27,15 @@ function bytesLabel(value: number | null) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function durationLabel(value: number | null) {
+  if (!value || !Number.isFinite(value)) return null;
+  const seconds = Math.max(0, Math.round(value));
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder ? `${minutes} min ${remainder} s` : `${minutes} min`;
+}
+
 export function EventMedia({
   invoiceSafeTitle,
   images,
@@ -35,6 +44,7 @@ export function EventMedia({
   timezone,
 }: Props) {
   const [tab, setTab] = useState<"images" | "clip">("images");
+  const [clipDurationSeconds, setClipDurationSeconds] = useState<number | null>(null);
 
   const frameLabel = (value: string) => {
     const labels: Record<string, string> = {
@@ -78,7 +88,7 @@ export function EventMedia({
               : "Clipe indisponível para este acontecimento"
           }
         >
-          Clipe de 15 s
+          Clipe
         </button>
       </div>
 
@@ -88,6 +98,12 @@ export function EventMedia({
             controls
             preload="metadata"
             playsInline
+            onLoadedMetadata={(event) => {
+              const duration = event.currentTarget.duration;
+              setClipDurationSeconds(
+                Number.isFinite(duration) && duration > 0 ? duration : null,
+              );
+            }}
             poster={
               images[0]
                 ? `/api/storage-assets/${images[0].id}`
@@ -104,6 +120,9 @@ export function EventMedia({
             <strong>Trecho do acontecimento</strong>
             <span>
               720p · H.264 · sem áudio
+              {durationLabel(clipDurationSeconds)
+                ? ` · ${durationLabel(clipDurationSeconds)}`
+                : ""}
               {bytesLabel(clip.byteSize)
                 ? ` · ${bytesLabel(clip.byteSize)}`
                 : ""}

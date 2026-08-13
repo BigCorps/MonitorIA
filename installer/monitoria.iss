@@ -1,7 +1,7 @@
 ; Instalador do MonitorIA Agent para Windows.
 ;
 ; Compilar com Inno Setup 6.3 ou superior:
-;   ISCC.exe /DAppVersion=0.15.1 installer\monitoria.iss
+;   ISCC.exe /DAppVersion=0.15.2 installer\monitoria.iss
 ;
 ; Para assinar, adicione ao comando:
 ;   /DSignCommand="<comando de assinatura>"

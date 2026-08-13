@@ -24,7 +24,7 @@ const CompletionSchema = z
       .string()
       .regex(/^[a-f0-9]{64}$/)
       .nullable(),
-    durationSeconds: z.number().min(0).max(60).nullable(),
+    durationSeconds: z.number().min(0).max(310).nullable(),
     generationMs: z.number().int().min(0).max(10 * 60 * 1000),
 
     // Compatibilidade com o Agent 0.10.0.
@@ -41,7 +41,7 @@ const CompletionSchema = z
       .optional()
       .default(0),
 
-    segmentsUsed: z.number().int().min(0).max(100),
+    segmentsUsed: z.number().int().min(0).max(160),
     errorCode: z.string().trim().max(100).nullable(),
     errorMessage: z.string().trim().max(1000).nullable(),
   })

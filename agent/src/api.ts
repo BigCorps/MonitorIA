@@ -425,7 +425,7 @@ export async function uploadClipToSignedUrl(
   body.append("cacheControl", "3600");
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120_000);
+  const timer = setTimeout(() => controller.abort(), 300_000);
 
   try {
     const response = await fetch(target, {

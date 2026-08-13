@@ -44,7 +44,7 @@ export const MONITORIA_CLIP_DURATION_SECONDS = 15;
  * preciso subir o buffer primeiro — e aí sobe também o disco temporário
  * usado no computador da loja. Não faça um sem o outro.
  */
-export const MONITORIA_CLIP_MAX_DURATION_SECONDS = 120;
+export const MONITORIA_CLIP_MAX_DURATION_SECONDS = 310;
 
 /** Margem antes do início do evento, para o clipe não começar cortado. */
 export const MONITORIA_CLIP_PRE_ROLL_SECONDS = 3;
@@ -58,7 +58,7 @@ export const MONITORIA_CLIP_RETENTION_DAYS = 30;
  * 25 MB continua suficiente. A 681 kbps — taxa real medida nos 391 clipes
  * já gravados — 120 segundos dão cerca de 15 MB.
  */
-export const MONITORIA_CLIP_MAX_BYTES = 25 * 1024 * 1024;
+export const MONITORIA_CLIP_MAX_BYTES = 100 * 1024 * 1024;
 
 export function expectedLongTermEvidenceCount(
   planCode: string | null | undefined,
