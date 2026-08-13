@@ -1,0 +1,1 @@
+Na raiz do repositório MonitorIA:\npython3 aplicar-linux-validacao.py\n\nDepois:\nnpm run check\nnpm test\n

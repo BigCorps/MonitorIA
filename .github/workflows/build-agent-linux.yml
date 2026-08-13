@@ -29,10 +29,12 @@ jobs:
             runner: ubuntu-latest
             bun_target: bun-linux-x64-baseline
             ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linux64-lgpl-shared-8.1.tar.xz
+            ffmpeg_sha256: e9144cae41096aba50d7c6caba0d15822ad04f9f3a97f394cecd7bb93eae68b8
           - arch: arm64
             runner: ubuntu-24.04-arm
             bun_target: bun-linux-aarch64
             ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linuxarm64-lgpl-shared-8.1.tar.xz
+            ffmpeg_sha256: 9279602b39d14c0446209b3b70f42b497d3edf8b252c926d3f342902d9357d02
 
     steps:
       - name: Checkout
@@ -67,15 +69,17 @@ jobs:
           chmod +x dist/monitoria-agent
           ./dist/monitoria-agent self-test
 
-      # O FFmpeg vem da mesma origem fixada do build Windows. A verificação
-      # de hash está pendente: preciso dos SHA256 dos pacotes Linux, que só
-      # consigo depois de baixá-los na primeira execução deste workflow.
-      - name: Baixar FFmpeg
+      - name: Baixar e conferir FFmpeg
         run: |
           set -euo pipefail
           BASE="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-01-13-21"
           curl -fsSL -o ffmpeg.tar.xz "${BASE}/${{ matrix.ffmpeg_asset }}"
-          echo "SHA256 baixado: $(sha256sum ffmpeg.tar.xz | cut -d' ' -f1)"
+          HASH="$(sha256sum ffmpeg.tar.xz | cut -d' ' -f1)"
+          echo "SHA256: ${HASH}"
+          test "${HASH}" = "${{ matrix.ffmpeg_sha256 }}" || {
+            echo "SHA256 divergente. Esperado ${{ matrix.ffmpeg_sha256 }}, obtido ${HASH}" >&2
+            exit 1
+          }
           mkdir -p ffmpeg-tmp && tar xf ffmpeg.tar.xz -C ffmpeg-tmp --strip-components=1
 
       - name: Montar o pacote
@@ -103,6 +107,55 @@ jobs:
 
           tar czf "${OUT}.tar.gz" "$OUT"
           echo "Pacote: $(du -h "${OUT}.tar.gz" | cut -f1)"
+
+      - name: Validar pacote Linux instalado
+        run: |
+          set -euo pipefail
+          OUT="monitoria-agent-linux-${{ matrix.arch }}"
+
+          systemd-analyze verify "${OUT}/monitoria-agent.service"
+
+          printf '
+' | sudo "${OUT}/install.sh"
+
+          systemctl is-enabled --quiet monitoria-agent.service
+          systemctl is-active --quiet monitoria-agent.service
+          test -x /opt/monitoria/monitoria-agent
+          test -x /opt/monitoria/ffmpeg/ffmpeg
+          test -x /opt/monitoria/ffmpeg/ffprobe
+          test -d /var/lib/monitoria
+          test "$(stat -c '%a' /var/lib/monitoria)" = "700"
+          test "$(stat -c '%U' /var/lib/monitoria)" = "monitoria"
+
+          /opt/monitoria/ffmpeg/ffmpeg -version | head -n 1
+          /opt/monitoria/ffmpeg/ffprobe -version | head -n 1
+
+          for _ in $(seq 1 30); do
+            if sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status.txt 2>&1; then
+              break
+            fi
+            sleep 0.5
+          done
+          cat /tmp/monitoria-status.txt
+          grep -q "MonitorIA Agent v${AGENT_VERSION}" /tmp/monitoria-status.txt
+          grep -q "Pareado: não" /tmp/monitoria-status.txt
+
+          sudo systemctl restart monitoria-agent.service
+          sleep 1
+          systemctl is-active --quiet monitoria-agent.service
+          sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status-after-restart.txt
+          grep -q "Pareado: não" /tmp/monitoria-status-after-restart.txt
+
+          sudo "${OUT}/install.sh" --uninstall
+
+          ! systemctl is-active --quiet monitoria-agent.service
+          ! systemctl is-enabled --quiet monitoria-agent.service 2>/dev/null
+          test ! -e /etc/systemd/system/monitoria-agent.service
+          test ! -e /opt/monitoria
+          test ! -e /var/lib/monitoria
+          ! id -u monitoria >/dev/null 2>&1
+
+          echo "Teste Linux completo aprovado para ${{ matrix.arch }}."
 
       - name: Publicar artefato
         uses: actions/upload-artifact@v4

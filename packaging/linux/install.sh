@@ -8,7 +8,7 @@
 #
 #   sudo ./install.sh                    instala e pergunta o código
 #   sudo ./install.sh --code 12345678    instala e pareia direto
-#   sudo ./install.sh --uninstall        remove tudo, preserva o pareamento
+#   sudo ./install.sh --uninstall        remove completamente o MonitorIA
 
 set -euo pipefail
 
@@ -40,14 +40,16 @@ if [[ "$UNINSTALL" -eq 1 ]]; then
   systemctl disable "$UNIT_NAME" 2>/dev/null || true
   rm -f "$UNIT_PATH"
   systemctl daemon-reload
+  systemctl reset-failed "$UNIT_NAME" 2>/dev/null || true
   rm -rf "$PREFIX"
+  rm -rf "$STATE_DIR"
 
-  # O pareamento e a entropia ficam. Reinstalar não deve obrigar a loja a
-  # gerar código novo — mesma decisão do desinstalador do Windows.
-  rm -rf "${STATE_DIR}/logs" "${STATE_DIR}/queue" "${STATE_DIR}/frames"
+  if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    userdel "$SERVICE_USER" 2>/dev/null || true
+  fi
 
-  echo "MonitorIA removido. O pareamento em ${STATE_DIR} foi preservado."
-  echo "Para apagar tudo: rm -rf ${STATE_DIR} && userdel ${SERVICE_USER}"
+  echo "MonitorIA removido completamente."
+  echo "Uma nova instalação exigirá novo pareamento."
   exit 0
 fi
 
