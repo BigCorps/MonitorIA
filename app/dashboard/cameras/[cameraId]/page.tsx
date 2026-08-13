@@ -10,7 +10,7 @@ import { DashboardSidebar } from "../../dashboard-sidebar";
 import { PairingCodeGenerator } from "../pairing-code-generator";
 import { CameraProfilePanel } from "./camera-profile-panel";
 import { MonitoringSettings } from "./monitoring-settings";
-
+import { OnboardingContextGate } from "./onboarding-context-gate";
 import { DashboardSectionTabs } from "../../dashboard-section-tabs";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +30,11 @@ const pairingLabels: Record<string, string> = {
 
 type Props = {
   params: Promise<{ cameraId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function CameraDetailPage({ params }: Props) {
-  const { cameraId } = await params;
+export default async function CameraDetailPage({ params, searchParams }: Props) {
+  const [{ cameraId }, query] = await Promise.all([params, searchParams]);
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
 
@@ -47,6 +48,58 @@ export default async function CameraDetailPage({ params }: Props) {
   if (!camera) notFound();
 
   const canManage = ["owner", "admin"].includes(organization.role);
+  const onboarding = query.onboarding === "1";
+  const profileReady = Boolean(profileWorkspace.latestProfile?.isActive);
+  const hasFrame = Boolean(
+    profileWorkspace.frame || profileWorkspace.referenceFrames.length,
+  );
+
+  if (onboarding) {
+    return (
+      <main className="dashboard-shell">
+        <DashboardSidebar
+          organizationName={organization.name}
+          userEmail={user.email}
+          active="cameras"
+        />
+
+        <section className="dashboard-content camera-dashboard-content">
+          <header className="dashboard-header">
+            <div>
+              <span className="dashboard-eyebrow">
+                PRIMEIRO ACESSO · PASSO 4 DE 5
+              </span>
+              <h1>Configure o contexto de {camera.name}</h1>
+              <p>
+                Primeiro aguardamos uma imagem real. Depois você explica o
+                ambiente e, ao aprovar, segue automaticamente para escolher
+                entre teste grátis e contratação.
+              </p>
+            </div>
+
+            <Link href="/dashboard" className="back-link">
+              ← Voltar ao primeiro acesso
+            </Link>
+          </header>
+
+          <OnboardingContextGate
+            cameraName={camera.name}
+            hasFrame={hasFrame}
+            profileReady={profileReady}
+          />
+
+          {hasFrame && !profileReady ? (
+            <CameraProfilePanel
+              cameraId={camera.id}
+              cameraStatus={camera.status}
+              canManage={canManage}
+              workspace={profileWorkspace}
+            />
+          ) : null}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="dashboard-shell">
@@ -90,26 +143,11 @@ export default async function CameraDetailPage({ params }: Props) {
             </div>
 
             <dl className="camera-detail-list">
-              <div>
-                <dt>Local</dt>
-                <dd>{camera.siteName}</dd>
-              </div>
-              <div>
-                <dt>Plano</dt>
-                <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
-              </div>
-              <div>
-                <dt>Frequência de observação</dt>
-                <dd>{camera.captureIntervalSeconds}s</dd>
-              </div>
-              <div>
-                <dt>Intervalo do resumo</dt>
-                <dd>{camera.consolidationIntervalSeconds}s</dd>
-              </div>
-              <div>
-                <dt>Status da câmera</dt>
-                <dd>{camera.status}</dd>
-              </div>
+              <div><dt>Local</dt><dd>{camera.siteName}</dd></div>
+              <div><dt>Plano</dt><dd>{planLabels[camera.planCode] ?? camera.planCode}</dd></div>
+              <div><dt>Frequência de observação</dt><dd>{camera.captureIntervalSeconds}s</dd></div>
+              <div><dt>Intervalo do resumo</dt><dd>{camera.consolidationIntervalSeconds}s</dd></div>
+              <div><dt>Status da câmera</dt><dd>{camera.status}</dd></div>
             </dl>
 
             <div className="camera-goals-list">
@@ -135,9 +173,7 @@ export default async function CameraDetailPage({ params }: Props) {
 
               <span
                 className={
-                  camera.pairingStatus === "paired"
-                    ? "online-chip"
-                    : "status-chip"
+                  camera.pairingStatus === "paired" ? "online-chip" : "status-chip"
                 }
               >
                 {camera.pairingStatus === "paired" ? <i /> : null}

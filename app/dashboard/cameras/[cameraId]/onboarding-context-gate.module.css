@@ -1,0 +1,118 @@
+.waitingCard,
+.readyCard,
+.successCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 22px;
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+}
+
+.waitingCopy,
+.readyCard > div,
+.successCard > div {
+  display: grid;
+  gap: 5px;
+}
+
+.waitingCopy > span,
+.readyCard > div > span,
+.successCard > div > span {
+  color: #0fba9d;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+
+.waitingCopy h2,
+.successCard h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.readyCard strong {
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.waitingCopy p,
+.readyCard p,
+.successCard p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.waitingCopy small {
+  color: #94a3b8;
+}
+
+.waitingCard button,
+.successCard button {
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.successCard button {
+  border-color: transparent;
+  background: #47d7bf;
+  color: #06201b;
+}
+
+.waitingCard button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.spinner {
+  width: 38px;
+  height: 38px;
+  border: 4px solid #dbe3ee;
+  border-top-color: #2dd4bf;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+.readyIcon,
+.successIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .waitingCard,
+  .readyCard,
+  .successCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .waitingCard button,
+  .successCard button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

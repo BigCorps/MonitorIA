@@ -20,7 +20,10 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
     .order("created_at", { ascending: true });
 
   if (error) {
-    redirect("/dashboard/cameras/setup?error=" + encodeURIComponent("Não foi possível carregar as câmeras."));
+    redirect(
+      "/dashboard/cameras/setup?error=" +
+        encodeURIComponent("Não foi possível carregar as câmeras."),
+    );
   }
 
   const list = cameras ?? [];
@@ -32,15 +35,25 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
   }));
 
   if (names.some((camera) => camera.name.length < 2 || camera.name.length > 160)) {
-    redirect("/dashboard/cameras/setup?error=" + encodeURIComponent("Dê um nome de 2 a 160 caracteres para cada câmera."));
+    redirect(
+      "/dashboard/cameras/setup?error=" +
+        encodeURIComponent("Dê um nome de 2 a 160 caracteres para cada câmera."),
+    );
   }
 
-  const normalized = names.map((camera) => camera.name.toLocaleLowerCase("pt-BR"));
+  const normalized = names.map((camera) =>
+    camera.name.toLocaleLowerCase("pt-BR"),
+  );
+
   if (new Set(normalized).size !== normalized.length) {
-    redirect("/dashboard/cameras/setup?error=" + encodeURIComponent("Use nomes diferentes para identificar cada câmera."));
+    redirect(
+      "/dashboard/cameras/setup?error=" +
+        encodeURIComponent("Use nomes diferentes para identificar cada câmera."),
+    );
   }
 
   const now = new Date().toISOString();
+
   for (const camera of names) {
     const { error: updateError } = await supabase
       .from("cameras")
@@ -50,7 +63,10 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
 
     if (updateError) {
       console.error("Falha ao nomear câmera:", updateError.message);
-      redirect("/dashboard/cameras/setup?error=" + encodeURIComponent("Não foi possível salvar todos os nomes. Tente novamente."));
+      redirect(
+        "/dashboard/cameras/setup?error=" +
+          encodeURIComponent("Não foi possível salvar todos os nomes. Tente novamente."),
+      );
     }
   }
 
@@ -59,8 +75,5 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
   revalidatePath("/dashboard/trial");
   revalidatePath("/dashboard/plans");
 
-  redirect(
-    "/dashboard?message=" +
-      encodeURIComponent("Câmeras identificadas. Agora explique o que a primeira câmera está vendo."),
-  );
+  redirect(`/dashboard/cameras/${names[0].id}?onboarding=1`);
 }

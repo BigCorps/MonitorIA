@@ -79,7 +79,11 @@ export async function FirstRunSetup({
                   <div>
                     <strong>{item.title}</strong>
                     <small>
-                      {done ? "Concluído" : index === currentIndex ? "Faça agora" : "Depois"}
+                      {done
+                        ? "Concluído"
+                        : index === currentIndex
+                          ? "Faça agora"
+                          : "Depois"}
                     </small>
                   </div>
                 </article>
@@ -168,28 +172,28 @@ export async function FirstRunSetup({
                 <span>PASSO 4 DE 5</span>
                 <h2>Explique o que a câmera está vendo</h2>
                 <p>
-                  A descoberta já conseguiu testar a imagem. Agora conte ao
-                  MonitorIA onde ficam funcionários, clientes, caixa, entrada e
-                  o que deve ser observado. Isso deixa a câmera pronta tanto
-                  para o teste gratuito quanto para um plano pago.
+                  Primeiro aguardamos uma imagem real da câmera. Assim que ela
+                  chegar, a tela de contexto é liberada automaticamente para você
+                  explicar funcionários, clientes, caixa, entrada e o que deve ser
+                  observado.
                 </p>
               </div>
 
               <div className={styles.firstRunActions}>
                 {firstCameraId ? (
                   <Link
-                    href={`/dashboard/cameras/${firstCameraId}`}
+                    href={`/dashboard/cameras/${firstCameraId}?onboarding=1`}
                     className="panel-primary-action"
                   >
-                    Explicar o que essa câmera vê
+                    Configurar contexto da câmera
                   </Link>
                 ) : null}
               </div>
 
               <FirstRunWaiting
                 stage={4}
-                waitingFor="Esperando o perfil da câmera ser aprovado"
-                detail="Depois da aprovação, você escolherá entre testar por 24 horas ou contratar."
+                waitingFor="Esperando o contexto da câmera ser aprovado"
+                detail="Depois da aprovação, você seguirá automaticamente para escolher entre teste grátis e contratação."
               />
             </div>
           ) : null}
