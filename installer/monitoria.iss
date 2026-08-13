@@ -1,7 +1,7 @@
 ; Instalador do MonitorIA Agent para Windows.
 ;
 ; Compilar com Inno Setup 6.3 ou superior:
-;   ISCC.exe /DAppVersion=0.15.2 installer\monitoria.iss
+;   ISCC.exe /DAppVersion=0.15.3 installer\monitoria.iss
 ;
 ; Para assinar, adicione ao comando:
 ;   /DSignCommand="<comando de assinatura>"
@@ -86,19 +86,34 @@ Filename: "{app}\monitoria-service.exe"; Parameters: "install"; \
 
 
 [UninstallRun]
+; Primeiro pede encerramento limpo para o serviço e para o Agent.
 Filename: "{app}\monitoria-service.exe"; Parameters: "stop"; \
   Flags: runhidden waituntilterminated; RunOnceId: "StopService"
+
+; Em alguns computadores o wrapper retorna antes de o processo-filho liberar
+; monitoria-agent.exe/FFmpeg. Mata somente a árvore iniciada pelo Agent para
+; evitar que arquivos em uso sobrevivam à desinstalação.
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /T /IM monitoria-agent.exe"; \
+  Flags: runhidden waituntilterminated; RunOnceId: "KillAgentTree"
 
 Filename: "{app}\monitoria-service.exe"; Parameters: "uninstall"; \
   Flags: runhidden waituntilterminated; RunOnceId: "RemoveService"
 
+; Fallback idempotente: se o wrapper não removeu o registro do SCM,
+; o Windows recebe uma segunda solicitação direta.
+Filename: "{sys}\sc.exe"; Parameters: "delete MonitorIAAgent"; \
+  Flags: runhidden waituntilterminated; RunOnceId: "DeleteServiceFallback"
+
 [UninstallDelete]
-; Os logs e a fila são apagados. A configuração pareada em agent.json e a
-; entropia em machine.key permanecem de propósito: reinstalar não deve
-; obrigar a loja a gerar novo código de pareamento.
-Type: filesandordirs; Name: "{commonappdata}\MonitorIA\logs"
-Type: filesandordirs; Name: "{commonappdata}\MonitorIA\queue"
-Type: filesandordirs; Name: "{commonappdata}\MonitorIA\frames"
+; Desinstalar significa remover também todo o estado local. Isso evita deixar
+; token pareado, chave de máquina, fila, logs ou segmentos temporários de vídeo
+; no computador. Uma futura reinstalação começa limpa e exige novo pareamento.
+Type: filesandordirs; Name: "{commonappdata}\MonitorIA"
+
+; O Inno Setup remove automaticamente os arquivos que instalou. Esta limpeza
+; adicional cobre arquivos residuais que tenham sido criados/alterados em
+; execução ou que tenham ficado bloqueados em uma tentativa anterior.
+Type: filesandordirs; Name: "{app}"
 
 [Code]
 var

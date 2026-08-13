@@ -59,7 +59,7 @@ import type {
   RemoteCamera,
 } from "./types.js";
 
-export const AGENT_VERSION = "0.15.2";
+export const AGENT_VERSION = "0.15.3";
 
 export type TokenState = "ok" | "locked" | "missing";
 

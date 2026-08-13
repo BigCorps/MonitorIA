@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "0.15.2"
+  AGENT_VERSION: "0.15.3"
 
   # Dependências fixadas por hash. Nada de "latest": um binário que muda
   # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
