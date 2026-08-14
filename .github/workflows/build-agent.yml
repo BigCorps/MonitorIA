@@ -17,6 +17,13 @@ permissions:
 env:
   AGENT_VERSION: "0.15.3"
 
+  # Razao social exata da conta do Partner Center e do certificado OV da
+  # SSL.com. Nao e erro de digitacao: o registro da empresa termina em LTA.
+  # Este valor precisa continuar identico em tres lugares — aqui,
+  # installer/monitoria.iss (AppPublisher) e o campo "Nome de exibicao do
+  # editor" no Partner Center.
+  PUBLISHER_NAME: "BIGCORPS TECNOLOGIA LTA"
+
   # Dependências fixadas por hash. Nada de "latest": um binário que muda
   # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
   # do zero a cada troca silenciosa.
@@ -350,33 +357,86 @@ jobs:
 
       - name: Resumo do build
         shell: pwsh
+        env:
+          EDITOR_ESPERADO: ${{ env.PUBLISHER_NAME }}
         run: |
-          $setup = Get-Item dist\MonitorIA-Setup.exe
-          $mb = [math]::Round($setup.Length / 1MB, 1)
-          $assinatura = Get-AuthenticodeSignature $setup.FullName
-          $sig = $assinatura.Status
-          $editor = if ($assinatura.SignerCertificate) {
-            $assinatura.SignerCertificate.Subject
-          } else { "(sem assinatura)" }
-          $carimbo = if ($assinatura.TimeStamperCertificate) { "sim" } else { "NAO" }
+          # Os dois instaladores são verificados. Antes só o retail passava por
+          # aqui, e o MonitorIA-Store-Setup.exe — o único que a Microsoft baixa
+          # e executa — saía do CI sem nenhuma checagem de assinatura.
+          $alvos = @(
+            @{ Nome = "Retail"; Caminho = "dist\MonitorIA-Setup.exe" },
+            @{ Nome = "Microsoft Store"; Caminho = "dist\MonitorIA-Store-Setup.exe" }
+          )
 
-          Write-Host "Instalador : $mb MB"
-          Write-Host "Assinatura : $sig"
-          Write-Host "Editor     : $editor"
-          Write-Host "Carimbo    : $carimbo"
+          $assinando = '${{ steps.signing.outputs.enabled }}' -eq 'true'
+          $falhas = @()
 
           @"
-          | Item | Valor |
-          |---|---|
-          | Instalador | **$mb MB** |
-          | Assinatura | **$sig** |
-          | Editor | $editor |
-          | Carimbo de tempo | $carimbo |
+          | Instalador | Tamanho | Assinatura | Carimbo | SHA256 |
+          |---|---|---|---|---|
           "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
-          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
-            if ($sig -ne 'Valid') { throw "Assinatura invalida: $sig" }
-            if (-not $assinatura.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
+          foreach ($alvo in $alvos) {
+            if (-not (Test-Path $alvo.Caminho)) {
+              $falhas += "$($alvo.Nome): arquivo nao gerado ($($alvo.Caminho))"
+              continue
+            }
+
+            $arquivo = Get-Item $alvo.Caminho
+            $mb = [math]::Round($arquivo.Length / 1MB, 1)
+            $hash = (Get-FileHash $arquivo.FullName -Algorithm SHA256).Hash.ToLower()
+            $assinatura = Get-AuthenticodeSignature $arquivo.FullName
+            $status = $assinatura.Status
+            $editor = if ($assinatura.SignerCertificate) {
+              $assinatura.SignerCertificate.Subject
+            } else { "(sem assinatura)" }
+            $carimbo = if ($assinatura.TimeStamperCertificate) { "sim" } else { "NAO" }
+
+            Write-Host "== $($alvo.Nome) =="
+            Write-Host "  Arquivo   : $($arquivo.Name) ($mb MB)"
+            Write-Host "  Assinatura: $status"
+            Write-Host "  Editor    : $editor"
+            Write-Host "  Carimbo   : $carimbo"
+            Write-Host "  SHA256    : $hash"
+
+            "| $($alvo.Nome) | $mb MB | $status | $carimbo | ``$hash`` |" |
+              Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+            if (-not $assinando) { continue }
+
+            if ($status -ne 'Valid') {
+              $falhas += "$($alvo.Nome): assinatura invalida ($status)"
+            }
+
+            if (-not $assinatura.TimeStamperCertificate) {
+              $falhas += "$($alvo.Nome): assinatura sem carimbo de tempo"
+            }
+
+            # O Partner Center compara o editor da assinatura com o publisher
+            # display name da conta. Divergencia aqui reprova a certificacao,
+            # e descobrir isso so depois do envio custa dias.
+            if ($assinatura.SignerCertificate -and
+                $assinatura.SignerCertificate.Subject -notmatch [regex]::Escape($env:EDITOR_ESPERADO)) {
+              $falhas += "$($alvo.Nome): editor '$editor' nao contem '$($env:EDITOR_ESPERADO)'"
+            }
+
+            # Certificado prestes a vencer gera build que nao da para
+            # ressubmeter. Trinta dias e o piso para renovar com folga.
+            $expira = $assinatura.SignerCertificate.NotAfter
+            if ($expira -and $expira -lt (Get-Date).AddDays(30)) {
+              $falhas += "$($alvo.Nome): certificado expira em $($expira.ToString('yyyy-MM-dd'))"
+            }
+          }
+
+          if ($falhas.Count -gt 0) {
+            $texto = $falhas -join "`n  - "
+            @"
+
+          **Falhas de validacao:**
+
+          - $($falhas -join "`n- ")
+          "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
+            throw "Validacao do instalador falhou:`n  - $texto"
           }
 
       - name: Publicar artefato

@@ -61,6 +61,38 @@ export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
     "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-arm64.tar.gz",
 };
 
+/**
+ * URL do instalador entregue à Microsoft Store.
+ *
+ * Diferente do painel, aqui NÃO se usa `releases/latest/download`. A Microsoft
+ * exige um binário imutável: a URL submetida é baixada durante a certificação
+ * e continua sendo baixada por cada usuário que instalar pela Store. Se o
+ * conteúdo daquele endereço mudar, o app é removido.
+ *
+ * `latest` aponta para a release mais recente e muda sozinho na próxima tag —
+ * é exatamente o que a Store proíbe. Por isso a tag entra na URL.
+ *
+ * Cada versão nova exige uma submissão nova no Partner Center com a URL nova.
+ * A URL da versão anterior deve permanecer no ar até a nova ser publicada.
+ */
+export const STORE_INSTALLER_FILENAME = "MonitorIA-Store-Setup.exe";
+
+export function storeInstallerUrlFor(version: string): string {
+  const limpa = version.trim().replace(/^v/i, "");
+
+  if (!/^\d+\.\d+\.\d+$/.test(limpa)) {
+    throw new Error(
+      `Versão inválida para a URL da Microsoft Store: "${version}". ` +
+        `Use o formato X.Y.Z, sem "latest" e sem prefixo.`,
+    );
+  }
+
+  return (
+    "https://github.com/BigCorps/MonitorIA/releases/download/" +
+    `agent-v${limpa}/${STORE_INSTALLER_FILENAME}`
+  );
+}
+
 const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
   windows: "Windows 10/11 · 64 bits",
   "linux-x64": "Linux · x86_64",
