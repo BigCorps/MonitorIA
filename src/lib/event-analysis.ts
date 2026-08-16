@@ -15,11 +15,43 @@ import type {
 } from "@/src/contracts/visual-state";
 import { normalizeVisualStateObservations } from "@/src/vision/visual-state";
 
+export const EVENT_REVIEW_CONFIDENCE_THRESHOLD = 0.35;
+
 function allowedZoneIds(
   values: string[],
   allowed: ReadonlySet<string>,
 ): string[] {
   return [...new Set(values.filter((value) => allowed.has(value)))];
+}
+
+function uniqueReviewReasons(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function applyConfidenceReviewGuard(
+  event: AnalyzedEvent,
+): AnalyzedEvent {
+  if (event.primaryEventType === "no_relevant_change") {
+    return event;
+  }
+
+  if (event.confidence >= EVENT_REVIEW_CONFIDENCE_THRESHOLD) {
+    return event;
+  }
+
+  const reviewReasons = uniqueReviewReasons([
+    ...event.reviewReasons,
+    "low_event_confidence",
+    ...(event.confidence === 0
+      ? ["zero_event_confidence"]
+      : []),
+  ]);
+
+  return AnalyzedEventSchema.parse({
+    ...event,
+    requiresReview: true,
+    reviewReasons,
+  });
 }
 
 type LegacyPerson = Omit<
@@ -60,7 +92,7 @@ export function normalizeAnalyzedEventZones(
   allowed: ReadonlySet<string>,
   visualEntities: CameraVisualEntity[] = [],
 ): AnalyzedEvent {
-  return AnalyzedEventSchema.parse({
+  const normalized = AnalyzedEventSchema.parse({
     ...event,
     zoneIds: allowedZoneIds(event.zoneIds, allowed),
     observations: event.observations.map((observation) => ({
@@ -98,4 +130,6 @@ export function normalizeAnalyzedEventZones(
     })),
     sceneComplexity: event.sceneComplexity ?? EmptySceneComplexity,
   });
+
+  return applyConfidenceReviewGuard(normalized);
 }
