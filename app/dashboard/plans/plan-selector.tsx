@@ -29,18 +29,24 @@ type Props = {
   canManage: boolean;
 };
 
-function SubmitButton() {
+function SubmitButton({
+  disabled,
+}: {
+  disabled: boolean;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <button
       className={styles.submitButton}
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
     >
       {pending
         ? "Preparando fatura..."
-        : "Salvar configuração e preparar fatura"}
+        : disabled
+          ? "Escolha pelo menos uma câmera"
+          : "Salvar configuração e preparar fatura"}
     </button>
   );
 }
@@ -94,6 +100,17 @@ function planFeatures(plan: CommercialPlan) {
   return features;
 }
 
+function canExcludeSubscription(
+  subscription: CameraSubscriptionSummary | undefined,
+) {
+  if (!subscription) return true;
+
+  return [
+    "pending_payment",
+    "cancelled",
+  ].includes(subscription.status);
+}
+
 export function PlanSelector({
   cameras,
   plans,
@@ -113,7 +130,7 @@ export function PlanSelector({
   );
 
   const [selection, setSelection] = useState<
-    Record<string, CommercialPlanCode>
+    Record<string, CommercialPlanCode | null>
   >(() =>
     Object.fromEntries(
       cameras.map((camera) => [
@@ -124,28 +141,38 @@ export function PlanSelector({
     ),
   );
 
+  const includedCameras = cameras.filter(
+    (camera) => selection[camera.id] !== null,
+  );
+
   const pricing = useMemo(
     () =>
       calculateVolumePricing({
-        selections: cameras.map((camera) => ({
-          cameraId: camera.id,
-          cameraName: camera.name,
-          planCode:
-            selection[camera.id] ??
-            (camera.planCode as CommercialPlanCode),
-        })),
+        selections: cameras.flatMap((camera) => {
+          const planCode = selection[camera.id];
+          if (!planCode) return [];
+
+          return [{
+            cameraId: camera.id,
+            cameraName: camera.name,
+            planCode,
+          }];
+        }),
         plans,
         tiers,
       }),
     [cameras, plans, selection, tiers],
   );
 
-  const payload = cameras.map((camera) => ({
-    cameraId: camera.id,
-    planCode:
-      selection[camera.id] ??
-      (camera.planCode as CommercialPlanCode),
-  }));
+  const payload = cameras.flatMap((camera) => {
+    const planCode = selection[camera.id];
+    if (!planCode) return [];
+
+    return [{
+      cameraId: camera.id,
+      planCode,
+    }];
+  });
 
   if (!cameras.length) {
     return (
@@ -164,7 +191,23 @@ export function PlanSelector({
     <>
       <section className={styles.planGrid}>
         {plans.map((plan) => (
-          <article className={styles.planCard} key={plan.code}>
+          <article
+            className={styles.planCard}
+            key={plan.code}
+            style={
+              plan.code === "intensive"
+                ? {
+                    borderColor: "#9edfc8",
+                    boxShadow: "0 16px 42px rgba(24, 129, 91, 0.13)",
+                  }
+                : plan.code === "standard"
+                  ? {
+                      borderColor: "#e0e7ef",
+                      boxShadow: "0 12px 34px rgba(15, 31, 52, 0.05)",
+                    }
+                  : undefined
+            }
+          >
             <span className={styles.planEyebrow}>
               {plan.code === "basic"
                 ? "ENTRADA ACESSÍVEL"
@@ -200,22 +243,46 @@ export function PlanSelector({
               <h2>Escolha o plano de cada câmera</h2>
             </div>
             <small>
-              {cameras.length}{" "}
+              {includedCameras.length} de {cameras.length}{" "}
               {cameras.length === 1
-                ? "câmera cadastrada"
-                : "câmeras cadastradas"}
+                ? "câmera incluída"
+                : "câmeras incluídas"}
             </small>
           </div>
+
+          <p
+            style={{
+              margin: "10px 0 0",
+              color: "#6f7e91",
+              fontSize: "12px",
+              lineHeight: 1.55,
+            }}
+          >
+            Você não precisa contratar todas as câmeras cadastradas.
+            Marque “Não utilizar” nas que não entrarão nesta cobrança.
+          </p>
 
           <div className={styles.cameraList}>
             {cameras.map((camera) => {
               const subscription =
                 subscriptionByCamera.get(camera.id);
+              const excluded =
+                selection[camera.id] === null;
+              const canExclude =
+                canExcludeSubscription(subscription);
 
               return (
                 <article
                   className={styles.cameraRow}
                   key={camera.id}
+                  style={
+                    excluded
+                      ? {
+                          background: "#f7f8fa",
+                          borderColor: "#d9e0e8",
+                        }
+                      : undefined
+                  }
                 >
                   <div className={styles.cameraIdentity}>
                     <span
@@ -230,9 +297,11 @@ export function PlanSelector({
                       <strong>{camera.name}</strong>
                       <small>
                         {camera.siteName}
-                        {subscription
-                          ? ` · ${subscription.status}`
-                          : " · ainda sem assinatura"}
+                        {excluded
+                          ? " · não será incluída na cobrança"
+                          : subscription
+                            ? ` · ${subscription.status}`
+                            : " · ainda sem assinatura"}
                       </small>
                     </div>
                   </div>
@@ -270,6 +339,53 @@ export function PlanSelector({
                         </button>
                       );
                     })}
+
+                    {canExclude ? (
+                      <button
+                        type="button"
+                        disabled={!canManage}
+                        aria-pressed={excluded}
+                        onClick={() =>
+                          setSelection((current) => ({
+                            ...current,
+                            [camera.id]: null,
+                          }))
+                        }
+                        style={{
+                          gridColumn: "1 / -1",
+                          minHeight: "34px",
+                          border: excluded
+                            ? "1px solid #9aa8b8"
+                            : "1px dashed #c4ced9",
+                          borderRadius: "10px",
+                          background: excluded
+                            ? "#e9edf2"
+                            : "#ffffff",
+                          color: excluded
+                            ? "#34465b"
+                            : "#6d7b8d",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          cursor: canManage ? "pointer" : "default",
+                        }}
+                      >
+                        {excluded
+                          ? "✓ Não utilizar esta câmera"
+                          : "Não utilizar esta câmera"}
+                      </button>
+                    ) : (
+                      <small
+                        style={{
+                          gridColumn: "1 / -1",
+                          color: "#738094",
+                          fontSize: "10px",
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        Esta câmera já possui assinatura em andamento.
+                        A retirada dela da cobrança deve respeitar o ciclo atual.
+                      </small>
+                    )}
                   </div>
                 </article>
               );
@@ -283,21 +399,46 @@ export function PlanSelector({
           </span>
           <h2>Uma única cobrança</h2>
 
+          <p
+            style={{
+              margin: "-8px 0 16px",
+              color: "#738094",
+              fontSize: "11px",
+            }}
+          >
+            {includedCameras.length} de {cameras.length} câmera(s)
+            incluída(s).
+          </p>
+
           <div className={styles.summaryItems}>
-            {pricing.items.map((item) => (
-              <div key={item.cameraId}>
-                <span>
-                  <strong>{item.cameraName}</strong>
-                  <small>
-                    {item.planName}
-                    {item.discountBasisPoints > 0
-                      ? ` · ${item.discountBasisPoints / 100}% de desconto`
-                      : ""}
-                  </small>
-                </span>
-                <b>{formatBrl(item.totalAmountCents)}</b>
+            {pricing.items.length ? (
+              pricing.items.map((item) => (
+                <div key={item.cameraId}>
+                  <span>
+                    <strong>{item.cameraName}</strong>
+                    <small>
+                      {item.planName}
+                      {item.discountBasisPoints > 0
+                        ? ` · ${item.discountBasisPoints / 100}% de desconto`
+                        : ""}
+                    </small>
+                  </span>
+                  <b>{formatBrl(item.totalAmountCents)}</b>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  display: "block",
+                  color: "#738094",
+                  fontSize: "12px",
+                  lineHeight: 1.55,
+                }}
+              >
+                Nenhuma câmera incluída. Escolha ao menos uma para
+                preparar a cobrança.
               </div>
-            ))}
+            )}
           </div>
 
           <dl className={styles.totals}>
@@ -318,12 +459,14 @@ export function PlanSelector({
           </dl>
 
           <p className={styles.nextDiscount}>
-            {nextDiscountMessage(cameras.length, tiers)}
+            {nextDiscountMessage(includedCameras.length, tiers)}
           </p>
 
           {canManage ? (
             <>
-              <SubmitButton />
+              <SubmitButton
+                disabled={includedCameras.length === 0}
+              />
               <small className={styles.serverNote}>
                 O servidor recalcula o valor e registra um
                 snapshot imutável antes da cobrança.

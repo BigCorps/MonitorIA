@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createClient } from "@/src/lib/supabase/server";
+import { createAdminClient } from "@/src/lib/supabase/admin";
 
 const CameraPlanSelectionSchema = z
   .array(
@@ -70,6 +71,66 @@ function rpcErrorMessage(message: string) {
   return "Não foi possível preparar a fatura. Tente novamente.";
 }
 
+async function cancelOmittedPendingSubscriptions(input: {
+  organizationId: string;
+  selectedCameraIds: string[];
+}) {
+  const admin = createAdminClient();
+  const { data: pending, error } = await admin
+    .from("camera_subscriptions")
+    .select("camera_id")
+    .eq("organization_id", input.organizationId)
+    .eq("status", "pending_payment");
+
+  if (error) {
+    console.error(
+      "Falha ao procurar assinaturas pendentes antigas:",
+      error.message,
+    );
+    return;
+  }
+
+  const selected = new Set(input.selectedCameraIds);
+  const omitted = (pending ?? [])
+    .map((row) => String(row.camera_id))
+    .filter((cameraId) => !selected.has(cameraId));
+
+  if (!omitted.length) return;
+
+  const now = new Date().toISOString();
+
+  const [changesResult, subscriptionsResult] =
+    await Promise.all([
+      admin
+        .from("camera_subscription_changes")
+        .update({
+          status: "cancelled",
+          updated_at: now,
+        })
+        .eq("organization_id", input.organizationId)
+        .in("camera_id", omitted)
+        .eq("status", "pending_payment"),
+      admin
+        .from("camera_subscriptions")
+        .update({
+          status: "cancelled",
+          cancelled_at: now,
+          updated_at: now,
+        })
+        .eq("organization_id", input.organizationId)
+        .in("camera_id", omitted)
+        .eq("status", "pending_payment"),
+    ]);
+
+  if (changesResult.error || subscriptionsResult.error) {
+    console.error(
+      "Falha ao limpar câmeras retiradas da cobrança:",
+      changesResult.error?.message ??
+        subscriptionsResult.error?.message,
+    );
+  }
+}
+
 export async function createDraftInvoiceAction(
   formData: FormData,
 ) {
@@ -108,7 +169,7 @@ export async function createDraftInvoiceAction(
   if (!parsed.success) {
     plansRedirect(
       "error",
-      "Revise os planos escolhidos para as câmeras.",
+      "Escolha pelo menos uma câmera e revise os planos selecionados.",
     );
   }
 
@@ -154,6 +215,13 @@ export async function createDraftInvoiceAction(
     );
   }
 
+  await cancelOmittedPendingSubscriptions({
+    organizationId: organization.id,
+    selectedCameraIds: parsed.data.map(
+      (item) => item.cameraId,
+    ),
+  });
+
   revalidatePath("/dashboard/plans");
   revalidatePath("/dashboard/billing");
   revalidatePath("/dashboard/cameras");
@@ -162,7 +230,7 @@ export async function createDraftInvoiceAction(
     `/dashboard/billing?invoice=${encodeURIComponent(
       invoiceId,
     )}&message=${encodeURIComponent(
-      `${invoiceNumber} preparada. Gere o Pix para ativar as câmeras.`,
+      `${invoiceNumber} preparada. Gere o Pix para ativar as câmeras selecionadas.`,
     )}`,
   );
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import {
   monitoringGoalsFrom,
@@ -205,4 +206,101 @@ export async function regeneratePairingCodeAction(
       message: "Não foi possível gerar um novo código.",
     };
   }
+}
+
+export async function setCameraConnectionAction(
+  formData: FormData,
+) {
+  const user = await requireAuthenticatedUser();
+  const organization = await getCurrentOrganization(user.id);
+  const cameraId = String(
+    formData.get("camera_id") ?? "",
+  ).trim();
+  const enabled =
+    String(formData.get("enabled") ?? "") === "1";
+
+  if (
+    !organization ||
+    !["owner", "admin"].includes(organization.role) ||
+    !cameraId
+  ) {
+    redirect(
+      `/dashboard/cameras/${encodeURIComponent(
+        cameraId,
+      )}?connection_error=not_authorized`,
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: camera, error: cameraError } =
+    await supabase
+      .from("cameras")
+      .select("id")
+      .eq("id", cameraId)
+      .eq("organization_id", organization.id)
+      .maybeSingle();
+
+  if (cameraError || !camera) {
+    redirect(
+      `/dashboard/cameras/${encodeURIComponent(
+        cameraId,
+      )}?connection_error=camera_not_found`,
+    );
+  }
+
+  const { data: links, error: linkError } =
+    await supabase
+      .from("agent_cameras")
+      .update({ enabled })
+      .eq("camera_id", cameraId)
+      .select("camera_id");
+
+  if (linkError || !links?.length) {
+    console.error(
+      "Falha ao alterar conexão da câmera:",
+      linkError?.message,
+    );
+    redirect(
+      `/dashboard/cameras/${encodeURIComponent(
+        cameraId,
+      )}?connection_error=link_unavailable`,
+    );
+  }
+
+  const { error: statusError } = await supabase
+    .from("cameras")
+    .update({
+      status: enabled ? "offline" : "disabled",
+    })
+    .eq("id", cameraId)
+    .eq("organization_id", organization.id);
+
+  if (statusError) {
+    console.error(
+      "Falha ao atualizar status da câmera:",
+      statusError.message,
+    );
+
+    await supabase
+      .from("agent_cameras")
+      .update({ enabled: !enabled })
+      .eq("camera_id", cameraId);
+
+    redirect(
+      `/dashboard/cameras/${encodeURIComponent(
+        cameraId,
+      )}?connection_error=status_update_failed`,
+    );
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/cameras");
+  revalidatePath(`/dashboard/cameras/${cameraId}`);
+  revalidatePath("/dashboard/plans");
+
+  redirect(
+    `/dashboard/cameras/${encodeURIComponent(
+      cameraId,
+    )}?connection=${enabled ? "enabled" : "disabled"}`,
+  );
 }

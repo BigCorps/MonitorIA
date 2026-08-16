@@ -56,6 +56,8 @@ export default async function CamerasPage() {
             <h1>Câmeras do MonitorIA</h1>
             <p>
               Veja cada câmera, sua imagem de referência e o estado da conexão.
+              Abra uma câmera para desconectar ou reconectar o monitoramento
+              sem apagar o histórico.
             </p>
           </div>
 
@@ -95,9 +97,11 @@ export default async function CamerasPage() {
                         : undefined
                     }
                   >
-                    {camera.status === "online"
-                      ? "ONLINE"
-                      : "AGUARDANDO CONEXÃO"}
+                    {camera.status === "disabled"
+                      ? "DESATIVADA"
+                      : camera.status === "online"
+                        ? "ONLINE"
+                        : "AGUARDANDO CONEXÃO"}
                   </span>
                 </div>
 
@@ -124,8 +128,10 @@ export default async function CamerasPage() {
                     <div>
                       <dt>Conexão</dt>
                       <dd>
-                        {pairingLabels[camera.pairingStatus] ??
-                          camera.pairingStatus}
+                        {camera.status === "disabled"
+                          ? "Desconectada"
+                          : pairingLabels[camera.pairingStatus] ??
+                            camera.pairingStatus}
                       </dd>
                     </div>
                   </dl>
