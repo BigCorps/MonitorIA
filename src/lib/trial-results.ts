@@ -194,6 +194,12 @@ async function loadSalesTrialResultsByTrialId(
     throw new Error(`sales_trial_result_query_failed:${firstError.message}`);
   }
 
+const organization = organizationResult.data;
+
+if (!organization) {
+  throw new Error("sales_trial_result_organization_missing");
+}
+  
   const participantRows = participantsResult.data ?? [];
   const cameraIds = participantRows.map((row) => String(row.camera_id));
 
@@ -317,7 +323,7 @@ async function loadSalesTrialResultsByTrialId(
   return {
     trialId,
     organizationId,
-    organizationName: String(organizationResult.data.name),
+    organizationName: String(organization.name),
     status: effectiveStatus,
     durationMinutes: Number(trial.duration_minutes ?? 60),
     maxCameras: Number(trial.max_cameras ?? 6),
