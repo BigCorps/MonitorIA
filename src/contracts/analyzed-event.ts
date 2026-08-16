@@ -273,7 +273,7 @@ function normalizeConfidence(value: unknown) {
 
 function normalizeDirectConfidenceFields(
   value: Record<string, unknown>,
-) {
+): Record<string, unknown> {
   const observations = Array.isArray(value.observations)
     ? value.observations.map((observation) => {
         if (
