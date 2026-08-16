@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type PointerEvent as ReactPointerEvent,
   useActionState,
   useEffect,
   useMemo,
@@ -30,25 +31,46 @@ type Props = {
   workspace: CameraProfileWorkspace;
 };
 
+type Point = {
+  x: number;
+  y: number;
+};
+
 type EditableZone = {
   key: string;
   name: string;
   type: string;
   personRoleHint: string;
   description: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  polygon: Point[];
 };
+
+type DrawingState = {
+  replaceZoneKey: string | null;
+  points: Point[];
+} | null;
+
+type DraggingVertex = {
+  zoneKey: string;
+  pointIndex: number;
+} | null;
 
 const zoneLabels: Record<string, string> = {
   entry: "Entrada",
   exit: "Saída",
-  service: "Atendimento",
+  service: "Atendimento / operação",
   restricted: "Restrita",
   ignore: "Ignorar",
   general: "Geral",
+};
+
+const zoneBehaviorLabels: Record<string, string> = {
+  general: "IA interpreta pela descrição",
+  entry: "Entrada",
+  exit: "Saída",
+  ignore: "Ignorar esta área",
+  restricted: "Área restrita",
+  service: "Atendimento / operação",
 };
 
 const roleLabels: Record<string, string> = {
@@ -100,10 +122,7 @@ function ActionMessage({
 }: {
   state: CameraProfileActionState;
 }) {
-  if (
-    state.status === "idle" ||
-    !state.message
-  ) {
+  if (state.status === "idle" || !state.message) {
     return null;
   }
 
@@ -127,67 +146,54 @@ function clamp(value: number) {
   );
 }
 
+function sanitizePolygon(polygon: Point[]): Point[] {
+  return polygon
+    .filter(
+      (point) =>
+        Number.isFinite(point.x) && Number.isFinite(point.y),
+    )
+    .slice(0, 50)
+    .map((point) => ({
+      x: clamp(point.x),
+      y: clamp(point.y),
+    }));
+}
+
 function zoneToEditable(
   zone: CameraProfileZoneSummary,
   index: number,
 ): EditableZone {
-  const xs = zone.polygon.map((point) => point.x);
-  const ys = zone.polygon.map((point) => point.y);
-  const minX = Math.min(...xs, 0);
-  const maxX = Math.max(...xs, minX + 0.15);
-  const minY = Math.min(...ys, 0);
-  const maxY = Math.max(...ys, minY + 0.15);
-
   return {
     key: zone.id || `zone-${index}`,
     name: zone.name,
     type: zone.type,
-    personRoleHint:
-      zone.personRoleHint ?? "none",
+    personRoleHint: zone.personRoleHint ?? "none",
     description: zone.description,
-    x: clamp(minX),
-    y: clamp(minY),
-    width: Math.max(
-      0.05,
-      Math.min(1 - minX, maxX - minX),
-    ),
-    height: Math.max(
-      0.05,
-      Math.min(1 - minY, maxY - minY),
-    ),
+    polygon: sanitizePolygon(zone.polygon),
   };
 }
 
-function emptyZone(index: number): EditableZone {
+function centroid(polygon: Point[]) {
+  if (!polygon.length) return { x: 0.5, y: 0.5 };
+
+  const total = polygon.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x,
+      y: sum.y + point.y,
+    }),
+    { x: 0, y: 0 },
+  );
+
   return {
-    key: `new-${Date.now()}-${index}`,
-    name: `Nova zona ${index + 1}`,
-    type: "general",
-    personRoleHint: "none",
-    description: "",
-    x: 0.1,
-    y: 0.1,
-    width: 0.3,
-    height: 0.25,
+    x: total.x / polygon.length,
+    y: total.y / polygon.length,
   };
 }
 
-function rectanglePolygon(zone: EditableZone) {
-  const x = Math.min(0.95, clamp(zone.x));
-  const y = Math.min(0.95, clamp(zone.y));
-  const right = clamp(
-    Math.max(x + 0.03, x + zone.width),
-  );
-  const bottom = clamp(
-    Math.max(y + 0.03, y + zone.height),
-  );
-
-  return [
-    { x, y },
-    { x: right, y },
-    { x: right, y: bottom },
-    { x, y: bottom },
-  ];
+function polygonPoints(polygon: Point[]) {
+  return polygon
+    .map((point) => `${point.x * 100},${point.y * 100}`)
+    .join(" ");
 }
 
 function listText(values: string[]) {
@@ -201,6 +207,16 @@ function textList(value: string) {
     .filter(Boolean);
 }
 
+function pointFromPointer(
+  event: ReactPointerEvent<SVGSVGElement>,
+): Point {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return {
+    x: clamp((event.clientX - rect.left) / rect.width),
+    y: clamp((event.clientY - rect.top) / rect.height),
+  };
+}
+
 function ProfileDetails({
   profile,
 }: {
@@ -211,9 +227,8 @@ function ProfileDetails({
       <div className={styles.descriptionBlock}>
         <span>CONTEXTO OPERACIONAL</span>
         <p>
-          {operationalContextLabels[
-            profile.operationalContext
-          ] ?? profile.operationalContext}
+          {operationalContextLabels[profile.operationalContext] ??
+            profile.operationalContext}
         </p>
       </div>
 
@@ -236,13 +251,9 @@ function ProfileDetails({
           <span>IGNORAR NAS ANÁLISES</span>
           {profile.ignoreInstructions.length ? (
             <ul>
-              {profile.ignoreInstructions.map(
-                (instruction) => (
-                  <li key={instruction}>
-                    {instruction}
-                  </li>
-                ),
-              )}
+              {profile.ignoreInstructions.map((instruction) => (
+                <li key={instruction}>{instruction}</li>
+              ))}
             </ul>
           ) : (
             <p className={styles.muted}>
@@ -255,16 +266,15 @@ function ProfileDetails({
       <div className={styles.zoneList}>
         <span>ZONAS CONFIGURADAS</span>
         <div>
-          {profile.zones.map((zone) => (
+          {profile.zones.map((zone, index) => (
             <article key={zone.id}>
-              <strong>{zone.name}</strong>
+              <strong>
+                {index + 1}. {zone.name}
+              </strong>
               <div className={styles.zoneBadges}>
-                <small>
-                  {zoneLabels[zone.type] ?? zone.type}
-                </small>
+                <small>{zoneLabels[zone.type] ?? zone.type}</small>
                 <small data-role={zone.personRoleHint}>
-                  {roleLabels[zone.personRoleHint] ??
-                    zone.personRoleHint}
+                  {roleLabels[zone.personRoleHint] ?? zone.personRoleHint}
                 </small>
               </div>
               <p>{zone.description}</p>
@@ -284,22 +294,17 @@ export function CameraProfilePanel({
 }: Props) {
   const router = useRouter();
   const profile = workspace.latestProfile;
-  const hasDraft = Boolean(
-    profile && !profile.isActive,
-  );
+  const hasDraft = Boolean(profile && !profile.isActive);
 
   const [analysisState, analysisAction, analysisPending] =
     useActionState(
       analyzeCameraProfileAction,
       initialCameraProfileActionState,
     );
-
-  const [saveState, saveAction, savePending] =
-    useActionState(
-      saveCameraProfileDraftAction,
-      initialCameraProfileActionState,
-    );
-
+  const [saveState, saveAction, savePending] = useActionState(
+    saveCameraProfileDraftAction,
+    initialCameraProfileActionState,
+  );
   const [approvalState, approvalAction, approvalPending] =
     useActionState(
       approveCameraProfileAction,
@@ -317,24 +322,24 @@ export function CameraProfilePanel({
   const [editing, setEditing] = useState(false);
   const [guidance, setGuidance] = useState("");
   const [operationalContext, setOperationalContext] =
-    useState<string>(
-      profile?.operationalContext ?? "custom",
-    );
+    useState<string>(profile?.operationalContext ?? "custom");
   const [environmentDescription, setEnvironmentDescription] =
-    useState(
-      profile?.environmentDescription ?? "",
-    );
-  const [monitoringGoals, setMonitoringGoals] =
-    useState(
-      listText(profile?.monitoringGoals ?? []),
-    );
-  const [ignoreInstructions, setIgnoreInstructions] =
-    useState(
-      listText(profile?.ignoreInstructions ?? []),
-    );
+    useState(profile?.environmentDescription ?? "");
+  const [monitoringGoals, setMonitoringGoals] = useState(
+    listText(profile?.monitoringGoals ?? []),
+  );
+  const [ignoreInstructions, setIgnoreInstructions] = useState(
+    listText(profile?.ignoreInstructions ?? []),
+  );
   const [zones, setZones] = useState<EditableZone[]>(
     (profile?.zones ?? []).map(zoneToEditable),
   );
+  const [selectedZoneKey, setSelectedZoneKey] = useState<
+    string | null
+  >(profile?.zones[0]?.id ?? null);
+  const [drawing, setDrawing] = useState<DrawingState>(null);
+  const [draggingVertex, setDraggingVertex] =
+    useState<DraggingVertex>(null);
 
   useEffect(() => {
     if (
@@ -357,26 +362,19 @@ export function CameraProfilePanel({
   useEffect(() => {
     if (!profile) return;
 
-    setOperationalContext(
-      profile.operationalContext,
-    );
-    setEnvironmentDescription(
-      profile.environmentDescription,
-    );
-    setMonitoringGoals(
-      listText(profile.monitoringGoals),
-    );
-    setIgnoreInstructions(
-      listText(profile.ignoreInstructions),
-    );
-    setZones(
-      profile.zones.map(zoneToEditable),
-    );
+    setOperationalContext(profile.operationalContext);
+    setEnvironmentDescription(profile.environmentDescription);
+    setMonitoringGoals(listText(profile.monitoringGoals));
+    setIgnoreInstructions(listText(profile.ignoreInstructions));
+
+    const nextZones = profile.zones.map(zoneToEditable);
+    setZones(nextZones);
+    setSelectedZoneKey(nextZones[0]?.key ?? null);
+    setDrawing(null);
+    setDraggingVertex(null);
 
     if (profile.sourceAssetId) {
-      setSelectedSourceId(
-        profile.sourceAssetId,
-      );
+      setSelectedSourceId(profile.sourceAssetId);
     }
   }, [profile?.id]);
 
@@ -392,18 +390,14 @@ export function CameraProfilePanel({
       JSON.stringify({
         operationalContext,
         environmentDescription,
-        monitoringGoals:
-          textList(monitoringGoals),
-        ignoreInstructions:
-          textList(ignoreInstructions),
+        monitoringGoals: textList(monitoringGoals),
+        ignoreInstructions: textList(ignoreInstructions),
         zones: zones.map((zone) => ({
           name: zone.name.trim(),
           type: zone.type,
-          personRoleHint:
-            zone.personRoleHint,
-          description:
-            zone.description.trim(),
-          polygon: rectanglePolygon(zone),
+          personRoleHint: zone.personRoleHint,
+          description: zone.description.trim(),
+          polygon: sanitizePolygon(zone.polygon),
         })),
         sceneType:
           profile?.sceneType === "indoor" ||
@@ -411,35 +405,25 @@ export function CameraProfilePanel({
           profile?.sceneType === "mixed"
             ? profile.sceneType
             : "unknown",
-        fixedElements:
-          profile?.fixedElements ?? [],
-        privacyNotes:
-          profile?.privacyNotes ?? [],
-        imageQuality:
-          profile?.imageQuality
-            ? {
-                overall: [
-                  "good",
-                  "usable",
-                  "limited",
-                  "poor",
-                ].includes(
-                  profile.imageQuality.overall,
-                )
-                  ? profile.imageQuality.overall
-                  : "unknown",
-                lighting:
-                  profile.imageQuality.lighting,
-                visibility:
-                  profile.imageQuality.visibility,
-                limitations:
-                  profile.imageQuality.limitations,
-              }
-            : null,
-        confidence:
-          profile?.confidence ?? null,
-        basedOnProfileId:
-          profile?.id ?? null,
+        fixedElements: profile?.fixedElements ?? [],
+        privacyNotes: profile?.privacyNotes ?? [],
+        imageQuality: profile?.imageQuality
+          ? {
+              overall: [
+                "good",
+                "usable",
+                "limited",
+                "poor",
+              ].includes(profile.imageQuality.overall)
+                ? profile.imageQuality.overall
+                : "unknown",
+              lighting: profile.imageQuality.lighting,
+              visibility: profile.imageQuality.visibility,
+              limitations: profile.imageQuality.limitations,
+            }
+          : null,
+        confidence: profile?.confidence ?? null,
+        basedOnProfileId: profile?.id ?? null,
       }),
     [
       operationalContext,
@@ -451,14 +435,20 @@ export function CameraProfilePanel({
     ],
   );
 
-  const mayAnalyze =
-    canManage && Boolean(selectedFrame);
+  const mayAnalyze = canManage && Boolean(selectedFrame);
   const maySave =
     canManage &&
     Boolean(selectedFrame) &&
     environmentDescription.trim().length >= 20 &&
     textList(monitoringGoals).length > 0 &&
-    zones.length > 0;
+    zones.length > 0 &&
+    zones.every(
+      (zone) =>
+        zone.name.trim().length > 0 &&
+        zone.description.trim().length > 0 &&
+        zone.polygon.length >= 3 &&
+        zone.polygon.length <= 50,
+    );
 
   function updateZone(
     key: string,
@@ -466,23 +456,132 @@ export function CameraProfilePanel({
   ) {
     setZones((current) =>
       current.map((zone) =>
-        zone.key === key
-          ? { ...zone, ...patch }
-          : zone,
+        zone.key === key ? { ...zone, ...patch } : zone,
       ),
     );
+  }
+
+  function beginNewZone() {
+    setDrawing({ replaceZoneKey: null, points: [] });
+    setSelectedZoneKey(null);
+    setDraggingVertex(null);
+  }
+
+  function beginRedraw(zoneKey: string) {
+    setDrawing({ replaceZoneKey: zoneKey, points: [] });
+    setSelectedZoneKey(zoneKey);
+    setDraggingVertex(null);
+  }
+
+  function cancelDrawing() {
+    setDrawing(null);
+    setDraggingVertex(null);
+  }
+
+  function undoDrawingPoint() {
+    setDrawing((current) =>
+      current
+        ? {
+            ...current,
+            points: current.points.slice(0, -1),
+          }
+        : null,
+    );
+  }
+
+  function finishDrawing() {
+    if (!drawing || drawing.points.length < 3) return;
+
+    const polygon = sanitizePolygon(drawing.points);
+
+    if (drawing.replaceZoneKey) {
+      updateZone(drawing.replaceZoneKey, { polygon });
+      setSelectedZoneKey(drawing.replaceZoneKey);
+    } else {
+      const key = `new-${Date.now()}-${zones.length}`;
+      setZones((current) => [
+        ...current,
+        {
+          key,
+          name: `Nova zona ${current.length + 1}`,
+          type: "general",
+          personRoleHint: "none",
+          description: "",
+          polygon,
+        },
+      ]);
+      setSelectedZoneKey(key);
+    }
+
+    setDrawing(null);
+  }
+
+  function removeZone(zoneKey: string) {
+    setZones((current) =>
+      current.filter((zone) => zone.key !== zoneKey),
+    );
+    setSelectedZoneKey((current) =>
+      current === zoneKey ? null : current,
+    );
+    if (drawing?.replaceZoneKey === zoneKey) {
+      setDrawing(null);
+    }
+  }
+
+  function handleCanvasPointerDown(
+    event: ReactPointerEvent<SVGSVGElement>,
+  ) {
+    if (!editing || !drawing) return;
+    if (drawing.points.length >= 50) return;
+
+    const point = pointFromPointer(event);
+    setDrawing((current) =>
+      current
+        ? {
+            ...current,
+            points: [...current.points, point],
+          }
+        : null,
+    );
+  }
+
+  function handleCanvasPointerMove(
+    event: ReactPointerEvent<SVGSVGElement>,
+  ) {
+    if (!editing || !draggingVertex || drawing) return;
+
+    const point = pointFromPointer(event);
+    setZones((current) =>
+      current.map((zone) => {
+        if (zone.key !== draggingVertex.zoneKey) return zone;
+
+        return {
+          ...zone,
+          polygon: zone.polygon.map((existing, pointIndex) =>
+            pointIndex === draggingVertex.pointIndex
+              ? point
+              : existing,
+          ),
+        };
+      }),
+    );
+  }
+
+  function stopDragging() {
+    setDraggingVertex(null);
   }
 
   return (
     <section className={styles.shell}>
       <div className={styles.heading}>
         <div>
-          <span>PERFIL INTELIGENTE · V0.8.1</span>
+          <span>PERFIL INTELIGENTE · V0.8.2</span>
           <h2>Contexto editável da câmera</h2>
           <p>
-            Escolha a melhor imagem, oriente a IA e ajuste
-            manualmente ambiente, objetivos e zonas. Cada
-            mudança cria uma nova versão antes da aprovação.
+            A IA sugere o perfil e as zonas. Quando precisar
+            corrigir, desenhe diretamente sobre a imagem e
+            explique em linguagem natural o que acontece em
+            cada área.
           </p>
         </div>
 
@@ -507,55 +606,157 @@ export function CameraProfilePanel({
         <div className={styles.previewColumn}>
           <div className={styles.preview}>
             {selectedFrame ? (
-              <>
+              <div className={styles.imageStage}>
                 <img
                   src={selectedFrame.url}
                   alt="Imagem de referência selecionada"
                 />
 
-                {zones.length ? (
-                  <svg
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    aria-label="Zonas do perfil"
-                  >
-                    {zones.map((zone, index) => {
-                      const polygon =
-                        rectanglePolygon(zone);
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-label="Zonas do perfil"
+                  className={
+                    editing
+                      ? styles.zoneCanvasInteractive
+                      : styles.zoneCanvas
+                  }
+                  onPointerDown={handleCanvasPointerDown}
+                  onPointerMove={handleCanvasPointerMove}
+                  onPointerUp={stopDragging}
+                  onPointerCancel={stopDragging}
+                  onPointerLeave={stopDragging}
+                >
+                  {zones.map((zone, index) => {
+                    const center = centroid(zone.polygon);
+                    const isSelected =
+                      selectedZoneKey === zone.key;
 
-                      return (
-                        <g key={zone.key}>
-                          <polygon
-                            points={polygon
-                              .map(
-                                (point) =>
-                                  `${point.x * 100},${point.y * 100}`,
-                              )
-                              .join(" ")}
-                            data-zone={index + 1}
-                            data-role={
-                              zone.personRoleHint
-                            }
-                          />
-                          <text
-                            x={
-                              (zone.x +
-                                zone.width / 2) *
-                              100
-                            }
-                            y={
-                              (zone.y +
-                                zone.height / 2) *
-                              100
-                            }
-                            textAnchor="middle"
+                    return (
+                      <g key={zone.key}>
+                        <polygon
+                          points={polygonPoints(zone.polygon)}
+                          data-zone={index + 1}
+                          data-role={zone.personRoleHint}
+                          data-type={zone.type}
+                          data-selected={
+                            isSelected ? "true" : "false"
+                          }
+                          onPointerDown={(event) => {
+                            if (!editing || drawing) return;
+                            event.stopPropagation();
+                            setSelectedZoneKey(zone.key);
+                          }}
+                        />
+                        <text
+                          x={center.x * 100}
+                          y={center.y * 100}
+                          textAnchor="middle"
+                        >
+                          {index + 1}
+                        </text>
+
+                        {editing &&
+                        isSelected &&
+                        !drawing
+                          ? zone.polygon.map((point, pointIndex) => (
+                              <circle
+                                key={`${zone.key}-${pointIndex}`}
+                                cx={point.x * 100}
+                                cy={point.y * 100}
+                                r="1.7"
+                                className={styles.vertexHandle}
+                                onPointerDown={(event) => {
+                                  event.stopPropagation();
+                                  setDraggingVertex({
+                                    zoneKey: zone.key,
+                                    pointIndex,
+                                  });
+                                }}
+                              />
+                            ))
+                          : null}
+                      </g>
+                    );
+                  })}
+
+                  {drawing && drawing.points.length ? (
+                    <g className={styles.drawingPreview}>
+                      {drawing.points.length >= 3 ? (
+                        <polygon
+                          points={polygonPoints(drawing.points)}
+                        />
+                      ) : (
+                        <polyline
+                          points={polygonPoints(drawing.points)}
+                        />
+                      )}
+                      {drawing.points.map((point, pointIndex) => (
+                        <circle
+                          key={`draft-${pointIndex}`}
+                          cx={point.x * 100}
+                          cy={point.y * 100}
+                          r="1.6"
+                        />
+                      ))}
+                    </g>
+                  ) : null}
+                </svg>
+
+                {editing ? (
+                  <div className={styles.zoneToolbar}>
+                    {drawing ? (
+                      <>
+                        <strong>
+                          {drawing.replaceZoneKey
+                            ? "Redesenhando zona"
+                            : "Nova zona"}
+                        </strong>
+                        <span>
+                          Toque ou clique nos cantos da área.
+                          Use pelo menos 3 pontos.
+                        </span>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={undoDrawingPoint}
+                            disabled={!drawing.points.length}
                           >
-                            {index + 1}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
+                            Desfazer ponto
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelDrawing}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.finishButton}
+                            onClick={finishDrawing}
+                            disabled={drawing.points.length < 3}
+                          >
+                            Concluir zona
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <strong>Editor visual de zonas</strong>
+                        <span>
+                          Toque em uma zona para mover os pontos
+                          ou desenhe uma nova área livremente.
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.finishButton}
+                          onClick={beginNewZone}
+                        >
+                          + Desenhar nova zona
+                        </button>
+                      </>
+                    )}
+                  </div>
                 ) : null}
 
                 <div className={styles.frameMeta}>
@@ -563,18 +764,12 @@ export function CameraProfilePanel({
                     {selectedFrame.width ?? "?"} ×{" "}
                     {selectedFrame.height ?? "?"}
                   </span>
-                  <span>
-                    {formatDate(
-                      selectedFrame.capturedAt,
-                    )}
-                  </span>
+                  <span>{formatDate(selectedFrame.capturedAt)}</span>
                 </div>
-              </>
+              </div>
             ) : (
               <div className={styles.noFrame}>
-                <strong>
-                  Nenhuma imagem disponível
-                </strong>
+                <strong>Nenhuma imagem disponível</strong>
                 <p>
                   Aguarde o Agent formar um evento para que
                   novas imagens apareçam na galeria.
@@ -587,38 +782,25 @@ export function CameraProfilePanel({
             <div className={styles.frameGallery}>
               <div>
                 <span>ESCOLHA A FOTO DE REFERÊNCIA</span>
-                <small>
-                  Frames do perfil e de eventos recentes
-                </small>
+                <small>Frames do perfil e de eventos recentes</small>
               </div>
 
               <div className={styles.frameStrip}>
-                {workspace.referenceFrames.map(
-                  (frame) => (
-                    <button
-                      type="button"
-                      key={frame.id}
-                      className={
-                        frame.id ===
-                        selectedSourceId
-                          ? styles.selectedFrame
-                          : undefined
-                      }
-                      onClick={() =>
-                        setSelectedSourceId(
-                          frame.id,
-                        )
-                      }
-                    >
-                      <img src={frame.url} alt="" />
-                      <span>
-                        {formatDate(
-                          frame.capturedAt,
-                        )}
-                      </span>
-                    </button>
-                  ),
-                )}
+                {workspace.referenceFrames.map((frame) => (
+                  <button
+                    type="button"
+                    key={frame.id}
+                    className={
+                      frame.id === selectedSourceId
+                        ? styles.selectedFrame
+                        : undefined
+                    }
+                    onClick={() => setSelectedSourceId(frame.id)}
+                  >
+                    <img src={frame.url} alt="" />
+                    <span>{formatDate(frame.capturedAt)}</span>
+                  </button>
+                ))}
               </div>
             </div>
           ) : null}
@@ -626,23 +808,25 @@ export function CameraProfilePanel({
           {profile ? (
             <div className={styles.summaryBar}>
               <div>
+                <span>CONTEXTO</span>
+                <strong>
+                  {operationalContextLabels[
+                    profile.operationalContext
+                  ] ?? profile.operationalContext}
+                </strong>
+              </div>
+              <div>
                 <span>CENA</span>
                 <strong>
-                  {sceneLabels[
-                    profile.sceneType
-                  ] ?? profile.sceneType}
+                  {sceneLabels[profile.sceneType] ?? profile.sceneType}
                 </strong>
               </div>
               <div>
                 <span>QUALIDADE</span>
                 <strong>
                   {profile.imageQuality
-                    ? qualityLabels[
-                        profile.imageQuality
-                          .overall
-                      ] ??
-                      profile.imageQuality
-                        .overall
+                    ? qualityLabels[profile.imageQuality.overall] ??
+                      profile.imageQuality.overall
                     : "Não informada"}
                 </strong>
               </div>
@@ -651,15 +835,7 @@ export function CameraProfilePanel({
                 <strong>
                   {profile.confidence === null
                     ? "—"
-                    : `${Math.round(
-                        profile.confidence * 100,
-                      )}%`}
-                </strong>
-              </div>
-              <div>
-                <span>HISTÓRICO</span>
-                <strong>
-                  {workspace.historyCount} versão(ões)
+                    : `${Math.round(profile.confidence * 100)}%`}
                 </strong>
               </div>
             </div>
@@ -671,14 +847,21 @@ export function CameraProfilePanel({
             <div className={styles.editor}>
               <div className={styles.editorHeading}>
                 <div>
-                  <span>EDIÇÃO MANUAL</span>
-                  <h3>
-                    Ajuste o perfil ao funcionamento real
-                  </h3>
+                  <span>EDIÇÃO SIMPLIFICADA</span>
+                  <h3>Ajuste somente o que estiver errado</h3>
+                  <p>
+                    A IA continua usando o nome, a explicação e
+                    o desenho de cada zona. Os controles técnicos
+                    ficam escondidos em Opções avançadas.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    setDrawing(null);
+                    setDraggingVertex(null);
+                  }}
                 >
                   Fechar edição
                 </button>
@@ -689,18 +872,16 @@ export function CameraProfilePanel({
                 <select
                   value={operationalContext}
                   onChange={(event) =>
-                    setOperationalContext(
-                      event.target.value,
-                    )
+                    setOperationalContext(event.target.value)
                   }
                 >
-                  {Object.entries(
-                    operationalContextLabels,
-                  ).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  {Object.entries(operationalContextLabels).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
                 </select>
               </label>
 
@@ -709,42 +890,32 @@ export function CameraProfilePanel({
                 <textarea
                   value={environmentDescription}
                   onChange={(event) =>
-                    setEnvironmentDescription(
-                      event.target.value,
-                    )
+                    setEnvironmentDescription(event.target.value)
                   }
-                  rows={6}
+                  rows={5}
                 />
               </label>
 
               <div className={styles.editorColumns}>
                 <label>
-                  <span>
-                    Objetivos — um por linha
-                  </span>
+                  <span>Objetivos — um por linha</span>
                   <textarea
                     value={monitoringGoals}
                     onChange={(event) =>
-                      setMonitoringGoals(
-                        event.target.value,
-                      )
+                      setMonitoringGoals(event.target.value)
                     }
-                    rows={7}
+                    rows={6}
                   />
                 </label>
 
                 <label>
-                  <span>
-                    Ignorar — um por linha
-                  </span>
+                  <span>Ignorar — um por linha</span>
                   <textarea
                     value={ignoreInstructions}
                     onChange={(event) =>
-                      setIgnoreInstructions(
-                        event.target.value,
-                      )
+                      setIgnoreInstructions(event.target.value)
                     }
-                    rows={7}
+                    rows={6}
                   />
                 </label>
               </div>
@@ -752,203 +923,156 @@ export function CameraProfilePanel({
               <div className={styles.zoneEditor}>
                 <div className={styles.zoneEditorHeading}>
                   <div>
-                    <span>ZONAS E PAPÉIS</span>
+                    <span>ZONAS DESENHADAS NA IMAGEM</span>
                     <p>
-                      Delimite as áreas que realmente têm
-                      função diferente nesta câmera, como
-                      rua, acesso, garagem, circulação,
-                      atendimento ou área restrita.
+                      Selecione uma zona na imagem ou abaixo.
+                      Dê um nome simples e explique o que ocorre
+                      ali. O MonitorIA usa essa explicação nas
+                      análises.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setZones((current) => [
-                        ...current,
-                        emptyZone(current.length),
-                      ])
-                    }
-                  >
-                    Adicionar zona
+                  <button type="button" onClick={beginNewZone}>
+                    + Desenhar zona
                   </button>
                 </div>
 
                 <div className={styles.zoneEditorList}>
-                  {zones.map((zone, index) => (
-                    <article key={zone.key}>
-                      <header>
-                        <strong>
-                          Zona {index + 1}
-                        </strong>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setZones((current) =>
-                              current.filter(
-                                (item) =>
-                                  item.key !==
-                                  zone.key,
-                              ),
-                            )
-                          }
-                        >
-                          Remover
-                        </button>
-                      </header>
+                  {zones.map((zone, index) => {
+                    const isSelected = selectedZoneKey === zone.key;
 
-                      <div className={styles.zoneFields}>
-                        <label>
-                          <span>Nome</span>
-                          <input
-                            value={zone.name}
-                            onChange={(event) =>
-                              updateZone(
-                                zone.key,
-                                {
-                                  name:
-                                    event.target
-                                      .value,
-                                },
-                              )
-                            }
-                          />
-                        </label>
-
-                        <label>
-                          <span>Tipo</span>
-                          <select
-                            value={zone.type}
-                            onChange={(event) =>
-                              updateZone(
-                                zone.key,
-                                {
-                                  type:
-                                    event.target
-                                      .value,
-                                },
-                              )
-                            }
-                          >
-                            {Object.entries(
-                              zoneLabels,
-                            ).map(
-                              ([value, label]) => (
-                                <option
-                                  key={value}
-                                  value={value}
-                                >
-                                  {label}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-
-                        <label>
-                          <span>
-                            Quem normalmente fica aqui?
-                          </span>
-                          <select
-                            value={
-                              zone.personRoleHint
-                            }
-                            onChange={(event) =>
-                              updateZone(
-                                zone.key,
-                                {
-                                  personRoleHint:
-                                    event.target
-                                      .value,
-                                },
-                              )
-                            }
-                          >
-                            {Object.entries(
-                              roleLabels,
-                            ).map(
-                              ([value, label]) => (
-                                <option
-                                  key={value}
-                                  value={value}
-                                >
-                                  {label}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-                      </div>
-
-                      <label>
-                        <span>Descrição</span>
-                        <textarea
-                          value={zone.description}
-                          onChange={(event) =>
-                            updateZone(zone.key, {
-                              description:
-                                event.target.value,
-                            })
-                          }
-                          rows={2}
-                        />
-                      </label>
-
-                      <div className={styles.sliders}>
-                        {[
-                          ["x", "Esquerda"],
-                          ["y", "Topo"],
-                          ["width", "Largura"],
-                          ["height", "Altura"],
-                        ].map(([field, label]) => (
-                          <label key={field}>
-                            <span>
-                              {label}:{" "}
-                              {Math.round(
-                                zone[
-                                  field as
-                                    | "x"
-                                    | "y"
-                                    | "width"
-                                    | "height"
-                                ] * 100,
-                              )}
-                              %
-                            </span>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              step="1"
-                              value={Math.round(
-                                zone[
-                                  field as
-                                    | "x"
-                                    | "y"
-                                    | "width"
-                                    | "height"
-                                ] * 100,
-                              )}
-                              onChange={(event) => {
-                                const value =
-                                  Number(
-                                    event.target
-                                      .value,
-                                  ) / 100;
-
-                                updateZone(
-                                  zone.key,
-                                  {
-                                    [field]:
-                                      value,
-                                  } as Partial<EditableZone>,
-                                );
+                    return (
+                      <article
+                        key={zone.key}
+                        data-selected={
+                          isSelected ? "true" : "false"
+                        }
+                        onClick={() => setSelectedZoneKey(zone.key)}
+                      >
+                        <header>
+                          <div>
+                            <strong>Zona {index + 1}</strong>
+                            <small>
+                              {zoneBehaviorLabels[zone.type] ??
+                                zone.type}
+                            </small>
+                          </div>
+                          <div className={styles.zoneCardActions}>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                beginRedraw(zone.key);
                               }}
+                            >
+                              Redesenhar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeZone(zone.key);
+                              }}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </header>
+
+                        <div className={styles.zoneSimpleFields}>
+                          <label>
+                            <span>Nome da zona</span>
+                            <input
+                              value={zone.name}
+                              placeholder="Ex.: Entrada da garagem"
+                              onFocus={() =>
+                                setSelectedZoneKey(zone.key)
+                              }
+                              onChange={(event) =>
+                                updateZone(zone.key, {
+                                  name: event.target.value,
+                                })
+                              }
                             />
                           </label>
-                        ))}
-                      </div>
-                    </article>
-                  ))}
+
+                          <label>
+                            <span>O que acontece aqui?</span>
+                            <textarea
+                              value={zone.description}
+                              placeholder="Ex.: Carros que entram pela rampa devem ser registrados. Carros apenas passando na rua não pertencem a esta zona."
+                              rows={3}
+                              onFocus={() =>
+                                setSelectedZoneKey(zone.key)
+                              }
+                              onChange={(event) =>
+                                updateZone(zone.key, {
+                                  description: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+
+                          <label>
+                            <span>Como tratar esta área?</span>
+                            <select
+                              value={zone.type}
+                              onFocus={() =>
+                                setSelectedZoneKey(zone.key)
+                              }
+                              onChange={(event) =>
+                                updateZone(zone.key, {
+                                  type: event.target.value,
+                                })
+                              }
+                            >
+                              {Object.entries(zoneBehaviorLabels).map(
+                                ([value, label]) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                            <small className={styles.fieldHelp}>
+                              Se deixar “IA interpreta pela descrição”,
+                              o texto acima será a principal orientação.
+                            </small>
+                          </label>
+                        </div>
+
+                        <details className={styles.advancedZone}>
+                          <summary>Opções avançadas</summary>
+                          <label>
+                            <span>
+                              Quem normalmente fica nesta área?
+                            </span>
+                            <select
+                              value={zone.personRoleHint}
+                              onChange={(event) =>
+                                updateZone(zone.key, {
+                                  personRoleHint: event.target.value,
+                                })
+                              }
+                            >
+                              {Object.entries(roleLabels).map(
+                                ([value, label]) => (
+                                  <option key={value} value={value}>
+                                    {label}
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </label>
+                          <p>
+                            Os {zone.polygon.length} pontos do
+                            contorno são salvos automaticamente.
+                            Para alterar a forma, arraste os pontos
+                            na imagem ou use “Redesenhar”.
+                          </p>
+                        </details>
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -975,7 +1099,8 @@ export function CameraProfilePanel({
                     !maySave ||
                     savePending ||
                     analysisPending ||
-                    approvalPending
+                    approvalPending ||
+                    Boolean(drawing)
                   }
                 >
                   {savePending
@@ -984,6 +1109,14 @@ export function CameraProfilePanel({
                 </button>
               </form>
 
+              {!maySave ? (
+                <p className={styles.validationHint}>
+                  Para salvar, cada zona precisa de nome, uma
+                  explicação simples e pelo menos 3 pontos no
+                  desenho.
+                </p>
+              ) : null}
+
               <ActionMessage state={saveState} />
             </div>
           ) : profile ? (
@@ -991,13 +1124,11 @@ export function CameraProfilePanel({
           ) : (
             <div className={styles.emptyProfile}>
               <span>PRIMEIRA ANÁLISE</span>
-              <h3>
-                Escolha uma foto representativa
-              </h3>
+              <h3>Escolha uma foto representativa</h3>
               <p>
-                Prefira um frame que represente a função
-                real da câmera: acesso, rua, garagem,
-                corredor, área interna ou atendimento.
+                Prefira um frame que represente a função real
+                da câmera: acesso, rua, garagem, corredor, área
+                interna ou atendimento.
               </p>
             </div>
           )}
@@ -1007,13 +1138,11 @@ export function CameraProfilePanel({
       <div className={styles.aiGuidance}>
         <div>
           <span>NOVA ANÁLISE COM ORIENTAÇÃO</span>
-          <h3>
-            Explique o funcionamento do ambiente
-          </h3>
+          <h3>Deixe a IA criar as zonas por você</h3>
           <p>
-            Exemplo: “A rua fica na parte superior; carros
-            que apenas passam devem ser ignorados. O portão
-            e a rampa abaixo são a entrada da garagem.”
+            Explique o ambiente normalmente. A IA cria o perfil
+            e desenha as zonas. Depois você só corrige o contorno
+            na imagem se alguma área não ficar certa.
           </p>
         </div>
 
@@ -1031,11 +1160,9 @@ export function CameraProfilePanel({
           <textarea
             name="user_guidance"
             value={guidance}
-            onChange={(event) =>
-              setGuidance(event.target.value)
-            }
+            onChange={(event) => setGuidance(event.target.value)}
             maxLength={2000}
-            placeholder="Descreva o que esta câmera realmente monitora, quais áreas são importantes, o que é movimento normal e o que deve ser ignorado."
+            placeholder="Ex.: Esta câmera mostra a rua e a entrada da garagem. Ignore carros que apenas passam e registre quem realmente entra, sai ou permanece no acesso."
           />
           <button
             type="submit"
@@ -1049,7 +1176,7 @@ export function CameraProfilePanel({
           >
             {analysisPending
               ? "Analisando a foto..."
-              : "Gerar nova análise com esta foto"}
+              : "Gerar perfil com IA"}
           </button>
         </form>
       </div>
@@ -1057,9 +1184,9 @@ export function CameraProfilePanel({
       <div className={styles.actions}>
         <div>
           <p className={styles.permissionNote}>
-            Status da câmera: {cameraStatus}. A análise
-            pode usar qualquer imagem ainda disponível na
-            galeria; o Agent não precisa ser reiniciado.
+            Status da câmera: {cameraStatus}. As zonas são
+            salvas no perfil e o Agent não precisa ser
+            reiniciado.
           </p>
           <ActionMessage state={analysisState} />
           <ActionMessage state={approvalState} />
@@ -1070,14 +1197,16 @@ export function CameraProfilePanel({
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() =>
-                setEditing((current) => !current)
-              }
+              onClick={() => {
+                setEditing((current) => !current);
+                setDrawing(null);
+                setDraggingVertex(null);
+              }}
               disabled={!canManage}
             >
               {editing
                 ? "Voltar à visualização"
-                : "Editar análise e zonas"}
+                : "Editar perfil e desenhar zonas"}
             </button>
           ) : null}
 
