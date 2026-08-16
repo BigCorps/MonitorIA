@@ -6,8 +6,6 @@ on:
   # gatilho, o filtro de caminho valeria também para as tags, e uma tag de
   # release sem mudança em agent/ não dispararia a publicação.
   push:
-    branches:
-      - main
     tags:
       - "agent-v*"
 
