@@ -45,6 +45,55 @@
   line-height: 1.65;
 }
 
+.modeActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid #dfe8ef;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fcfb, #fff);
+}
+
+.modeActions strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #2bad92;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.modeActions p {
+  max-width: 760px;
+  margin: 0;
+  color: #708195;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.editFirstButton {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  color: #061712;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  box-shadow: 0 10px 24px rgba(63, 208, 179, 0.22);
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.editFirstButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
 .activeBadge,
 .reviewBadge,
 .emptyBadge {
@@ -220,34 +269,29 @@
 }
 
 .zoneToolbar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  left: 10px;
-  z-index: 3;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  color: #dce8f4;
-  background: rgba(5, 13, 23, 0.88);
-  backdrop-filter: blur(10px);
+  gap: 10px;
+  margin-bottom: 12px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #d9e4ee;
+  border-radius: 12px;
+  color: #30465e;
+  background: #f8fafc;
 }
 
 .zoneToolbar strong {
   flex: 0 0 auto;
-  color: #fff;
+  color: #142033;
   font-size: 9px;
 }
 
 .zoneToolbar > span {
   flex: 1;
-  color: #aab9c9;
+  color: #6f8194;
   font-size: 8px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .zoneToolbar > div {
@@ -256,12 +300,12 @@
 }
 
 .zoneToolbar button {
-  min-height: 30px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 7px;
-  color: #d8e4ef;
-  background: rgba(255, 255, 255, 0.08);
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #d6e2ec;
+  border-radius: 8px;
+  color: #425b76;
+  background: #fff;
   font-size: 8px;
   font-weight: 750;
   cursor: pointer;
@@ -836,7 +880,8 @@
   .heading,
   .actions,
   .editorHeading,
-  .zoneEditorHeading {
+  .zoneEditorHeading,
+  .modeActions {
     flex-direction: column;
     align-items: stretch;
   }
@@ -864,6 +909,10 @@
     margin-left: auto;
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  .editFirstButton {
+    width: 100%;
   }
 
   .frameMeta {

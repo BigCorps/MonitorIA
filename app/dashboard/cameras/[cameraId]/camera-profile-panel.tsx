@@ -196,6 +196,33 @@ function polygonPoints(polygon: Point[]) {
     .join(" ");
 }
 
+function pointInPolygon(point: Point, polygon: Point[]) {
+  let inside = false;
+
+  for (
+    let index = 0, previous = polygon.length - 1;
+    index < polygon.length;
+    previous = index++
+  ) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+
+    const intersects =
+      currentPoint.y > point.y !== previousPoint.y > point.y &&
+      point.x <
+        ((previousPoint.x - currentPoint.x) *
+          (point.y - currentPoint.y)) /
+          ((previousPoint.y - currentPoint.y) || 0.000001) +
+          currentPoint.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
 function listText(values: string[]) {
   return values.join("\n");
 }
@@ -531,18 +558,47 @@ export function CameraProfilePanel({
   function handleCanvasPointerDown(
     event: ReactPointerEvent<SVGSVGElement>,
   ) {
-    if (!editing || !drawing) return;
-    if (drawing.points.length >= 50) return;
+    if (!editing) return;
 
     const point = pointFromPointer(event);
-    setDrawing((current) =>
-      current
-        ? {
-            ...current,
-            points: [...current.points, point],
-          }
-        : null,
-    );
+
+    if (drawing) {
+      if (drawing.points.length >= 50) return;
+
+      setDrawing((current) =>
+        current
+          ? {
+              ...current,
+              points: [...current.points, point],
+            }
+          : null,
+      );
+      return;
+    }
+
+    const overlappingZoneKeys = zones
+      .filter(
+        (zone) =>
+          zone.polygon.length >= 3 &&
+          pointInPolygon(point, zone.polygon),
+      )
+      .map((zone) => zone.key);
+
+    if (!overlappingZoneKeys.length) {
+      setSelectedZoneKey(null);
+      return;
+    }
+
+    setSelectedZoneKey((current) => {
+      if (!current || !overlappingZoneKeys.includes(current)) {
+        return overlappingZoneKeys[0];
+      }
+
+      const currentIndex = overlappingZoneKeys.indexOf(current);
+      return overlappingZoneKeys[
+        (currentIndex + 1) % overlappingZoneKeys.length
+      ];
+    });
   }
 
   function handleCanvasPointerMove(
@@ -602,8 +658,87 @@ export function CameraProfilePanel({
         </div>
       </div>
 
+      {profile ? (
+        <div className={styles.modeActions}>
+          <div>
+            <strong>COMECE PELA EDIÇÃO VISUAL</strong>
+            <p>
+              Ajuste primeiro as zonas e o contexto desta câmera. A análise por
+              IA continua disponível logo abaixo para ajudar a recriar o perfil
+              quando precisar.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.editFirstButton}
+            onClick={() => {
+              setEditing((current) => !current);
+              setDrawing(null);
+              setDraggingVertex(null);
+            }}
+            disabled={!canManage}
+          >
+            {editing
+              ? "Voltar à visualização"
+              : "Editar zonas e contexto"}
+          </button>
+        </div>
+      ) : null}
+
       <div className={styles.grid}>
         <div className={styles.previewColumn}>
+          {editing ? (
+            <div className={styles.zoneToolbar}>
+              {drawing ? (
+                <>
+                  <strong>
+                    {drawing.replaceZoneKey
+                      ? "Redesenhando zona"
+                      : "Nova zona"}
+                  </strong>
+                  <span>
+                    Toque ou clique nos cantos da área. Use pelo menos 3 pontos.
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={undoDrawingPoint}
+                      disabled={!drawing.points.length}
+                    >
+                      Desfazer ponto
+                    </button>
+                    <button type="button" onClick={cancelDrawing}>
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.finishButton}
+                      onClick={finishDrawing}
+                      disabled={drawing.points.length < 3}
+                    >
+                      Concluir zona
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <strong>Editor visual de zonas</strong>
+                  <span>
+                    Toque em uma área para selecionar. Se houver sobreposição,
+                    toque no mesmo ponto novamente para alternar entre as zonas.
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.finishButton}
+                    onClick={beginNewZone}
+                  >
+                    + Desenhar nova zona
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+
           <div className={styles.preview}>
             {selectedFrame ? (
               <div className={styles.imageStage}>
@@ -642,11 +777,6 @@ export function CameraProfilePanel({
                           data-selected={
                             isSelected ? "true" : "false"
                           }
-                          onPointerDown={(event) => {
-                            if (!editing || drawing) return;
-                            event.stopPropagation();
-                            setSelectedZoneKey(zone.key);
-                          }}
                         />
                         <text
                           x={center.x * 100}
@@ -702,62 +832,6 @@ export function CameraProfilePanel({
                     </g>
                   ) : null}
                 </svg>
-
-                {editing ? (
-                  <div className={styles.zoneToolbar}>
-                    {drawing ? (
-                      <>
-                        <strong>
-                          {drawing.replaceZoneKey
-                            ? "Redesenhando zona"
-                            : "Nova zona"}
-                        </strong>
-                        <span>
-                          Toque ou clique nos cantos da área.
-                          Use pelo menos 3 pontos.
-                        </span>
-                        <div>
-                          <button
-                            type="button"
-                            onClick={undoDrawingPoint}
-                            disabled={!drawing.points.length}
-                          >
-                            Desfazer ponto
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelDrawing}
-                          >
-                            Cancelar
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.finishButton}
-                            onClick={finishDrawing}
-                            disabled={drawing.points.length < 3}
-                          >
-                            Concluir zona
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <strong>Editor visual de zonas</strong>
-                        <span>
-                          Toque em uma zona para mover os pontos
-                          ou desenhe uma nova área livremente.
-                        </span>
-                        <button
-                          type="button"
-                          className={styles.finishButton}
-                          onClick={beginNewZone}
-                        >
-                          + Desenhar nova zona
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ) : null}
 
                 <div className={styles.frameMeta}>
                   <span>
@@ -1193,23 +1267,6 @@ export function CameraProfilePanel({
         </div>
 
         <div className={styles.actionButtons}>
-          {profile ? (
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => {
-                setEditing((current) => !current);
-                setDrawing(null);
-                setDraggingVertex(null);
-              }}
-              disabled={!canManage}
-            >
-              {editing
-                ? "Voltar à visualização"
-                : "Editar perfil e desenhar zonas"}
-            </button>
-          ) : null}
-
           {hasDraft && profile ? (
             <form action={approvalAction}>
               <input
