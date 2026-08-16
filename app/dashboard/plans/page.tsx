@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { formatBrl } from "@/src/billing/pricing";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCommercialFoundationData } from "@/src/lib/billing-data";
@@ -7,6 +8,7 @@ import {
   getCurrentOrganization,
   getOrganizationCameras,
 } from "@/src/lib/dashboard-data";
+import { createClient } from "@/src/lib/supabase/server";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { PlanSelector } from "./plan-selector";
 import styles from "./plans.module.css";
@@ -20,6 +22,7 @@ type Props = {
   searchParams: Promise<{
     message?: string;
     error?: string;
+    trial?: string;
   }>;
 };
 
@@ -28,6 +31,45 @@ function formatDate(value: string) {
     dateStyle: "long",
     timeZone: "America/Sao_Paulo",
   }).format(new Date(value));
+}
+
+async function trialCameraIdsForOrganization(input: {
+  organizationId: string;
+  trialId: string | undefined;
+}) {
+  if (
+    !input.trialId ||
+    !z.string().uuid().safeParse(input.trialId).success
+  ) {
+    return [];
+  }
+
+  const supabase = await createClient();
+
+  const { data: trial, error: trialError } =
+    await supabase
+      .from("trial_runs")
+      .select("id")
+      .eq("id", input.trialId)
+      .eq("organization_id", input.organizationId)
+      .eq("trial_mode", "sales_assisted")
+      .maybeSingle();
+
+  if (trialError || !trial) return [];
+
+  const { data: participants, error } =
+    await supabase
+      .from("trial_run_cameras")
+      .select("camera_id")
+      .eq("trial_run_id", input.trialId)
+      .neq("status", "removed")
+      .order("created_at", { ascending: true });
+
+  if (error) return [];
+
+  return (participants ?? []).map((row) =>
+    String(row.camera_id),
+  );
 }
 
 export default async function PlansPage({
@@ -43,6 +85,12 @@ export default async function PlansPage({
     getCommercialFoundationData(organization.id),
     searchParams,
   ]);
+
+  const trialCameraIds =
+    await trialCameraIdsForOrganization({
+      organizationId: organization.id,
+      trialId: query.trial,
+    });
 
   const canManage =
     organization.role === "owner" ||
@@ -79,6 +127,13 @@ export default async function PlansPage({
 
         <DashboardSectionTabs group="settings" />
 
+        {trialCameraIds.length ? (
+          <div className={styles.successNotice}>
+            Demonstração carregada: selecionamos automaticamente
+            as câmeras testadas no plano Detalhada. Revise antes
+            de preparar a cobrança.
+          </div>
+        ) : null}
 
         {query.message ? (
           <div className={styles.successNotice}>
@@ -98,6 +153,7 @@ export default async function PlansPage({
           tiers={commercial.tiers}
           subscriptions={commercial.subscriptions}
           canManage={canManage}
+          trialCameraIds={trialCameraIds}
         />
 
         {commercial.draftInvoice ? (

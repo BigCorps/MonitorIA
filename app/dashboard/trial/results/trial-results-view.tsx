@@ -30,6 +30,8 @@ function isFinished(status: string) {
 
 export function TrialResultsView({ result, viewer }: Props) {
   const finished = isFinished(result.status);
+  const conversionHref =
+    `/dashboard/plans?trial=${encodeURIComponent(result.trialId)}`;
 
   return (
     <div className={styles.results}>
@@ -64,7 +66,7 @@ export function TrialResultsView({ result, viewer }: Props) {
       <section className={styles.metrics}>
         <div><span>CÂMERAS</span><strong>{result.cameraCount}</strong><small>Analisadas no mesmo período.</small></div>
         <div><span>ACONTECIMENTOS</span><strong>{result.eventCount}</strong><small>Registros consolidados pela IA.</small></div>
-        <div><span>VÍDEOS PRONTOS</span><strong>{result.clipCount}</strong><small>Clipes preservados quando o plano permite.</small></div>
+        <div><span>VÍDEOS PRONTOS</span><strong>{result.clipCount}</strong><small>Vídeos preservados pelo modo Detalhada.</small></div>
         <div><span>CONTINUIDADES</span><strong>{result.continuationCount}</strong><small>Eventos reconhecidos como sequência.</small></div>
         <div><span>REVISÃO</span><strong>{result.reviewCount}</strong><small>Itens sinalizados para conferência humana.</small></div>
       </section>
@@ -165,13 +167,17 @@ export function TrialResultsView({ result, viewer }: Props) {
         <section className={styles.conversionCard}>
           <div>
             <span>CONTINUAR MONITORANDO</span>
-            <h2>Escolha o plano ideal para cada câmera</h2>
+            <h2>Continue com as mesmas câmeras da demonstração</h2>
             <p>
-              A configuração feita durante a demonstração permanece salva. Você pode contratar as câmeras sem reinstalar o Agent nem refazer a descoberta.
+              A configuração permanece salva. Ao continuar, as câmeras que participaram
+              do teste serão pré-selecionadas no plano Detalhada, com vídeo completo.
+              Você ainda poderá trocar o plano, remover ou adicionar câmeras antes do Pix.
             </p>
           </div>
           <div className={styles.actions}>
-            <Link className={styles.primaryAction} href="/dashboard/plans">Escolher planos</Link>
+            <Link className={styles.primaryAction} href={conversionHref}>
+              Contratar câmeras da demonstração
+            </Link>
             <Link href="/dashboard/events">Explorar acontecimentos</Link>
             <Link href="/dashboard/search">Pesquisar com IA</Link>
           </div>

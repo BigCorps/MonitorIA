@@ -27,6 +27,7 @@ type Props = {
   tiers: VolumeDiscountTier[];
   subscriptions: CameraSubscriptionSummary[];
   canManage: boolean;
+  trialCameraIds?: string[];
 };
 
 function SubmitButton({
@@ -117,6 +118,7 @@ export function PlanSelector({
   tiers,
   subscriptions,
   canManage,
+  trialCameraIds = [],
 }: Props) {
   const subscriptionByCamera = useMemo(
     () =>
@@ -129,15 +131,40 @@ export function PlanSelector({
     [subscriptions],
   );
 
+  const trialCameraSet = useMemo(
+    () => new Set(trialCameraIds),
+    [trialCameraIds],
+  );
+
   const [selection, setSelection] = useState<
     Record<string, CommercialPlanCode | null>
   >(() =>
     Object.fromEntries(
-      cameras.map((camera) => [
-        camera.id,
-        subscriptionByCamera.get(camera.id)?.planCode ??
-          (camera.planCode as CommercialPlanCode),
-      ]),
+      cameras.map((camera) => {
+        const subscription =
+          subscriptionByCamera.get(camera.id);
+
+        if (trialCameraIds.length) {
+          if (
+            subscription &&
+            !canExcludeSubscription(subscription)
+          ) {
+            return [camera.id, subscription.planCode];
+          }
+
+          if (trialCameraSet.has(camera.id)) {
+            return [camera.id, "intensive"];
+          }
+
+          return [camera.id, null];
+        }
+
+        return [
+          camera.id,
+          subscription?.planCode ??
+            (camera.planCode as CommercialPlanCode),
+        ];
+      }),
     ),
   );
 
@@ -250,17 +277,36 @@ export function PlanSelector({
             </small>
           </div>
 
-          <p
-            style={{
-              margin: "10px 0 0",
-              color: "#6f7e91",
-              fontSize: "12px",
-              lineHeight: 1.55,
-            }}
-          >
-            Você não precisa contratar todas as câmeras cadastradas.
-            Marque “Não utilizar” nas que não entrarão nesta cobrança.
-          </p>
+          {trialCameraIds.length ? (
+            <div
+              style={{
+                margin: "12px 0 0",
+                padding: "11px 13px",
+                border: "1px solid #bde8dc",
+                borderRadius: "11px",
+                background: "#edf9f5",
+                color: "#176a52",
+                fontSize: "11px",
+                lineHeight: 1.55,
+              }}
+            >
+              Pré-selecionamos as {trialCameraIds.length} câmera(s) que
+              participaram da demonstração no plano Detalhada. Você pode
+              trocar o plano ou incluir outras câmeras antes de gerar a cobrança.
+            </div>
+          ) : (
+            <p
+              style={{
+                margin: "10px 0 0",
+                color: "#6f7e91",
+                fontSize: "12px",
+                lineHeight: 1.55,
+              }}
+            >
+              Você não precisa contratar todas as câmeras cadastradas.
+              Marque “Não utilizar” nas que não entrarão nesta cobrança.
+            </p>
+          )}
 
           <div className={styles.cameraList}>
             {cameras.map((camera) => {
