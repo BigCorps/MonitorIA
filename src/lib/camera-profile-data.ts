@@ -1,3 +1,7 @@
+import {
+  CameraOperationalContextSchema,
+  type CameraOperationalContext,
+} from "@/src/contracts/camera-profile";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
 
@@ -18,6 +22,7 @@ export type CameraProfileZoneSummary = {
 export type CameraProfileSummary = {
   id: string;
   version: number;
+  operationalContext: CameraOperationalContext;
   environmentDescription: string;
   monitoringGoals: string[];
   ignoreInstructions: string[];
@@ -110,6 +115,15 @@ function imageQualityValue(value: unknown) {
     visibility: String(object.visibility ?? ""),
     limitations: stringArray(object.limitations),
   };
+}
+
+function operationalContextValue(
+  value: unknown,
+): CameraOperationalContext {
+  const parsed =
+    CameraOperationalContextSchema.safeParse(value);
+
+  return parsed.success ? parsed.data : "custom";
 }
 
 async function signFrames(
@@ -263,6 +277,9 @@ export async function getCameraProfileWorkspace(
       return {
         id: String(row.id),
         version: Number(row.version),
+        operationalContext: operationalContextValue(
+          metadata.operationalContext,
+        ),
         environmentDescription: String(
           row.environment_description,
         ),

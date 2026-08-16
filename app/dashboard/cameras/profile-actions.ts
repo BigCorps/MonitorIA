@@ -4,6 +4,7 @@ import { Buffer } from "node:buffer";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { CameraOperationalContextSchema } from "@/src/contracts/camera-profile";
 import type { CameraProfileDraft } from "@/src/contracts/camera-profile-draft";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
@@ -48,6 +49,7 @@ const ManualZoneSchema = z
 
 const ManualProfileSchema = z
   .object({
+    operationalContext: CameraOperationalContextSchema,
     environmentDescription: z
       .string()
       .trim()
@@ -523,6 +525,8 @@ export async function analyzeCameraProfileAction(
         model: analysis.model,
         responseId: analysis.responseId,
         metadata: {
+          operationalContext:
+            analysis.profile.operationalContext,
           sceneType:
             analysis.profile.sceneType,
           fixedElements:
@@ -540,7 +544,7 @@ export async function analyzeCameraProfileAction(
           userGuidance,
           latencyMs: analysis.latencyMs,
           usage: analysis.usage,
-          profileSchemaVersion: "2.0",
+          profileSchemaVersion: "2.1",
         },
       },
     );
@@ -591,6 +595,8 @@ export async function analyzeCameraProfileAction(
               String(asset.id),
             user_guidance:
               userGuidance,
+            operational_context:
+              analysis.profile.operationalContext,
             cost_breakdown: cost,
           },
         });
@@ -619,6 +625,8 @@ export async function analyzeCameraProfileAction(
             String(asset.id),
           source_kind:
             String(asset.kind),
+          operational_context:
+            analysis.profile.operationalContext,
           has_user_guidance:
             Boolean(userGuidance),
         },
@@ -687,7 +695,7 @@ export async function saveCameraProfileDraftAction(
       parsed.error.issues,
     );
     return actionError(
-      "Revise a descrição, os objetivos e as zonas antes de salvar.",
+      "Revise o contexto, a descrição, os objetivos e as zonas antes de salvar.",
     );
   }
 
@@ -734,6 +742,8 @@ export async function saveCameraProfileDraftAction(
       model: null,
       responseId: null,
       metadata: {
+        operationalContext:
+          input.operationalContext,
         sceneType: input.sceneType,
         fixedElements:
           input.fixedElements,
@@ -748,7 +758,7 @@ export async function saveCameraProfileDraftAction(
         sourceKind: String(
           loaded.asset.kind,
         ),
-        profileSchemaVersion: "2.0",
+        profileSchemaVersion: "2.1",
       },
     },
   );
@@ -772,6 +782,8 @@ export async function saveCameraProfileDraftAction(
       metadata: {
         camera_id: cameraId,
         version: created.version,
+        operational_context:
+          input.operationalContext,
         based_on_profile_id:
           input.basedOnProfileId,
         source_asset_id:

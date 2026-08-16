@@ -60,6 +60,16 @@ const roleLabels: Record<string, string> = {
   shared: "Área compartilhada",
 };
 
+const operationalContextLabels: Record<string, string> = {
+  commerce: "Comércio / atendimento",
+  entrance: "Entrada / portaria",
+  garage: "Garagem / estacionamento",
+  street: "Rua / perímetro externo",
+  corridor: "Corredor / escada / circulação",
+  indoor: "Área interna",
+  custom: "Personalizado",
+};
+
 const sceneLabels: Record<string, string> = {
   indoor: "Ambiente interno",
   outdoor: "Ambiente externo",
@@ -199,6 +209,15 @@ function ProfileDetails({
   return (
     <div className={styles.profileDetails}>
       <div className={styles.descriptionBlock}>
+        <span>CONTEXTO OPERACIONAL</span>
+        <p>
+          {operationalContextLabels[
+            profile.operationalContext
+          ] ?? profile.operationalContext}
+        </p>
+      </div>
+
+      <div className={styles.descriptionBlock}>
         <span>DESCRIÇÃO DO AMBIENTE</span>
         <p>{profile.environmentDescription}</p>
       </div>
@@ -297,6 +316,10 @@ export function CameraProfilePanel({
     useState(initialSourceId);
   const [editing, setEditing] = useState(false);
   const [guidance, setGuidance] = useState("");
+  const [operationalContext, setOperationalContext] =
+    useState<string>(
+      profile?.operationalContext ?? "custom",
+    );
   const [environmentDescription, setEnvironmentDescription] =
     useState(
       profile?.environmentDescription ?? "",
@@ -334,6 +357,9 @@ export function CameraProfilePanel({
   useEffect(() => {
     if (!profile) return;
 
+    setOperationalContext(
+      profile.operationalContext,
+    );
     setEnvironmentDescription(
       profile.environmentDescription,
     );
@@ -364,6 +390,7 @@ export function CameraProfilePanel({
   const profilePayload = useMemo(
     () =>
       JSON.stringify({
+        operationalContext,
         environmentDescription,
         monitoringGoals:
           textList(monitoringGoals),
@@ -415,6 +442,7 @@ export function CameraProfilePanel({
           profile?.id ?? null,
       }),
     [
+      operationalContext,
       environmentDescription,
       monitoringGoals,
       ignoreInstructions,
@@ -657,6 +685,26 @@ export function CameraProfilePanel({
               </div>
 
               <label>
+                <span>Contexto operacional</span>
+                <select
+                  value={operationalContext}
+                  onChange={(event) =>
+                    setOperationalContext(
+                      event.target.value,
+                    )
+                  }
+                >
+                  {Object.entries(
+                    operationalContextLabels,
+                  ).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Descrição do ambiente</span>
                 <textarea
                   value={environmentDescription}
@@ -706,9 +754,10 @@ export function CameraProfilePanel({
                   <div>
                     <span>ZONAS E PAPÉIS</span>
                     <p>
-                      Delimite o lado interno de
-                      funcionários e o lado externo de
-                      clientes.
+                      Delimite as áreas que realmente têm
+                      função diferente nesta câmera, como
+                      rua, acesso, garagem, circulação,
+                      atendimento ou área restrita.
                     </p>
                   </div>
                   <button
@@ -946,9 +995,9 @@ export function CameraProfilePanel({
                 Escolha uma foto representativa
               </h3>
               <p>
-                Prefira um frame com a porta aberta,
-                balcão visível e áreas de funcionários e
-                clientes identificáveis.
+                Prefira um frame que represente a função
+                real da câmera: acesso, rua, garagem,
+                corredor, área interna ou atendimento.
               </p>
             </div>
           )}
@@ -962,9 +1011,9 @@ export function CameraProfilePanel({
             Explique o funcionamento do ambiente
           </h3>
           <p>
-            Exemplo: “Funcionários ficam atrás do balcão e
-            clientes permanecem na área frontal. O portão
-            aberto mostra a rua.”
+            Exemplo: “A rua fica na parte superior; carros
+            que apenas passam devem ser ignorados. O portão
+            e a rampa abaixo são a entrada da garagem.”
           </p>
         </div>
 
@@ -986,7 +1035,7 @@ export function CameraProfilePanel({
               setGuidance(event.target.value)
             }
             maxLength={2000}
-            placeholder="Descreva onde ficam funcionários, clientes, entregadores, entradas, áreas restritas e o que deve ser monitorado."
+            placeholder="Descreva o que esta câmera realmente monitora, quais áreas são importantes, o que é movimento normal e o que deve ser ignorado."
           />
           <button
             type="submit"

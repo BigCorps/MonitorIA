@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { PersonRoleHintSchema } from "./camera-profile";
+import {
+  CameraOperationalContextSchema,
+  PersonRoleHintSchema,
+} from "./camera-profile";
 
 export const ProfilePointSchema = z
   .object({
@@ -43,6 +46,7 @@ export const CameraImageQualitySchema = z
 
 export const CameraProfileDraftSchema = z
   .object({
+    operationalContext: CameraOperationalContextSchema,
     environmentDescription: z
       .string()
       .trim()
