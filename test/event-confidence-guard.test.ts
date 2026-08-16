@@ -33,7 +33,10 @@ function eventWith(
     stateObservations: [],
     sessionSignals: [],
     entityRelations: [],
-    sceneComplexity: EmptySceneComplexity,
+    sceneComplexity: {
+      ...EmptySceneComplexity,
+      notes: [...EmptySceneComplexity.notes],
+    },
     zoneIds: [],
     tags: [],
     confidence,
