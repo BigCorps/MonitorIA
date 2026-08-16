@@ -9,6 +9,20 @@ import {
 
 export { PointSchema } from "./camera-profile-point";
 
+export const CameraOperationalContextSchema = z.enum([
+  "commerce",
+  "entrance",
+  "garage",
+  "street",
+  "corridor",
+  "indoor",
+  "custom",
+]);
+
+export type CameraOperationalContext = z.infer<
+  typeof CameraOperationalContextSchema
+>;
+
 export const PersonRoleHintSchema = z.enum([
   "none",
   "staff",
