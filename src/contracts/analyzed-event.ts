@@ -245,13 +245,158 @@ const ValidatedAnalyzedEventSchema =
     },
   );
 
+function normalizeConfidence(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return value;
+  }
+
+  if (parsed < 0) {
+    return 0;
+  }
+
+  if (parsed <= 1) {
+    return parsed;
+  }
+
+  if (parsed <= 1.5) {
+    return 1;
+  }
+
+  if (parsed <= 100) {
+    return Math.min(1, parsed / 100);
+  }
+
+  return 1;
+}
+
+function normalizeDirectConfidenceFields(
+  value: Record<string, unknown>,
+) {
+  const observations = Array.isArray(value.observations)
+    ? value.observations.map((observation) => {
+        if (
+          !observation ||
+          typeof observation !== "object" ||
+          Array.isArray(observation)
+        ) {
+          return observation;
+        }
+
+        const item = observation as Record<string, unknown>;
+        return {
+          ...item,
+          confidence: normalizeConfidence(item.confidence),
+        };
+      })
+    : value.observations;
+
+  const people = Array.isArray(value.people)
+    ? value.people.map((person) => {
+        if (
+          !person ||
+          typeof person !== "object" ||
+          Array.isArray(person)
+        ) {
+          return person;
+        }
+
+        const item = person as Record<string, unknown>;
+        return {
+          ...item,
+          roleConfidence: normalizeConfidence(
+            item.roleConfidence,
+          ),
+          confidence: normalizeConfidence(
+            item.confidence,
+          ),
+        };
+      })
+    : value.people;
+
+  const vehicles = Array.isArray(value.vehicles)
+    ? value.vehicles.map((vehicle) => {
+        if (
+          !vehicle ||
+          typeof vehicle !== "object" ||
+          Array.isArray(vehicle)
+        ) {
+          return vehicle;
+        }
+
+        const item = vehicle as Record<string, unknown>;
+        const plateSuggestion =
+          item.plateSuggestion &&
+          typeof item.plateSuggestion === "object" &&
+          !Array.isArray(item.plateSuggestion)
+            ? {
+                ...(item.plateSuggestion as Record<
+                  string,
+                  unknown
+                >),
+                confidence: normalizeConfidence(
+                  (
+                    item.plateSuggestion as Record<
+                      string,
+                      unknown
+                    >
+                  ).confidence,
+                ),
+              }
+            : item.plateSuggestion;
+
+        return {
+          ...item,
+          plateSuggestion,
+          confidence: normalizeConfidence(
+            item.confidence,
+          ),
+        };
+      })
+    : value.vehicles;
+
+  const objects = Array.isArray(value.objects)
+    ? value.objects.map((object) => {
+        if (
+          !object ||
+          typeof object !== "object" ||
+          Array.isArray(object)
+        ) {
+          return object;
+        }
+
+        const item = object as Record<string, unknown>;
+        return {
+          ...item,
+          confidence: normalizeConfidence(
+            item.confidence,
+          ),
+        };
+      })
+    : value.objects;
+
+  return {
+    ...value,
+    observations,
+    people,
+    vehicles,
+    objects,
+    confidence: normalizeConfidence(
+      value.confidence,
+    ),
+  };
+}
+
 export const AnalyzedEventSchema = z.preprocess(
   (value) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return value;
     }
 
-    const event = value as Record<string, unknown>;
+    const event = normalizeDirectConfidenceFields(
+      value as Record<string, unknown>,
+    );
 
     if (
       event.schemaVersion === "1.1" ||
