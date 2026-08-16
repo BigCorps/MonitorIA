@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   dashboardNavigationGroups,
   type DashboardNavigationGroupId,
@@ -119,6 +120,27 @@ function monitoringNotice(pathname: string): MonitoringNotice | null {
   return null;
 }
 
+function NavigationLink({
+  pathname,
+  item,
+}: {
+  pathname: string;
+  item: DashboardNavigationItem;
+}) {
+  const active = itemIsActive(pathname, item);
+
+  return (
+    <Link
+      href={item.href}
+      key={item.id}
+      className={active ? styles.active : undefined}
+      aria-current={active ? "page" : undefined}
+    >
+      {item.label}
+    </Link>
+  );
+}
+
 export function DashboardSectionTabs({
   group,
   density = "comfortable",
@@ -127,6 +149,35 @@ export function DashboardSectionTabs({
   const pathname = usePathname();
   const navigation = dashboardNavigationGroups[group];
   const notice = group === "monitoring" ? monitoringNotice(pathname) : null;
+
+  const { primaryItems, advancedItems } = useMemo(() => {
+    if (group !== "monitoring") {
+      return {
+        primaryItems: navigation.items,
+        advancedItems: [] as DashboardNavigationItem[],
+      };
+    }
+
+    return {
+      primaryItems: navigation.items.filter((item) =>
+        ["events", "sessions"].includes(item.id),
+      ),
+      advancedItems: navigation.items.filter(
+        (item) => !["events", "sessions"].includes(item.id),
+      ),
+    };
+  }, [group, navigation.items]);
+
+  const advancedRouteActive = advancedItems.some((item) =>
+    itemIsActive(pathname, item),
+  );
+  const [advancedOpen, setAdvancedOpen] = useState(advancedRouteActive);
+
+  useEffect(() => {
+    if (advancedRouteActive) {
+      setAdvancedOpen(true);
+    }
+  }, [advancedRouteActive]);
 
   return (
     <>
@@ -142,21 +193,50 @@ export function DashboardSectionTabs({
         data-dashboard-tabs={group}
       >
         <div className={styles.scroller}>
-          {navigation.items.map((item) => {
-            const active = itemIsActive(pathname, item);
+          {primaryItems.map((item) => (
+            <NavigationLink
+              key={item.id}
+              pathname={pathname}
+              item={item}
+            />
+          ))}
 
-            return (
-              <Link
-                href={item.href}
-                key={item.id}
-                className={active ? styles.active : undefined}
-                aria-current={active ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          {group === "monitoring" && advancedItems.length ? (
+            <button
+              type="button"
+              className={[
+                styles.advancedButton,
+                advancedRouteActive ? styles.active : "",
+                advancedOpen ? styles.advancedOpen : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-expanded={advancedOpen}
+              aria-controls="monitoring-advanced-tabs"
+              onClick={() => setAdvancedOpen((current) => !current)}
+            >
+              Avançado
+              <span aria-hidden="true">{advancedOpen ? "⌃" : "⌄"}</span>
+            </button>
+          ) : null}
         </div>
+
+        {group === "monitoring" && advancedOpen ? (
+          <div
+            id="monitoring-advanced-tabs"
+            className={styles.advancedRow}
+          >
+            <div className={styles.advancedScroller}>
+              {advancedItems.map((item) => (
+                <NavigationLink
+                  key={item.id}
+                  pathname={pathname}
+                  item={item}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </nav>
 
       {notice ? (
