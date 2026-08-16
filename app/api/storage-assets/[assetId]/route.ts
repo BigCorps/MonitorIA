@@ -16,7 +16,7 @@ type RouteContext = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext,
 ) {
   const user = await requireAuthenticatedUser();
@@ -54,7 +54,7 @@ export async function GET(
   const supabase = await createClient();
   const { data: asset, error } = await supabase
     .from("storage_assets")
-    .select("id,bucket,storage_path,status,deleted_at")
+    .select("id,bucket,storage_path,status,deleted_at,kind")
     .eq("id", assetId)
     .eq("status", "ready")
     .is("deleted_at", null)
@@ -67,11 +67,24 @@ export async function GET(
     );
   }
 
+  const wantsDownload =
+    new URL(request.url).searchParams.get("download") === "1";
+  const isPreservedClip =
+    String(asset.kind) === "preserved_clip";
+
   const admin = createAdminClient();
   const { data: signed, error: signedError } =
     await admin.storage
       .from(String(asset.bucket))
-      .createSignedUrl(String(asset.storage_path), 5 * 60);
+      .createSignedUrl(
+        String(asset.storage_path),
+        5 * 60,
+        wantsDownload && isPreservedClip
+          ? {
+              download: `monitoria-evento-${assetId}.mp4`,
+            }
+          : undefined,
+      );
 
   if (signedError || !signed?.signedUrl) {
     return NextResponse.json(

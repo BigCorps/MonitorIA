@@ -82,8 +82,11 @@ function planFeatures(plan: CommercialPlan) {
   if (plan.clipEnabled) {
     features.push(
       <Feature key="clip">
-        Vídeo do acontecimento por{" "}
+        Vídeo completo do acontecimento por{" "}
         {plan.clipRetentionDays} dias
+      </Feature>,
+      <Feature key="clip-download">
+        Assistir e baixar o vídeo preservado
       </Feature>,
     );
   }
@@ -166,8 +169,8 @@ export function PlanSelector({
               {plan.code === "basic"
                 ? "ENTRADA ACESSÍVEL"
                 : plan.code === "standard"
-                  ? "MAIS ESCOLHIDO"
-                  : "MÁXIMO CONTEXTO"}
+                  ? "EQUILÍBRIO E CONTEXTO"
+                  : "MAIS RECOMENDADO"}
             </span>
             <h2>{plan.displayName}</h2>
             <p>{plan.shortDescription}</p>

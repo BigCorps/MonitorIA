@@ -36,6 +36,23 @@ function durationLabel(value: number | null) {
   return remainder ? `${minutes} min ${remainder} s` : `${minutes} min`;
 }
 
+const downloadButtonStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "34px",
+  padding: "0 11px",
+  marginLeft: "auto",
+  color: "#08745f",
+  border: "1px solid #bde8dc",
+  borderRadius: "8px",
+  background: "#edf9f5",
+  fontSize: "8px",
+  fontWeight: 850,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+} as const;
+
 export function EventMedia({
   invoiceSafeTitle,
   images,
@@ -84,12 +101,21 @@ export function EventMedia({
           disabled={!clip}
           title={
             clip
-              ? "Reproduzir clipe"
-              : "Clipe indisponível para este acontecimento"
+              ? "Assistir ao vídeo completo do acontecimento"
+              : "Vídeo indisponível para este acontecimento"
           }
         >
-          Clipe
+          ▶ Assistir vídeo
         </button>
+
+        {clip ? (
+          <a
+            href={`/api/storage-assets/${clip.id}?download=1`}
+            style={downloadButtonStyle}
+          >
+            ↓ Baixar vídeo
+          </a>
+        ) : null}
       </div>
 
       {tab === "clip" && clip ? (
@@ -114,10 +140,10 @@ export function EventMedia({
               src={`/api/storage-assets/${clip.id}`}
               type="video/mp4"
             />
-            Seu navegador não conseguiu reproduzir este clipe.
+            Seu navegador não conseguiu reproduzir este vídeo.
           </video>
           <div className={styles.clipMeta}>
-            <strong>Trecho do acontecimento</strong>
+            <strong>Vídeo completo do acontecimento</strong>
             <span>
               720p · H.264 · sem áudio
               {durationLabel(clipDurationSeconds)
