@@ -32,7 +32,7 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
   const { data: invites, error } = await admin
     .from("sales_trial_invites")
     .select(
-      "id,lead_name,lead_email,company_name,duration_minutes,max_cameras,expires_at,redeemed_at,revoked_at,created_at",
+      "id,lead_name,lead_email,company_name,duration_minutes,max_cameras,expires_at,redeemed_at,revoked_at,created_at,trial_run_id",
     )
     .order("created_at", { ascending: false })
     .limit(30);
@@ -135,12 +135,22 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
                     <span>{invite.max_cameras} câmera(s)</span>
                     <strong>{status}</strong>
                   </div>
-                  {status === "Disponível" ? (
-                    <form action={revokeSalesTrialInviteAction}>
-                      <input type="hidden" name="invite_id" value={String(invite.id)} />
-                      <button className={styles.revokeButton} type="submit">Cancelar</button>
-                    </form>
-                  ) : null}
+                  <div className={styles.rowActions}>
+                    {invite.trial_run_id ? (
+                      <Link
+                        className={styles.resultLink}
+                        href={`/dashboard/admin/customers/trials/${String(invite.trial_run_id)}/results`}
+                      >
+                        Ver resultado
+                      </Link>
+                    ) : null}
+                    {status === "Disponível" ? (
+                      <form action={revokeSalesTrialInviteAction}>
+                        <input type="hidden" name="invite_id" value={String(invite.id)} />
+                        <button className={styles.revokeButton} type="submit">Cancelar</button>
+                      </form>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}

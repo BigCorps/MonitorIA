@@ -332,6 +332,7 @@ export default async function SalesTrialPage({ searchParams }: Props) {
               <div><span>FINAL DA ANÁLISE</span><strong>{formatTrialDate(trial.capture_ends_at ? String(trial.capture_ends_at) : null)}</strong></div>
             </div>
             <div className={styles.actionRow}>
+              <Link href="/dashboard/trial/results">Ver resultado parcial</Link>
               <Link href="/dashboard/events">Ver acontecimentos</Link>
               <Link href="/dashboard/search">Pesquisar com IA</Link>
             </div>
@@ -350,9 +351,10 @@ export default async function SalesTrialPage({ searchParams }: Props) {
               <div><span>DADOS PROTEGIDOS ATÉ</span><strong>{formatTrialDate(trial.purge_after ? String(trial.purge_after) : null)}</strong></div>
             </div>
             <div className={styles.actionRow}>
+              <Link className={styles.primaryLink} href="/dashboard/trial/results">Ver resultado da demonstração</Link>
               <Link href="/dashboard/events">Explorar acontecimentos</Link>
               <Link href="/dashboard/search">Perguntar para a IA</Link>
-              <Link className={styles.primaryLink} href="/dashboard/plans">Escolher planos</Link>
+              <Link href="/dashboard/plans">Escolher planos</Link>
             </div>
           </section>
         ) : null}
