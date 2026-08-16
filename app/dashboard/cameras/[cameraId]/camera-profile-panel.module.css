@@ -181,9 +181,14 @@
     stroke-width 120ms ease;
 }
 
+.imageStage g[data-muted="true"] {
+  opacity: 0.24;
+}
+
 .imageStage polygon[data-selected="true"] {
-  fill: rgba(87, 230, 199, 0.24);
-  stroke-width: 3px;
+  fill: rgba(87, 230, 199, 0.28);
+  stroke-width: 3.5px;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.34));
 }
 
 .imageStage polygon[data-type="ignore"] {
@@ -320,6 +325,109 @@
   border-color: rgba(97, 232, 206, 0.45);
   color: #061712;
   background: #61e8ce;
+}
+
+.overlapMenu {
+  position: absolute;
+  z-index: 8;
+  width: min(270px, calc(100% - 24px));
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  color: #e7eef7;
+  background: rgba(7, 17, 29, 0.96);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  transform: translate(-18px, 12px);
+}
+
+.overlapMenuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 7px;
+}
+
+.overlapMenuHeader strong {
+  color: #fff;
+  font-size: 9px;
+}
+
+.overlapMenuHeader > button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  color: #d8e4ef;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.overlapMenuList {
+  display: grid;
+  gap: 5px;
+}
+
+.overlapMenuList > button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  color: #dce8f4;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  cursor: pointer;
+}
+
+.overlapMenuList > button:hover,
+.overlapMenuList > button[data-selected="true"] {
+  border-color: rgba(97, 232, 206, 0.45);
+  background: rgba(97, 232, 206, 0.12);
+}
+
+.overlapMenuList > button > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: #061712;
+  background: #61e8ce;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.overlapMenuList > button > div {
+  min-width: 0;
+}
+
+.overlapMenuList strong,
+.overlapMenuList small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlapMenuList strong {
+  color: #f4f8fc;
+  font-size: 9px;
+}
+
+.overlapMenuList small {
+  margin-top: 2px;
+  color: #9fb0c2;
+  font-size: 7px;
 }
 
 .frameMeta {
@@ -721,6 +829,12 @@
   gap: 5px;
 }
 
+.zoneCardActions button[data-hidden="true"] {
+  color: #08745f;
+  border-color: #bfe9df;
+  background: #eaf9f5;
+}
+
 .zoneSimpleFields {
   display: grid;
   gap: 9px;
@@ -913,6 +1027,11 @@
 
   .editFirstButton {
     width: 100%;
+  }
+
+  .overlapMenu {
+    width: min(245px, calc(100% - 16px));
+    transform: translate(-8px, 10px);
   }
 
   .frameMeta {

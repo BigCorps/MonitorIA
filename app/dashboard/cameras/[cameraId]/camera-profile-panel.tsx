@@ -55,6 +55,12 @@ type DraggingVertex = {
   pointIndex: number;
 } | null;
 
+type OverlapMenu = {
+  x: number;
+  y: number;
+  zoneKeys: string[];
+} | null;
+
 const zoneLabels: Record<string, string> = {
   entry: "Entrada",
   exit: "Saída",
@@ -367,6 +373,11 @@ export function CameraProfilePanel({
   const [drawing, setDrawing] = useState<DrawingState>(null);
   const [draggingVertex, setDraggingVertex] =
     useState<DraggingVertex>(null);
+  const [overlapMenu, setOverlapMenu] =
+    useState<OverlapMenu>(null);
+  const [hiddenZoneKeys, setHiddenZoneKeys] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     if (
@@ -399,6 +410,8 @@ export function CameraProfilePanel({
     setSelectedZoneKey(nextZones[0]?.key ?? null);
     setDrawing(null);
     setDraggingVertex(null);
+    setOverlapMenu(null);
+    setHiddenZoneKeys([]);
 
     if (profile.sourceAssetId) {
       setSelectedSourceId(profile.sourceAssetId);
@@ -492,17 +505,20 @@ export function CameraProfilePanel({
     setDrawing({ replaceZoneKey: null, points: [] });
     setSelectedZoneKey(null);
     setDraggingVertex(null);
+    setOverlapMenu(null);
   }
 
   function beginRedraw(zoneKey: string) {
     setDrawing({ replaceZoneKey: zoneKey, points: [] });
     setSelectedZoneKey(zoneKey);
     setDraggingVertex(null);
+    setOverlapMenu(null);
   }
 
   function cancelDrawing() {
     setDrawing(null);
     setDraggingVertex(null);
+    setOverlapMenu(null);
   }
 
   function undoDrawingPoint() {
@@ -547,12 +563,39 @@ export function CameraProfilePanel({
     setZones((current) =>
       current.filter((zone) => zone.key !== zoneKey),
     );
+    setHiddenZoneKeys((current) =>
+      current.filter((key) => key !== zoneKey),
+    );
     setSelectedZoneKey((current) =>
       current === zoneKey ? null : current,
     );
+    setOverlapMenu(null);
     if (drawing?.replaceZoneKey === zoneKey) {
       setDrawing(null);
     }
+  }
+
+  function toggleZoneVisibility(zoneKey: string) {
+    setHiddenZoneKeys((current) => {
+      const isHidden = current.includes(zoneKey);
+
+      if (!isHidden && selectedZoneKey === zoneKey) {
+        setSelectedZoneKey(null);
+      }
+
+      return isHidden
+        ? current.filter((key) => key !== zoneKey)
+        : [...current, zoneKey];
+    });
+    setOverlapMenu(null);
+  }
+
+  function selectZone(zoneKey: string) {
+    setSelectedZoneKey(zoneKey);
+    setHiddenZoneKeys((current) =>
+      current.filter((key) => key !== zoneKey),
+    );
+    setOverlapMenu(null);
   }
 
   function handleCanvasPointerDown(
@@ -579,6 +622,7 @@ export function CameraProfilePanel({
     const overlappingZoneKeys = zones
       .filter(
         (zone) =>
+          !hiddenZoneKeys.includes(zone.key) &&
           zone.polygon.length >= 3 &&
           pointInPolygon(point, zone.polygon),
       )
@@ -586,18 +630,19 @@ export function CameraProfilePanel({
 
     if (!overlappingZoneKeys.length) {
       setSelectedZoneKey(null);
+      setOverlapMenu(null);
       return;
     }
 
-    setSelectedZoneKey((current) => {
-      if (!current || !overlappingZoneKeys.includes(current)) {
-        return overlappingZoneKeys[0];
-      }
+    if (overlappingZoneKeys.length === 1) {
+      selectZone(overlappingZoneKeys[0]);
+      return;
+    }
 
-      const currentIndex = overlappingZoneKeys.indexOf(current);
-      return overlappingZoneKeys[
-        (currentIndex + 1) % overlappingZoneKeys.length
-      ];
+    setOverlapMenu({
+      x: point.x,
+      y: point.y,
+      zoneKeys: overlappingZoneKeys,
     });
   }
 
@@ -626,6 +671,18 @@ export function CameraProfilePanel({
   function stopDragging() {
     setDraggingVertex(null);
   }
+
+  const visibleZones = zones.filter(
+    (zone) => !hiddenZoneKeys.includes(zone.key),
+  );
+  const zonesForCanvas = [
+    ...visibleZones.filter(
+      (zone) => zone.key !== selectedZoneKey,
+    ),
+    ...visibleZones.filter(
+      (zone) => zone.key === selectedZoneKey,
+    ),
+  ];
 
   return (
     <section className={styles.shell}>
@@ -675,6 +732,7 @@ export function CameraProfilePanel({
               setEditing((current) => !current);
               setDrawing(null);
               setDraggingVertex(null);
+              setOverlapMenu(null);
             }}
             disabled={!canManage}
           >
@@ -724,8 +782,8 @@ export function CameraProfilePanel({
                 <>
                   <strong>Editor visual de zonas</strong>
                   <span>
-                    Toque em uma área para selecionar. Se houver sobreposição,
-                    toque no mesmo ponto novamente para alternar entre as zonas.
+                    Toque em uma área para selecionar. Quando houver sobreposição,
+                    escolha a zona desejada no menu que aparece sobre a imagem.
                   </span>
                   <button
                     type="button"
@@ -762,16 +820,26 @@ export function CameraProfilePanel({
                   onPointerCancel={stopDragging}
                   onPointerLeave={stopDragging}
                 >
-                  {zones.map((zone, index) => {
+                  {zonesForCanvas.map((zone) => {
                     const center = centroid(zone.polygon);
                     const isSelected =
                       selectedZoneKey === zone.key;
+                    const zoneIndex = zones.findIndex(
+                      (item) => item.key === zone.key,
+                    );
 
                     return (
-                      <g key={zone.key}>
+                      <g
+                        key={zone.key}
+                        data-muted={
+                          editing && selectedZoneKey && !isSelected
+                            ? "true"
+                            : "false"
+                        }
+                      >
                         <polygon
                           points={polygonPoints(zone.polygon)}
-                          data-zone={index + 1}
+                          data-zone={zoneIndex + 1}
                           data-role={zone.personRoleHint}
                           data-type={zone.type}
                           data-selected={
@@ -783,7 +851,7 @@ export function CameraProfilePanel({
                           y={center.y * 100}
                           textAnchor="middle"
                         >
-                          {index + 1}
+                          {zoneIndex + 1}
                         </text>
 
                         {editing &&
@@ -832,6 +900,62 @@ export function CameraProfilePanel({
                     </g>
                   ) : null}
                 </svg>
+
+                {editing && overlapMenu ? (
+                  <div
+                    className={styles.overlapMenu}
+                    style={{
+                      left: `${overlapMenu.x * 100}%`,
+                      top: `${overlapMenu.y * 100}%`,
+                    }}
+                  >
+                    <div className={styles.overlapMenuHeader}>
+                      <strong>
+                        {overlapMenu.zoneKeys.length} zonas nesta área
+                      </strong>
+                      <button
+                        type="button"
+                        aria-label="Fechar seleção de zonas"
+                        onClick={() => setOverlapMenu(null)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className={styles.overlapMenuList}>
+                      {overlapMenu.zoneKeys.map((zoneKey) => {
+                        const zone = zones.find(
+                          (item) => item.key === zoneKey,
+                        );
+                        if (!zone) return null;
+                        const zoneIndex = zones.findIndex(
+                          (item) => item.key === zoneKey,
+                        );
+
+                        return (
+                          <button
+                            type="button"
+                            key={zoneKey}
+                            data-selected={
+                              selectedZoneKey === zoneKey
+                                ? "true"
+                                : "false"
+                            }
+                            onClick={() => selectZone(zoneKey)}
+                          >
+                            <span>{zoneIndex + 1}</span>
+                            <div>
+                              <strong>{zone.name}</strong>
+                              <small>
+                                {zoneBehaviorLabels[zone.type] ??
+                                  zone.type}
+                              </small>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className={styles.frameMeta}>
                   <span>
@@ -935,6 +1059,7 @@ export function CameraProfilePanel({
                     setEditing(false);
                     setDrawing(null);
                     setDraggingVertex(null);
+                    setOverlapMenu(null);
                   }}
                 >
                   Fechar edição
@@ -1020,7 +1145,7 @@ export function CameraProfilePanel({
                         data-selected={
                           isSelected ? "true" : "false"
                         }
-                        onClick={() => setSelectedZoneKey(zone.key)}
+                        onClick={() => selectZone(zone.key)}
                       >
                         <header>
                           <div>
@@ -1033,8 +1158,25 @@ export function CameraProfilePanel({
                           <div className={styles.zoneCardActions}>
                             <button
                               type="button"
+                              data-hidden={
+                                hiddenZoneKeys.includes(zone.key)
+                                  ? "true"
+                                  : "false"
+                              }
                               onClick={(event) => {
                                 event.stopPropagation();
+                                toggleZoneVisibility(zone.key);
+                              }}
+                            >
+                              {hiddenZoneKeys.includes(zone.key)
+                                ? "Mostrar"
+                                : "Ocultar"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                selectZone(zone.key);
                                 beginRedraw(zone.key);
                               }}
                             >
@@ -1059,7 +1201,7 @@ export function CameraProfilePanel({
                               value={zone.name}
                               placeholder="Ex.: Entrada da garagem"
                               onFocus={() =>
-                                setSelectedZoneKey(zone.key)
+                                selectZone(zone.key)
                               }
                               onChange={(event) =>
                                 updateZone(zone.key, {
@@ -1076,7 +1218,7 @@ export function CameraProfilePanel({
                               placeholder="Ex.: Carros que entram pela rampa devem ser registrados. Carros apenas passando na rua não pertencem a esta zona."
                               rows={3}
                               onFocus={() =>
-                                setSelectedZoneKey(zone.key)
+                                selectZone(zone.key)
                               }
                               onChange={(event) =>
                                 updateZone(zone.key, {
@@ -1091,7 +1233,7 @@ export function CameraProfilePanel({
                             <select
                               value={zone.type}
                               onFocus={() =>
-                                setSelectedZoneKey(zone.key)
+                                selectZone(zone.key)
                               }
                               onChange={(event) =>
                                 updateZone(zone.key, {
