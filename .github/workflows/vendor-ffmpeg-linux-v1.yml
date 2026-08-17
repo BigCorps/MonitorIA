@@ -1,0 +1,164 @@
+name: Preparar FFmpeg Linux permanente do MonitorIA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  vendor-linux:
+    name: FFmpeg Linux ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - arch: x64
+            artifact_id: 9229590610
+            artifact_sha256: 114007815fe7160249f2007cb588c33fcab5125ef33b63fde302faae3b89cc2c
+            package_name: monitoria-agent-linux-x64.tar.gz
+            bundle_name: monitoria-ffmpeg-linux-x64-v1.tar.gz
+          - arch: arm64
+            artifact_id: 9229604374
+            artifact_sha256: 4cf22e2503d229581128b3c4925c237701439283096ea84c05661fdcec0469d9
+            package_name: monitoria-agent-linux-arm64.tar.gz
+            bundle_name: monitoria-ffmpeg-linux-arm64-v1.tar.gz
+
+    env:
+      DEPENDENCY_TAG: agent-deps-v1
+      SOURCE_RUN_ID: "31828058821"
+
+    steps:
+      - name: Baixar artefato Linux 0.15.3 já validado
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${{ matrix.artifact_id }}/zip"
+
+          curl \
+            --fail \
+            --location \
+            --retry 3 \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --output artifact.zip \
+            "${URL}"
+
+          HASH="$(sha256sum artifact.zip | awk '{print $1}')"
+          echo "SHA256 do artefato ZIP: ${HASH}"
+
+          if [ "${HASH}" != "${{ matrix.artifact_sha256 }}" ]; then
+            echo "SHA256 divergente para o artefato ${{ matrix.arch }}." >&2
+            exit 1
+          fi
+
+          mkdir artifact
+          unzip -q artifact.zip -d artifact
+
+          test -f "artifact/${{ matrix.package_name }}" || {
+            echo "Pacote ${{ matrix.package_name }} não encontrado no artefato." >&2
+            find artifact -maxdepth 2 -type f -print
+            exit 1
+          }
+
+      - name: Extrair somente a dependência FFmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir extracted
+          tar xzf "artifact/${{ matrix.package_name }}" -C extracted
+
+          ROOT="extracted/monitoria-agent-linux-${{ matrix.arch }}"
+
+          test -x "${ROOT}/ffmpeg"
+          test -x "${ROOT}/ffprobe"
+          test -d "${ROOT}/lib"
+          test -f "${ROOT}/LICENSE.txt"
+          test -f "${ROOT}/FFMPEG-ORIGEM.txt"
+
+          mkdir bundle
+          cp "${ROOT}/ffmpeg" bundle/
+          cp "${ROOT}/ffprobe" bundle/
+          cp -a "${ROOT}/lib" bundle/
+          cp "${ROOT}/LICENSE.txt" bundle/
+          cp "${ROOT}/FFMPEG-ORIGEM.txt" bundle/
+          chmod +x bundle/ffmpeg bundle/ffprobe
+
+          echo "Arquitetura dos binários recuperados:"
+          file bundle/ffmpeg
+          file bundle/ffprobe
+
+          test -n "$(find bundle/lib -type f -print -quit)" || {
+            echo "Diretório lib do FFmpeg ficou vazio." >&2
+            exit 1
+          }
+
+      - name: Criar bundle imutável
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tar czf "${{ matrix.bundle_name }}" -C bundle .
+
+          HASH="$(sha256sum "${{ matrix.bundle_name }}" | awk '{print $1}')"
+          printf '%s  %s\n' "${HASH}" "${{ matrix.bundle_name }}" \
+            > "${{ matrix.bundle_name }}.sha256"
+
+          echo "sha256=${HASH}" >> "${GITHUB_OUTPUT}"
+
+          echo "Bundle: ${{ matrix.bundle_name }}"
+          echo "SHA256: ${HASH}"
+
+      - name: Publicar na release permanente
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh release view "${DEPENDENCY_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            >/dev/null
+
+          EXISTING="$(
+            gh release view "${DEPENDENCY_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --json assets \
+              --jq '.assets[].name'
+          )"
+
+          if printf '%s\n' "${EXISTING}" | grep -Fxq "${{ matrix.bundle_name }}"; then
+            echo "A release já contém ${{ matrix.bundle_name }}; não será sobrescrito." >&2
+            exit 1
+          fi
+
+          gh release upload "${DEPENDENCY_TAG}" \
+            "${{ matrix.bundle_name }}" \
+            "${{ matrix.bundle_name }}.sha256" \
+            --repo "${GITHUB_REPOSITORY}"
+
+      - name: Resumo
+        shell: bash
+        run: |
+          {
+            echo "### FFmpeg Linux ${{ matrix.arch }} permanente"
+            echo
+            echo "**Fonte validada:** workflow run \`${SOURCE_RUN_ID}\` / Agent 0.15.3"
+            echo "**Release:** \`${DEPENDENCY_TAG}\`"
+            echo "**Arquivo:** \`${{ matrix.bundle_name }}\`"
+            echo "**SHA256:** \`${{ steps.bundle.outputs.sha256 }}\`"
+            echo
+            echo "\`https://github.com/${GITHUB_REPOSITORY}/releases/download/${DEPENDENCY_TAG}/${{ matrix.bundle_name }}\`"
+            echo
+          } >> "${GITHUB_STEP_SUMMARY}"
