@@ -1,0 +1,229 @@
+name: Preparar FFmpeg permanente do MonitorIA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor-ffmpeg:
+    name: Publicar dependência FFmpeg validada
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    env:
+      SOURCE_INSTALLER_URL: "https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.15.3/MonitorIA-Setup.exe"
+      SOURCE_INSTALLER_SHA256: "34840a20cbdcad055bb78b0921093c11e617cb0a343237ecb4b59201dcbe353b"
+
+      INNOEXTRACT_URL: "https://github.com/UserUnknownFactor/innoextract_win/releases/download/670/innoextract670.zip"
+      INNOEXTRACT_SHA256: "79b69b9b1fcd98f42ccd4b245efdf6a03bcfb674ba6af482f5a46891c9ed4d14"
+
+      DEPENDENCY_TAG: "agent-deps-v1"
+      BUNDLE_NAME: "monitoria-ffmpeg-win64-lgpl-shared-v1.zip"
+
+    steps:
+      - name: Baixar instalador 0.15.3 já validado
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri $env:SOURCE_INSTALLER_URL `
+            -OutFile MonitorIA-Setup.exe
+
+          $hash = (Get-FileHash MonitorIA-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          Write-Host ("SHA256 do instalador: {0}" -f $hash)
+
+          if ($hash -ne $env:SOURCE_INSTALLER_SHA256) {
+            throw "O instalador baixado não é o binário 0.15.3 já validado."
+          }
+
+      - name: Baixar e validar innoextract
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri $env:INNOEXTRACT_URL `
+            -OutFile innoextract.zip
+
+          $hash = (Get-FileHash innoextract.zip -Algorithm SHA256).Hash.ToLower()
+          Write-Host ("SHA256 do innoextract: {0}" -f $hash)
+
+          if ($hash -ne $env:INNOEXTRACT_SHA256) {
+            throw "SHA256 do innoextract divergente."
+          }
+
+          Expand-Archive `
+            -Path innoextract.zip `
+            -DestinationPath innoextract-tool `
+            -Force
+
+          $tool = Get-ChildItem `
+            innoextract-tool `
+            -Recurse `
+            -File `
+            -Filter innoextract.exe |
+            Select-Object -First 1
+
+          if (-not $tool) {
+            throw "innoextract.exe não foi encontrado no pacote validado."
+          }
+
+          "INNOEXTRACT_EXE=$($tool.FullName)" >> $env:GITHUB_ENV
+
+          & $tool.FullName --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "innoextract não iniciou corretamente."
+          }
+
+      - name: Extrair os componentes FFmpeg do instalador
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path extracted | Out-Null
+
+          & $env:INNOEXTRACT_EXE `
+            --extract `
+            --output-dir extracted `
+            MonitorIA-Setup.exe
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "innoextract não conseguiu extrair o instalador Inno Setup."
+          }
+
+          $ffmpeg = Get-ChildItem extracted -Recurse -File -Filter ffmpeg.exe |
+            Select-Object -First 1
+
+          $ffprobe = Get-ChildItem extracted -Recurse -File -Filter ffprobe.exe |
+            Select-Object -First 1
+
+          if (-not $ffmpeg -or -not $ffprobe) {
+            throw "FFmpeg/FFprobe não foram encontrados dentro do instalador."
+          }
+
+          $ffmpegDir = $ffmpeg.Directory.FullName
+
+          if ($ffprobe.Directory.FullName -ne $ffmpegDir) {
+            throw "FFmpeg e FFprobe foram extraídos de diretórios diferentes."
+          }
+
+          New-Item -ItemType Directory -Force -Path bundle | Out-Null
+
+          Copy-Item (Join-Path $ffmpegDir "ffmpeg.exe") bundle\ffmpeg.exe -Force
+          Copy-Item (Join-Path $ffmpegDir "ffprobe.exe") bundle\ffprobe.exe -Force
+
+          Get-ChildItem $ffmpegDir -File -Filter *.dll |
+            ForEach-Object {
+              Copy-Item $_.FullName (Join-Path bundle $_.Name) -Force
+            }
+
+          foreach ($name in @("LICENSE.txt", "FFMPEG-ORIGEM.txt")) {
+            $file = Get-ChildItem extracted -Recurse -File -Filter $name |
+              Select-Object -First 1
+
+            if (-not $file) {
+              throw ("{0} não foi encontrado dentro do instalador." -f $name)
+            }
+
+            Copy-Item $file.FullName (Join-Path bundle $name) -Force
+          }
+
+          $dllCount = (Get-ChildItem bundle -File -Filter *.dll).Count
+          Write-Host ("DLLs encontradas: {0}" -f $dllCount)
+
+          if ($dllCount -lt 1) {
+            throw "O build compartilhado do FFmpeg ficou sem DLLs."
+          }
+
+      - name: Confirmar assinaturas já validadas
+        shell: pwsh
+        run: |
+          $targets = @(
+            "bundle\ffmpeg.exe",
+            "bundle\ffprobe.exe"
+          ) + @(
+            Get-ChildItem bundle -File -Filter *.dll |
+              ForEach-Object { $_.FullName }
+          )
+
+          foreach ($target in $targets) {
+            $signature = Get-AuthenticodeSignature $target
+
+            if ($signature.Status -ne "Valid") {
+              throw ("Assinatura inválida em {0}: {1}" -f $target, $signature.Status)
+            }
+
+            Write-Host ("{0} -> Valid" -f $target)
+          }
+
+      - name: Criar bundle imutável
+        id: bundle
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path bundle\* `
+            -DestinationPath $env:BUNDLE_NAME `
+            -CompressionLevel Optimal
+
+          $hash = (Get-FileHash $env:BUNDLE_NAME -Algorithm SHA256).Hash.ToLower()
+
+          ("{0}  {1}" -f $hash, $env:BUNDLE_NAME) |
+            Set-Content "$env:BUNDLE_NAME.sha256" -Encoding ascii
+
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+          Write-Host ("Bundle: {0}" -f $env:BUNDLE_NAME)
+          Write-Host ("SHA256: {0}" -f $hash)
+
+      - name: Publicar release permanente da dependência
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = "${{ github.repository }}"
+          $tag = $env:DEPENDENCY_TAG
+          $bundle = $env:BUNDLE_NAME
+          $checksum = "$env:BUNDLE_NAME.sha256"
+
+          gh release view $tag --repo $repo *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if (-not $releaseExists) {
+            gh release create $tag `
+              --repo $repo `
+              --target "${{ github.sha }}" `
+              --title "MonitorIA Agent Dependencies v1" `
+              --notes "Dependências binárias congeladas do Agent. O bundle FFmpeg foi extraído do instalador 0.15.3 já validado em campo, preservando os mesmos binários assinados e os arquivos de licença/origem."
+
+            if ($LASTEXITCODE -ne 0) {
+              throw ("Não foi possível criar a release {0}." -f $tag)
+            }
+          }
+
+          $releaseJson = gh release view $tag --repo $repo --json assets | ConvertFrom-Json
+          $existingNames = @($releaseJson.assets | ForEach-Object { $_.name })
+
+          if ($existingNames -contains $bundle) {
+            throw ("A release já possui {0}. Não será sobrescrito: a dependência precisa permanecer imutável." -f $bundle)
+          }
+
+          gh release upload $tag `
+            $bundle `
+            $checksum `
+            --repo $repo
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Não foi possível publicar o bundle."
+          }
+
+      - name: Resumo
+        shell: pwsh
+        run: |
+          @"
+          ## FFmpeg permanente criado
+
+          **Release:** ``$env:DEPENDENCY_TAG``
+          **Arquivo:** ``$env:BUNDLE_NAME``
+          **SHA256:** ``${{ steps.bundle.outputs.sha256 }}``
+
+          URL que será usada pelo build 1.0.0:
+
+          ``https://github.com/${{ github.repository }}/releases/download/$env:DEPENDENCY_TAG/$env:BUNDLE_NAME``
+          "@ >> $env:GITHUB_STEP_SUMMARY
