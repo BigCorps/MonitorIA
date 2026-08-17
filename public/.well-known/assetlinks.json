@@ -1,13 +1,17 @@
 [
   {
     "relation": [
-      "delegate_permission/common.handle_all_urls"
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
     ],
     "target": {
       "namespace": "android_app",
       "package_name": "cam.monitoria.twa",
       "sha256_cert_fingerprints": [
-        "20:D6:AA:3A:3C:B5:CA:7B:87:AC:44:98:25:42:B2:20:B0:5C:16:83:10:65:F9:F4:86:D3:2D:DE:4B:A7:DF:EF"
+        "2F:FE:C4:10:31:52:A9:9F:0C:E2:18:94:63:87:80:E0:37:2E:ED:B3:3D:B3:F9:83:6C:1C:E9:78:F7:AF:BF:60",
+        "20:D6:AA:3A:3C:B5:CA:7B:87:AC:44:98:25:42:B2:20:B0:5C:16:83:10:65:F9:F4:86:D3:2D:DE:4B:A7:DF:EF",
+        "A3:61:2D:DC:EA:7C:46:F8:EE:2E:AE:EE:A1:BC:47:EF:08:B2:78:5A:1E:16:37:94:80:15:91:78:32:CD:8B:0C",
+        "4F:F1:9B:CD:A3:F4:51:4A:1D:90:BD:C9:15:5F:1D:E6:5F:67:CB:95:CD:C6:C4:07:19:D4:07:2E:FA:30:4B:F3"
       ]
     }
   }
