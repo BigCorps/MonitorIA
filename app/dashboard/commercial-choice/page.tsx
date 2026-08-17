@@ -13,6 +13,15 @@ type Props = {
   searchParams: Promise<{ message?: string }>;
 };
 
+const TRIAL_ALREADY_USED_STATUSES = new Set([
+  "running",
+  "capture_completed",
+  "exploration",
+  "converted",
+  "expired",
+  "purged",
+]);
+
 export default async function CommercialChoicePage({ searchParams }: Props) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -42,7 +51,22 @@ export default async function CommercialChoicePage({ searchParams }: Props) {
   if ((cameraResult.count ?? 0) === 0) redirect("/dashboard/cameras/discovery");
   if ((entitlementResult.count ?? 0) > 0) redirect("/dashboard");
 
-  const trial = trialResult.data as { status?: string; capture_ends_at?: string | null } | null;
+  const trial = trialResult.data as {
+    status?: string;
+    capture_ends_at?: string | null;
+  } | null;
+  const trialStatus = String(trial?.status ?? "");
+
+  // Esta rota só oferece o trial antes do primeiro uso.
+  // Depois que o relógio já começou uma vez, o cliente não vê novamente
+  // qualquer card ou CTA sugerindo um novo período gratuito.
+  if (TRIAL_ALREADY_USED_STATUSES.has(trialStatus)) {
+    if (["capture_completed", "exploration"].includes(trialStatus)) {
+      redirect("/dashboard/trial");
+    }
+
+    redirect("/dashboard/plans");
+  }
 
   return (
     <main className="dashboard-shell">

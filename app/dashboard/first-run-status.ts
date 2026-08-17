@@ -21,6 +21,15 @@ export type FirstRunStatus = {
   firstCameraId: string | null;
 };
 
+const TRIAL_ALREADY_USED_STATUSES = new Set([
+  "running",
+  "capture_completed",
+  "exploration",
+  "converted",
+  "expired",
+  "purged",
+]);
+
 export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -37,23 +46,31 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
 
   const supabase = createAdminClient();
 
-  const [agentsResult, camerasResult, profilesResult] = await Promise.all([
-    supabase
-      .from("agents")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organization.id)
-      .neq("status", "disabled"),
-    supabase
-      .from("cameras")
-      .select("id,status,setup_named_at")
-      .eq("organization_id", organization.id)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("camera_profiles")
-      .select("id,camera_id", { count: "exact" })
-      .eq("organization_id", organization.id)
-      .eq("is_active", true),
-  ]);
+  const [agentsResult, camerasResult, profilesResult, trialResult] =
+    await Promise.all([
+      supabase
+        .from("agents")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organization.id)
+        .neq("status", "disabled"),
+      supabase
+        .from("cameras")
+        .select("id,status,setup_named_at")
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("camera_profiles")
+        .select("id,camera_id", { count: "exact" })
+        .eq("organization_id", organization.id)
+        .eq("is_active", true),
+      supabase
+        .from("trial_runs")
+        .select("status")
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
   const list = (camerasResult.data ?? []) as unknown as Record<string, unknown>[];
   const online = list.filter((row) => String(row.status ?? "") === "online");
@@ -89,17 +106,34 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
   }
 
   const activeProfileCameraIds = new Set(
-    (profilesResult.data ?? []).map((row) => String((row as { camera_id: string }).camera_id)),
+    (profilesResult.data ?? []).map((row) =>
+      String((row as { camera_id: string }).camera_id),
+    ),
   );
   const firstNamedCameraHasProfile =
     firstCameraId !== null && activeProfileCameraIds.has(firstCameraId);
 
-  // O teste gratuito existente exige uma câmera online e com perfil ativo.
-  // Portanto o contexto visual vem antes de iniciar o relógio das 24 horas.
   if (!firstNamedCameraHasProfile) {
     return {
       stage: 4,
       phase: "profile",
+      cameras: list.length,
+      camerasOnline: online.length,
+      firstCameraId,
+    };
+  }
+
+  const latestTrialStatus = String(
+    (trialResult.data as { status?: string } | null)?.status ?? "",
+  );
+
+  // Depois que o trial começou uma vez, o onboarding nunca volta a oferecer
+  // um novo período gratuito. O cliente passa a usar o dashboard normal e,
+  // se quiser continuar o monitoramento, contrata pela área de Planos.
+  if (TRIAL_ALREADY_USED_STATUSES.has(latestTrialStatus)) {
+    return {
+      stage: 5,
+      phase: "done",
       cameras: list.length,
       camerasOnline: online.length,
       firstCameraId,
