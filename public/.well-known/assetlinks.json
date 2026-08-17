@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "cam.monitoria.twa",
+      "sha256_cert_fingerprints": [
+        "2F:FE:C4:10:31:52:A9:9F:0C:E2:18:94:63:87:80:E0:37:2E:ED:B3:3D:B3:F9:83:6C:1C:E9:78:F7:AF:BF:60"
+      ]
+    }
+  }
+]
