@@ -15,6 +15,11 @@ jobs:
     env:
       SOURCE_INSTALLER_URL: "https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.15.3/MonitorIA-Setup.exe"
       SOURCE_INSTALLER_SHA256: "34840a20cbdcad055bb78b0921093c11e617cb0a343237ecb4b59201dcbe353b"
+
+      # Ferramenta usada apenas nesta recuperação. Fixada por versão e SHA256.
+      INNOEXTRACT_URL: "https://github.com/UserUnknownFactor/innoextract_win/releases/download/670/innoextract670.zip"
+      INNOEXTRACT_SHA256: "79b69b9b1fcd98f42ccd4b245efdf6a03bcfb674ba6af482f5a46891c9ed4d14"
+
       DEPENDENCY_TAG: "agent-deps-v1"
       BUNDLE_NAME: "monitoria-ffmpeg-win64-lgpl-shared-v1.zip"
 
@@ -33,39 +38,70 @@ jobs:
             throw "O instalador baixado não é o binário 0.15.3 já validado."
           }
 
+      - name: Baixar e validar innoextract
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri $env:INNOEXTRACT_URL `
+            -OutFile innoextract.zip
+
+          $hash = (Get-FileHash innoextract.zip -Algorithm SHA256).Hash.ToLower()
+          Write-Host "SHA256 do innoextract: $hash"
+
+          if ($hash -ne $env:INNOEXTRACT_SHA256) {
+            throw "SHA256 do innoextract divergente."
+          }
+
+          Expand-Archive `
+            -Path innoextract.zip `
+            -DestinationPath innoextract-tool `
+            -Force
+
+          $tool = Get-ChildItem `
+            innoextract-tool `
+            -Recurse `
+            -File `
+            -Filter innoextract.exe |
+            Select-Object -First 1
+
+          if (-not $tool) {
+            throw "innoextract.exe não foi encontrado no pacote validado."
+          }
+
+          "INNOEXTRACT_EXE=$($tool.FullName)" >> $env:GITHUB_ENV
+          & $tool.FullName --version
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "innoextract não iniciou corretamente."
+          }
+
       - name: Extrair os componentes FFmpeg do instalador
         shell: pwsh
         run: |
-          $sevenZipCandidates = @(
-            "C:\Program Files\7-Zip\7z.exe",
-            "C:\Program Files (x86)\7-Zip\7z.exe"
-          )
-
-          $sevenZip = $sevenZipCandidates |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
-
-          if (-not $sevenZip) {
-            $sevenZipCommand = Get-Command 7z.exe -ErrorAction SilentlyContinue
-            if ($sevenZipCommand) {
-              $sevenZip = $sevenZipCommand.Source
-            }
-          }
-
-          if (-not $sevenZip) {
-            throw "7-Zip não foi encontrado no runner do GitHub."
-          }
-
           New-Item -ItemType Directory -Force -Path extracted | Out-Null
 
-          & $sevenZip x `
-            -y `
-            "-o$pwd\extracted" `
-            "$pwd\MonitorIA-Setup.exe"
+          & $env:INNOEXTRACT_EXE `
+            --extract `
+            --output-dir extracted `
+            MonitorIA-Setup.exe
 
           if ($LASTEXITCODE -ne 0) {
-            throw "7-Zip não conseguiu extrair o instalador Inno Setup."
+            throw "innoextract não conseguiu extrair o instalador Inno Setup."
           }
+
+          Write-Host "Arquivos FFmpeg encontrados:"
+          Get-ChildItem extracted -Recurse -File |
+            Where-Object {
+              $_.Name -in @(
+                "ffmpeg.exe",
+                "ffprobe.exe",
+                "LICENSE.txt",
+                "FFMPEG-ORIGEM.txt"
+              ) -or $_.Extension -eq ".dll"
+            } |
+            ForEach-Object {
+              Write-Host " - $($_.FullName)"
+            }
 
           $ffmpeg = Get-ChildItem extracted -Recurse -File -Filter ffmpeg.exe |
             Select-Object -First 1
@@ -161,12 +197,8 @@ jobs:
           $bundle = $env:BUNDLE_NAME
           $checksum = "$env:BUNDLE_NAME.sha256"
 
-          $releaseExists = $true
           gh release view $tag --repo $repo *> $null
-
-          if ($LASTEXITCODE -ne 0) {
-            $releaseExists = $false
-          }
+          $releaseExists = $LASTEXITCODE -eq 0
 
           if (-not $releaseExists) {
             gh release create $tag `
