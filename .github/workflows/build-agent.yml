@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "0.15.3"
+  AGENT_VERSION: "1.0.0"
 
   # Razao social exata da conta do Partner Center e do certificado OV da
   # SSL.com. Nao e erro de digitacao: o registro da empresa termina em LTA.
@@ -25,8 +25,8 @@ env:
   # Dependências fixadas por hash. Nada de "latest": um binário que muda
   # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
   # do zero a cada troca silenciosa.
-  FFMPEG_URL: "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-01-13-21/ffmpeg-n8.1.2-34-g9b6c8969e0-win64-lgpl-shared-8.1.zip"
-  FFMPEG_SHA256: "3bba81dcfd017a6ea1627905549769913948831ef10f3e7df7541f736067bff8"
+  FFMPEG_URL: "https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1/monitoria-ffmpeg-win64-lgpl-shared-v1.zip"
+  FFMPEG_SHA256: "e12b6bab3636a9056803cbfc107a4bc724504c1c75a7bbc8aa43c876fb59d02b"
   WINSW_URL: "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW.NET461.exe"
   WINSW_SHA256: "b5066b7bbdfba1293e5d15cda3caaea88fbeab35bd5b38c41c913d492aadfc4f"
 
@@ -168,8 +168,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path sign-stage | Out-Null
           Copy-Item build\monitoria-dpapi.exe   sign-stage\ -Force
           Copy-Item build\monitoria-service.exe sign-stage\ -Force
-          Copy-Item build\ffmpeg\*.exe          sign-stage\ -Force
-          Copy-Item build\ffmpeg\*.dll          sign-stage\ -Force
 
       - name: Assinar binários
         if: steps.signing.outputs.enabled == 'true'
@@ -189,18 +187,19 @@ jobs:
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
-          Copy-Item sign-stage-signed\monitoria-dpapi.exe   build\        -Force
-          Copy-Item sign-stage-signed\monitoria-service.exe build\        -Force
-          Copy-Item sign-stage-signed\ffmpeg.exe            build\ffmpeg\ -Force
-          Copy-Item sign-stage-signed\ffprobe.exe           build\ffmpeg\ -Force
-          Copy-Item sign-stage-signed\*.dll                 build\ffmpeg\ -Force
+          Copy-Item sign-stage-signed\monitoria-dpapi.exe   build\ -Force
+          Copy-Item sign-stage-signed\monitoria-service.exe build\ -Force
 
           $alvos = @(
             "build\monitoria-dpapi.exe",
             "build\monitoria-service.exe",
             "build\ffmpeg\ffmpeg.exe",
             "build\ffmpeg\ffprobe.exe"
+          ) + @(
+            Get-ChildItem build\ffmpeg -File -Filter *.dll |
+              ForEach-Object { $_.FullName }
           )
+
           foreach ($alvo in $alvos) {
             $status = (Get-AuthenticodeSignature $alvo).Status
             if ($status -ne 'Valid') { throw "Binario sem assinatura valida: $alvo ($status)" }
