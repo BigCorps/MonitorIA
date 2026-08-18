@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { appConfig } from "@/src/lib/app-config";
-import { compatibility, primaryCta, secondaryCta } from "@/src/lib/landing-content";
+import { compatibility, primaryCta, type Cta } from "@/src/lib/landing-content";
 import { CtaLink } from "./cta-link";
 import { MediaSlot } from "./media-slot";
 import { SceneHero } from "./scenes";
 import styles from "./landing.module.css";
+import playStoreStyles from "./play-store.module.css";
+
+const accountCta: Cta = {
+  label: "Acessar minha Conta",
+  href: "/dashboard",
+  external: false,
+};
+
+const playStoreUrl =
+  "https://play.google.com/store/apps/details?id=cam.monitoria.twa";
 
 export function Brand() {
   return (
@@ -28,7 +38,22 @@ export function LandingHeader() {
         <Link href="/recursos">Recursos</Link>
         <Link href="#duvidas">Dúvidas</Link>
       </nav>
-      <div className={styles.headerCta}>
+      <div className={`${styles.headerCta} ${playStoreStyles.headerActions}`}>
+        <a
+          className={playStoreStyles.storeBadgeLink}
+          href={playStoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Baixar o MonitorIA no Google Play"
+        >
+          <img
+            className={playStoreStyles.storeBadge}
+            src="/playstore-badge.png"
+            alt="Disponível no Google Play"
+            width={492}
+            height={150}
+          />
+        </a>
         <Link className={`${styles.btn} ${styles.btnGhost}`} href="/dashboard">
           Entrar
         </Link>
@@ -98,7 +123,7 @@ export function Hero() {
 
           <div className={styles.actions}>
             <CtaLink cta={primaryCta} variant="primary" />
-            <CtaLink cta={secondaryCta} variant="ghost" />
+            <CtaLink cta={accountCta} variant="ghost" />
           </div>
 
           {/* Compatibilidade na primeira dobra: é a primeira objeção de quem

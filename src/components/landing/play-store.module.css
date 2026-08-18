@@ -1,0 +1,46 @@
+.headerActions {
+  align-items: center;
+  flex: none;
+}
+
+.storeBadgeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  line-height: 0;
+  border-radius: 7px;
+}
+
+.storeBadgeLink:focus-visible {
+  outline: 2px solid #58e2c7;
+  outline-offset: 3px;
+}
+
+.storeBadge {
+  display: block;
+  width: 142px;
+  height: auto;
+  max-width: none;
+}
+
+/*
+ * No mobile grande o selo continua no header, à esquerda de "Entrar",
+ * mas encolhe para preservar o layout atual.
+ */
+@media (max-width: 560px) {
+  .storeBadge {
+    width: 88px;
+  }
+}
+
+/*
+ * Em telas muito estreitas, logo + selo + botão não cabem de forma limpa.
+ * O link da Play Store continua disponível na landing em resoluções normais,
+ * e o header estreito preserva a experiência atual sem overflow.
+ */
+@media (max-width: 420px) {
+  .storeBadgeLink {
+    display: none;
+  }
+}
