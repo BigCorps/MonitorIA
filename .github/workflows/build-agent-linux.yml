@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "0.15.3"
+  AGENT_VERSION: "1.0.0"
 
 jobs:
   build-linux:
@@ -26,13 +26,13 @@ jobs:
           - arch: x64
             runner: ubuntu-latest
             bun_target: bun-linux-x64-baseline
-            ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linux64-lgpl-shared-8.1.tar.xz
-            ffmpeg_sha256: e9144cae41096aba50d7c6caba0d15822ad04f9f3a97f394cecd7bb93eae68b8
+            ffmpeg_asset: monitoria-ffmpeg-linux-x64-v1.tar.gz
+            ffmpeg_sha256: d27ef4e034b31e0ddfeebf16af54742d50455139e57517da15207113665a78f8
           - arch: arm64
             runner: ubuntu-24.04-arm
             bun_target: bun-linux-aarch64
-            ffmpeg_asset: ffmpeg-n8.1.2-34-g9b6c8969e0-linuxarm64-lgpl-shared-8.1.tar.xz
-            ffmpeg_sha256: 9279602b39d14c0446209b3b70f42b497d3edf8b252c926d3f342902d9357d02
+            ffmpeg_asset: monitoria-ffmpeg-linux-arm64-v1.tar.gz
+            ffmpeg_sha256: c8c1cf0be6ca8f3b913b2733aa817743d9ea8211e36ef81075129f112d72f062
 
     steps:
       - name: Checkout
@@ -70,15 +70,15 @@ jobs:
       - name: Baixar e conferir FFmpeg
         run: |
           set -euo pipefail
-          BASE="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-01-13-21"
-          curl -fsSL -o ffmpeg.tar.xz "${BASE}/${{ matrix.ffmpeg_asset }}"
-          HASH="$(sha256sum ffmpeg.tar.xz | cut -d' ' -f1)"
+          BASE="https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1"
+          curl -fsSL -o ffmpeg.tar.gz "${BASE}/${{ matrix.ffmpeg_asset }}"
+          HASH="$(sha256sum ffmpeg.tar.gz | cut -d' ' -f1)"
           echo "SHA256: ${HASH}"
           test "${HASH}" = "${{ matrix.ffmpeg_sha256 }}" || {
             echo "SHA256 divergente. Esperado ${{ matrix.ffmpeg_sha256 }}, obtido ${HASH}" >&2
             exit 1
           }
-          mkdir -p ffmpeg-tmp && tar xf ffmpeg.tar.xz -C ffmpeg-tmp --strip-components=1
+          mkdir -p ffmpeg-tmp && tar xzf ffmpeg.tar.gz -C ffmpeg-tmp
 
       - name: Montar o pacote
         run: |
@@ -87,7 +87,7 @@ jobs:
           mkdir -p "$OUT"
 
           cp agent/dist/monitoria-agent "$OUT/"
-          cp ffmpeg-tmp/bin/ffmpeg ffmpeg-tmp/bin/ffprobe "$OUT/"
+          cp ffmpeg-tmp/ffmpeg ffmpeg-tmp/ffprobe "$OUT/"
           mkdir -p "$OUT/lib"
           cp -a ffmpeg-tmp/lib/. "$OUT/lib/"
           cp packaging/linux/monitoria-agent.service "$OUT/"
@@ -99,7 +99,7 @@ jobs:
           cat > "$OUT/FFMPEG-ORIGEM.txt" <<EOF
           FFmpeg redistribuído sem modificação.
 
-          Origem : ${{ matrix.ffmpeg_asset }}
+          Origem : https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1/${{ matrix.ffmpeg_asset }}
           Licença: LGPL (build sem componentes GPL)
           Fonte  : https://github.com/BtbN/FFmpeg-Builds
           Upstream: https://git.ffmpeg.org/ffmpeg.git
