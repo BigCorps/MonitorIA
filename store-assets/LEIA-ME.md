@@ -1,150 +1,161 @@
 # Materiais de listagem — Microsoft Store
 
-## O que já está nesta pasta
+## Estado
+
+O Agent MonitorIA **1.0.0** está fechado para publicação.
+
+- DVR real: aprovado
+- Windows Agent: 1.0.0
+- Instalador Store: `MonitorIA-Store-Setup.exe`
+- Publicador: `BIGCORPS TECNOLOGIA LTA`
+- Site: `https://monitoria.cam`
+
+## Imagens já existentes
 
 | Arquivo | Uso |
 |---|---|
-| `logo-300x300.png` | Store logo do Partner Center |
-| `logo-2160x2160.png` | reserva para qualquer campo que peça resolução maior |
+| `logo-300x300.png` | logo quadrado da listagem |
+| `logo-2160x2160.png` | versão de alta resolução |
 
-Ambos derivados de `public/logo.png` (3544×3544).
+## Screenshots
 
-## O que você precisa produzir
+A Store exige pelo menos **1 screenshot**. Para uma listagem melhor, produzir
+**4 a 6 imagens reais** depois da validação visual final do onboarding/dashboard.
 
-### Screenshots — 4 a 6 imagens
+Sugestão:
 
-- **PNG**, `1920×1080` (aceito também `1366×768`)
-- Mínimo 1, mas listagem com 4 a 6 converte bem melhor
-- Capture o navegador em janela limpa, sem barra de favoritos e sem abas
-  pessoais visíveis
+1. onboarding / primeiros passos;
+2. dashboard com Agent conectado;
+3. Pesquisa IA / busca por acontecimento;
+4. linha do tempo ou eventos;
+5. detalhe de um acontecimento;
+6. tela de instalação/pareamento, se fizer sentido visualmente.
 
-Sugestão de sequência:
+Regras internas para as capturas:
 
-1. Dashboard com câmeras conectadas e eventos recentes
-2. Tela de pareamento com o código gerado
-3. Linha do tempo / busca de acontecimentos
-4. Detalhe de um acontecimento
-5. Tela de planos
-6. Instalador do Windows na etapa final
+- usar somente organização/dados de demonstração;
+- não exibir dados reais de clientes;
+- não exibir senhas, tokens, e-mails pessoais ou chaves;
+- evitar rostos e placas identificáveis;
+- usar a interface real de produção;
+- manter navegador limpo, sem abas/favoritos pessoais.
 
-**Regras que reprovam:**
+## Nome
 
-- dados reais de clientes — use a organização de demonstração
-- rostos ou placas identificáveis nas imagens das câmeras
-- capturas que não correspondam ao software real
-- logos de terceiros sem autorização
-
-### Conta de demonstração
-
-Obrigatória. O testador da Microsoft precisa entrar no painel.
-
-- Crie uma organização dedicada, com dados fictícios
-- Garanta que **não expire** durante a certificação — o trial de 24 h não pode
-  derrubar o acesso do testador
-- Teste o login em janela anônima antes de submeter
-- Preencha usuário e senha nas notas de certificação abaixo
-
----
-
-## Textos prontos
-
-### Nome
-
-```
+```text
 MonitorIA
 ```
 
-### Descrição curta
+## Descrição curta
 
+```text
+Conecte câmeras IP, DVR e NVR ao MonitorIA e pesquise por texto o que aconteceu no seu negócio.
 ```
-Conecte suas câmeras IP, DVR e NVR ao painel MonitorIA e pesquise o que
-aconteceu no seu negócio, por texto, direto no navegador.
-```
 
-### Descrição longa
+## Descrição longa
 
-```
-O MonitorIA transforma as câmeras de segurança que você já tem em uma memória
-visual pesquisável.
+```text
+O MonitorIA transforma as câmeras de segurança que você já possui em uma
+memória visual pesquisável.
 
-O aplicativo instala o MonitorIA Agent, um serviço do Windows que roda no
-computador conectado à mesma rede das câmeras. Ele lê o vídeo localmente,
-identifica acontecimentos relevantes e envia apenas o resultado para o painel
-web, onde você pesquisa por texto.
+O MonitorIA Agent é instalado no computador Windows conectado à mesma rede das
+câmeras. Ele encontra equipamentos compatíveis, processa o fluxo necessário ao
+monitoramento e conecta o ambiente ao painel MonitorIA.
 
 COMO FUNCIONA
 
-1. Instale o MonitorIA Agent neste computador.
-2. Acesse o painel em monitoria.cam, gere um código de pareamento e conecte o
-   computador.
-3. O Agent encontra as câmeras da rede automaticamente.
-4. Pesquise no painel o que aconteceu, de qualquer lugar.
+1. Instale o MonitorIA Agent no computador da empresa.
+2. Acesse monitoria.cam e conclua o pareamento pelo painel.
+3. O Agent encontra câmeras IP, DVR e NVR compatíveis na rede.
+4. Acompanhe acontecimentos e pesquise por texto no painel MonitorIA.
 
 REQUISITOS
 
 - Windows 10 versão 1809 ou superior, 64 bits
-- Computador na mesma rede das câmeras, ligado durante o monitoramento
-- Câmeras IP, DVR ou NVR com RTSP
-- Conta no painel MonitorIA
+- computador ligado durante o monitoramento
+- acesso à mesma rede do DVR, NVR ou câmeras
+- equipamento com fluxo compatível, como RTSP
+- conta MonitorIA
 
 PRIVACIDADE
 
-O vídeo é processado no seu computador. Nenhuma credencial de câmera é
-solicitada durante a instalação. A desinstalação remove o serviço e todo o
-estado local, incluindo o pareamento.
+As credenciais das câmeras permanecem no computador onde o Agent está
+instalado. Nenhuma credencial de câmera é solicitada pelo instalador da
+Microsoft Store.
 
 Política de privacidade: https://monitoria.cam/privacidade
 Termos de uso: https://monitoria.cam/termos
 Suporte: https://monitoria.cam/contato
 ```
 
-### Search terms
+## Termos de busca
 
+```text
+câmera IP, DVR, NVR, RTSP, monitoramento, vigilância, câmeras de segurança, CFTV, eventos, pesquisa por câmera
 ```
-câmera IP, DVR, NVR, RTSP, monitoramento, vigilância, câmeras de segurança,
-CFTV, gravação, eventos
+
+## Conta de demonstração para certificação
+
+Usuário previsto:
+
+```text
+reviewer@monitoria.cam
 ```
 
-### Notas para a certificação
+Organização:
 
-Substitua `<usuario>` e `<senha>` antes de enviar.
-
+```text
+MonitorIA Review Demo
 ```
-MonitorIA é um agente Windows que conecta câmeras IP/DVR/NVR ao painel web
-MonitorIA (https://monitoria.cam).
 
-INSTALAÇÃO
-O instalador da Store é totalmente silencioso e não requer conexão com a
-internet durante a instalação. Ele registra o serviço do Windows
-"MonitorIAAgent" e instala os arquivos em C:\Program Files\MonitorIA.
-Nenhuma credencial de câmera é solicitada durante a instalação.
-A elevação (UAC) é necessária porque o serviço roda como LocalSystem.
+**Não colocar a senha neste repositório.**
+
+Antes do envio:
+
+- definir senha exclusiva;
+- testar em janela anônima;
+- garantir que a conta não fique bloqueada durante a certificação;
+- garantir que o trial não impeça o teste;
+- manter somente dados fictícios/sintéticos.
+
+## Notas para certificação
+
+Copiar o bloco abaixo no Partner Center e substituir `<SENHA_DEMO>` somente lá.
+
+```text
+MonitorIA conecta câmeras IP, DVR e NVR ao painel web https://monitoria.cam.
+
+O instalador Microsoft Store é um EXE x64 standalone/offline. Ele instala o
+serviço Windows "MonitorIAAgent" em C:\Program Files\MonitorIA e requer elevação
+UAC porque o serviço roda em segundo plano. A instalação não solicita
+credenciais de câmeras.
 
 COMO TESTAR
-1. Após a instalação, o serviço MonitorIAAgent estará em execução, aguardando
-   pareamento.
-2. Acesse https://monitoria.cam/login e entre com a conta de demonstração
-   abaixo.
-3. No painel, vá em Instaladores e gere um código de pareamento.
-4. Volte ao computador e informe o código para conectar.
+1. Instale o aplicativo pela Microsoft Store.
+2. Acesse https://monitoria.cam/login.
+3. Entre com:
+   Usuário: reviewer@monitoria.cam
+   Senha: <SENHA_DEMO>
+4. Use a organização "MonitorIA Review Demo".
+5. Abra o fluxo de instalação/pareamento no dashboard e confirme o status do
+   Agent.
 
-Não é necessária uma câmera física para validar o app: o pareamento e o painel
-funcionam sem ela, e o status de conexão é exibido no dashboard.
+Não é necessária uma câmera física para validar login, painel e pareamento. A
+conta de demonstração usa somente dados sintéticos.
 
-CONTA DE DEMONSTRAÇÃO
-Usuário: <usuario>
-Senha: <senha>
-Esta conta está com acesso permanente liberado e não expira.
+A desinstalação é silenciosa e remove o serviço e o estado local do Agent.
 
-MONETIZAÇÃO
-O app oferece 24 horas gratuitas de monitoramento. Depois desse período o
-usuário escolhe um plano no painel web. Todo o processamento de pagamento
-ocorre fora da Microsoft Store, conforme permitido para aplicativos MSI/EXE.
-
-DESINSTALAÇÃO
-Silenciosa, remove o serviço, os arquivos e todo o estado local em
-C:\ProgramData\MonitorIA.
-
-CONTATO
-https://monitoria.cam/contato
+Suporte: https://monitoria.cam/contato
 ```
+
+## Antes de clicar em Submit
+
+- release `agent-v1.0.0` publicada;
+- `MonitorIA-Store-Setup.exe` presente na release;
+- URL versionada funcionando;
+- assinatura `Valid`;
+- screenshots adicionadas;
+- logo adicionado;
+- conta demo testada;
+- senha demo inserida somente nas notas de certificação;
+- todas as seções do Partner Center salvas.

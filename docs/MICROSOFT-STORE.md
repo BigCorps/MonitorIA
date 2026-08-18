@@ -1,186 +1,233 @@
-# MonitorIA — publicação do Agent na Microsoft Store
+# MonitorIA — publicação do Agent 1.0.0 na Microsoft Store
 
 Caminho oficial **MSI/EXE (Win32)**, mantendo o instalador Inno Setup atual.
-A Microsoft **não hospeda** o binário: ela baixa o arquivo da URL informada e o
-executa em modo silencioso na máquina do usuário.
+A Microsoft baixa o instalador a partir de uma URL HTTPS versionada informada
+no Partner Center e executa a instalação silenciosa.
 
-## Estado
+## Estado real do 1.0.0
 
-- Versão candidata: **1.0.0**
+- Versão candidata/final: **1.0.0**
+- Agent Windows: **pronto**
+- Agent Linux x64/arm64: **pronto**
+- DVR real: **testado e aprovado**
 - Instalador: Inno Setup 6 (`installer/monitoria.iss`)
 - Windows 10 1809+ (`MinVersion=10.0.17763`), x64
 - Serviço: `MonitorIAAgent`
 - Publicador: `BIGCORPS TECNOLOGIA LTA`
 - Assinatura: SSL.com eSigner via GitHub Actions
-- Conta do Partner Center: **aprovada**
-- Teste em DVR real: **pendente**
-- Promover para **1.0.0 somente após o teste de DVR**
+- Partner Center: **conta aprovada**
+- Backend Supabase: produção
+- Frontend Vercel: produção
+- Próxima etapa: gerar a release imutável `agent-v1.0.0` e enviar ao Partner Center
 
-> `LTA` está correto. É a razão social registrada, não erro de digitação.
-> O domínio de produção é **monitoria.cam**.
+> `LTA` está correto e deve permanecer idêntico no workflow, instalador,
+> certificado e nome de exibição do editor no Partner Center.
+>
+> Domínio de produção: **monitoria.cam**.
 
-## Requisitos da Microsoft
+## Requisitos do pacote para a Store
 
-1. EXE/MSI standalone e offline — nada é baixado durante a instalação;
-2. instalador e todos os arquivos PE assinados;
-3. certificado encadeado a CA do Microsoft Trusted Root Program;
-4. URL HTTPS direta e **versionada**;
-5. binário **imutável** depois de submetido;
-6. instalação silenciosa retornando `0`;
-7. UAC é permitido (`PrivilegesRequired=admin`).
+O pacote usado na Store deve continuar obedecendo a estes pontos:
 
-## O nome do editor aparece em três lugares
+1. instalador `.exe` standalone/offline;
+2. todos os arquivos PE instalados assinados;
+3. assinatura encadeada a uma autoridade confiável pela Microsoft;
+4. URL HTTPS direta e versionada;
+5. binário imutável depois do envio à certificação;
+6. instalação silenciosa;
+7. desinstalação silenciosa;
+8. arquitetura x64;
+9. elevação UAC permitida porque o Agent instala um serviço Windows.
 
-Divergência entre eles reprova a certificação. Ao mudar um, mude os três:
+## Validações já feitas pelo workflow
 
-| Onde | Campo |
-|---|---|
-| `.github/workflows/build-agent.yml` | `env.PUBLISHER_NAME` |
-| `installer/monitoria.iss` | `#define AppPublisher` |
-| Partner Center | Nome de exibição do editor |
-
-O workflow compara o `Subject` do certificado com `PUBLISHER_NAME` e falha o
-build se não bater.
-
-## Artefatos do build
-
-O CI gera dois instaladores a cada execução:
+O workflow `.github/workflows/build-agent.yml` gera:
 
 | Arquivo | Uso |
 |---|---|
-| `MonitorIA-Setup.exe` | download pelo painel (`/dashboard`) |
-| `MonitorIA-Store-Setup.exe` | **Microsoft Store** |
+| `MonitorIA-Setup.exe` | download normal pelo MonitorIA |
+| `MonitorIA-Store-Setup.exe` | Microsoft Store |
 
-Ambos passam pela mesma validação no passo `Resumo do build`: assinatura
-`Valid`, carimbo de tempo presente, editor conferido e certificado com mais de
-30 dias de validade.
+O passo `Resumo do build` valida os dois instaladores:
 
-## Publicar a versão
+- arquivo realmente gerado;
+- assinatura Authenticode `Valid`;
+- carimbo de tempo;
+- editor contendo `BIGCORPS TECNOLOGIA LTA`;
+- certificado com validade suficiente;
+- SHA256 apresentado no resumo do Actions.
 
-O `Publicar release` só roda em tag. Sem tag, o instalador existe apenas como
-artifact do Actions — que expira em 30 dias e exige login, e por isso **não
-serve como URL da Store**.
+As dependências FFmpeg usadas no Agent 1.0.0 estão congeladas em assets
+versionados do próprio repositório MonitorIA e validadas por SHA256.
 
-```bash
-git tag agent-v1.0.0
-git push origin agent-v1.0.0
-```
+## Fluxo sem Codespace — somente GitHub web
 
-## URL do pacote
+Não é necessário terminal para publicar a versão.
+
+### 1. Teste manual final do workflow
+
+No GitHub:
+
+1. abra **Actions**;
+2. escolha **Build MonitorIA Agent**;
+3. clique em **Run workflow**;
+4. branch: `main`;
+5. execute;
+6. confirme que `Instalador Windows x64` termina verde;
+7. abra `Resumo do build` e confirme que o instalador Microsoft Store aparece
+   com assinatura `Valid` e carimbo de tempo.
+
+Opcionalmente, faça o mesmo em **Build MonitorIA Agent (Linux)** para validar
+x64 e arm64 antes da tag oficial.
+
+### 2. Criar tag e release pela interface do GitHub
+
+Depois do workflow manual verde:
+
+1. abra **Releases**;
+2. clique em **Draft a new release**;
+3. em **Choose a tag**, digite exatamente `agent-v1.0.0`;
+4. escolha criar a nova tag a partir de `main`;
+5. título: `MonitorIA Agent 1.0.0`;
+6. use o texto de `store-assets/RELEASE-NOTES-1.0.0.md`;
+7. clique em **Publish release**.
+
+A criação da tag `agent-v1.0.0` dispara automaticamente os workflows oficiais
+Windows e Linux.
+
+**Não faça upload manual dos instaladores na release.**
+O próprio GitHub Actions adicionará os arquivos após o build.
+
+### 3. Confirmar a release oficial
+
+A release `agent-v1.0.0` deve conter pelo menos:
+
+- `MonitorIA-Setup.exe`
+- `MonitorIA-Store-Setup.exe`
+
+O instalador da Store deve estar disponível em:
 
 ```text
 https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe
 ```
 
-Gerada por `storeInstallerUrlFor()` em `src/lib/installer-data.ts`, que rejeita
-qualquer coisa fora do formato `X.Y.Z`.
+Depois de informar essa URL no Partner Center, **não substitua o arquivo**.
+Para qualquer correção futura, use uma nova versão/tag e uma nova URL.
 
-**Nunca use `releases/latest/download` aqui.** Esse endereço muda sozinho na
-próxima tag, e conteúdo mutável na URL submetida é motivo de remoção do app.
-O painel continua usando `latest` de propósito — lá o comportamento desejado é
-o oposto.
+## Validação local do instalador da Store
 
-Mantenha a URL da versão anterior no ar até a nova ser publicada.
+Baixe `MonitorIA-Store-Setup.exe` da release oficial.
 
-## Teste obrigatório
+O repositório já contém:
 
-Em VM Windows 10/11 x64 limpa, com snapshot, como Administrador:
+```text
+scripts/validar-instalador-store.ps1
+```
+
+Validação somente da assinatura:
 
 ```powershell
-# Só a assinatura, pode rodar na máquina de trabalho
 .\scripts\validar-instalador-store.ps1 `
   -Instalador .\MonitorIA-Store-Setup.exe -SomenteAssinatura
-
-# Completo: instala, valida e desinstala
-.\scripts\validar-instalador-store.ps1 -Instalador .\MonitorIA-Store-Setup.exe
 ```
 
-O script cobre exit code, ausência de UI, serviço `MonitorIAAgent`, arquivos em
-`C:\Program Files\MonitorIA`, Authenticode de todos os PE, entrada em Programas
-e Recursos, e desinstalação limpa incluindo `ProgramData\MonitorIA`.
-
-Depois, manualmente: gerar código no painel, parear, confirmar que o Agent
-conecta.
-
-Confirme o SHA256 baixando a URL de fora da sua rede:
+Validação completa em Windows limpo/VM:
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe" -OutFile teste.exe
-(Get-FileHash .\teste.exe -Algorithm SHA256).Hash
+.\scripts\validar-instalador-store.ps1 `
+  -Instalador .\MonitorIA-Store-Setup.exe
 ```
 
-## Partner Center
+Também pode conferir o SHA256:
 
-### Packages
+```powershell
+(Get-FileHash .\MonitorIA-Store-Setup.exe -Algorithm SHA256).Hash
+```
+
+## Partner Center — pacote
 
 | Campo | Valor |
 |---|---|
-| Installer URL | `https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe` |
-| Installer type | EXE |
-| Architecture | x64 |
+| Product name | `MonitorIA` |
+| Package URL | `https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe` |
+| App type | `EXE` |
+| Architecture | `x64` |
+| Language | `Português (Brasil)` |
 | Silent install | Sim |
-| Silent install parameters | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-` |
+| Installer parameters | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-` |
 | Silent uninstall parameters | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` |
-| Minimum Windows version | Windows 10 1809 (build 17763) |
-| Languages | Português (Brasil) |
+| Minimum Windows | Windows 10 1809 / build 17763 |
+| Publisher | `BIGCORPS TECNOLOGIA LTA` |
 
-### Properties
+## Partner Center — propriedades
 
-- Categoria: Business → Security (ou Utilities & tools)
+- Categoria principal: **Business**
+- Subcategoria: **Security**, se disponível na interface
+- Site: `https://monitoria.cam`
 - Política de privacidade: `https://monitoria.cam/privacidade`
 - Termos: `https://monitoria.cam/termos`
-- Site: `https://monitoria.cam`
 - Suporte: `https://monitoria.cam/contato`
 
-### Pricing and availability
+## Pricing and availability
 
-Preço **Free**. Apps MSI/EXE não usam o comércio da Store; o trial de 24 h e os
-planos continuam no painel, o que é permitido e é a única opção neste caminho.
+- Preço do aplicativo/Agent: **Free**
+- O trial e os planos do serviço MonitorIA continuam no painel web.
+- A listagem deve ser pesquisável na Microsoft Store.
 
-### Materiais de listagem
+## Materiais da Store
 
-Ver `store-assets/LEIA-ME.md`.
+Arquivos já existentes:
 
-## Certificação
+- `store-assets/logo-300x300.png`
+- `store-assets/logo-2160x2160.png`
 
-Até **3 dias úteis**. Se reprovar, o relatório aponta o motivo exato. Correção
-no binário exige nova versão, nova tag, nova URL e nova submissão.
+Ainda precisam ser produzidas as screenshots finais depois da validação visual
+do onboarding/dashboard. A Store exige pelo menos 1; usar 4 ou mais é o ideal.
 
-## Trial de 24 horas
+Ver:
 
-1. 24 h de captura gratuita;
-2. período de exploração;
-3. expiração.
+```text
+store-assets/LEIA-ME.md
+store-assets/PARTNER-CENTER-1.0.0.md
+```
 
-Ao chegar em `capture_ends_at`, o entitlement deixa de permitir novo
-monitoramento e o trial entra em `exploration`. O cron `/api/cron/trials` roda
-a cada 5 minutos.
+## Conta de certificação
 
-O e-mail de fim de trial usa a tabela idempotente `trial_email_notifications`,
-envio via Resend (`RESEND_API_KEY`, `RESEND_FROM`), um único e-mail por trial,
-retry em falha e CTA para `/dashboard/plans`. Migration já aplicada em produção.
+Conta prevista para revisão:
 
-## Ordem de execução
+```text
+reviewer@monitoria.cam
+```
 
-1. aplicar os arquivos corrigidos;
-2. `npm install`;
-3. `npm run check`;
-4. `npm test`;
-5. revisar `git diff`;
-6. commit e push na `main`;
-7. conferir Vercel e GitHub Actions;
-8. **teste em DVR real**;
-9. `git tag agent-v1.0.0 && git push origin agent-v1.0.0`;
-10. conferir a release e a URL do `MonitorIA-Store-Setup.exe`;
-11. rodar `scripts/validar-instalador-store.ps1` em VM limpa;
-12. preparar materiais de listagem e conta de demonstração;
-13. criar a submissão no Partner Center;
-14. acompanhar a certificação;
-15. após validação em campo, repetir o ciclo para `1.0.0`.
+Organização:
 
-## Fontes oficiais
+```text
+MonitorIA Review Demo
+```
 
-- Microsoft Learn — App package requirements for MSI/EXE app
-- Microsoft Learn — Upload app packages for MSI/EXE app
-- Microsoft Learn — How to distribute your Win32 application through Microsoft Store
-- Microsoft Learn — App certification process for MSI/EXE
+Antes de enviar à certificação:
+
+- definir uma senha forte exclusiva;
+- não versionar a senha no GitHub;
+- confirmar login em janela anônima;
+- garantir acesso durante todo o período de certificação;
+- garantir que o trial de 24 horas não impeça o avaliador de concluir os testes;
+- usar apenas dados sintéticos.
+
+## Ordem final
+
+1. aplicar este ZIP no `main`;
+2. aguardar o deploy normal ficar saudável;
+3. executar manualmente **Build MonitorIA Agent** em `main`;
+4. confirmar assinatura e `MonitorIA-Store-Setup.exe`;
+5. criar/publish a tag/release `agent-v1.0.0` pelo GitHub web;
+6. aguardar o build por tag terminar verde;
+7. confirmar os assets da release;
+8. baixar e validar o `MonitorIA-Store-Setup.exe`;
+9. confirmar conta `reviewer@monitoria.cam`;
+10. preencher o Partner Center;
+11. adicionar screenshots finais;
+12. enviar para certificação;
+13. não alterar o binário/URL submetidos;
+14. enquanto a Microsoft certifica, validar onboarding e dashboard em produção;
+15. qualquer correção posterior ao binário vira uma nova versão (ex.: `1.0.1`).
