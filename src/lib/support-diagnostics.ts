@@ -74,7 +74,7 @@ export async function buildSupportDiagnostics(input: {
     },
     application: {
       version: appConfig.version,
-      recommendedAgentVersion: process.env.AGENT_RECOMMENDED_VERSION ?? "0.15.3",
+      recommendedAgentVersion: process.env.AGENT_RECOMMENDED_VERSION ?? "1.0.0",
     },
     organization: {
       id: input.organizationId,

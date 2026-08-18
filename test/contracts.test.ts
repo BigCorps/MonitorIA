@@ -53,22 +53,22 @@ test("aceita um evento visual legado e o migra para o schema atual", () => {
   );
 });
 
-test("rejeita confiança fora de 0 a 1", () => {
-  assert.throws(() =>
-    AnalyzedEventSchema.parse({
-      schemaVersion: "1.1",
-      headline: "Evento de teste",
-      primaryEventType: "other",
-      summary: "Teste",
-      observations: [],
-      people: [],
-      vehicles: [],
-      objects: [],
-      zoneIds: [],
-      tags: [],
-      confidence: 2,
-      requiresReview: false,
-      reviewReasons: [],
-    }),
-  );
+test("normaliza confiança percentual antes da validação", () => {
+  const parsed = AnalyzedEventSchema.parse({
+    schemaVersion: "1.1",
+    headline: "Evento de teste",
+    primaryEventType: "other",
+    summary: "Teste",
+    observations: [],
+    people: [],
+    vehicles: [],
+    objects: [],
+    zoneIds: [],
+    tags: [],
+    confidence: 2,
+    requiresReview: false,
+    reviewReasons: [],
+  });
+
+  assert.equal(parsed.confidence, 0.02);
 });

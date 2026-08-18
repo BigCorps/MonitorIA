@@ -20,8 +20,8 @@ test("workflow Linux fixa hashes e testa instalacao real", async () => {
     "utf8",
   );
 
-  assert.match(workflow, /e9144cae41096aba50d7c6caba0d15822ad04f9f3a97f394cecd7bb93eae68b8/);
-  assert.match(workflow, /9279602b39d14c0446209b3b70f42b497d3edf8b252c926d3f342902d9357d02/);
+  assert.match(workflow, /d27ef4e034b31e0ddfeebf16af54742d50455139e57517da15207113665a78f8/);
+  assert.match(workflow, /c8c1cf0be6ca8f3b913b2733aa817743d9ea8211e36ef81075129f112d72f062/);
   assert.match(workflow, /systemd-analyze verify/);
   assert.match(workflow, /install\.sh" --uninstall/);
   assert.match(workflow, /Teste Linux completo aprovado/);

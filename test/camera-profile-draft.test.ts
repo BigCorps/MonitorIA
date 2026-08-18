@@ -5,6 +5,7 @@ import {
 } from "../src/contracts/camera-profile-draft.js";
 
 const validProfile = {
+  operationalContext: "commerce",
   environmentDescription:
     "Entrada interna de uma loja, com balcão lateral e porta de acesso visível.",
   sceneType: "indoor",

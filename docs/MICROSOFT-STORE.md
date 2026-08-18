@@ -6,7 +6,7 @@ executa em modo silencioso na máquina do usuário.
 
 ## Estado
 
-- Versão candidata: **0.15.3**
+- Versão candidata: **1.0.0**
 - Instalador: Inno Setup 6 (`installer/monitoria.iss`)
 - Windows 10 1809+ (`MinVersion=10.0.17763`), x64
 - Serviço: `MonitorIAAgent`
@@ -62,14 +62,14 @@ artifact do Actions — que expira em 30 dias e exige login, e por isso **não
 serve como URL da Store**.
 
 ```bash
-git tag agent-v0.15.3
-git push origin agent-v0.15.3
+git tag agent-v1.0.0
+git push origin agent-v1.0.0
 ```
 
 ## URL do pacote
 
 ```text
-https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.15.3/MonitorIA-Store-Setup.exe
+https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe
 ```
 
 Gerada por `storeInstallerUrlFor()` em `src/lib/installer-data.ts`, que rejeita
@@ -105,7 +105,7 @@ conecta.
 Confirme o SHA256 baixando a URL de fora da sua rede:
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.15.3/MonitorIA-Store-Setup.exe" -OutFile teste.exe
+Invoke-WebRequest -Uri "https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe" -OutFile teste.exe
 (Get-FileHash .\teste.exe -Algorithm SHA256).Hash
 ```
 
@@ -115,7 +115,7 @@ Invoke-WebRequest -Uri "https://github.com/BigCorps/MonitorIA/releases/download/
 
 | Campo | Valor |
 |---|---|
-| Installer URL | `https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.15.3/MonitorIA-Store-Setup.exe` |
+| Installer URL | `https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe` |
 | Installer type | EXE |
 | Architecture | x64 |
 | Silent install | Sim |
@@ -170,7 +170,7 @@ retry em falha e CTA para `/dashboard/plans`. Migration já aplicada em produç�
 6. commit e push na `main`;
 7. conferir Vercel e GitHub Actions;
 8. **teste em DVR real**;
-9. `git tag agent-v0.15.3 && git push origin agent-v0.15.3`;
+9. `git tag agent-v1.0.0 && git push origin agent-v1.0.0`;
 10. conferir a release e a URL do `MonitorIA-Store-Setup.exe`;
 11. rodar `scripts/validar-instalador-store.ps1` em VM limpa;
 12. preparar materiais de listagem e conta de demonstração;
