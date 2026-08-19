@@ -8,6 +8,36 @@
   min-width: 0;
 }
 
+.mobileBrand {
+  display: none;
+}
+
+.desktopKicker {
+  display: inline-block;
+}
+
+.switchLink {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #142a43;
+  border-radius: 10px;
+  color: #eaf4ff;
+  background: #0d1b2d;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: none;
+}
+
+.switchLink:hover {
+  border-color: #2a4b6d;
+  background: #11243a;
+}
+
 @media (max-width: 760px) {
   .page {
     display: block !important;
@@ -21,9 +51,9 @@
   .formShell {
     width: 100% !important;
     min-height: 100svh;
-    padding: 18px 14px 28px !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
+    padding: 24px 14px !important;
+    display: grid !important;
+    place-items: center !important;
   }
 
   .formCard {
@@ -31,10 +61,41 @@
     max-width: 460px;
     margin-inline: auto;
   }
+
+  .desktopKicker {
+    display: none;
+  }
+
+  .mobileBrand {
+    margin: 0 auto 20px;
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #0d1b2d;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  .mobileBrand img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mobileBrand em {
+    color: #20b99a;
+    font-style: normal;
+  }
 }
 
 @media (max-width: 480px) {
   .formShell {
-    padding: 12px 10px 24px !important;
+    padding: 18px 8px !important;
+  }
+
+  .formCard {
+    padding-inline: 20px !important;
   }
 }

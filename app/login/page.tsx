@@ -6,11 +6,11 @@ import {
   normalizeNextPath,
 } from "@/src/lib/auth";
 import {
-  createAccount,
   loginWithPassword,
   sendMagicLink,
 } from "./actions";
 import { AuthButtons } from "./auth-buttons";
+import { SignupWizard } from "./signup-wizard";
 import { appConfig } from "@/src/lib/app-config";
 import {
   PASSKEY_LOGIN_HINT_COOKIE,
@@ -42,6 +42,26 @@ function Logo() {
         height={25}
       />
     </span>
+  );
+}
+
+function MobileBrand() {
+  return (
+    <Link
+      href="/"
+      className={loginStyles.mobileBrand}
+      aria-label="MonitorIA.cam — página inicial"
+    >
+      <img
+        src="/favicon.svg"
+        alt=""
+        width={30}
+        height={30}
+      />
+      <span>
+        Monitor<em>IA</em>.cam
+      </span>
+    </Link>
   );
 }
 
@@ -138,8 +158,16 @@ export default async function LoginPage({
         <div
           className={`auth-form-card ${loginStyles.formCard}`}
         >
+          <MobileBrand />
+
           <div className="auth-form-heading">
-            <span>MonitorIA.cam</span>
+            <span
+              className={
+                loginStyles.desktopKicker
+              }
+            >
+              MonitorIA.cam
+            </span>
             <h2>
               {wantsSignup
                 ? "Começar seu teste grátis"
@@ -147,7 +175,7 @@ export default async function LoginPage({
             </h2>
             <p>
               {wantsSignup
-                ? "Primeiro crie sua conta. Em seguida, vamos configurar sua empresa e o primeiro local."
+                ? "Vamos fazer três passos rápidos e deixar seu primeiro acesso preparado."
                 : "Como você prefere entrar?"}
             </p>
           </div>
@@ -164,7 +192,9 @@ export default async function LoginPage({
             </div>
           ) : null}
 
-          {!wantsSignup ? (
+          {wantsSignup ? (
+            <SignupWizard />
+          ) : (
             <>
               <AuthButtons
                 next={next}
@@ -174,92 +204,54 @@ export default async function LoginPage({
               <div className="auth-divider">
                 <span>ou use seu e-mail</span>
               </div>
-            </>
-          ) : null}
 
-          <form
-            action={
-              wantsSignup
-                ? createAccount
-                : loginWithPassword
-            }
-            className="auth-form"
-          >
-            <input
-              type="hidden"
-              name="next"
-              value={
-                wantsSignup
-                  ? "/onboarding"
-                  : next
-              }
-            />
-
-            {wantsSignup ? (
-              <label>
-                <span>Seu nome</span>
+              <form
+                action={loginWithPassword}
+                className="auth-form"
+              >
                 <input
-                  name="full_name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  minLength={2}
-                  placeholder="Como podemos chamar você?"
+                  type="hidden"
+                  name="next"
+                  value={next}
                 />
-              </label>
-            ) : null}
 
-            <label>
-              <span>E-mail</span>
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="voce@empresa.com.br"
-                required
-              />
-            </label>
+                <label>
+                  <span>E-mail</span>
+                  <input
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="voce@empresa.com.br"
+                    required
+                  />
+                </label>
 
-            <label>
-              <span>Senha</span>
-              <input
-                name="password"
-                type="password"
-                autoComplete={
-                  wantsSignup
-                    ? "new-password"
-                    : "current-password"
-                }
-                placeholder="Mínimo de 8 caracteres"
-                minLength={8}
-                required
-              />
-            </label>
+                <label>
+                  <span>Senha</span>
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Mínimo de 8 caracteres"
+                    minLength={8}
+                    required
+                  />
+                </label>
 
-            {!wantsSignup ? (
-              <div className="auth-inline-row">
-                <Link href="/forgot-password">
-                  Esqueci minha senha
-                </Link>
-              </div>
-            ) : null}
+                <div className="auth-inline-row">
+                  <Link href="/forgot-password">
+                    Esqueci minha senha
+                  </Link>
+                </div>
 
-            <button
-              className={`auth-submit ${
-                wantsSignup
-                  ? "secondary"
-                  : ""
-              }`}
-              type="submit"
-            >
-              {wantsSignup
-                ? "Criar conta e continuar"
-                : "Entrar com senha"}
-            </button>
-          </form>
+                <button
+                  className="auth-submit"
+                  type="submit"
+                >
+                  Entrar com senha
+                </button>
+              </form>
 
-          {!wantsSignup ? (
-            <>
               <div className="auth-divider">
                 <span>ou</span>
               </div>
@@ -285,7 +277,7 @@ export default async function LoginPage({
                 </button>
               </form>
             </>
-          ) : null}
+          )}
 
           <div className="auth-divider">
             <span>
@@ -295,25 +287,22 @@ export default async function LoginPage({
             </span>
           </div>
 
-          {wantsSignup ? (
-            <Link
-              className="auth-submit secondary"
-              href={`/login?next=${encodeURIComponent(
-                next,
-              )}`}
-            >
-              Voltar para o login
-            </Link>
-          ) : (
-            <Link
-              className="auth-submit secondary"
-              href={`/login?criar=1&next=${encodeURIComponent(
-                next,
-              )}`}
-            >
-              Criar uma nova conta
-            </Link>
-          )}
+          <Link
+            className={loginStyles.switchLink}
+            href={
+              wantsSignup
+                ? `/login?next=${encodeURIComponent(
+                    next,
+                  )}`
+                : `/login?criar=1&next=${encodeURIComponent(
+                    next,
+                  )}`
+            }
+          >
+            {wantsSignup
+              ? "Voltar para o login"
+              : "Criar uma nova conta"}
+          </Link>
         </div>
       </section>
     </main>

@@ -1,0 +1,210 @@
+.wizard {
+  display: grid;
+  gap: 22px;
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 2px;
+}
+
+.progress span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dce5ee;
+  border-radius: 50%;
+  color: #8190a3;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.progress span[data-active="true"] {
+  color: #061712;
+  border-color: #57e6c7;
+  background: #57e6c7;
+}
+
+.progress i {
+  height: 1px;
+  background: #e2e8ef;
+}
+
+.step {
+  display: grid;
+  gap: 16px;
+}
+
+.stepIntro {
+  display: grid;
+  gap: 5px;
+}
+
+.stepIntro strong {
+  color: #1a2a40;
+  font-size: 14px;
+}
+
+.stepIntro span {
+  color: #7a899d;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.label {
+  display: grid;
+  gap: 7px;
+  color: #55667c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.input,
+.numberInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid #dce4ed;
+  border-radius: 10px;
+  outline: none;
+  color: #142033;
+  background: #fbfcfe;
+  font-size: 13px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.input:focus,
+.numberInput:focus {
+  border-color: #3bcdb0;
+  box-shadow: 0 0 0 4px rgba(59, 205, 176, 0.1);
+}
+
+.businessGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.businessOption {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #dce4ed;
+  border-radius: 10px;
+  color: #50647c;
+  background: #fbfcfe;
+  font-size: 10.5px;
+  font-weight: 750;
+  cursor: pointer;
+  text-align: left;
+}
+
+.businessOption[data-selected="true"] {
+  color: #08745f;
+  border-color: #8adfcd;
+  background: #eafaf5;
+}
+
+.cameraRow {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 12px;
+  align-items: end;
+}
+
+.cameraHelper {
+  margin: 0;
+  color: #8a98a9;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  margin-top: 2px;
+}
+
+.actions[data-first="true"] {
+  grid-template-columns: 1fr;
+}
+
+.back,
+.next,
+.submit {
+  min-height: 47px;
+  padding: 0 17px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.back {
+  border: 1px solid #dce4ed;
+  color: #52677f;
+  background: #f7f9fb;
+}
+
+.next {
+  border: 0;
+  color: #061712;
+  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+}
+
+.next:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.submit {
+  width: 100%;
+  border: 0;
+  color: #eaf4ff;
+  background: #0d1b2d;
+}
+
+.submit:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.note {
+  padding: 12px 13px;
+  border: 1px solid #dfe8ef;
+  border-radius: 10px;
+  color: #718197;
+  background: #f9fbfd;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.error {
+  padding: 11px 12px;
+  border: 1px solid #fecdd3;
+  border-radius: 9px;
+  color: #9f1239;
+  background: #fff1f2;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .businessGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cameraRow {
+    grid-template-columns: 1fr 88px;
+  }
+
+  .wizard {
+    gap: 18px;
+  }
+}

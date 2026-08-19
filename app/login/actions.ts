@@ -4,6 +4,16 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 import { normalizeNextPath } from "@/src/lib/auth";
+import {
+  cleanText,
+  normalizeCameraCount,
+  normalizeIndustry,
+} from "@/src/lib/onboarding-intake";
+
+export type SignupState = {
+  status: "idle" | "error";
+  message?: string;
+};
 
 async function appOrigin() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -44,18 +54,12 @@ function readCredentials(formData: FormData) {
 function authError(
   message: string,
   next: string,
-  signup = false,
 ): never {
-  const params = new URLSearchParams({
-    error: message,
-    next,
-  });
-
-  if (signup) {
-    params.set("criar", "1");
-  }
-
-  redirect(`/login?${params.toString()}`);
+  redirect(
+    `/login?error=${encodeURIComponent(
+      message,
+    )}&next=${encodeURIComponent(next)}`,
+  );
 }
 
 function errorText(error: {
@@ -65,7 +69,9 @@ function errorText(error: {
   return `${error.code ?? ""} ${error.message}`.toLowerCase();
 }
 
-function isEmailDeliveryError(message: string) {
+function isEmailDeliveryError(
+  message: string,
+) {
   return /authentication credentials invalid|error sending|confirmation email|magic link|smtp|unexpected failure/i.test(
     message,
   );
@@ -150,24 +156,51 @@ export async function loginWithPassword(
 }
 
 export async function createAccount(
+  _previousState: SignupState,
   formData: FormData,
-) {
-  const { email, password, next } =
+): Promise<SignupState> {
+  const { email, password } =
     readCredentials(formData);
-  const fullName = String(
-    formData.get("full_name") ?? "",
-  ).trim();
+  const fullName = cleanText(
+    formData.get("full_name"),
+    120,
+  );
+  const organizationName = cleanText(
+    formData.get("organization_name"),
+    160,
+  );
+  const siteName = cleanText(
+    formData.get("site_name"),
+    160,
+  );
+  const industry = normalizeIndustry(
+    formData.get("industry"),
+  );
+  const cameraCount = normalizeCameraCount(
+    formData.get("camera_count"),
+  );
 
   if (
     !email ||
     password.length < 8 ||
     fullName.length < 2
   ) {
-    authError(
-      "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres.",
-      next,
-      true,
-    );
+    return {
+      status: "error",
+      message:
+        "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres.",
+    };
+  }
+
+  if (
+    organizationName.length < 2 ||
+    siteName.length < 1
+  ) {
+    return {
+      status: "error",
+      message:
+        "Volte uma etapa e informe a empresa e o primeiro local.",
+    };
   }
 
   const origin = await appOrigin();
@@ -180,10 +213,20 @@ export async function createAccount(
         data: {
           full_name: fullName,
           password_login_enabled: true,
+          onboarding_source:
+            "guided_signup_v1",
+          onboarding_organization_name:
+            organizationName,
+          onboarding_site_name: siteName,
+          onboarding_industry: industry,
+          onboarding_camera_count:
+            cameraCount,
         },
         emailRedirectTo:
           `${origin}/auth/callback?next=` +
-          encodeURIComponent(next),
+          encodeURIComponent(
+            "/onboarding",
+          ),
       },
     });
 
@@ -191,11 +234,11 @@ export async function createAccount(
     reportAuthError("signUp", error);
 
     if (isWeakPasswordError(error)) {
-      authError(
-        "Essa senha é muito comum ou já apareceu em vazamentos. Escolha outra, mais difícil de adivinhar.",
-        next,
-        true,
-      );
+      return {
+        status: "error",
+        message:
+          "Essa senha é muito comum ou já apareceu em vazamentos. Escolha outra, mais difícil de adivinhar.",
+      };
     }
 
     if (
@@ -203,29 +246,29 @@ export async function createAccount(
         .toLowerCase()
         .includes("registered")
     ) {
-      authError(
-        "Este e-mail já está cadastrado. Volte para o login.",
-        next,
-        true,
-      );
+      return {
+        status: "error",
+        message:
+          "Este e-mail já está cadastrado. Use “Voltar para o login”.",
+      };
     }
 
     if (
       isEmailDeliveryError(error.message) ||
       error.status === 500
     ) {
-      authError(
-        "Não conseguimos enviar o e-mail de confirmação agora. Tente novamente em alguns minutos.",
-        next,
-        true,
-      );
+      return {
+        status: "error",
+        message:
+          "Não conseguimos enviar o e-mail de confirmação agora. Tente novamente em alguns minutos.",
+      };
     }
 
-    authError(
-      "Não foi possível criar a conta.",
-      next,
-      true,
-    );
+    return {
+      status: "error",
+      message:
+        "Não foi possível criar a conta. Tente novamente.",
+    };
   }
 
   if (data.session) {
