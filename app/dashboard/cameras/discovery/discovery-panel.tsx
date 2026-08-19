@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useActionState,
   useEffect,
@@ -56,12 +57,15 @@ function deviceTitle(
 type Props = {
   hasAgent: boolean;
   defaultCameraCount?: number;
+  onboarding?: boolean;
 };
 
 export function DiscoveryPanel({
   hasAgent,
   defaultCameraCount = 4,
+  onboarding = false,
 }: Props) {
+  const router = useRouter();
   const [
     state,
     formAction,
@@ -74,6 +78,8 @@ export function DiscoveryPanel({
     useState<DiscoveryStatus | null>(null);
   const runIdRef =
     useRef<string | null>(null);
+  const advanceScheduled =
+    useRef(false);
   const runId =
     state.status === "started"
       ? (state.runId ?? null)
@@ -84,6 +90,9 @@ export function DiscoveryPanel({
     if (!runId) return;
 
     let cancelled = false;
+    let advanceTimer:
+      | ReturnType<typeof setTimeout>
+      | null = null;
 
     async function check() {
       try {
@@ -94,6 +103,29 @@ export function DiscoveryPanel({
 
         if (!cancelled) {
           setStatus(next);
+
+          const hasConnectedCamera =
+            next.connected > 0 ||
+            next.alreadyConnected > 0 ||
+            next.devices.some(
+              (device) =>
+                device.connected,
+            );
+
+          if (
+            onboarding &&
+            next.status ===
+              "completed" &&
+            hasConnectedCamera &&
+            !advanceScheduled.current
+          ) {
+            advanceScheduled.current =
+              true;
+            advanceTimer =
+              setTimeout(() => {
+                router.refresh();
+              }, 900);
+          }
         }
 
         return next.status;
@@ -125,8 +157,11 @@ export function DiscoveryPanel({
     return () => {
       cancelled = true;
       clearInterval(timer);
+      if (advanceTimer) {
+        clearTimeout(advanceTimer);
+      }
     };
-  }, [runId]);
+  }, [runId, onboarding, router]);
 
   const running =
     Boolean(runId) &&
@@ -143,37 +178,55 @@ export function DiscoveryPanel({
       "canceled",
     ].includes(status.status);
 
+  const surfaceClass = onboarding
+    ? styles.embedded
+    : "";
+
   if (!hasAgent) {
     return (
-      <div className={styles.notice}>
+      <div
+        className={`${styles.notice} ${surfaceClass}`}
+      >
         <h2>
           Falta o programa do MonitorIA no
           computador da loja
         </h2>
         <p>
-          Instale o programa no computador que
-          fica ligado na loja e volte aqui para
-          procurar as câmeras.
+          O computador precisa estar ligado,
+          pareado e na mesma rede das câmeras
+          antes de iniciar a busca.
         </p>
-        <Link
-          className={styles.primaryLink}
-          href="/dashboard"
-        >
-          Voltar ao primeiro acesso
-        </Link>
+        {onboarding ? (
+          <Link
+            className={styles.primaryLink}
+            href="/dashboard"
+          >
+            Voltar ao passo de conexão
+          </Link>
+        ) : (
+          <Link
+            className={styles.primaryLink}
+            href="/dashboard"
+          >
+            Voltar ao primeiro acesso
+          </Link>
+        )}
       </div>
     );
   }
 
   if (running) {
-    const percent = status?.percent ?? 0;
+    const percent =
+      status?.percent ?? 0;
     const label =
       stepLabels[
         status?.step ?? "queued"
       ] ?? stepLabels.queued;
 
     return (
-      <div className={styles.progressCard}>
+      <div
+        className={`${styles.progressCard} ${surfaceClass}`}
+      >
         <h2>Procurando suas câmeras</h2>
         <div
           className={styles.bar}
@@ -195,8 +248,8 @@ export function DiscoveryPanel({
           {status?.message ?? label}
         </p>
         <p className={styles.hint}>
-          Costuma levar de um a cinco minutos.
-          Você pode deixar esta tela aberta.
+          Costuma levar de um a cinco
+          minutos. Não feche esta página.
         </p>
         <button
           type="button"
@@ -218,10 +271,12 @@ export function DiscoveryPanel({
   }
 
   if (finished && status) {
-    const connected = status.connected;
+    const connected =
+      status.connected;
     const working =
       status.devices.filter(
-        (device) => device.connected,
+        (device) =>
+          device.connected,
       ).length;
     const failed =
       status.devices.length - working;
@@ -229,10 +284,17 @@ export function DiscoveryPanel({
       status.cameraCountHint - working,
       0,
     );
+    const hasConnectedCamera =
+      connected > 0 ||
+      status.alreadyConnected > 0 ||
+      working > 0;
 
     return (
-      <div className={styles.resultCard}>
-        {status.status === "completed" ? (
+      <div
+        className={`${styles.resultCard} ${surfaceClass}`}
+      >
+        {status.status ===
+        "completed" ? (
           <>
             <h2>
               {working === 0
@@ -254,33 +316,31 @@ export function DiscoveryPanel({
               <p className={styles.hint}>
                 Você informou{" "}
                 {status.cameraCountHint}{" "}
-                câmera(s). Confira se as que
-                faltam estão ligadas e no mesmo
-                roteador e procure novamente.
+                câmera(s). Confira se as
+                que faltam estão ligadas e
+                na mesma rede e procure
+                novamente.
               </p>
             ) : null}
 
             {working > 0 ? (
               <div className={styles.tip}>
                 <strong>
-                  Agora você pode dar nomes
-                  reais para elas
+                  Câmeras encontradas
                 </strong>
                 <p>
-                  A identificação acontece
-                  somente depois da descoberta.
-                  Use nomes como Entrada, Caixa,
-                  Estoque ou Corredor 1.
+                  A próxima etapa é dar um
+                  nome real para cada uma.
                 </p>
               </div>
             ) : null}
 
             {failed > 0 ? (
               <p className={styles.hint}>
-                Aparelhos sem a marca “Pronta”
-                podem não ser câmeras. Se você
-                não reconhece o endereço, pode
-                ignorar.
+                Aparelhos sem a marca
+                “Pronta” podem não ser
+                câmeras. Você pode ignorar
+                o que não reconhecer.
               </p>
             ) : null}
           </>
@@ -296,20 +356,26 @@ export function DiscoveryPanel({
 
         {status.devices.length > 0 ? (
           <ul
-            className={styles.deviceList}
+            className={
+              styles.deviceList
+            }
           >
             {status.devices.map(
               (device) => (
                 <li
                   key={device.host}
-                  className={styles.device}
+                  className={
+                    styles.device
+                  }
                 >
                   <div>
                     <strong>
                       {deviceTitle(device)}
                     </strong>
                     <span
-                      className={styles.host}
+                      className={
+                        styles.host
+                      }
                     >
                       {device.host}
                     </span>
@@ -332,26 +398,59 @@ export function DiscoveryPanel({
           </ul>
         ) : null}
 
-        <div className={styles.actions}>
-          {working > 0 ? (
-            <Link
-              className={
-                styles.primaryLink
-              }
-              href="/dashboard/cameras/setup"
-            >
-              Dar nome às câmeras
-            </Link>
-          ) : null}
-          <a
-            className={
-              styles.secondaryLink
-            }
-            href="/dashboard/cameras/discovery"
+        {onboarding ? (
+          <div
+            className={styles.actions}
           >
-            Procurar de novo
-          </a>
-        </div>
+            {hasConnectedCamera ? (
+              <div
+                className={
+                  styles.advancing
+                }
+                role="status"
+              >
+                <span
+                  className={
+                    styles.miniSpinner
+                  }
+                  aria-hidden="true"
+                />
+                Câmera conectada. Indo para
+                o passo 3…
+              </div>
+            ) : (
+              <a
+                className={
+                  styles.secondaryLink
+                }
+                href="/dashboard"
+              >
+                Procurar novamente
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className={styles.actions}>
+            {working > 0 ? (
+              <Link
+                className={
+                  styles.primaryLink
+                }
+                href="/dashboard/cameras/setup"
+              >
+                Dar nome às câmeras
+              </Link>
+            ) : null}
+            <a
+              className={
+                styles.secondaryLink
+              }
+              href="/dashboard/cameras/discovery"
+            >
+              Procurar de novo
+            </a>
+          </div>
+        )}
       </div>
     );
   }
@@ -359,69 +458,98 @@ export function DiscoveryPanel({
   return (
     <form
       action={formAction}
-      className={styles.form}
+      className={`${styles.form} ${surfaceClass}`}
     >
-      <h2>Vamos encontrar suas câmeras</h2>
-      <p className={styles.hint}>
-        O computador procura as câmeras no mesmo
-        roteador. Você só precisa informar
-        quantas existem e as credenciais usadas
-        nelas.
-      </p>
+      {!onboarding ? (
+        <>
+          <h2>
+            Vamos encontrar suas câmeras
+          </h2>
+          <p className={styles.hint}>
+            O computador procura as
+            câmeras no mesmo roteador.
+            Você só precisa informar
+            quantas existem e as
+            credenciais usadas nelas.
+          </p>
+        </>
+      ) : (
+        <p className={styles.hint}>
+          Confirme a quantidade e informe
+          o usuário e a senha usados nas
+          câmeras. Essas credenciais são
+          usadas apenas durante a busca.
+        </p>
+      )}
 
       <div className={styles.tip}>
         <strong>
           O nome será escolhido depois
         </strong>
         <p>
-          Primeiro encontramos os aparelhos
-          reais. Só depois você decide qual é
-          Entrada, Caixa, Estoque ou outro nome.
+          Primeiro encontramos os
+          aparelhos reais. No passo 3
+          você decide qual é Entrada,
+          Caixa, Estoque ou outro nome.
         </p>
       </div>
 
-      <label className={styles.field}>
-        <span>
-          Quantas câmeras você tem?
-        </span>
-        <input
-          type="number"
-          name="cameraCount"
-          min={1}
-          max={64}
-          defaultValue={defaultCameraCount}
-          required
-        />
-        <small>
-          Já trouxemos a quantidade informada no
-          seu primeiro cadastro. Ajuste apenas
-          se algo mudou.
-        </small>
-      </label>
+      <div
+        className={
+          onboarding
+            ? styles.embeddedFields
+            : undefined
+        }
+      >
+        <label className={styles.field}>
+          <span>
+            Quantas câmeras você tem?
+          </span>
+          <input
+            type="number"
+            name="cameraCount"
+            min={1}
+            max={64}
+            defaultValue={
+              defaultCameraCount
+            }
+            required
+          />
+          <small>
+            Já trouxemos a quantidade
+            informada no primeiro
+            cadastro.
+          </small>
+        </label>
 
-      <label className={styles.field}>
-        <span>Usuário das câmeras</span>
-        <input
-          type="text"
-          name="username"
-          autoComplete="off"
-          defaultValue="admin"
-          required
-        />
-      </label>
+        <label className={styles.field}>
+          <span>
+            Usuário das câmeras
+          </span>
+          <input
+            type="text"
+            name="username"
+            autoComplete="off"
+            defaultValue="admin"
+            required
+          />
+        </label>
 
-      <label className={styles.field}>
-        <span>Senha das câmeras</span>
-        <input
-          type="password"
-          name="password"
-          autoComplete="off"
-        />
-        <small>
-          Usamos a senha só durante a busca e
-          apagamos quando ela termina.
-        </small>
-      </label>
+        <label className={styles.field}>
+          <span>
+            Senha das câmeras
+          </span>
+          <input
+            type="password"
+            name="password"
+            autoComplete="off"
+          />
+          <small>
+            A senha é apagada quando a
+            busca termina.
+          </small>
+        </label>
+      </div>
 
       {state.status === "error" ? (
         <p className={styles.failure}>

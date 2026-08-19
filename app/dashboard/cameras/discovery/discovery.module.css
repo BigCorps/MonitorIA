@@ -1,6 +1,5 @@
-/* O painel é claro (--dashboard-shell usa #f2f5f9). Os cartões seguem o
-   mesmo desenho de .metric-card e .camera-list-card: fundo branco, borda
-   #e1e7ef, sombra baixa. */
+/* Painel de descoberta reutilizado tanto na área Câmeras quanto dentro do
+   onboarding do dashboard. */
 
 .form,
 .progressCard,
@@ -17,6 +16,17 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.embedded {
+  width: 100%;
+  max-width: 820px;
+  margin-top: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .form h2,
@@ -44,6 +54,16 @@
   padding: 11px 13px;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.embeddedFields {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 0.65fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
 .field {
@@ -82,7 +102,7 @@
 
 .primary,
 .primaryLink {
-  height: 42px;
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -96,6 +116,12 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.embedded > .primary {
+  width: fit-content;
+  min-width: 190px;
 }
 
 .primary:disabled {
@@ -105,7 +131,7 @@
 
 .secondary,
 .secondaryLink {
-  height: 42px;
+  min-height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,6 +144,7 @@
   font-size: 13px;
   font-weight: 650;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .bar {
@@ -158,6 +185,7 @@
   padding: 12px 13px;
   border: 1px solid #e8edf3;
   border-radius: 11px;
+  background: #fff;
 }
 
 .device strong {
@@ -200,27 +228,37 @@
   flex: 1 1 170px;
 }
 
-@media (max-width: 760px) {
-  .form,
-  .progressCard,
-  .resultCard,
-  .notice {
-    padding: 20px;
-  }
+.advancing {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 14px;
+  border: 1px solid #bfe8dd;
+  border-radius: 10px;
+  color: #14755f;
+  background: #effbf7;
+  font-size: 11px;
+  font-weight: 750;
+}
 
-  .device {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.miniSpinner {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 2px solid #cce9e1;
+  border-top-color: #2bb99d;
+  border-radius: 50%;
+  animation: discoverySpin 800ms linear infinite;
+}
 
-  .badgeOk,
-  .badgeFail {
-    max-width: 100%;
-    text-align: left;
+@keyframes discoverySpin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-/* Avisos sobre rede: endereço que muda e câmera em outro roteador. */
 .tip {
   padding: 13px 15px;
   border: 1px solid #e4ebf2;
@@ -241,4 +279,56 @@
   color: #74839a;
   font-size: 12px;
   line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .embeddedFields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .embeddedFields .field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .form,
+  .progressCard,
+  .resultCard,
+  .notice {
+    padding: 20px;
+  }
+
+  .embedded {
+    padding: 0;
+  }
+
+  .embeddedFields {
+    grid-template-columns: 1fr;
+  }
+
+  .embeddedFields .field:first-child {
+    grid-column: auto;
+  }
+
+  .device {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .badgeOk,
+  .badgeFail {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .embedded > .primary {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miniSpinner {
+    animation-duration: 2.4s;
+  }
 }
