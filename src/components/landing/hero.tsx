@@ -143,23 +143,10 @@ export function Hero() {
           </p>
 
           <dl className={`${styles.proof} ${styles.stagger}`}>
-            <div className={styles.proofItem}>
-              <strong
-                className={styles.mono}
-                style={{ display: "grid", gap: "2px" }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "11px",
-                    fontWeight: 650,
-                    letterSpacing: "0",
-                  }}
-                >
-                R$ 39,90
-              </strong>
-              <span>por câmera, por mês. Sem mensalidade fixa. *a partir</span>
-            </div>
+<div className={styles.proofItem}>
+  <strong className={styles.mono}>R$ 39,90</strong>
+  <span>por câmera, por mês. Sem mensalidade fixa. *a partir</span>
+</div>
             <div className={styles.proofItem}>
               <strong className={styles.mono}>365 dias</strong>
               <span>de histórico pesquisável e análises em todos os planos.</span>
