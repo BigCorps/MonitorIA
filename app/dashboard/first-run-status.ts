@@ -17,11 +17,6 @@ export type FirstRunStatus = {
   phase: FirstRunPhase;
   cameras: number;
   camerasOnline: number;
-  /**
-   * Durante o contexto, aponta para a primeira câmera que ainda precisa
-   * receber nome ou ter o perfil aprovado. Depois disso, cai para a primeira
-   * câmera da organização apenas para manter compatibilidade com usos antigos.
-   */
   firstCameraId: string | null;
 };
 
@@ -64,9 +59,10 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
         .order("created_at", { ascending: true }),
       supabase
         .from("camera_profiles")
-        .select("id,camera_id")
+        .select("id,camera_id,created_at")
         .eq("organization_id", organization.id)
-        .eq("is_active", true),
+        .eq("is_active", true)
+        .order("created_at", { ascending: false }),
       supabase
         .from("trial_runs")
         .select("status")
@@ -101,20 +97,34 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
     };
   }
 
-  const activeProfileCameraIds = new Set(
-    (profilesResult.data ?? []).map((row) =>
-      String((row as { camera_id: string }).camera_id),
-    ),
-  );
+  const activeProfileCreatedAtByCamera = new Map<string, number>();
 
-  // Nome e contexto agora formam uma única etapa. O guia permanece nela até
-  // TODAS as câmeras terem nome confirmado e perfil ativo. Assim um cliente
-  // com duas ou mais câmeras não termina o onboarding configurando só a primeira.
-  const contextCamera = list.find(
-    (row) =>
-      !row.setup_named_at ||
-      !activeProfileCameraIds.has(String(row.id)),
-  );
+  for (const row of profilesResult.data ?? []) {
+    const cameraId = String((row as { camera_id: string }).camera_id);
+    if (activeProfileCreatedAtByCamera.has(cameraId)) continue;
+
+    const createdAt = Date.parse(
+      String((row as { created_at: string }).created_at ?? ""),
+    );
+
+    if (Number.isFinite(createdAt)) {
+      activeProfileCreatedAtByCamera.set(cameraId, createdAt);
+    }
+  }
+
+  const contextCamera = list.find((row) => {
+    if (!row.setup_named_at) return true;
+
+    const namedAt = Date.parse(String(row.setup_named_at));
+    const activeProfileCreatedAt =
+      activeProfileCreatedAtByCamera.get(String(row.id));
+
+    if (!Number.isFinite(namedAt) || activeProfileCreatedAt === undefined) {
+      return true;
+    }
+
+    return activeProfileCreatedAt < namedAt;
+  });
 
   if (contextCamera) {
     return {
@@ -130,7 +140,6 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
     (trialResult.data as { status?: string } | null)?.status ?? "",
   );
 
-  // Depois que o trial começou uma vez, nunca oferecemos outro período grátis.
   if (TRIAL_ALREADY_USED_STATUSES.has(latestTrialStatus)) {
     return {
       stage: 5,

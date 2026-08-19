@@ -40,7 +40,7 @@
 }
 
 .waitingCard {
-  min-height: 240px;
+  min-height: 270px;
   padding: 24px;
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
@@ -104,10 +104,116 @@
   line-height: 1.6;
 }
 
-.waitingCopy small {
-  color: #8795a7;
+.loadingPanel {
+  grid-column: 2;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dfe9ee;
+  border-radius: 12px;
+  background: #f8fbfc;
+}
+
+.loadingTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.loadingTopline strong {
+  color: #36566e;
+  font-size: 10px;
+}
+
+.loadingTopline span {
+  color: #2b9f88;
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.loadingTrack {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7eef2;
+}
+
+.loadingTrack > span {
+  position: relative;
+  display: block;
+  height: 100%;
+  min-width: 8%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #55dfc4, #31c9aa);
+  transition: width 1s linear;
+}
+
+.loadingTrack > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.68),
+    transparent
+  );
+  animation: loadingSweep 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingSweep {
+  to { transform: translateX(340%); }
+}
+
+.loadingSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.loadingSteps span {
+  position: relative;
+  padding-left: 13px;
+  color: #93a1af;
+  font-size: 8.5px;
+  line-height: 1.35;
+}
+
+.loadingSteps span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid #cbd7df;
+  background: #fff;
+}
+
+.loadingSteps span[data-active="true"] {
+  color: #426b62;
+  font-weight: 720;
+}
+
+.loadingSteps span[data-active="true"]::before {
+  border-color: #52d9be;
+  background: #52d9be;
+  box-shadow: 0 0 0 3px rgba(82, 217, 190, 0.1);
+}
+
+.loadingPanel small {
+  color: #7d8d9e;
   font-size: 9px;
   line-height: 1.5;
+}
+
+.loadingPanel small strong {
+  color: #587267;
 }
 
 .waitingActions,
@@ -321,8 +427,13 @@
     padding: 18px;
   }
 
+  .loadingPanel,
   .waitingActions {
     grid-column: 1;
+  }
+
+  .loadingSteps {
+    grid-template-columns: 1fr 1fr;
   }
 
   .nameCard {
@@ -342,7 +453,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .spinner,
+  .loadingTrack > span::after {
     animation-duration: 2.5s;
   }
 }
