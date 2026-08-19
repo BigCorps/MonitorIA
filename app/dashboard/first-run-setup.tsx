@@ -3,15 +3,17 @@ import type {
   SetupCameraSummary,
   SiteSummary,
 } from "@/src/lib/dashboard-data";
+import { requireAuthenticatedUser } from "@/src/lib/auth";
+import {
+  getCurrentOrganization,
+} from "@/src/lib/dashboard-data";
+import { getCameraProfileWorkspace } from "@/src/lib/camera-profile-data";
+import { createAdminClient } from "@/src/lib/supabase/admin";
 import { InstallerPlatformActions } from "@/src/components/installer-platform-actions";
 import { DashboardSidebar } from "./dashboard-sidebar";
-import { FirstRunWaiting } from "./first-run-waiting";
 import { SitePairingCode } from "./site-pairing-code";
 import { DiscoveryPanel } from "./cameras/discovery/discovery-panel";
-import {
-  CameraNamingForm,
-  type NamingCamera,
-} from "./cameras/setup/camera-naming-form";
+import { OnboardingCameraContext } from "./onboarding-camera-context";
 import { getFirstRunStatusAction } from "./first-run-status";
 import styles from "./first-run.module.css";
 
@@ -37,24 +39,11 @@ export async function FirstRunSetup({
 }: Props) {
   const firstRun = await getFirstRunStatusAction();
   const phase = firstRun.phase;
-  const firstCameraId =
-    firstRun.firstCameraId ??
-    cameras.find((camera) => camera.status === "online")?.id ??
-    cameras[0]?.id ??
-    null;
-
-  const namingCameras: NamingCamera[] = cameras.map((camera) => ({
-    id: camera.id,
-    name: camera.name,
-    status: camera.status,
-    streamLabel: null,
-  }));
 
   const phases = [
     { id: "connect", title: "Conectar" },
     { id: "discover", title: "Procurar" },
-    { id: "name", title: "Nomear" },
-    { id: "profile", title: "Explicar" },
+    { id: "context", title: "Contexto" },
     { id: "commercial", title: "Ativar" },
   ] as const;
 
@@ -62,6 +51,65 @@ export async function FirstRunSetup({
     0,
     phases.findIndex((item) => item.id === phase),
   );
+
+  let context: {
+    camera: {
+      id: string;
+      name: string;
+      status: string;
+      createdAt: string;
+      setupNamedAt: string | null;
+    };
+    workspace: Awaited<ReturnType<typeof getCameraProfileWorkspace>>;
+    canManage: boolean;
+    cameraIndex: number;
+  } | null = null;
+
+  if (phase === "context" && firstRun.firstCameraId) {
+    const user = await requireAuthenticatedUser();
+    const organization = await getCurrentOrganization(user.id);
+
+    if (organization) {
+      const admin = createAdminClient();
+      const cameraId = firstRun.firstCameraId;
+
+      const [cameraResult, workspace] = await Promise.all([
+        admin
+          .from("cameras")
+          .select("id,name,status,created_at,setup_named_at")
+          .eq("id", cameraId)
+          .eq("organization_id", organization.id)
+          .maybeSingle(),
+        getCameraProfileWorkspace(organization.id, cameraId),
+      ]);
+
+      if (cameraResult.data) {
+        const row = cameraResult.data as {
+          id: string;
+          name: string;
+          status: string | null;
+          created_at: string;
+          setup_named_at: string | null;
+        };
+
+        context = {
+          camera: {
+            id: String(row.id),
+            name: String(row.name),
+            status: String(row.status ?? "pending"),
+            createdAt: String(row.created_at),
+            setupNamedAt: row.setup_named_at ? String(row.setup_named_at) : null,
+          },
+          workspace,
+          canManage: ["owner", "admin"].includes(organization.role),
+          cameraIndex: Math.max(
+            1,
+            cameras.findIndex((camera) => camera.id === cameraId) + 1,
+          ),
+        };
+      }
+    }
+  }
 
   return (
     <main className="dashboard-shell">
@@ -86,7 +134,11 @@ export async function FirstRunSetup({
         {message ? <div className="dashboard-message">{message}</div> : null}
 
         <section className={styles.firstRunCard}>
-          <div className={styles.firstRunProgress} aria-label="Etapas do primeiro acesso">
+          <div
+            className={styles.firstRunProgress}
+            style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}
+            aria-label="Etapas do primeiro acesso"
+          >
             {phases.map((item, index) => {
               const done = index < currentIndex || phase === "done";
               const current = index === currentIndex && phase !== "done";
@@ -110,7 +162,7 @@ export async function FirstRunSetup({
           {phase === "connect" ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 1 DE 5</span>
+                <span>PASSO 1 DE 4</span>
                 <h2>Conecte o computador da loja</h2>
                 <p>
                   O Agent deve ficar em um computador ligado na mesma rede local
@@ -178,7 +230,7 @@ export async function FirstRunSetup({
           {phase === "discover" ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 2 DE 5</span>
+                <span>PASSO 2 DE 4</span>
                 <h2>Agora vamos encontrar suas câmeras</h2>
                 <p>
                   A busca acontece aqui mesmo. Se faltar alguma câmera, o
@@ -194,58 +246,44 @@ export async function FirstRunSetup({
             </div>
           ) : null}
 
-          {phase === "name" ? (
+          {phase === "context" ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 3 DE 5</span>
-                <h2>Dê um nome para cada câmera encontrada</h2>
+                <span>PASSO 3 DE 4</span>
+                <h2>Nome e contexto da câmera</h2>
                 <p>
-                  Use a primeira imagem captada para saber exatamente qual
-                  câmera está renomeando.
+                  Primeiro aguardamos uma imagem real. Depois você identifica a
+                  câmera e configura o ambiente, as zonas e o que deve ser observado,
+                  tudo sem sair do onboarding.
                 </p>
               </div>
 
-              <CameraNamingForm
-                cameras={namingCameras}
-                onboarding
-                hasAgent={agentPaired}
-                defaultCameraCount={defaultCameraCount}
-              />
-            </div>
-          ) : null}
-
-          {phase === "profile" ? (
-            <div className={styles.firstRunBody}>
-              <div className={styles.firstRunHeading}>
-                <span>PASSO 4 DE 5</span>
-                <h2>Explique o que a câmera está vendo</h2>
-                <p>
-                  Quando chegar uma imagem real, explique funcionários, clientes,
-                  caixa, entrada e o que deve ser observado.
-                </p>
-              </div>
-              <div className={styles.firstRunActions}>
-                {firstCameraId ? (
-                  <Link
-                    href={`/dashboard/cameras/${firstCameraId}?onboarding=1`}
-                    className="panel-primary-action"
-                  >
-                    Configurar contexto da câmera
-                  </Link>
-                ) : null}
-              </div>
-              <FirstRunWaiting
-                stage={4}
-                waitingFor="Esperando o contexto da câmera ser aprovado"
-                detail="Depois da aprovação, você seguirá para escolher teste grátis ou contratação."
-              />
+              {context ? (
+                <OnboardingCameraContext
+                  camera={context.camera}
+                  workspace={context.workspace}
+                  canManage={context.canManage}
+                  cameraIndex={context.cameraIndex}
+                  cameraTotal={cameras.length}
+                  hasAgent={agentPaired}
+                  defaultCameraCount={defaultCameraCount}
+                />
+              ) : (
+                <div className={styles.waitingBox}>
+                  <span className={styles.waitingSpinner} aria-hidden="true" />
+                  <div>
+                    <strong>Preparando a câmera para configurar</strong>
+                    <p>A página será atualizada assim que os dados estiverem disponíveis.</p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
 
           {phase === "commercial" ? (
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
-                <span>PASSO 5 DE 5</span>
+                <span>PASSO 4 DE 4</span>
                 <h2>Escolha como deseja começar</h2>
                 <p>
                   Escolha 24 horas grátis ou contrate um plano. O teste só começa
@@ -253,7 +291,10 @@ export async function FirstRunSetup({
                 </p>
               </div>
               <div className={styles.firstRunActions}>
-                <Link href="/dashboard/commercial-choice" className="panel-primary-action">
+                <Link
+                  href="/dashboard/commercial-choice"
+                  className="panel-primary-action"
+                >
                   Escolher teste ou plano
                 </Link>
               </div>
