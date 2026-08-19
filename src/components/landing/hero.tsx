@@ -117,8 +117,7 @@ export function Hero() {
           {/* Enxugado: uma promessa, uma prova. O detalhe do DVR desceu para
               a seção do problema — na primeira dobra ele só atrapalhava. */}
           <p className={styles.lede}>
-            Pergunte o que aconteceu na sua loja e receba o horário exato. O registro de
-            cada acontecimento fica guardado por um ano, pronto para consulta.
+            Pergunte o que aconteceu e receba informações em tempo real, com gráficos e análises.
           </p>
 
           <p
@@ -157,23 +156,21 @@ export function Hero() {
                     letterSpacing: "0",
                   }}
                 >
-                  A partir de
-                </span>
                 R$ 39,90
               </strong>
-              <span>por câmera, por mês. Sem mensalidade fixa.</span>
+              <span>por câmera, por mês. Sem mensalidade fixa. *a partir</span>
             </div>
             <div className={styles.proofItem}>
-              <strong className={styles.mono}>1 ano</strong>
-              <span>de histórico pesquisável em todos os planos.</span>
+              <strong className={styles.mono}>365 dias</strong>
+              <span>de histórico pesquisável e análises em todos os planos.</span>
             </div>
             <div className={styles.proofItem}>
               <strong>Sem cartão</strong>
-              <span>Pix, e nada renova sozinho.</span>
+              <span>Pague facilmente com Pix e sem renovação automática.</span>
             </div>
             <div className={styles.proofItem}>
               <strong>Suas câmeras</strong>
-              <span>Nenhum equipamento novo para comprar.</span>
+              <span>DVR ou câmera de Aplicativo. Nenhum equipamento novo para comprar.</span>
             </div>
           </dl>
         </div>
