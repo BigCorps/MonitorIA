@@ -54,7 +54,7 @@ export function LandingHeader() {
             height={150}
           />
         </a>
-        <Link className={`${styles.btn} ${styles.btnGhost}`} href="/dashboard">
+        <Link className={`${styles.btn} ${styles.btnPrimary}`} href="/dashboard">
           Entrar
         </Link>
       </div>
@@ -121,18 +121,46 @@ export function Hero() {
             cada acontecimento fica guardado por um ano, pronto para consulta.
           </p>
 
+          <p
+            className={styles.trialNote}
+            style={{
+              marginTop: "18px",
+              color: "var(--mint)",
+              fontWeight: 650,
+            }}
+          >
+            Configure sozinho em cerca de 10 minutos — sem técnico ou especialista.
+          </p>
+
           <div className={styles.actions}>
             <CtaLink cta={primaryCta} variant="primary" />
             <CtaLink cta={accountCta} variant="ghost" />
           </div>
 
           {/* Compatibilidade na primeira dobra: é a primeira objeção de quem
-              chega. Reaproveita .trialNote — nenhuma classe nova. */}
-          <p className={styles.trialNote}>{compatibility.short}</p>
+              chega. Reaproveita .trialNote e ganha respiro próprio abaixo dos CTAs. */}
+          <p className={styles.trialNote} style={{ marginTop: "14px" }}>
+            {compatibility.short}
+          </p>
 
           <dl className={`${styles.proof} ${styles.stagger}`}>
             <div className={styles.proofItem}>
-              <strong className={styles.mono}>R$ 39,90</strong>
+              <strong
+                className={styles.mono}
+                style={{ display: "grid", gap: "2px" }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "11px",
+                    fontWeight: 650,
+                    letterSpacing: "0",
+                  }}
+                >
+                  A partir de
+                </span>
+                R$ 39,90
+              </strong>
               <span>por câmera, por mês. Sem mensalidade fixa.</span>
             </div>
             <div className={styles.proofItem}>
