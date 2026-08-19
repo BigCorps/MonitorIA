@@ -4,11 +4,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 import { normalizeNextPath } from "@/src/lib/auth";
-import { generalSignupEnabled } from "@/src/lib/release";
 
 async function appOrigin() {
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+    return process.env.NEXT_PUBLIC_APP_URL.replace(
+      /\/$/,
+      "",
+    );
   }
 
   const headerStore = await headers();
@@ -18,7 +20,9 @@ async function appOrigin() {
     "localhost:3000";
   const protocol =
     headerStore.get("x-forwarded-proto") ??
-    (host.includes("localhost") ? "http" : "https");
+    (host.includes("localhost")
+      ? "http"
+      : "https");
 
   return `${protocol}://${host}`;
 }
@@ -28,15 +32,30 @@ function readCredentials(formData: FormData) {
     email: String(formData.get("email") ?? "")
       .trim()
       .toLowerCase(),
-    password: String(formData.get("password") ?? ""),
-    next: normalizeNextPath(formData.get("next")),
+    password: String(
+      formData.get("password") ?? "",
+    ),
+    next: normalizeNextPath(
+      formData.get("next"),
+    ),
   };
 }
 
-function authError(message: string, next: string): never {
-  redirect(
-    `/login?error=${encodeURIComponent(message)}&next=${encodeURIComponent(next)}`,
-  );
+function authError(
+  message: string,
+  next: string,
+  signup = false,
+): never {
+  const params = new URLSearchParams({
+    error: message,
+    next,
+  });
+
+  if (signup) {
+    params.set("criar", "1");
+  }
+
+  redirect(`/login?${params.toString()}`);
 }
 
 function errorText(error: {
@@ -78,11 +97,14 @@ function reportAuthError(
     code?: string;
   },
 ) {
-  console.error(`[MonitorIA Auth] ${context}`, {
-    message: error.message,
-    status: error.status,
-    code: error.code,
-  });
+  console.error(
+    `[MonitorIA Auth] ${context}`,
+    {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    },
+  );
 }
 
 export async function loginWithPassword(
@@ -106,7 +128,10 @@ export async function loginWithPassword(
     });
 
   if (error) {
-    reportAuthError("signInWithPassword", error);
+    reportAuthError(
+      "signInWithPassword",
+      error,
+    );
 
     if (isMethodDisabledError(error)) {
       authError(
@@ -115,7 +140,10 @@ export async function loginWithPassword(
       );
     }
 
-    authError("E-mail ou senha incorretos.", next);
+    authError(
+      "E-mail ou senha incorretos.",
+      next,
+    );
   }
 
   redirect(next);
@@ -130,13 +158,6 @@ export async function createAccount(
     formData.get("full_name") ?? "",
   ).trim();
 
-  if (!generalSignupEnabled()) {
-    authError(
-      "Novos cadastros estão em liberação gradual. Solicite acesso pelo canal comercial.",
-      next,
-    );
-  }
-
   if (
     !email ||
     password.length < 8 ||
@@ -145,24 +166,26 @@ export async function createAccount(
     authError(
       "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres.",
       next,
+      true,
     );
   }
 
   const origin = await appOrigin();
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        password_login_enabled: true,
+  const { data, error } =
+    await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          password_login_enabled: true,
+        },
+        emailRedirectTo:
+          `${origin}/auth/callback?next=` +
+          encodeURIComponent(next),
       },
-      emailRedirectTo:
-        `${origin}/auth/callback?next=` +
-        encodeURIComponent(next),
-    },
-  });
+    });
 
   if (error) {
     reportAuthError("signUp", error);
@@ -171,15 +194,19 @@ export async function createAccount(
       authError(
         "Essa senha é muito comum ou já apareceu em vazamentos. Escolha outra, mais difícil de adivinhar.",
         next,
+        true,
       );
     }
 
     if (
-      error.message.toLowerCase().includes("registered")
+      error.message
+        .toLowerCase()
+        .includes("registered")
     ) {
       authError(
-        "Este e-mail já está cadastrado.",
+        "Este e-mail já está cadastrado. Volte para o login.",
         next,
+        true,
       );
     }
 
@@ -188,14 +215,16 @@ export async function createAccount(
       error.status === 500
     ) {
       authError(
-        "Não conseguimos enviar o e-mail de confirmação agora. Tente em alguns minutos ou fale com a gente no WhatsApp.",
+        "Não conseguimos enviar o e-mail de confirmação agora. Tente novamente em alguns minutos.",
         next,
+        true,
       );
     }
 
     authError(
       "Não foi possível criar a conta.",
       next,
+      true,
     );
   }
 
@@ -205,7 +234,7 @@ export async function createAccount(
 
   redirect(
     `/login?message=${encodeURIComponent(
-      "Conta criada. Confirme o e-mail para continuar.",
+      "Conta criada. Confirme o e-mail para continuar a configuração.",
     )}`,
   );
 }
@@ -223,7 +252,10 @@ export async function sendMagicLink(
   );
 
   if (!email) {
-    authError("Informe seu e-mail.", next);
+    authError(
+      "Informe seu e-mail.",
+      next,
+    );
   }
 
   const origin = await appOrigin();
@@ -232,31 +264,31 @@ export async function sendMagicLink(
     await supabase.auth.signInWithOtp({
       email,
       options: {
-        data: {
-          password_login_enabled: false,
-        },
         emailRedirectTo:
           `${origin}/auth/callback?next=` +
           encodeURIComponent(next),
-        shouldCreateUser: true,
+        shouldCreateUser: false,
       },
     });
 
   if (error) {
-    reportAuthError("magicLink", error);
+    reportAuthError(
+      "signInWithOtp",
+      error,
+    );
 
     if (
       isEmailDeliveryError(error.message) ||
       error.status === 500
     ) {
       authError(
-        "Não conseguimos enviar o link agora. Tente em alguns minutos ou fale com a gente no WhatsApp.",
+        "Não conseguimos enviar o link agora. Tente novamente em alguns minutos.",
         next,
       );
     }
 
     authError(
-      "Não foi possível enviar o link de acesso.",
+      "Não foi possível enviar o link. Se você ainda não tem conta, use “Criar uma nova conta”.",
       next,
     );
   }

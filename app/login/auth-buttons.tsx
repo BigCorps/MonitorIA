@@ -1,6 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/client";
 import {
@@ -9,25 +13,40 @@ import {
   logPasskeyDiagnostics,
   supportsWebAuthn,
 } from "@/src/lib/auth-origin";
+import {
+  PASSKEY_LOGIN_HINT_COOKIE,
+} from "@/src/lib/passkey-login-hint";
 import styles from "./login-auth.module.css";
 
 type Props = {
   next: string;
+  showPasskey: boolean;
 };
 
-function authMessage(error: unknown) {
-  const message =
+function normalizedError(error: unknown) {
+  return (
     error instanceof Error
       ? error.message
-      : String(error ?? "");
+      : String(error ?? "")
+  ).toLowerCase();
+}
 
-  const normalized = message.toLowerCase();
+function authMessage(error: unknown) {
+  const normalized = normalizedError(error);
 
   if (
     normalized.includes("auth_method_disabled") ||
     normalized.includes("method disabled")
   ) {
     return "Esta forma de entrar não está liberada para a sua conta. Tente outra opção da lista.";
+  }
+
+  if (
+    normalized.includes(
+      "webauthn_credential_not_found",
+    )
+  ) {
+    return "A biometria cadastrada não está mais disponível neste aparelho. Entre por outra opção.";
   }
 
   if (
@@ -48,7 +67,23 @@ function authMessage(error: unknown) {
   return "Não foi possível concluir a entrada. Tente de novo.";
 }
 
-export function AuthButtons({ next }: Props) {
+function clearPasskeyHint() {
+  if (typeof window === "undefined") return;
+
+  const secure =
+    window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+
+  document.cookie =
+    `${PASSKEY_LOGIN_HINT_COOKIE}=; ` +
+    `Path=/; Max-Age=0; SameSite=Lax${secure}`;
+}
+
+export function AuthButtons({
+  next,
+  showPasskey,
+}: Props) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [loading, setLoading] = useState<
@@ -57,20 +92,23 @@ export function AuthButtons({ next }: Props) {
   const [error, setError] = useState<string | null>(
     null,
   );
+  const [webAuthnAvailable, setWebAuthnAvailable] =
+    useState(false);
+
+  useEffect(() => {
+    setWebAuthnAvailable(supportsWebAuthn());
+  }, []);
+
+  const canShowPasskey =
+    showPasskey && webAuthnAvailable;
 
   async function signInWithGoogle() {
-    // Se a página não estiver na origem canônica, canonicaliza e para aqui.
-    // O PKCE guarda o code_verifier na origem atual; começar em www e voltar
-    // em monitoria.cam perde o verifier e derruba o usuário na landing.
     if (!ensureCanonicalAuthOrigin()) return;
 
     setLoading("google");
     setError(null);
 
     try {
-      // Sempre https://monitoria.cam/auth/callback, nunca window.location.
-      // O redirectTo precisa bater exatamente com a lista de Redirect URLs
-      // do Supabase; quando não bate, ele cai na Site URL (a landing).
       const redirectTo = authCallbackUrl(next);
 
       const { error: authError } =
@@ -89,8 +127,6 @@ export function AuthButtons({ next }: Props) {
   }
 
   async function signInWithPasskey() {
-    // A cerimônia WebAuthn valida o RP ID contra a origem da página. Ela só
-    // pode começar depois que a navegação canônica terminou.
     if (!ensureCanonicalAuthOrigin()) return;
 
     if (!supportsWebAuthn()) {
@@ -112,7 +148,19 @@ export function AuthButtons({ next }: Props) {
       router.replace(next);
       router.refresh();
     } catch (authError) {
-      logPasskeyDiagnostics("signin", authError);
+      logPasskeyDiagnostics(
+        "signin",
+        authError,
+      );
+
+      if (
+        normalizedError(authError).includes(
+          "webauthn_credential_not_found",
+        )
+      ) {
+        clearPasskeyHint();
+      }
+
       setError(authMessage(authError));
       setLoading(null);
     }
@@ -126,24 +174,26 @@ export function AuthButtons({ next }: Props) {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className={`${styles.button} ${styles.passkey}`}
-        onClick={signInWithPasskey}
-        disabled={loading !== null}
-      >
-        <span
-          className={styles.fingerprint}
-          aria-hidden="true"
+      {canShowPasskey ? (
+        <button
+          type="button"
+          className={`${styles.button} ${styles.passkey}`}
+          onClick={signInWithPasskey}
+          disabled={loading !== null}
         >
-          ◎
-        </span>
-        <span>
-          {loading === "passkey"
-            ? "Validando biometria..."
-            : "Entrar com biometria"}
-        </span>
-      </button>
+          <span
+            className={styles.fingerprint}
+            aria-hidden="true"
+          >
+            ◎
+          </span>
+          <span>
+            {loading === "passkey"
+              ? "Validando biometria..."
+              : "Entrar com biometria"}
+          </span>
+        </button>
+      ) : null}
 
       <button
         type="button"
@@ -180,11 +230,13 @@ export function AuthButtons({ next }: Props) {
         </span>
       </button>
 
-      <p className={styles.hint}>
-        A biometria usa passkeys protegidas pelo aparelho.
-        Nenhuma impressão digital ou imagem facial é
-        enviada ao MonitorIA.
-      </p>
+      {canShowPasskey ? (
+        <p className={styles.hint}>
+          A biometria usa uma passkey já cadastrada
+          neste aparelho. Nenhuma impressão digital ou
+          imagem facial é enviada ao MonitorIA.
+        </p>
+      ) : null}
     </div>
   );
 }

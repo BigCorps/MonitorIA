@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
+import {
+  passkeyLoginReady,
+} from "@/src/lib/passkey-login-hint";
+import { PasskeyLoginHint } from "./passkey-login-hint";
 
 export const metadata: Metadata = {
   robots: {
@@ -35,9 +39,13 @@ export default async function PrivateAreaLayout({
     supabase.rpc("get_current_user_auth_settings"),
   ]);
 
+  const settings = objectValue(settingsData);
+  const passkeyReady = settingsError
+    ? null
+    : passkeyLoginReady(settings);
+
   if (!settingsError) {
     const claims = objectValue(claimsData?.claims);
-    const settings = objectValue(settingsData);
     const mfaRequired =
       settings.effective_mfa_required === true;
     const aal =
@@ -54,5 +62,10 @@ export default async function PrivateAreaLayout({
     }
   }
 
-  return children;
+  return (
+    <>
+      <PasskeyLoginHint enabled={passkeyReady} />
+      {children}
+    </>
+  );
 }

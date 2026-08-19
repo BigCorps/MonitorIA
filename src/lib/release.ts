@@ -5,8 +5,12 @@ export const releaseManifest = {
   additionalAlertModelCalls: 0,
 } as const;
 
+/**
+ * O MonitorIA 1.0.0 já está em lançamento público.
+ * O bloqueio de "liberação gradual" foi removido do produto.
+ */
 export function generalSignupEnabled() {
-  return process.env.GENERAL_SIGNUP_ENABLED?.trim().toLowerCase() === "true";
+  return true;
 }
 
 export function deployedCommitSha() {

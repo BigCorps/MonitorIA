@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   getAuthenticatedUser,
@@ -11,20 +12,29 @@ import {
 } from "./actions";
 import { AuthButtons } from "./auth-buttons";
 import { appConfig } from "@/src/lib/app-config";
-import { generalSignupEnabled } from "@/src/lib/release";
+import {
+  PASSKEY_LOGIN_HINT_COOKIE,
+} from "@/src/lib/passkey-login-hint";
+import loginStyles from "./login-page.module.css";
 
 export const metadata = { title: "Entrar" };
 export const dynamic = "force-dynamic";
 
 type LoginPageProps = {
   searchParams: Promise<
-    Record<string, string | string[] | undefined>
+    Record<
+      string,
+      string | string[] | undefined
+    >
   >;
 };
 
 function Logo() {
   return (
-    <span className="auth-logo-mark" aria-hidden="true">
+    <span
+      className="auth-logo-mark"
+      aria-hidden="true"
+    >
       <img
         src="/favicon.svg"
         alt=""
@@ -36,9 +46,14 @@ function Logo() {
 }
 
 function firstValue(
-  value: string | string[] | undefined,
+  value:
+    | string
+    | string[]
+    | undefined,
 ) {
-  return typeof value === "string" ? value : null;
+  return typeof value === "string"
+    ? value
+    : null;
 }
 
 export default async function LoginPage({
@@ -54,16 +69,29 @@ export default async function LoginPage({
   const message = firstValue(params.message);
   const error = firstValue(params.error);
   const next = normalizeNextPath(
-    firstValue(params.next) ?? "/dashboard",
+    firstValue(params.next) ??
+      "/dashboard",
   );
-  const signupEnabled = generalSignupEnabled();
-  const signupRequested = params.criar === "1";
-  const wantsSignup = signupEnabled && signupRequested;
+  const wantsSignup =
+    params.criar === "1";
+
+  const cookieStore = await cookies();
+  const showPasskey =
+    cookieStore.get(
+      PASSKEY_LOGIN_HINT_COOKIE,
+    )?.value === "1";
 
   return (
-    <main className="auth-page">
-      <section className="auth-intro">
-        <Link href="/" className="auth-brand">
+    <main
+      className={`auth-page ${loginStyles.page}`}
+    >
+      <section
+        className={`auth-intro ${loginStyles.intro}`}
+      >
+        <Link
+          href="/"
+          className="auth-brand"
+        >
           <Logo />
           <span>
             Monitor<span>IA</span>.cam
@@ -74,23 +102,26 @@ export default async function LoginPage({
           <span className="auth-kicker">
             ACESSO SEGURO
           </span>
-          <h1>Sua memória visual começa aqui.</h1>
+          <h1>
+            Sua memória visual começa aqui.
+          </h1>
           <p>
-            Entre para configurar seus locais, suas
-            câmeras e por quanto tempo cada coisa fica
-            guardada.
+            Entre para configurar seus locais,
+            suas câmeras e por quanto tempo cada
+            coisa fica guardada.
           </p>
           <ul>
             <li>
-              Os dados de cada empresa ficam separados
+              Os dados de cada empresa ficam
+              separados
             </li>
             <li>
-              As senhas das câmeras não saem do seu
-              computador
+              As senhas das câmeras não saem do
+              seu computador
             </li>
             <li>
-              Entre por biometria, Google, senha ou link
-              no e-mail
+              Entre com Google, senha ou link no
+              e-mail
             </li>
           </ul>
         </div>
@@ -101,18 +132,22 @@ export default async function LoginPage({
         </small>
       </section>
 
-      <section className="auth-form-shell">
-        <div className="auth-form-card">
+      <section
+        className={`auth-form-shell ${loginStyles.formShell}`}
+      >
+        <div
+          className={`auth-form-card ${loginStyles.formCard}`}
+        >
           <div className="auth-form-heading">
             <span>MonitorIA.cam</span>
             <h2>
               {wantsSignup
-                ? "Criar sua conta"
+                ? "Começar seu teste grátis"
                 : "Entrar no painel"}
             </h2>
             <p>
               {wantsSignup
-                ? "Seu teste começa quando a primeira câmera estiver ligada — não na hora do cadastro."
+                ? "Primeiro crie sua conta. Em seguida, vamos configurar sua empresa e o primeiro local."
                 : "Como você prefere entrar?"}
             </p>
           </div>
@@ -129,15 +164,12 @@ export default async function LoginPage({
             </div>
           ) : null}
 
-          {signupRequested && !signupEnabled ? (
-            <div className="form-alert success">
-              Novos cadastros estão em liberação gradual. Entre em uma conta existente ou solicite acesso à equipe MonitorIA.
-            </div>
-          ) : null}
-
           {!wantsSignup ? (
             <>
-              <AuthButtons next={next} />
+              <AuthButtons
+                next={next}
+                showPasskey={showPasskey}
+              />
 
               <div className="auth-divider">
                 <span>ou use seu e-mail</span>
@@ -157,7 +189,9 @@ export default async function LoginPage({
               type="hidden"
               name="next"
               value={
-                wantsSignup ? "/onboarding" : next
+                wantsSignup
+                  ? "/onboarding"
+                  : next
               }
             />
 
@@ -170,6 +204,7 @@ export default async function LoginPage({
                   autoComplete="name"
                   required
                   minLength={2}
+                  placeholder="Como podemos chamar você?"
                 />
               </label>
             ) : null}
@@ -211,12 +246,14 @@ export default async function LoginPage({
 
             <button
               className={`auth-submit ${
-                wantsSignup ? "secondary" : ""
+                wantsSignup
+                  ? "secondary"
+                  : ""
               }`}
               type="submit"
             >
               {wantsSignup
-                ? "Criar conta"
+                ? "Criar conta e continuar"
                 : "Entrar com senha"}
             </button>
           </form>
@@ -261,21 +298,21 @@ export default async function LoginPage({
           {wantsSignup ? (
             <Link
               className="auth-submit secondary"
-              href={`/login?next=${encodeURIComponent(next)}`}
+              href={`/login?next=${encodeURIComponent(
+                next,
+              )}`}
             >
               Voltar para o login
             </Link>
-          ) : signupEnabled ? (
+          ) : (
             <Link
               className="auth-submit secondary"
-              href={`/login?criar=1&next=${encodeURIComponent(next)}`}
+              href={`/login?criar=1&next=${encodeURIComponent(
+                next,
+              )}`}
             >
               Criar uma nova conta
             </Link>
-          ) : (
-            <a className="auth-submit secondary" href={appConfig.whatsappUrl}>
-              Solicitar acesso
-            </a>
           )}
         </div>
       </section>
