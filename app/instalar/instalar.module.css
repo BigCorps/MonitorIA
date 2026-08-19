@@ -1,0 +1,111 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px;
+  display: grid;
+  place-items: center;
+  color: #17243a;
+  background:
+    radial-gradient(circle at 50% 0, rgba(87, 230, 199, 0.13), transparent 32%),
+    #f2f5f9;
+}
+
+.card {
+  width: min(560px, 100%);
+  padding: 30px;
+  border: 1px solid #dce6ed;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 31, 52, 0.1);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #0d1b2d;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.brand img {
+  width: 30px;
+  height: 30px;
+}
+
+.brand em {
+  color: #20b99a;
+  font-style: normal;
+}
+
+.kicker {
+  display: block;
+  margin-top: 30px;
+  color: #2bb99d;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+}
+
+.card h1 {
+  margin: 8px 0 9px;
+  color: #132037;
+  font-size: 30px;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.card > p {
+  margin: 0 0 22px;
+  color: #718197;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.rules {
+  margin: 20px 0 22px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce9e5;
+  border-radius: 12px;
+  background: #f4fbf9;
+}
+
+.rules div {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #567169;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.rules span {
+  color: #149178;
+  font-weight: 900;
+}
+
+.back {
+  margin-top: 22px;
+  display: block;
+  color: #268a76;
+  font-size: 10px;
+  font-weight: 780;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 14px 10px;
+  }
+
+  .card {
+    padding: 23px 18px;
+    border-radius: 16px;
+  }
+
+  .card h1 {
+    font-size: 26px;
+  }
+}

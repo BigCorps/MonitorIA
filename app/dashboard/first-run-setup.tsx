@@ -3,11 +3,12 @@ import type {
   SetupCameraSummary,
   SiteSummary,
 } from "@/src/lib/dashboard-data";
+import { InstallerPlatformActions } from "@/src/components/installer-platform-actions";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { FirstRunWaiting } from "./first-run-waiting";
 import { SitePairingCode } from "./site-pairing-code";
 import { getFirstRunStatusAction } from "./first-run-status";
-import styles from "./overview.module.css";
+import styles from "./first-run.module.css";
 
 type Props = {
   organizationName: string;
@@ -35,11 +36,11 @@ export async function FirstRunSetup({
     null;
 
   const phases = [
-    { id: "connect", title: "Conectar o computador" },
-    { id: "discover", title: "Procurar as câmeras" },
-    { id: "name", title: "Dar nome às câmeras" },
-    { id: "profile", title: "Explicar o ambiente" },
-    { id: "commercial", title: "Ativar teste ou plano" },
+    { id: "connect", title: "Conectar" },
+    { id: "discover", title: "Procurar" },
+    { id: "name", title: "Nomear" },
+    { id: "profile", title: "Explicar" },
+    { id: "commercial", title: "Ativar" },
   ] as const;
 
   const currentIndex = Math.max(
@@ -61,8 +62,8 @@ export async function FirstRunSetup({
             <span className="dashboard-eyebrow">PRIMEIRO ACESSO</span>
             <h1>Vamos configurar sem pular nenhuma etapa</h1>
             <p>
-              Local <strong>{site.name}</strong>. Cada passo só aparece quando o
-              anterior realmente terminou.
+              Local <strong>{site.name}</strong>. Você só precisa seguir o passo
+              destacado agora.
             </p>
           </div>
         </header>
@@ -70,21 +71,21 @@ export async function FirstRunSetup({
         {message ? <div className="dashboard-message">{message}</div> : null}
 
         <section className={styles.firstRunCard}>
-          <div className={styles.firstRunProgress}>
+          <div className={styles.firstRunProgress} aria-label="Etapas do primeiro acesso">
             {phases.map((item, index) => {
               const done = index < currentIndex || phase === "done";
+              const current = index === currentIndex && phase !== "done";
+
               return (
-                <article key={item.id} data-complete={done}>
+                <article
+                  key={item.id}
+                  data-complete={done}
+                  data-current={current}
+                >
                   <span>{done ? "✓" : index + 1}</span>
                   <div>
                     <strong>{item.title}</strong>
-                    <small>
-                      {done
-                        ? "Concluído"
-                        : index === currentIndex
-                          ? "Faça agora"
-                          : "Depois"}
-                    </small>
+                    <small>{done ? "Concluído" : current ? "Agora" : "Depois"}</small>
                   </div>
                 </article>
               );
@@ -97,29 +98,58 @@ export async function FirstRunSetup({
                 <span>PASSO 1 DE 5</span>
                 <h2>Conecte o computador da loja</h2>
                 <p>
-                  O MonitorIA precisa de um computador ligado no mesmo roteador
-                  das câmeras. É ele que encontra e acompanha as imagens.
+                  O Agent deve ficar em um computador ligado na mesma rede local
+                  das câmeras, DVR ou NVR. Ele é a ponte contínua entre a loja e o MonitorIA.
                 </p>
               </div>
 
-              <ol className={styles.firstRunInstructions}>
-                <li><span>1</span><div><strong>Baixe o MonitorIA nesse computador</strong><p>Confirme a solicitação de administrador do Windows.</p></div></li>
-                <li><span>2</span><div><strong>Quando o instalador pedir, gere o código</strong><p>O código vale 15 minutos; gere apenas na hora de usar.</p></div></li>
-                <li><span>3</span><div><strong>Digite o código e conclua</strong><p>Quando terminar, esta página avança sozinha.</p></div></li>
-              </ol>
+              <div className={styles.connectGrid}>
+                <div className={styles.connectMain}>
+                  <ol className={styles.firstRunInstructions}>
+                    <li>
+                      <span>1</span>
+                      <div>
+                        <strong>Instale no computador da rede das câmeras</strong>
+                        <p>Ele precisa estar conectado ao mesmo roteador ou rede local do DVR, NVR ou câmeras IP.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>2</span>
+                      <div>
+                        <strong>Mantenha esse computador ligado</strong>
+                        <p>O MonitorIA depende dele enquanto o monitoramento estiver ativo.</p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>3</span>
+                      <div>
+                        <strong>Gere o código somente quando o instalador pedir</strong>
+                        <p>O código vale 15 minutos. Depois do pareamento, a tela avança automaticamente.</p>
+                      </div>
+                    </li>
+                  </ol>
 
-              <div className={styles.firstRunActions}>
-                <a href="/api/installer/windows" className="panel-primary-action">
-                  Baixar MonitorIA para Windows
-                </a>
+                  <div className={styles.networkNote}>
+                    <strong>Importante:</strong> se você está fazendo este cadastro
+                    pelo celular, compartilhe o link de instalação com o computador
+                    que ficará ligado na loja. Não é necessário instalar o Agent no celular.
+                  </div>
+                </div>
+
+                <aside className={styles.connectAside}>
+                  <div className={styles.asideTitle}>
+                    <strong>1. Baixe e instale</strong>
+                    <span>Mostramos a opção adequada para este dispositivo.</span>
+                  </div>
+                  <InstallerPlatformActions />
+
+                  <div className={styles.asideTitle}>
+                    <strong>2. Pareie com este local</strong>
+                    <span>Gere o código quando o instalador estiver aberto.</span>
+                  </div>
+                  <SitePairingCode />
+                </aside>
               </div>
-
-              <SitePairingCode />
-              <FirstRunWaiting
-                stage={1}
-                waitingFor="Esperando o computador da loja se conectar"
-                detail="Assim que o instalador terminar, esta tela avança sozinha."
-              />
             </div>
           ) : null}
 
@@ -129,17 +159,15 @@ export async function FirstRunSetup({
                 <span>PASSO 2 DE 5</span>
                 <h2>Agora vamos encontrar suas câmeras</h2>
                 <p>
-                  Ainda não pediremos nenhum nome. Primeiro o MonitorIA encontra
-                  o que realmente existe na rede da loja.
+                  Primeiro o MonitorIA encontra o que realmente existe na rede.
+                  Os nomes serão escolhidos somente depois.
                 </p>
               </div>
-
               <div className={styles.firstRunActions}>
                 <Link href="/dashboard/cameras/discovery" className="panel-primary-action">
                   Procurar câmeras
                 </Link>
               </div>
-
               <FirstRunWaiting
                 stage={2}
                 waitingFor="Nenhuma câmera encontrada ainda"
@@ -154,8 +182,7 @@ export async function FirstRunSetup({
                 <span>PASSO 3 DE 5</span>
                 <h2>Dê um nome para cada câmera encontrada</h2>
                 <p>
-                  Agora que sabemos quais câmeras existem, identifique cada uma
-                  com um nome fácil de reconhecer, como Entrada, Caixa ou Estoque.
+                  Use nomes fáceis de reconhecer, como Entrada, Caixa ou Estoque.
                 </p>
               </div>
               <div className={styles.firstRunActions}>
@@ -172,13 +199,10 @@ export async function FirstRunSetup({
                 <span>PASSO 4 DE 5</span>
                 <h2>Explique o que a câmera está vendo</h2>
                 <p>
-                  Primeiro aguardamos uma imagem real da câmera. Assim que ela
-                  chegar, a tela de contexto é liberada automaticamente para você
-                  explicar funcionários, clientes, caixa, entrada e o que deve ser
-                  observado.
+                  Quando chegar uma imagem real, explique funcionários, clientes,
+                  caixa, entrada e o que deve ser observado.
                 </p>
               </div>
-
               <div className={styles.firstRunActions}>
                 {firstCameraId ? (
                   <Link
@@ -189,11 +213,10 @@ export async function FirstRunSetup({
                   </Link>
                 ) : null}
               </div>
-
               <FirstRunWaiting
                 stage={4}
                 waitingFor="Esperando o contexto da câmera ser aprovado"
-                detail="Depois da aprovação, você seguirá automaticamente para escolher entre teste grátis e contratação."
+                detail="Depois da aprovação, você seguirá para escolher teste grátis ou contratação."
               />
             </div>
           ) : null}
@@ -204,9 +227,8 @@ export async function FirstRunSetup({
                 <span>PASSO 5 DE 5</span>
                 <h2>Escolha como deseja começar</h2>
                 <p>
-                  A câmera está pronta, mas nenhuma análise contínua está
-                  autorizada ainda. Escolha 24 horas grátis ou contrate um
-                  plano. O teste só começa quando você confirmar.
+                  Escolha 24 horas grátis ou contrate um plano. O teste só começa
+                  quando você confirmar.
                 </p>
               </div>
               <div className={styles.firstRunActions}>
