@@ -1,45 +1,40 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/src/lib/supabase/server";
-import { normalizeNextPath } from "@/src/lib/auth";
+import {
+  createClient,
+} from "@/src/lib/supabase/server";
+import {
+  normalizeNextPath,
+} from "@/src/lib/auth";
+import {
+  authCallbackUrl,
+} from "@/src/lib/auth-origin";
 import {
   cleanText,
-  normalizeCameraCount,
-  normalizeIndustry,
+  hasRequiredOnboardingIntake,
+  onboardingIntakeFromFormData,
+  type OnboardingIntake,
 } from "@/src/lib/onboarding-intake";
+import {
+  savePendingOnboarding,
+} from "@/src/lib/pending-onboarding";
 
 export type SignupState = {
-  status: "idle" | "error";
+  status:
+    | "idle"
+    | "error"
+    | "email-sent";
   message?: string;
 };
 
-async function appOrigin() {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(
-      /\/$/,
-      "",
-    );
-  }
-
-  const headerStore = await headers();
-  const host =
-    headerStore.get("x-forwarded-host") ??
-    headerStore.get("host") ??
-    "localhost:3000";
-  const protocol =
-    headerStore.get("x-forwarded-proto") ??
-    (host.includes("localhost")
-      ? "http"
-      : "https");
-
-  return `${protocol}://${host}`;
-}
-
-function readCredentials(formData: FormData) {
+function readCredentials(
+  formData: FormData,
+) {
   return {
-    email: String(formData.get("email") ?? "")
+    email: String(
+      formData.get("email") ?? "",
+    )
       .trim()
       .toLowerCase(),
     password: String(
@@ -51,6 +46,25 @@ function readCredentials(formData: FormData) {
   };
 }
 
+function signupMetadata(
+  fullName: string,
+  intake: OnboardingIntake,
+) {
+  return {
+    full_name: fullName,
+    onboarding_source:
+      "guided_signup_v2",
+    onboarding_organization_name:
+      intake.organizationName,
+    onboarding_site_name:
+      intake.siteName,
+    onboarding_industry:
+      intake.industry,
+    onboarding_camera_count:
+      intake.cameraCount,
+  };
+}
+
 function authError(
   message: string,
   next: string,
@@ -58,7 +72,19 @@ function authError(
   redirect(
     `/login?error=${encodeURIComponent(
       message,
-    )}&next=${encodeURIComponent(next)}`,
+    )}&next=${encodeURIComponent(
+      next,
+    )}`,
+  );
+}
+
+function signupPageError(
+  message: string,
+): never {
+  redirect(
+    `/login?criar=1&error=${encodeURIComponent(
+      message,
+    )}`,
   );
 }
 
@@ -66,7 +92,9 @@ function errorText(error: {
   message: string;
   code?: string;
 }) {
-  return `${error.code ?? ""} ${error.message}`.toLowerCase();
+  return `${
+    error.code ?? ""
+  } ${error.message}`.toLowerCase();
 }
 
 function isEmailDeliveryError(
@@ -95,6 +123,15 @@ function isMethodDisabledError(error: {
   );
 }
 
+function isEmailNotConfirmed(error: {
+  message: string;
+  code?: string;
+}) {
+  return /email_not_confirmed|email not confirmed|email.*confirm/i.test(
+    errorText(error),
+  );
+}
+
 function reportAuthError(
   context: string,
   error: {
@@ -113,20 +150,43 @@ function reportAuthError(
   );
 }
 
+function readSignupIntake(
+  formData: FormData,
+) {
+  const intake =
+    onboardingIntakeFromFormData(
+      formData,
+    );
+
+  if (
+    !hasRequiredOnboardingIntake(
+      intake,
+    )
+  ) {
+    return null;
+  }
+
+  return intake;
+}
+
 export async function loginWithPassword(
   formData: FormData,
 ) {
   const { email, password, next } =
     readCredentials(formData);
 
-  if (!email || password.length < 8) {
+  if (
+    !email ||
+    password.length < 8
+  ) {
     authError(
       "Informe um e-mail válido e uma senha com pelo menos 8 caracteres.",
       next,
     );
   }
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
   const { error } =
     await supabase.auth.signInWithPassword({
       email,
@@ -139,15 +199,26 @@ export async function loginWithPassword(
       error,
     );
 
-    if (isMethodDisabledError(error)) {
+    if (
+      isMethodDisabledError(error)
+    ) {
       authError(
         "Esta forma de entrar não está liberada para a sua conta. Tente outra opção da lista.",
         next,
       );
     }
 
+    if (
+      isEmailNotConfirmed(error)
+    ) {
+      authError(
+        "Seu e-mail ainda precisa ser confirmado. Abra a mensagem do MonitorIA e use o link de confirmação.",
+        next,
+      );
+    }
+
     authError(
-      "E-mail ou senha incorretos.",
+      "Não foi possível entrar com essa senha. Se sua conta foi criada com Google ou link de acesso, use a mesma opção.",
       next,
     );
   }
@@ -155,30 +226,26 @@ export async function loginWithPassword(
   redirect(next);
 }
 
-export async function createAccount(
+export async function createPasswordAccount(
   _previousState: SignupState,
   formData: FormData,
 ): Promise<SignupState> {
+  const intake =
+    readSignupIntake(formData);
   const { email, password } =
     readCredentials(formData);
   const fullName = cleanText(
     formData.get("full_name"),
     120,
   );
-  const organizationName = cleanText(
-    formData.get("organization_name"),
-    160,
-  );
-  const siteName = cleanText(
-    formData.get("site_name"),
-    160,
-  );
-  const industry = normalizeIndustry(
-    formData.get("industry"),
-  );
-  const cameraCount = normalizeCameraCount(
-    formData.get("camera_count"),
-  );
+
+  if (!intake) {
+    return {
+      status: "error",
+      message:
+        "Volte às etapas anteriores e confirme os dados da empresa e do local.",
+    };
+  }
 
   if (
     !email ||
@@ -192,48 +259,37 @@ export async function createAccount(
     };
   }
 
-  if (
-    organizationName.length < 2 ||
-    siteName.length < 1
-  ) {
-    return {
-      status: "error",
-      message:
-        "Volte uma etapa e informe a empresa e o primeiro local.",
-    };
-  }
+  await savePendingOnboarding(
+    intake,
+  );
 
-  const origin = await appOrigin();
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
   const { data, error } =
     await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          full_name: fullName,
-          password_login_enabled: true,
-          onboarding_source:
-            "guided_signup_v1",
-          onboarding_organization_name:
-            organizationName,
-          onboarding_site_name: siteName,
-          onboarding_industry: industry,
-          onboarding_camera_count:
-            cameraCount,
-        },
+        data: signupMetadata(
+          fullName,
+          intake,
+        ),
         emailRedirectTo:
-          `${origin}/auth/callback?next=` +
-          encodeURIComponent(
-            "/onboarding",
+          authCallbackUrl(
+            "/onboarding/complete",
           ),
       },
     });
 
   if (error) {
-    reportAuthError("signUp", error);
+    reportAuthError(
+      "guidedPasswordSignUp",
+      error,
+    );
 
-    if (isWeakPasswordError(error)) {
+    if (
+      isWeakPasswordError(error)
+    ) {
       return {
         status: "error",
         message:
@@ -242,44 +298,176 @@ export async function createAccount(
     }
 
     if (
-      error.message
-        .toLowerCase()
-        .includes("registered")
-    ) {
-      return {
-        status: "error",
-        message:
-          "Este e-mail já está cadastrado. Use “Voltar para o login”.",
-      };
-    }
-
-    if (
-      isEmailDeliveryError(error.message) ||
+      isEmailDeliveryError(
+        error.message,
+      ) ||
       error.status === 500
     ) {
       return {
         status: "error",
         message:
-          "Não conseguimos enviar o e-mail de confirmação agora. Tente novamente em alguns minutos.",
+          "Não conseguimos enviar a confirmação agora. Tente novamente em alguns minutos.",
       };
     }
 
     return {
       status: "error",
       message:
-        "Não foi possível criar a conta. Tente novamente.",
+        "Não foi possível criar o acesso com senha. Se este e-mail já possui uma conta, use Google ou link no e-mail.",
     };
   }
 
   if (data.session) {
-    redirect("/onboarding");
+    redirect(
+      "/onboarding/complete",
+    );
   }
 
-  redirect(
-    `/login?message=${encodeURIComponent(
-      "Conta criada. Confirme o e-mail para continuar a configuração.",
-    )}`,
+  if (
+    data.user &&
+    Array.isArray(
+      data.user.identities,
+    ) &&
+    data.user.identities.length === 0
+  ) {
+    return {
+      status: "error",
+      message:
+        "Este e-mail já possui um acesso. Use Google, link no e-mail ou volte para o login.",
+    };
+  }
+
+  return {
+    status: "email-sent",
+    message:
+      "Conta criada. Enviamos uma confirmação para o seu e-mail. Clique no link e você entrará automaticamente, continuando direto no painel — não será necessário digitar a senha novamente.",
+  };
+}
+
+export async function createMagicLinkAccount(
+  _previousState: SignupState,
+  formData: FormData,
+): Promise<SignupState> {
+  const intake =
+    readSignupIntake(formData);
+  const email = String(
+    formData.get("email") ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  const fullName = cleanText(
+    formData.get("full_name"),
+    120,
   );
+
+  if (!intake) {
+    return {
+      status: "error",
+      message:
+        "Volte às etapas anteriores e confirme os dados da empresa e do local.",
+    };
+  }
+
+  if (
+    !email ||
+    fullName.length < 2
+  ) {
+    return {
+      status: "error",
+      message:
+        "Informe seu nome e um e-mail válido.",
+    };
+  }
+
+  await savePendingOnboarding(
+    intake,
+  );
+
+  const supabase =
+    await createClient();
+  const { error } =
+    await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        data: signupMetadata(
+          fullName,
+          intake,
+        ),
+        emailRedirectTo:
+          authCallbackUrl(
+            "/onboarding/complete",
+          ),
+      },
+    });
+
+  if (error) {
+    reportAuthError(
+      "guidedMagicLinkSignUp",
+      error,
+    );
+
+    return {
+      status: "error",
+      message:
+        isEmailDeliveryError(
+          error.message,
+        )
+          ? "Não conseguimos enviar o link agora. Tente novamente em alguns minutos."
+          : "Não foi possível enviar o link de acesso.",
+    };
+  }
+
+  return {
+    status: "email-sent",
+    message:
+      "Link enviado. Ao abrir o e-mail e tocar no link, você entrará automaticamente e continuará direto no painel.",
+  };
+}
+
+export async function createGoogleAccount(
+  formData: FormData,
+) {
+  const intake =
+    readSignupIntake(formData);
+
+  if (!intake) {
+    signupPageError(
+      "Volte às etapas anteriores e confirme os dados da empresa e do local.",
+    );
+  }
+
+  await savePendingOnboarding(
+    intake,
+  );
+
+  const supabase =
+    await createClient();
+  const { data, error } =
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          authCallbackUrl(
+            "/onboarding/complete",
+          ),
+      },
+    });
+
+  if (error || !data.url) {
+    if (error) {
+      reportAuthError(
+        "guidedGoogleSignUp",
+        error,
+      );
+    }
+
+    signupPageError(
+      "Não foi possível abrir o Google agora. Tente novamente.",
+    );
+  }
+
+  redirect(data.url);
 }
 
 export async function sendMagicLink(
@@ -301,15 +489,14 @@ export async function sendMagicLink(
     );
   }
 
-  const origin = await appOrigin();
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
   const { error } =
     await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo:
-          `${origin}/auth/callback?next=` +
-          encodeURIComponent(next),
+          authCallbackUrl(next),
         shouldCreateUser: false,
       },
     });
@@ -321,7 +508,9 @@ export async function sendMagicLink(
     );
 
     if (
-      isEmailDeliveryError(error.message) ||
+      isEmailDeliveryError(
+        error.message,
+      ) ||
       error.status === 500
     ) {
       authError(

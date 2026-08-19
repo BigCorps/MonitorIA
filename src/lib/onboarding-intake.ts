@@ -65,6 +65,38 @@ export type OnboardingIntake = {
   cameraCount: number;
 };
 
+export function onboardingIntakeFromFormData(
+  formData: FormData,
+): OnboardingIntake {
+  return {
+    organizationName: cleanText(
+      formData.get("organization_name"),
+      160,
+    ),
+    siteName: cleanText(
+      formData.get("site_name"),
+      160,
+    ),
+    industry: normalizeIndustry(
+      formData.get("industry"),
+    ),
+    cameraCount: normalizeCameraCount(
+      formData.get("camera_count"),
+    ),
+  };
+}
+
+export function hasRequiredOnboardingIntake(
+  intake: OnboardingIntake,
+) {
+  return (
+    intake.organizationName.length >= 2 &&
+    intake.siteName.length >= 1 &&
+    intake.cameraCount >= 1 &&
+    intake.cameraCount <= 64
+  );
+}
+
 export function readOnboardingIntake(
   metadata: unknown,
 ): OnboardingIntake {

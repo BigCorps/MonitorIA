@@ -5,7 +5,8 @@
 
 .progress {
   display: grid;
-  grid-template-columns: auto 1fr auto 1fr auto;
+  grid-template-columns:
+    auto 1fr auto 1fr auto;
   align-items: center;
   gap: 9px;
   margin-bottom: 2px;
@@ -83,12 +84,15 @@
 .input:focus,
 .numberInput:focus {
   border-color: #3bcdb0;
-  box-shadow: 0 0 0 4px rgba(59, 205, 176, 0.1);
+  box-shadow:
+    0 0 0 4px
+    rgba(59, 205, 176, 0.1);
 }
 
 .businessGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    1fr 1fr;
   gap: 8px;
 }
 
@@ -113,7 +117,8 @@
 
 .cameraRow {
   display: grid;
-  grid-template-columns: 1fr 100px;
+  grid-template-columns:
+    1fr 100px;
   gap: 12px;
   align-items: end;
 }
@@ -127,9 +132,11 @@
 
 .actions {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns:
+    auto 1fr;
   gap: 9px;
   margin-top: 2px;
+  align-items: center;
 }
 
 .actions[data-first="true"] {
@@ -138,24 +145,32 @@
 
 .back,
 .next,
-.submit {
+.submit,
+.googleButton,
+.methodTab {
   min-height: 47px;
-  padding: 0 17px;
   border-radius: 10px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .back {
+  padding: 0 17px;
   border: 1px solid #dce4ed;
   color: #52677f;
   background: #f7f9fb;
 }
 
 .next {
+  padding: 0 17px;
   border: 0;
   color: #061712;
-  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  background:
+    linear-gradient(
+      135deg,
+      #61e8ce,
+      #3fd0b3
+    );
 }
 
 .next:disabled {
@@ -163,8 +178,86 @@
   opacity: 0.48;
 }
 
+.googleButton {
+  width: 100%;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid #dbe3ec;
+  color: #23344b;
+  background: #fff;
+}
+
+.googleButton:hover {
+  border-color: #b8c7d7;
+  background: #fafcff;
+}
+
+.googleButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.googleIcon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.orDivider {
+  display: grid;
+  grid-template-columns:
+    1fr auto 1fr;
+  align-items: center;
+  gap: 11px;
+  color: #9aa8b7;
+  font-size: 9px;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: "";
+  height: 1px;
+  background: #e5ebf1;
+}
+
+.methodTabs {
+  display: grid;
+  grid-template-columns:
+    1fr 1fr;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid #e0e7ef;
+  border-radius: 12px;
+  background: #f5f8fb;
+}
+
+.methodTab {
+  min-height: 40px;
+  border: 0;
+  color: #718197;
+  background: transparent;
+  font-size: 10.5px;
+}
+
+.methodTab[data-selected="true"] {
+  color: #173249;
+  background: #fff;
+  box-shadow:
+    0 2px 8px
+    rgba(15, 31, 52, 0.08);
+}
+
+.accessForm {
+  display: grid;
+  gap: 14px;
+}
+
 .submit {
   width: 100%;
+  padding: 0 17px;
   border: 0;
   color: #eaf4ff;
   background: #0d1b2d;
@@ -185,26 +278,62 @@
   line-height: 1.55;
 }
 
-.error {
+.error,
+.success {
   padding: 11px 12px;
-  border: 1px solid #fecdd3;
   border-radius: 9px;
-  color: #9f1239;
-  background: #fff1f2;
   font-size: 11px;
   line-height: 1.5;
 }
 
+.error {
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  background: #fff1f2;
+}
+
+.success {
+  border: 1px solid #bde9dd;
+  color: #08745f;
+  background: #eafaf5;
+}
+
+.authHint {
+  margin: -3px 0 0;
+  color: #8a98a9;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.savedIndicator {
+  justify-self: end;
+  color: #278a75;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-align: right;
+}
+
 @media (max-width: 480px) {
   .businessGrid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+      1fr 1fr;
   }
 
   .cameraRow {
-    grid-template-columns: 1fr 88px;
+    grid-template-columns:
+      1fr 88px;
   }
 
   .wizard {
     gap: 18px;
+  }
+
+  .actions {
+    grid-template-columns:
+      auto 1fr;
+  }
+
+  .savedIndicator {
+    font-size: 9px;
   }
 }
