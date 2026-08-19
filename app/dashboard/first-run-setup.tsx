@@ -8,6 +8,10 @@ import { DashboardSidebar } from "./dashboard-sidebar";
 import { FirstRunWaiting } from "./first-run-waiting";
 import { SitePairingCode } from "./site-pairing-code";
 import { DiscoveryPanel } from "./cameras/discovery/discovery-panel";
+import {
+  CameraNamingForm,
+  type NamingCamera,
+} from "./cameras/setup/camera-naming-form";
 import { getFirstRunStatusAction } from "./first-run-status";
 import styles from "./first-run.module.css";
 
@@ -31,277 +35,139 @@ export async function FirstRunSetup({
   defaultCameraCount,
   message,
 }: Props) {
-  const firstRun =
-    await getFirstRunStatusAction();
+  const firstRun = await getFirstRunStatusAction();
   const phase = firstRun.phase;
   const firstCameraId =
     firstRun.firstCameraId ??
-    cameras.find(
-      (camera) =>
-        camera.status === "online",
-    )?.id ??
+    cameras.find((camera) => camera.status === "online")?.id ??
     cameras[0]?.id ??
     null;
+
+  const namingCameras: NamingCamera[] = cameras.map((camera) => ({
+    id: camera.id,
+    name: camera.name,
+    status: camera.status,
+    streamLabel: null,
+  }));
 
   const phases = [
     { id: "connect", title: "Conectar" },
     { id: "discover", title: "Procurar" },
     { id: "name", title: "Nomear" },
     { id: "profile", title: "Explicar" },
-    {
-      id: "commercial",
-      title: "Ativar",
-    },
+    { id: "commercial", title: "Ativar" },
   ] as const;
 
   const currentIndex = Math.max(
     0,
-    phases.findIndex(
-      (item) => item.id === phase,
-    ),
+    phases.findIndex((item) => item.id === phase),
   );
 
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
-        organizationName={
-          organizationName
-        }
+        organizationName={organizationName}
         userEmail={userEmail}
         active="overview"
       />
 
-      <section
-        className={`dashboard-content ${styles.content}`}
-      >
+      <section className={`dashboard-content ${styles.content}`}>
         <header className="dashboard-header">
           <div>
-            <span className="dashboard-eyebrow">
-              PRIMEIRO ACESSO
-            </span>
-            <h1>
-              Vamos configurar sem pular
-              nenhuma etapa
-            </h1>
+            <span className="dashboard-eyebrow">PRIMEIRO ACESSO</span>
+            <h1>Vamos configurar sem pular nenhuma etapa</h1>
             <p>
-              Local{" "}
-              <strong>{site.name}</strong>.
-              Você só precisa seguir o
-              passo destacado agora.
+              Local <strong>{site.name}</strong>. Você só precisa seguir o passo
+              destacado agora.
             </p>
           </div>
         </header>
 
-        {message ? (
-          <div className="dashboard-message">
-            {message}
-          </div>
-        ) : null}
+        {message ? <div className="dashboard-message">{message}</div> : null}
 
-        <section
-          className={styles.firstRunCard}
-        >
-          <div
-            className={
-              styles.firstRunProgress
-            }
-            aria-label="Etapas do primeiro acesso"
-          >
-            {phases.map(
-              (item, index) => {
-                const done =
-                  index < currentIndex ||
-                  phase === "done";
-                const current =
-                  index === currentIndex &&
-                  phase !== "done";
+        <section className={styles.firstRunCard}>
+          <div className={styles.firstRunProgress} aria-label="Etapas do primeiro acesso">
+            {phases.map((item, index) => {
+              const done = index < currentIndex || phase === "done";
+              const current = index === currentIndex && phase !== "done";
 
-                return (
-                  <article
-                    key={item.id}
-                    data-complete={done}
-                    data-current={current}
-                  >
-                    <span>
-                      {done
-                        ? "✓"
-                        : index + 1}
-                    </span>
-                    <div>
-                      <strong>
-                        {item.title}
-                      </strong>
-                      <small>
-                        {done
-                          ? "Concluído"
-                          : current
-                            ? "Agora"
-                            : "Depois"}
-                      </small>
-                    </div>
-                  </article>
-                );
-              },
-            )}
+              return (
+                <article
+                  key={item.id}
+                  data-complete={done}
+                  data-current={current}
+                >
+                  <span>{done ? "✓" : index + 1}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>{done ? "Concluído" : current ? "Agora" : "Depois"}</small>
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
           {phase === "connect" ? (
-            <div
-              className={
-                styles.firstRunBody
-              }
-            >
-              <div
-                className={
-                  styles.firstRunHeading
-                }
-              >
-                <span>
-                  PASSO 1 DE 5
-                </span>
-                <h2>
-                  Conecte o computador
-                  da loja
-                </h2>
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 1 DE 5</span>
+                <h2>Conecte o computador da loja</h2>
                 <p>
-                  O Agent deve ficar em
-                  um computador ligado
-                  na mesma rede local
-                  das câmeras, DVR ou
-                  NVR. Ele é a ponte
-                  contínua entre a loja
-                  e o MonitorIA.
+                  O Agent deve ficar em um computador ligado na mesma rede local
+                  das câmeras, DVR ou NVR. Ele é a ponte contínua entre a loja e o MonitorIA.
                 </p>
               </div>
 
-              <div
-                className={
-                  styles.connectGrid
-                }
-              >
-                <div
-                  className={
-                    styles.connectMain
-                  }
-                >
-                  <ol
-                    className={
-                      styles.firstRunInstructions
-                    }
-                  >
+              <div className={styles.connectGrid}>
+                <div className={styles.connectMain}>
+                  <ol className={styles.firstRunInstructions}>
                     <li>
                       <span>1</span>
                       <div>
-                        <strong>
-                          Instale no
-                          computador da
-                          rede das
-                          câmeras
-                        </strong>
+                        <strong>Instale no computador da rede das câmeras</strong>
                         <p>
-                          Ele precisa
-                          estar conectado
-                          ao mesmo
-                          roteador ou
-                          rede local do
-                          DVR, NVR ou
-                          câmeras IP.
+                          Ele precisa estar conectado à mesma rede local do DVR,
+                          NVR ou câmeras IP.
                         </p>
                       </div>
                     </li>
                     <li>
                       <span>2</span>
                       <div>
-                        <strong>
-                          Mantenha esse
-                          computador
-                          ligado
-                        </strong>
+                        <strong>Mantenha esse computador ligado</strong>
                         <p>
-                          O MonitorIA
-                          depende dele
-                          enquanto o
-                          monitoramento
-                          estiver ativo.
+                          O MonitorIA depende dele enquanto o monitoramento estiver ativo.
                         </p>
                       </div>
                     </li>
                     <li>
                       <span>3</span>
                       <div>
-                        <strong>
-                          Gere o código
-                          somente quando
-                          o instalador
-                          pedir
-                        </strong>
+                        <strong>Gere o código somente quando o instalador pedir</strong>
                         <p>
-                          O código vale
-                          15 minutos.
-                          Depois do
-                          pareamento, a
-                          tela avança
-                          automaticamente.
+                          O código vale 15 minutos. Depois do pareamento, a tela avança automaticamente.
                         </p>
                       </div>
                     </li>
                   </ol>
 
-                  <div
-                    className={
-                      styles.networkNote
-                    }
-                  >
-                    <strong>
-                      Importante:
-                    </strong>{" "}
-                    se você está fazendo
-                    este cadastro pelo
-                    celular,
-                    compartilhe o link
-                    de instalação com o
-                    computador que
-                    ficará ligado na
-                    loja.
+                  <div className={styles.networkNote}>
+                    <strong>Importante:</strong> se você está fazendo este cadastro
+                    pelo celular, compartilhe o link de instalação com o computador
+                    que ficará ligado na loja.
                   </div>
                 </div>
 
-                <aside
-                  className={
-                    styles.connectAside
-                  }
-                >
-                  <div
-                    className={
-                      styles.asideTitle
-                    }
-                  >
-                    <strong>
-                      1. Baixe e instale
-                    </strong>
-                    <span>
-                      Mostramos a opção
-                      adequada para este
-                      dispositivo.
-                    </span>
+                <aside className={styles.connectAside}>
+                  <div className={styles.asideTitle}>
+                    <strong>1. Baixe e instale</strong>
+                    <span>Mostramos a opção adequada para este dispositivo.</span>
                   </div>
                   <InstallerPlatformActions />
 
-                  <div
-                    className={
-                      styles.asideTitle
-                    }
-                  >
-                    <strong>
-                      2. Pareie com este
-                      local
-                    </strong>
-                    <span>
-                      Gere o código
-                      quando o
-                      instalador estiver
-                      aberto.
-                    </span>
+                  <div className={styles.asideTitle}>
+                    <strong>2. Pareie com este local</strong>
+                    <span>Gere o código quando o instalador estiver aberto.</span>
                   </div>
                   <SitePairingCode />
                 </aside>
@@ -310,124 +176,61 @@ export async function FirstRunSetup({
           ) : null}
 
           {phase === "discover" ? (
-            <div
-              className={
-                styles.firstRunBody
-              }
-            >
-              <div
-                className={
-                  styles.firstRunHeading
-                }
-              >
-                <span>
-                  PASSO 2 DE 5
-                </span>
-                <h2>
-                  Agora vamos encontrar
-                  suas câmeras
-                </h2>
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 2 DE 5</span>
+                <h2>Agora vamos encontrar suas câmeras</h2>
                 <p>
-                  A busca acontece aqui
-                  mesmo. Você continua
-                  no primeiro acesso
-                  até concluir todas as
-                  etapas.
+                  A busca acontece aqui mesmo. Se faltar alguma câmera, o
+                  MonitorIA orienta o que testar antes de continuar.
                 </p>
               </div>
 
               <DiscoveryPanel
                 onboarding
                 hasAgent={agentPaired}
-                defaultCameraCount={
-                  defaultCameraCount
-                }
+                defaultCameraCount={defaultCameraCount}
               />
             </div>
           ) : null}
 
           {phase === "name" ? (
-            <div
-              className={
-                styles.firstRunBody
-              }
-            >
-              <div
-                className={
-                  styles.firstRunHeading
-                }
-              >
-                <span>
-                  PASSO 3 DE 5
-                </span>
-                <h2>
-                  Dê um nome para cada
-                  câmera encontrada
-                </h2>
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 3 DE 5</span>
+                <h2>Dê um nome para cada câmera encontrada</h2>
                 <p>
-                  Use nomes fáceis de
-                  reconhecer, como
-                  Entrada, Caixa ou
-                  Estoque.
+                  Use a primeira imagem captada para saber exatamente qual
+                  câmera está renomeando.
                 </p>
               </div>
-              <div
-                className={
-                  styles.firstRunActions
-                }
-              >
-                <Link
-                  href="/dashboard/cameras/setup"
-                  className="panel-primary-action"
-                >
-                  Nomear{" "}
-                  {cameras.length === 1
-                    ? "a câmera"
-                    : "as câmeras"}
-                </Link>
-              </div>
+
+              <CameraNamingForm
+                cameras={namingCameras}
+                onboarding
+                hasAgent={agentPaired}
+                defaultCameraCount={defaultCameraCount}
+              />
             </div>
           ) : null}
 
           {phase === "profile" ? (
-            <div
-              className={
-                styles.firstRunBody
-              }
-            >
-              <div
-                className={
-                  styles.firstRunHeading
-                }
-              >
-                <span>
-                  PASSO 4 DE 5
-                </span>
-                <h2>
-                  Explique o que a
-                  câmera está vendo
-                </h2>
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 4 DE 5</span>
+                <h2>Explique o que a câmera está vendo</h2>
                 <p>
-                  Quando chegar uma
-                  imagem real, explique
-                  funcionários,
-                  clientes, caixa,
-                  entrada e o que deve
-                  ser observado.
+                  Quando chegar uma imagem real, explique funcionários, clientes,
+                  caixa, entrada e o que deve ser observado.
                 </p>
               </div>
-              <div
-                className={
-                  styles.firstRunActions
-                }
-              >
+              <div className={styles.firstRunActions}>
                 {firstCameraId ? (
                   <Link
                     href={`/dashboard/cameras/${firstCameraId}?onboarding=1`}
                     className="panel-primary-action"
                   >
-                    Configurar contexto
-                    da câmera
+                    Configurar contexto da câmera
                   </Link>
                 ) : null}
               </div>
@@ -439,44 +242,19 @@ export async function FirstRunSetup({
             </div>
           ) : null}
 
-          {phase ===
-          "commercial" ? (
-            <div
-              className={
-                styles.firstRunBody
-              }
-            >
-              <div
-                className={
-                  styles.firstRunHeading
-                }
-              >
-                <span>
-                  PASSO 5 DE 5
-                </span>
-                <h2>
-                  Escolha como deseja
-                  começar
-                </h2>
+          {phase === "commercial" ? (
+            <div className={styles.firstRunBody}>
+              <div className={styles.firstRunHeading}>
+                <span>PASSO 5 DE 5</span>
+                <h2>Escolha como deseja começar</h2>
                 <p>
-                  Escolha 24 horas
-                  grátis ou contrate um
-                  plano. O teste só
-                  começa quando você
-                  confirmar.
+                  Escolha 24 horas grátis ou contrate um plano. O teste só começa
+                  quando você confirmar.
                 </p>
               </div>
-              <div
-                className={
-                  styles.firstRunActions
-                }
-              >
-                <Link
-                  href="/dashboard/commercial-choice"
-                  className="panel-primary-action"
-                >
-                  Escolher teste ou
-                  plano
+              <div className={styles.firstRunActions}>
+                <Link href="/dashboard/commercial-choice" className="panel-primary-action">
+                  Escolher teste ou plano
                 </Link>
               </div>
             </div>

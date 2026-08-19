@@ -6,10 +6,24 @@ import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 
-export async function saveDiscoveredCameraNamesAction(formData: FormData) {
+export type CameraNamingState = {
+  status: "idle" | "error";
+  message?: string;
+};
+
+export async function saveDiscoveredCameraNamesAction(
+  _previousState: CameraNamingState,
+  formData: FormData,
+): Promise<CameraNamingState> {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
-  if (!organization) redirect("/onboarding");
+
+  if (!organization) {
+    return {
+      status: "error",
+      message: "Não encontramos sua organização. Entre novamente.",
+    };
+  }
 
   const supabase = createAdminClient();
   const { data: cameras, error } = await supabase
@@ -20,10 +34,7 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
     .order("created_at", { ascending: true });
 
   if (error) {
-    redirect(
-      "/dashboard/cameras/setup?error=" +
-        encodeURIComponent("Não foi possível carregar as câmeras."),
-    );
+    return { status: "error", message: "Não foi possível carregar as câmeras." };
   }
 
   const list = cameras ?? [];
@@ -35,10 +46,10 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
   }));
 
   if (names.some((camera) => camera.name.length < 2 || camera.name.length > 160)) {
-    redirect(
-      "/dashboard/cameras/setup?error=" +
-        encodeURIComponent("Dê um nome de 2 a 160 caracteres para cada câmera."),
-    );
+    return {
+      status: "error",
+      message: "Dê um nome de 2 a 160 caracteres para cada câmera.",
+    };
   }
 
   const normalized = names.map((camera) =>
@@ -46,14 +57,13 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
   );
 
   if (new Set(normalized).size !== normalized.length) {
-    redirect(
-      "/dashboard/cameras/setup?error=" +
-        encodeURIComponent("Use nomes diferentes para identificar cada câmera."),
-    );
+    return {
+      status: "error",
+      message: "Use nomes diferentes para identificar cada câmera.",
+    };
   }
 
   const now = new Date().toISOString();
-
   for (const camera of names) {
     const { error: updateError } = await supabase
       .from("cameras")
@@ -63,17 +73,21 @@ export async function saveDiscoveredCameraNamesAction(formData: FormData) {
 
     if (updateError) {
       console.error("Falha ao nomear câmera:", updateError.message);
-      redirect(
-        "/dashboard/cameras/setup?error=" +
-          encodeURIComponent("Não foi possível salvar todos os nomes. Tente novamente."),
-      );
+      return {
+        status: "error",
+        message: "Não foi possível salvar todos os nomes. Tente novamente.",
+      };
     }
   }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/cameras");
+  revalidatePath("/dashboard/cameras/setup");
   revalidatePath("/dashboard/trial");
   revalidatePath("/dashboard/plans");
+
+  const flow = String(formData.get("flow") ?? "");
+  if (flow === "onboarding") redirect("/dashboard");
 
   redirect(`/dashboard/cameras/${names[0].id}?onboarding=1`);
 }

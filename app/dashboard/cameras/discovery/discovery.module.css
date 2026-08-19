@@ -1,5 +1,4 @@
-/* Painel de descoberta reutilizado tanto na área Câmeras quanto dentro do
-   onboarding do dashboard. */
+/* Painel reutilizado na área Câmeras e dentro do onboarding. */
 
 .form,
 .progressCard,
@@ -20,7 +19,7 @@
 
 .embedded {
   width: 100%;
-  max-width: 820px;
+  max-width: 880px;
   margin-top: 18px;
   padding: 0;
   border: 0;
@@ -41,7 +40,7 @@
 .hint {
   margin: 0;
   color: #74839a;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -52,16 +51,13 @@
   border: 1px solid #f6d9d4;
   border-radius: 10px;
   padding: 11px 13px;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
 .embeddedFields {
   display: grid;
-  grid-template-columns:
-    minmax(150px, 0.65fr)
-    minmax(180px, 1fr)
-    minmax(180px, 1fr);
+  grid-template-columns: minmax(150px, 0.65fr) minmax(180px, 1fr) minmax(180px, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -74,7 +70,7 @@
 
 .field span {
   font-weight: 650;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .field input {
@@ -83,7 +79,7 @@
   border: 1px solid #dce4ed;
   background: #f7f9fc;
   color: #17243a;
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
 }
 
@@ -96,7 +92,7 @@
 
 .field small {
   color: #8695a8;
-  font-size: 11px;
+  font-size: 9.5px;
   line-height: 1.5;
 }
 
@@ -113,8 +109,8 @@
   background: linear-gradient(135deg, #61e8ce, #3fd0b3);
   box-shadow: 0 10px 26px rgba(38, 203, 168, 0.14);
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 750;
   cursor: pointer;
   text-decoration: none;
 }
@@ -141,7 +137,7 @@
   background: #f7f9fc;
   color: #405b78;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 650;
   cursor: pointer;
   text-decoration: none;
@@ -164,7 +160,7 @@
 
 .step {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -190,17 +186,17 @@
 
 .device strong {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .host {
   color: #98a4b3;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .badgeOk,
 .badgeFail {
-  font-size: 11px;
+  font-size: 10px;
   padding: 6px 9px;
   border-radius: 99px;
   text-align: right;
@@ -239,7 +235,7 @@
   border-radius: 10px;
   color: #14755f;
   background: #effbf7;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
 }
 
@@ -254,9 +250,7 @@
 }
 
 @keyframes discoverySpin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .tip {
@@ -270,14 +264,67 @@
 .tip strong {
   display: block;
   color: #29435d;
-  font-size: 12px;
+  font-size: 11px;
   margin-bottom: 5px;
 }
 
 .tip p {
   margin: 0;
   color: #74839a;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.help {
+  overflow: hidden;
+  border: 1px solid #dce7ed;
+  border-radius: 12px;
+  background: #f8fbfc;
+}
+
+.help summary {
+  padding: 12px 14px;
+  color: #36566e;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.help[open] summary {
+  border-bottom: 1px solid #e3ebf0;
+}
+
+.helpGrid {
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.helpGrid article {
+  padding: 11px;
+  border: 1px solid #e4ebef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.helpGrid strong {
+  color: #29435d;
+  font-size: 10px;
+}
+
+.helpGrid p {
+  margin: 5px 0 0;
+  color: #718197;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.helpCompact {
+  padding: 11px 14px;
+  color: #718197;
+  font-size: 9.5px;
   line-height: 1.6;
 }
 
@@ -285,7 +332,6 @@
   .embeddedFields {
     grid-template-columns: 1fr 1fr;
   }
-
   .embeddedFields .field:first-child {
     grid-column: 1 / -1;
   }
@@ -298,37 +344,16 @@
   .notice {
     padding: 20px;
   }
-
-  .embedded {
-    padding: 0;
-  }
-
-  .embeddedFields {
-    grid-template-columns: 1fr;
-  }
-
-  .embeddedFields .field:first-child {
-    grid-column: auto;
-  }
-
-  .device {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
+  .embedded { padding: 0; }
+  .embeddedFields { grid-template-columns: 1fr; }
+  .embeddedFields .field:first-child { grid-column: auto; }
+  .device { flex-direction: column; align-items: flex-start; }
   .badgeOk,
-  .badgeFail {
-    max-width: 100%;
-    text-align: left;
-  }
-
-  .embedded > .primary {
-    width: 100%;
-  }
+  .badgeFail { max-width: 100%; text-align: left; }
+  .embedded > .primary { width: 100%; }
+  .helpGrid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .miniSpinner {
-    animation-duration: 2.4s;
-  }
+  .miniSpinner { animation-duration: 2.4s; }
 }
