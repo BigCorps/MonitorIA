@@ -13,10 +13,11 @@ export type OnboardingCameraNameState = {
   message?: string;
 };
 
-export const initialOnboardingCameraNameState: OnboardingCameraNameState = {
-  status: "idle",
-};
-
+/**
+ * Arquivos marcados com "use server" só podem exportar funções assíncronas
+ * em runtime. O estado inicial fica no componente cliente; aqui permanece
+ * apenas a Server Action.
+ */
 export async function saveOnboardingCameraNameAction(
   _previousState: OnboardingCameraNameState,
   formData: FormData,

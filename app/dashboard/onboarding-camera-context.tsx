@@ -11,8 +11,8 @@ import type { CameraProfileWorkspace } from "@/src/lib/camera-profile-data";
 import { CameraProfilePanel } from "./cameras/[cameraId]/camera-profile-panel";
 import { DiscoveryPanel } from "./cameras/discovery/discovery-panel";
 import {
-  initialOnboardingCameraNameState,
   saveOnboardingCameraNameAction,
+  type OnboardingCameraNameState,
 } from "./onboarding-camera-context-actions";
 import styles from "./onboarding-camera-context.module.css";
 
@@ -30,6 +30,10 @@ type Props = {
   cameraTotal: number;
   hasAgent: boolean;
   defaultCameraCount: number;
+};
+
+const initialNameState: OnboardingCameraNameState = {
+  status: "idle",
 };
 
 function elapsedSince(value: string) {
@@ -69,7 +73,7 @@ function waitingText(elapsed: number, agentConnected: boolean) {
   return {
     title: "Está levando mais do que o esperado",
     text:
-      "Continuamos verificando automaticamente. O Agent tenta novamente enquanto a câmera permanecer conectada. Se ela tiver sido reiniciada ou mudado de rede, você também pode procurar as câmeras novamente sem apagar as já cadastradas.",
+      "Continuamos verificando automaticamente. Se a câmera tiver sido reiniciada ou mudado de rede, você também pode procurar novamente sem apagar as que já foram cadastradas.",
     slow: true,
   };
 }
@@ -88,7 +92,7 @@ export function OnboardingCameraContext({
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [nameState, nameAction, namePending] = useActionState(
     saveOnboardingCameraNameAction,
-    initialOnboardingCameraNameState,
+    initialNameState,
   );
 
   const frame = workspace.frame ?? workspace.referenceFrames[0] ?? null;
@@ -110,8 +114,6 @@ export function OnboardingCameraContext({
       setElapsed(elapsedSince(camera.createdAt));
     }, 1_000);
 
-    // O backend passa a entregar o painel completo assim que storage_assets
-    // recebe o primeiro frame. Não há necessidade de uma chamada especial ao Agent.
     const polling = window.setInterval(() => {
       router.refresh();
     }, 5_000);
@@ -217,9 +219,8 @@ export function OnboardingCameraContext({
             <h3>{wait.title}</h3>
             <p>{wait.text}</p>
             <small>
-              Esta tela verifica o servidor a cada 5 segundos. Enquanto o primeiro
-              snapshot não for confirmado, o Agent continua elegível para tentar
-              novamente no próximo ciclo de verificação.
+              Esta tela verifica o servidor a cada 5 segundos. Quando o primeiro
+              snapshot chegar, a imagem e o campo de nome aparecem automaticamente.
             </small>
           </div>
 
