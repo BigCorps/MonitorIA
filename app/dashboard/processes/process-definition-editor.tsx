@@ -11,6 +11,7 @@ import styles from "./processes.module.css";
 
 type SimpleSite = { id: string; name: string };
 type SimpleCamera = { id: string; name: string; siteId: string };
+type ProcessScope = "organization" | "site" | "camera";
 
 type EditableStep = {
   key: string;
@@ -92,7 +93,7 @@ export function ProcessDefinitionEditor({
   const [steps, setSteps] = useState<EditableStep[]>(
     fromDefinition(definition),
   );
-  const [scope, setScope] = useState(
+  const [scope, setScope] = useState<ProcessScope>(
     definition.source === "system" ? "organization" : definition.source,
   );
   const [scopeId, setScopeId] = useState(
@@ -193,7 +194,7 @@ export function ProcessDefinitionEditor({
                 name="scope"
                 value={scope}
                 onChange={(event) => {
-                  setScope(event.target.value);
+                  setScope(event.target.value as ProcessScope);
                   setScopeId("");
                 }}
               >

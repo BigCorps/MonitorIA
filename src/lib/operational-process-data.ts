@@ -18,7 +18,7 @@ export type OperationalProcessOverviewInput = {
 };
 
 export type OperationalProcessDashboardDefinition =
-  OperationalProcessDefinition & {
+  Omit<OperationalProcessDefinition, "steps"> & {
     organizationId: string | null;
     siteId: string | null;
     siteName: string | null;
