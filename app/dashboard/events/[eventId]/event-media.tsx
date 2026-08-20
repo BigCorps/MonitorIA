@@ -61,12 +61,14 @@ export function EventMedia({
   timezone,
 }: Props) {
   const [tab, setTab] = useState<"images" | "clip">("images");
-  const [clipDurationSeconds, setClipDurationSeconds] = useState<number | null>(null);
+  const [clipDurationSeconds, setClipDurationSeconds] = useState<number | null>(
+    null,
+  );
 
   const frameLabel = (value: string) => {
     const labels: Record<string, string> = {
       start: "Início",
-      peak: "Pico",
+      peak: "Momento principal",
       end: "Fim",
       extra: "Intermediário",
     };
@@ -143,9 +145,9 @@ export function EventMedia({
             Seu navegador não conseguiu reproduzir este vídeo.
           </video>
           <div className={styles.clipMeta}>
-            <strong>Vídeo completo do acontecimento</strong>
+            <strong>Vídeo do acontecimento</strong>
             <span>
-              720p · H.264 · sem áudio
+              Sem áudio
               {durationLabel(clipDurationSeconds)
                 ? ` · ${durationLabel(clipDurationSeconds)}`
                 : ""}
@@ -159,10 +161,9 @@ export function EventMedia({
         <>
           {images.length < expectedEvidenceCount ? (
             <div className={styles.evidenceNotice}>
-              Este acontecimento possui {images.length} de{" "}
-              {expectedEvidenceCount} imagens previstas para o modo
-              utilizado. Eventos anteriores à atualização do Agent não
-              recebem quadros retroativamente.
+              Algumas imagens previstas para este acontecimento não estão
+              disponíveis. Use as imagens existentes e o vídeo, quando
+              disponível, como referência.
             </div>
           ) : null}
 
@@ -171,9 +172,7 @@ export function EventMedia({
               <figure key={asset.id}>
                 <img
                   src={`/api/storage-assets/${asset.id}`}
-                  alt={`${invoiceSafeTitle}: quadro ${frameLabel(
-                    asset.label,
-                  )}`}
+                  alt={`${invoiceSafeTitle}: ${frameLabel(asset.label)}`}
                 />
                 <figcaption>
                   <strong>{frameLabel(asset.label)}</strong>

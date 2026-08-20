@@ -24,7 +24,7 @@ import realtimeStyles from "./events-realtime-refresh.module.css";
 
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
-export const metadata = { title: "Eventos" };
+export const metadata = { title: "Acontecimentos" };
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<
@@ -126,12 +126,12 @@ export default async function EventsPage({
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              EVENTOS · {organization.name.toUpperCase()}
+              ACONTECIMENTOS · {organization.name.toUpperCase()}
             </span>
-            <h1>Linha do tempo visual</h1>
+            <h1>O que aconteceu</h1>
             <p>
-              Revise os acontecimentos e exporte qualquer período para
-              usar em outra IA, integração ou relatório.
+              Consulte os registros das câmeras, veja imagens e vídeos e
+              corrija uma análise quando necessário.
             </p>
           </div>
 
@@ -139,16 +139,15 @@ export default async function EventsPage({
             className="panel-primary-action"
             href="/dashboard/search"
           >
-            Conversar na Pesquisa
+            Perguntar à Pesquisa IA
           </Link>
         </header>
 
         <DashboardSectionTabs group="monitoring" />
 
-
         {scalar(rawParams.deleted) === "1" ? (
           <div className={styles.successMessage}>
-            Evento removido da linha do tempo.
+            Acontecimento removido da linha do tempo.
           </div>
         ) : null}
 
@@ -188,19 +187,11 @@ export default async function EventsPage({
             >
               <label>
                 <span>De</span>
-                <input
-                  type="date"
-                  name="from"
-                  defaultValue={fromDate}
-                />
+                <input type="date" name="from" defaultValue={fromDate} />
               </label>
               <label>
                 <span>Até</span>
-                <input
-                  type="date"
-                  name="to"
-                  defaultValue={toDate}
-                />
+                <input type="date" name="to" defaultValue={toDate} />
               </label>
               <label>
                 <span>Local</span>
@@ -236,18 +227,20 @@ export default async function EventsPage({
                 </select>
               </label>
               <label>
-                <span>Revisão</span>
+                <span>Avaliação</span>
                 <select name="review" defaultValue={review}>
-                  <option value="all">Todos</option>
-                  <option value="pending">Pendentes</option>
-                  <option value="required">Exigem revisão</option>
-                  <option value="reviewed">Já revisados</option>
-                  <option value="useful">Marcados como úteis</option>
-                  <option value="irrelevant">
-                    Marcados como irrelevantes
+                  <option value="all">
+                    Todos, exceto irrelevantes
                   </option>
+                  <option value="pending">Pendentes</option>
+                  <option value="required">Precisam de revisão</option>
+                  <option value="reviewed">Já avaliados</option>
+                  <option value="useful">Confirmados como corretos</option>
                   <option value="incorrect">
                     Classificação corrigida
+                  </option>
+                  <option value="irrelevant">
+                    Marcados como irrelevantes
                   </option>
                 </select>
               </label>
@@ -272,7 +265,7 @@ export default async function EventsPage({
           <div>
             <span>RESULTADOS</span>
             <h2>
-              {result.total} evento{result.total === 1 ? "" : "s"}
+              {result.total} acontecimento{result.total === 1 ? "" : "s"}
             </h2>
           </div>
 
@@ -280,9 +273,7 @@ export default async function EventsPage({
             <small>
               Página {page} de {totalPages}
             </small>
-            <EventsRealtimeRefresh
-              organizationId={organization.id}
-            />
+            <EventsRealtimeRefresh organizationId={organization.id} />
           </div>
         </div>
 
@@ -298,7 +289,7 @@ export default async function EventsPage({
         {totalPages > 1 ? (
           <nav
             className={styles.pagination}
-            aria-label="Paginação dos eventos"
+            aria-label="Paginação dos acontecimentos"
           >
             {page > 1 ? (
               <Link

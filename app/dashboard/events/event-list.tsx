@@ -1,13 +1,10 @@
 import Link from "next/link";
 import type { SearchEventRow } from "@/src/lib/event-search-data";
+import { eventTypeLabel } from "@/src/lib/event-labels";
 import {
-  eventTypeLabel,
-  reviewLabel,
-} from "@/src/lib/event-labels";
-import {
-  operationalSessionChapterLabel,
-  operationalSessionTypeLabel,
-} from "@/src/lib/operational-session-labels";
+  formatMonitoringDateTime,
+  formatMonitoringDuration,
+} from "@/src/lib/monitoring-display";
 import styles from "./events.module.css";
 
 type Props = {
@@ -26,25 +23,18 @@ function detailHref(
   return `/dashboard/events/${eventId}${suffix ? `?${suffix}` : ""}`;
 }
 
-function formatDate(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: timezone,
-  }).format(new Date(value));
-}
-
-function durationLabel(seconds: number) {
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.round(seconds % 60);
-  return remaining ? `${minutes}m ${remaining}s` : `${minutes}m`;
+function countLabel(
+  count: number,
+  singular: string,
+  plural: string,
+) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 export function EventList({
   rows,
   timezone = "America/Sao_Paulo",
-  emptyMessage = "Nenhum evento encontrado com esses filtros.",
+  emptyMessage = "Nenhum acontecimento encontrado com esses filtros.",
   detailParams,
 }: Props) {
   if (!rows.length) {
@@ -79,9 +69,11 @@ export function EventList({
               />
             )}
 
-            <span>
-              {Math.round(event.confidence * 100)}%
-            </span>
+            {event.requiresReview && !event.humanVerdict ? (
+              <span data-kind="review">Revisar</span>
+            ) : event.humanVerdict === "irrelevant" ? (
+              <span data-kind="irrelevant">Irrelevante</span>
+            ) : null}
           </div>
 
           <div className={styles.cardBody}>
@@ -94,7 +86,7 @@ export function EventList({
               </div>
 
               <time>
-                {formatDate(event.startedAt, timezone)}
+                {formatMonitoringDateTime(event.startedAt, timezone)}
               </time>
             </div>
 
@@ -102,35 +94,30 @@ export function EventList({
 
             <div className={styles.meta}>
               <span>{eventTypeLabel(event.eventType)}</span>
-              <span>◎ {event.peopleCount} pessoas</span>
-              <span>◇ {event.vehicleCount} veículos</span>
+              <span>
+                ◎ {countLabel(event.peopleCount, "pessoa", "pessoas")}
+              </span>
+              <span>
+                ◇ {countLabel(event.vehicleCount, "veículo", "veículos")}
+              </span>
               {event.probableCustomerCount > 0 ? (
-                <span>≈ {event.probableCustomerCount} cliente(s) provável(is)</span>
-              ) : null}
-              {event.interactionEventCount > 1 ? (
-                <span>↻ {event.interactionEventCount} capítulos</span>
-              ) : null}
-              {event.operationalSessionId && event.sessionType ? (
-                <span>{operationalSessionTypeLabel(event.sessionType)}</span>
-              ) : null}
-              {event.sessionChapterOrder && event.sessionChapterType ? (
                 <span>
-                  Cap. {event.sessionChapterOrder}/{event.sessionChapterCount} · {operationalSessionChapterLabel(event.sessionChapterType)}
+                  ≈ {countLabel(
+                    event.probableCustomerCount,
+                    "cliente provável",
+                    "clientes prováveis",
+                  )}
                 </span>
               ) : null}
-              <span>◷ {durationLabel(event.durationSeconds)}</span>
-              <span
-                data-state={
-                  event.humanVerdict ??
-                  (event.requiresReview ? "pending" : "ok")
-                }
-              >
-                {event.humanVerdict
-                  ? reviewLabel(event.humanVerdict)
-                  : event.requiresReview
-                    ? "Revisão pendente"
-                    : "Sem revisão"}
+              <span>
+                ◷ {formatMonitoringDuration(event.durationSeconds)}
               </span>
+              {event.requiresReview && !event.humanVerdict ? (
+                <span data-state="pending">Revisão recomendada</span>
+              ) : null}
+              {event.humanVerdict === "irrelevant" ? (
+                <span data-state="irrelevant">Marcado como irrelevante</span>
+              ) : null}
             </div>
           </div>
         </Link>

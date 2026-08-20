@@ -63,7 +63,7 @@ export function EventExportButtons({ filters, total }: Props) {
         <span className={disclosureStyles.summaryCopy}>
           <span>EXPORTAR PERÍODO</span>
           <strong>
-            {total} evento{total === 1 ? "" : "s"} em Markdown ou JSON
+            {total} acontecimento{total === 1 ? "" : "s"} em Markdown ou JSON
           </strong>
           <small>Toque para ver as opções de copiar e baixar</small>
         </span>
@@ -71,7 +71,7 @@ export function EventExportButtons({ filters, total }: Props) {
           className={disclosureStyles.chevron}
           aria-hidden="true"
         >
-         ⌄
+          ⌄
         </span>
       </summary>
 
@@ -85,11 +85,11 @@ export function EventExportButtons({ filters, total }: Props) {
           <div className={styles.copy}>
             <span>EXPORTAR O PERÍODO FILTRADO</span>
             <strong>
-              {total} evento{total === 1 ? "" : "s"} em Markdown ou JSON
+              {total} acontecimento{total === 1 ? "" : "s"} em Markdown ou JSON
             </strong>
             <p>
-              Inclui todos os resultados do período, indicadores estimados e
-              avisos para uso em qualquer IA — não apenas a página atual.
+              Inclui os resultados visíveis do período e os indicadores
+              estimados para uso em relatórios, integrações ou outras IAs.
             </p>
             {status ? <small>{status}</small> : null}
           </div>

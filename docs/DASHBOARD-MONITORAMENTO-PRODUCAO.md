@@ -2,6 +2,19 @@
 
 Base de planejamento: `main` em 20/08/2026, após o fechamento do Agent 1.0.1 e das correções de Pesquisa IA/estados visuais.
 
+## Progresso de execução
+
+- ✅ Etapa 1 — Fundação compartilhada
+- 🟡 Etapa 2 — Acontecimentos — pacote preparado
+- ⬜ Etapa 3 — Períodos
+- ⬜ Etapa 4 — Rotinas
+- ⬜ Etapa 5 — Processos
+- ⬜ Etapa 6 — Padrões da operação
+- ⬜ Etapa 7 — Funcionamento das câmeras
+- ⬜ Etapa 8 — Alertas
+- ⬜ Etapa 9 — Entre câmeras
+- ⬜ Etapa 10 — Navegação final e auditoria
+
 ## Objetivo
 
 Transformar o dashboard tecnicamente completo do MonitorIA em um produto simples, profissional e seguro para o cliente final, sem remover a inteligência já implementada.
