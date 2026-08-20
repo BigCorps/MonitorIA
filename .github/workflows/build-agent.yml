@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "1.0.0"
+  AGENT_VERSION: "1.0.1"
 
   # Razao social exata da conta do Partner Center e do certificado OV da
   # SSL.com. Nao e erro de digitacao: o registro da empresa termina em LTA.
