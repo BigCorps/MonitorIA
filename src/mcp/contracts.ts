@@ -98,6 +98,8 @@ export const GetProcessSummaryInputSchema = FilterScopeSchema.extend({
   to: IsoSchema.optional(),
 });
 
+export const GetOperationPatternsInputSchema = FilterScopeSchema;
+
 export const GetOperationalSummaryInputSchema = FilterScopeSchema.extend({
   from: IsoSchema.optional(),
   to: IsoSchema.optional(),

@@ -8,14 +8,13 @@ import { getStaffOperationalProfileOverview } from "@/src/lib/staff-operational-
 import {
   actionCodeLabel,
   confidencePercent,
-  sessionTypeLabel,
   shiftWindowLabel,
   staffCandidateStatusLabel,
   staffDecisionLabel,
   staffProfileStatusLabel,
-  weekdayLabel,
 } from "@/src/lib/staff-operational-profile-labels";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import {
   reviewStaffCandidateAction,
   reviewStaffMatchAction,
@@ -25,25 +24,31 @@ import {
 import { ProfilesRealtimeRefresh } from "./profiles-realtime-refresh";
 import styles from "./profiles.module.css";
 
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
-
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
 function param(value: string | string[] | undefined) {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Ainda sem observação recente";
+  return new Date(value).toLocaleString("pt-BR");
 }
 
 function tags(
   values: string[],
   mapper: (value: string) => string = (value) => value,
 ) {
-  if (!values.length)
-    return <span className={styles.muted}>Ainda sem padrão suficiente</span>;
+  if (!values.length) {
+    return <span className={styles.muted}>Ainda aprendendo</span>;
+  }
+
   return (
     <div className={styles.tags}>
-      {values.map((value) => (
-        <span key={value}>{mapper(value)}</span>
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`}>{mapper(value)}</span>
       ))}
     </div>
   );
@@ -59,25 +64,6 @@ export default async function OperationalProfilesPage({
   if (!organization) return <main>Organização não encontrada.</main>;
 
   const canManage = new Set(["owner", "admin"]).has(organization.role);
-
-  if (!canManage) {
-    return (
-      <div className="dashboard-shell">
-        <DashboardSidebar
-          organizationName={organization.name}
-          userEmail={user.email}
-          active="operational-profiles"
-        />
-        <main className={`dashboard-content ${styles.page}`}>
-          <section className={styles.empty}>
-            Os padrões da operação e suas revisões são visíveis apenas para
-            administradores.
-          </section>
-        </main>
-      </div>
-    );
-  }
-
   const params = await searchParams;
   const cameraId = param(params.camera);
   const status = param(params.status);
@@ -87,9 +73,16 @@ export default async function OperationalProfilesPage({
     getStaffOperationalProfileOverview(organization.id, {
       cameraId: cameraId || null,
       status: status || null,
-      limit: 160,
+      limit: 180,
     }),
   ]);
+
+  const pendingCandidates = overview.candidates.filter(
+    (candidate) => candidate.status === "pending_review",
+  );
+  const learningCandidates = overview.candidates.filter(
+    (candidate) => candidate.status === "learning",
+  );
 
   return (
     <div className="dashboard-shell">
@@ -107,15 +100,28 @@ export default async function OperationalProfilesPage({
             </span>
             <h1>Padrões da operação</h1>
             <p>
-              Veja horários, locais e atividades recorrentes já revisados. O
-              MonitorIA não identifica pessoas por rosto, biometria ou
-              documentos.
+              O MonitorIA aprende horários, áreas e atividades recorrentes da
+              equipe. As revisões feitas aqui ajudam as próximas análises, sem
+              reconhecimento facial.
             </p>
           </div>
           <ProfilesRealtimeRefresh organizationId={organization.id} />
         </header>
 
         <DashboardSectionTabs group="monitoring" />
+
+        <section className={styles.learningIntro}>
+          <div>
+            <strong>Como o aprendizado funciona</strong>
+            <p>
+              O MonitorIA observa recorrências e só mostra uma sugestão quando
+              há sinal suficiente. Confirmações e correções humanas são usadas
+              nas análises seguintes. Mudanças em um padrão aprovado nunca são
+              aplicadas automaticamente: o administrador precisa aprovar.
+            </p>
+          </div>
+          <span>Aprendizado com revisão</span>
+        </section>
 
         <section
           className={styles.metrics}
@@ -126,25 +132,21 @@ export default async function OperationalProfilesPage({
             <span>Padrões ativos</span>
           </article>
           <article>
-            <strong>{overview.summary.learningProfiles}</strong>
-            <span>Em aprendizado</span>
-          </article>
-          <article>
-            <strong>{overview.summary.pendingCandidates}</strong>
-            <span>Sugestões para revisar</span>
+            <strong>{pendingCandidates.length}</strong>
+            <span>Novos padrões para revisar</span>
           </article>
           <article>
             <strong>{overview.summary.pendingDecisions}</strong>
-            <span>Análises pendentes</span>
+            <span>Situações para confirmar</span>
           </article>
           <article>
             <strong>{overview.summary.pendingProposals}</strong>
-            <span>Atualizações sugeridas</span>
+            <span>Melhorias sugeridas</span>
           </article>
         </section>
 
         <details className={styles.filters}>
-          <summary>Filtros dos padrões</summary>
+          <summary>Filtrar padrões</summary>
           <form>
             <label>
               Câmera
@@ -177,10 +179,11 @@ export default async function OperationalProfilesPage({
           <div className={styles.sectionHeader}>
             <div>
               <span>PADRÕES APROVADOS</span>
-              <h2>Padrões ativos</h2>
+              <h2>O que o MonitorIA já conhece</h2>
             </div>
             <small>{overview.profiles.length} padrões</small>
           </div>
+
           <div className={styles.profileGrid}>
             {overview.profiles.length ? (
               overview.profiles.map((profile) => (
@@ -196,77 +199,88 @@ export default async function OperationalProfilesPage({
                       {staffProfileStatusLabel(profile.status)}
                     </span>
                   </header>
+
                   <p>
-                    {profile.description || "Padrão aprovado para esta câmera."}
+                    {profile.description ||
+                      "Padrão recorrente aprovado para esta câmera."}
                   </p>
-                  <div className={styles.profileStats}>
-                    <span>
-                      <strong>{confidencePercent(profile.confidence)}</strong>{" "}
-                      confiança
-                    </span>
-                    <span>
-                      <strong>{profile.observationCount}</strong> observações
-                    </span>
-                    <span>
-                      <strong>{profile.distinctDaysCount}</strong> dias
-                    </span>
-                    <span>
-                      <strong>v{profile.version}</strong> revisão
-                    </span>
+
+                  <div className={styles.patternSummary}>
+                    <div>
+                      <strong>Horários habituais</strong>
+                      {profile.shiftWindows.length ? (
+                        <ul>
+                          {profile.shiftWindows.map((window) => (
+                            <li key={`${window.weekday}-${window.startMinute}`}>
+                              {shiftWindowLabel(window)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className={styles.muted}>
+                          Ainda sem horário estável
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <strong>Áreas habituais</strong>
+                      {tags(profile.habitualZoneNames)}
+                    </div>
+
+                    <div>
+                      <strong>Atividades recorrentes</strong>
+                      {tags(profile.habitualActionCodes, actionCodeLabel)}
+                    </div>
                   </div>
-                  <div className={styles.profileSection}>
-                    <strong>Locais habituais</strong>
-                    {tags(profile.habitualZoneNames)}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Ações recorrentes</strong>
-                    {tags(profile.habitualActionCodes, actionCodeLabel)}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Tipos de período</strong>
-                    {tags(profile.habitualSessionTypes, sessionTypeLabel)}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Dias observados</strong>
-                    {tags(profile.habitualWeekdays.map(String), (value) =>
-                      weekdayLabel(Number(value)),
-                    )}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Faixas de turno</strong>
-                    {profile.shiftWindows.length ? (
-                      <ul>
-                        {profile.shiftWindows.map((window) => (
-                          <li key={`${window.weekday}-${window.startMinute}`}>
-                            {shiftWindowLabel(window)}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className={styles.muted}>
-                        Ainda sem turno estável
-                      </span>
-                    )}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Características visuais recorrentes</strong>
-                    {tags(profile.recurringAppearanceSummary)}
-                  </div>
+
                   <footer>
                     <span>
-                      {profile.lastObservedAt
-                        ? `Última observação: ${new Date(profile.lastObservedAt).toLocaleString("pt-BR")}`
-                        : "Sem observação recente"}
+                      Última observação: {formatDate(profile.lastObservedAt)}
                     </span>
                     {profile.pendingProposalCount ? (
                       <strong>
-                        {profile.pendingProposalCount} atualização pendente
+                        {profile.pendingProposalCount} melhoria para revisar
                       </strong>
                     ) : null}
                   </footer>
+
+                  <details className={styles.learningDetails}>
+                    <summary>Detalhes do aprendizado</summary>
+                    <div className={styles.profileStats}>
+                      <span>
+                        <strong>{confidencePercent(profile.confidence)}</strong>
+                        consistência
+                      </span>
+                      <span>
+                        <strong>{profile.observationCount}</strong>
+                        observações
+                      </span>
+                      <span>
+                        <strong>{profile.distinctDaysCount}</strong>
+                        dias observados
+                      </span>
+                      <span>
+                        <strong>v{profile.version}</strong>
+                        versão
+                      </span>
+                    </div>
+
+                    <div className={styles.profileSection}>
+                      <strong>Características visuais recorrentes</strong>
+                      {tags(profile.recurringAppearanceSummary)}
+                    </div>
+
+                    <p className={styles.privacyNote}>
+                      Essas características são sinais visuais amplos usados
+                      junto com horário, área e atividade. Não há
+                      reconhecimento facial nem identificação civil.
+                    </p>
+                  </details>
+
                   {canManage ? (
                     <details className={styles.editor}>
-                      <summary>Editar padrão</summary>
+                      <summary>Ajustar este padrão</summary>
                       <form action={saveStaffProfileAction}>
                         <input
                           type="hidden"
@@ -278,8 +292,9 @@ export default async function OperationalProfilesPage({
                           name="expected_version"
                           value={profile.version}
                         />
+
                         <label>
-                          Rótulo
+                          Nome do padrão
                           <input
                             name="label"
                             defaultValue={profile.label}
@@ -287,6 +302,7 @@ export default async function OperationalProfilesPage({
                             required
                           />
                         </label>
+
                         <label>
                           Descrição
                           <textarea
@@ -295,6 +311,7 @@ export default async function OperationalProfilesPage({
                             maxLength={600}
                           />
                         </label>
+
                         <label>
                           Estado
                           <select
@@ -306,33 +323,46 @@ export default async function OperationalProfilesPage({
                             <option value="retired">Encerrado</option>
                           </select>
                         </label>
+
                         <label>
-                          Atualização
+                          Como este padrão deve evoluir
                           <select
                             name="update_mode"
                             defaultValue={profile.updateMode}
                           >
-                            <option value="manual">Somente manual</option>
                             <option value="reviewed_learning">
-                              Aprendizado com revisão
+                              Aprender e sugerir mudanças para eu aprovar
+                            </option>
+                            <option value="manual">
+                              Manter fixo até eu editar
                             </option>
                           </select>
                         </label>
-                        <label>
-                          Semelhança mínima
-                          <input
-                            type="number"
-                            name="min_similarity"
-                            min="0.5"
-                            max="1"
-                            step="0.01"
-                            defaultValue={profile.minSimilarity}
-                          />
-                        </label>
+
+                        <details className={styles.advancedSettings}>
+                          <summary>Ajuste avançado</summary>
+                          <label>
+                            Sensibilidade mínima de associação
+                            <input
+                              type="number"
+                              name="min_similarity"
+                              min="0.5"
+                              max="1"
+                              step="0.01"
+                              defaultValue={profile.minSimilarity}
+                            />
+                            <small>
+                              Quanto maior, mais conservador o MonitorIA fica ao
+                              relacionar uma nova observação a este padrão.
+                            </small>
+                          </label>
+                        </details>
+
                         <label>
                           Motivo da alteração
                           <textarea name="notes" maxLength={600} />
                         </label>
+
                         <button type="submit">Salvar alterações</button>
                       </form>
                     </details>
@@ -341,309 +371,398 @@ export default async function OperationalProfilesPage({
               ))
             ) : (
               <div className={styles.empty}>
-                Nenhum padrão da operação encontrado.
+                Nenhum padrão aprovado encontrado para este filtro.
               </div>
             )}
           </div>
         </section>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>REVISÃO HUMANA</span>
-              <h2>Novos padrões sugeridos</h2>
-            </div>
-          </div>
-          <div className={styles.reviewList}>
-            {overview.candidates.length ? (
-              overview.candidates.map((candidate) => (
-                <article className={styles.reviewCard} key={candidate.id}>
-                  <header>
-                    <div>
-                      <span>{candidate.cameraName}</span>
-                      <h3>{candidate.suggestedLabel}</h3>
-                    </div>
-                    <strong>
-                      {staffCandidateStatusLabel(candidate.status)}
-                    </strong>
-                  </header>
-                  <p>
-                    {candidate.observationCount} observações em{" "}
-                    {candidate.distinctDaysCount} dias · confiança{" "}
-                    {confidencePercent(candidate.confidence)}.
-                  </p>
-                  {tags(candidate.zoneNames)}
-                  {tags(candidate.actionCodes, actionCodeLabel)}
-                  {tags(candidate.appearanceSummary)}
-                  <div className={styles.evidenceLinks}>
-                    {candidate.evidenceEventIds.slice(0, 4).map((eventId) => (
-                      <Link key={eventId} href={`/dashboard/events/${eventId}`}>
-                        Evidência
-                      </Link>
-                    ))}
-                  </div>
-                  {canManage ? (
-                    <form
-                      action={reviewStaffCandidateAction}
-                      className={styles.reviewForm}
-                    >
-                      <input
-                        type="hidden"
-                        name="candidate_id"
-                        value={candidate.id}
-                      />
-                      <label>
-                        Rótulo
+        {canManage ? (
+          <>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <span>REVISÃO HUMANA</span>
+                  <h2>Novos padrões para revisar</h2>
+                </div>
+                <small>
+                  {learningCandidates.length
+                    ? `${learningCandidates.length} ainda sendo observados`
+                    : "Nada pendente em observação"}
+                </small>
+              </div>
+
+              <p className={styles.sectionHelp}>
+                Possibilidades ainda em aprendizado ficam em segundo plano e
+                só aparecem para aprovação quando acumulam evidência suficiente.
+              </p>
+
+              <div className={styles.reviewList}>
+                {pendingCandidates.length ? (
+                  pendingCandidates.map((candidate) => (
+                    <article className={styles.reviewCard} key={candidate.id}>
+                      <header>
+                        <div>
+                          <span>{candidate.cameraName}</span>
+                          <h3>{candidate.suggestedLabel}</h3>
+                        </div>
+                        <strong>
+                          {staffCandidateStatusLabel(candidate.status)}
+                        </strong>
+                      </header>
+
+                      <p>
+                        O MonitorIA observou uma recorrência em dias e contextos
+                        suficientes para pedir sua confirmação.
+                      </p>
+
+                      <div className={styles.profileSection}>
+                        <strong>Áreas observadas</strong>
+                        {tags(candidate.zoneNames)}
+                      </div>
+
+                      <div className={styles.profileSection}>
+                        <strong>Atividades recorrentes</strong>
+                        {tags(candidate.actionCodes, actionCodeLabel)}
+                      </div>
+
+                      <div className={styles.evidenceLinks}>
+                        {candidate.evidenceEventIds
+                          .slice(0, 4)
+                          .map((eventId) => (
+                            <Link
+                              key={eventId}
+                              href={`/dashboard/events/${eventId}`}
+                            >
+                              Ver acontecimento
+                            </Link>
+                          ))}
+                      </div>
+
+                      <details className={styles.learningDetails}>
+                        <summary>Detalhes do aprendizado</summary>
+                        <p>
+                          {candidate.observationCount} observações em{" "}
+                          {candidate.distinctDaysCount} dias · consistência{" "}
+                          {confidencePercent(candidate.confidence)}.
+                        </p>
+                        {tags(candidate.appearanceSummary)}
+                      </details>
+
+                      <form
+                        action={reviewStaffCandidateAction}
+                        className={styles.reviewForm}
+                      >
                         <input
-                          name="label"
-                          defaultValue={candidate.suggestedLabel}
-                          maxLength={120}
+                          type="hidden"
+                          name="candidate_id"
+                          value={candidate.id}
                         />
-                      </label>
-                      <label>
-                        Descrição
-                        <textarea name="description" maxLength={600} />
-                      </label>
-                      <label>
-                        Semelhança mínima
                         <input
-                          type="number"
+                          type="hidden"
                           name="min_similarity"
-                          min="0.5"
-                          max="1"
-                          step="0.01"
-                          defaultValue="0.74"
+                          value="0.74"
                         />
-                      </label>
-                      <label>
-                        Observação
-                        <textarea name="notes" maxLength={600} />
-                      </label>
-                      <div>
-                        <button name="action" value="approve">
-                          Aprovar padrão
-                        </button>
-                        <button
-                          className={styles.secondary}
-                          name="action"
-                          value="keep_learning"
-                        >
-                          Continuar aprendendo
-                        </button>
-                        <button
-                          className={styles.danger}
-                          name="action"
-                          value="reject"
-                        >
-                          Rejeitar
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
-                </article>
-              ))
-            ) : (
-              <div className={styles.empty}>
-                Nenhuma sugestão aguardando revisão.
-              </div>
-            )}
-          </div>
-        </section>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>ANÁLISES PENDENTES</span>
-              <h2>Situações que precisam de revisão</h2>
-            </div>
-          </div>
-          <div className={styles.reviewList}>
-            {overview.decisions.length ? (
-              overview.decisions.map((decision) => (
-                <article className={styles.reviewCard} key={decision.id}>
-                  <header>
-                    <div>
-                      <span>{decision.cameraName}</span>
-                      <h3>{staffDecisionLabel(decision.decision)}</h3>
-                    </div>
-                    <strong>{confidencePercent(decision.totalScore)}</strong>
-                  </header>
-                  <p>
-                    {decision.staffProfileLabel
-                      ? `Padrão sugerido: ${decision.staffProfileLabel}.`
-                      : "Nenhum padrão aprovado atingiu certeza suficiente."}
-                  </p>
-                  <div className={styles.scoreGrid}>
-                    <span>
-                      Aparência {confidencePercent(decision.appearanceScore)}
-                    </span>
-                    <span>Zona {confidencePercent(decision.zoneScore)}</span>
-                    <span>Ação {confidencePercent(decision.actionScore)}</span>
-                    <span>
-                      Horário {confidencePercent(decision.scheduleScore)}
-                    </span>
+                        <label>
+                          Nome do padrão
+                          <input
+                            name="label"
+                            defaultValue={candidate.suggestedLabel}
+                            maxLength={120}
+                          />
+                        </label>
+
+                        <label>
+                          Descrição opcional
+                          <textarea name="description" maxLength={600} />
+                        </label>
+
+                        <label>
+                          Observação opcional
+                          <textarea name="notes" maxLength={600} />
+                        </label>
+
+                        <div>
+                          <button name="action" value="approve">
+                            Aprovar padrão
+                          </button>
+                          <button
+                            className={styles.secondary}
+                            name="action"
+                            value="keep_learning"
+                          >
+                            Continuar observando
+                          </button>
+                          <button
+                            className={styles.danger}
+                            name="action"
+                            value="reject"
+                          >
+                            Rejeitar sugestão
+                          </button>
+                        </div>
+                      </form>
+                    </article>
+                  ))
+                ) : (
+                  <div className={styles.empty}>
+                    Nenhum novo padrão aguardando revisão.
                   </div>
-                  <ul>
-                    {decision.reasons.slice(0, 6).map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                  <Link href={`/dashboard/events/${decision.eventId}`}>
-                    Abrir evidência
-                  </Link>
-                  {canManage ? (
-                    <form
-                      action={reviewStaffMatchAction}
-                      className={styles.reviewForm}
-                    >
-                      <input
-                        type="hidden"
-                        name="decision_id"
-                        value={decision.id}
-                      />
-                      <label>
-                        Associar a
-                        <select
-                          name="target_profile_id"
-                          defaultValue={decision.staffProfileId ?? ""}
-                        >
-                          <option value="">Sem padrão</option>
-                          {overview.profiles
-                            .filter(
-                              (profile) =>
-                                profile.cameraId === decision.cameraId,
-                            )
-                            .map((profile) => (
-                              <option key={profile.id} value={profile.id}>
-                                {profile.label}
-                              </option>
+                )}
+              </div>
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <span>CONFIRMAÇÕES</span>
+                  <h2>Situações que precisam da sua decisão</h2>
+                </div>
+                <small>{overview.decisions.length} pendentes</small>
+              </div>
+
+              <p className={styles.sectionHelp}>
+                Quando uma ocorrência fica parecida com mais de uma hipótese, o
+                MonitorIA pede confirmação em vez de assumir.
+              </p>
+
+              <div className={styles.reviewList}>
+                {overview.decisions.length ? (
+                  overview.decisions.map((decision) => (
+                    <article className={styles.reviewCard} key={decision.id}>
+                      <header>
+                        <div>
+                          <span>{decision.cameraName}</span>
+                          <h3>{staffDecisionLabel(decision.decision)}</h3>
+                        </div>
+                        <strong>Precisa de confirmação</strong>
+                      </header>
+
+                      <p>
+                        {decision.staffProfileLabel
+                          ? `O padrão mais provável é “${decision.staffProfileLabel}”.`
+                          : "O MonitorIA não encontrou um padrão aprovado com segurança suficiente."}
+                      </p>
+
+                      <Link href={`/dashboard/events/${decision.eventId}`}>
+                        Abrir acontecimento
+                      </Link>
+
+                      <details className={styles.learningDetails}>
+                        <summary>Detalhes do aprendizado</summary>
+                        <div className={styles.scoreGrid}>
+                          <span>
+                            Aparência{" "}
+                            {confidencePercent(decision.appearanceScore)}
+                          </span>
+                          <span>
+                            Área {confidencePercent(decision.zoneScore)}
+                          </span>
+                          <span>
+                            Atividade {confidencePercent(decision.actionScore)}
+                          </span>
+                          <span>
+                            Horário{" "}
+                            {confidencePercent(decision.scheduleScore)}
+                          </span>
+                        </div>
+                        <ul>
+                          {decision.reasons.slice(0, 6).map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      </details>
+
+                      <form
+                        action={reviewStaffMatchAction}
+                        className={styles.reviewForm}
+                      >
+                        <input
+                          type="hidden"
+                          name="decision_id"
+                          value={decision.id}
+                        />
+
+                        <label>
+                          Associar a
+                          <select
+                            name="target_profile_id"
+                            defaultValue={decision.staffProfileId ?? ""}
+                          >
+                            <option value="">Escolha um padrão</option>
+                            {overview.profiles
+                              .filter(
+                                (profile) =>
+                                  profile.cameraId === decision.cameraId &&
+                                  profile.status === "active",
+                              )
+                              .map((profile) => (
+                                <option key={profile.id} value={profile.id}>
+                                  {profile.label}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+
+                        <label>
+                          Observação opcional
+                          <textarea name="notes" maxLength={600} />
+                        </label>
+
+                        <div>
+                          {decision.staffProfileId ? (
+                            <button name="verdict" value="confirm">
+                              Confirmar sugestão
+                            </button>
+                          ) : null}
+                          <button
+                            className={styles.secondary}
+                            name="verdict"
+                            value="reassign"
+                          >
+                            Associar ao padrão escolhido
+                          </button>
+                          <button
+                            className={styles.secondary}
+                            name="verdict"
+                            value="uncertain"
+                          >
+                            Continuar observando
+                          </button>
+                          <button
+                            className={styles.danger}
+                            name="verdict"
+                            value="not_staff"
+                          >
+                            Não é equipe
+                          </button>
+                        </div>
+                      </form>
+
+                      <p className={styles.feedbackNote}>
+                        “Não é equipe” passa a ser usado como referência
+                        contextual nas próximas análises parecidas, sem criar
+                        identificação biométrica.
+                      </p>
+                    </article>
+                  ))
+                ) : (
+                  <div className={styles.empty}>
+                    Nenhuma situação aguardando confirmação.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <span>APRENDIZADO CONTROLADO</span>
+                  <h2>Melhorias sugeridas</h2>
+                </div>
+                <small>{overview.proposals.length} pendentes</small>
+              </div>
+
+              <p className={styles.sectionHelp}>
+                O MonitorIA pode perceber que horários, áreas ou atividades
+                mudaram. Ele sugere a atualização, mas só altera o padrão após
+                sua aprovação.
+              </p>
+
+              <div className={styles.reviewList}>
+                {overview.proposals.length ? (
+                  overview.proposals.map((proposal) => (
+                    <article className={styles.reviewCard} key={proposal.id}>
+                      <header>
+                        <div>
+                          <span>{proposal.cameraName}</span>
+                          <h3>{proposal.staffProfileLabel}</h3>
+                        </div>
+                        <strong>Atualização sugerida</strong>
+                      </header>
+
+                      <p>
+                        Novas observações indicam que este padrão pode estar
+                        mudando.
+                      </p>
+
+                      <div className={styles.profileSection}>
+                        <strong>Áreas sugeridas</strong>
+                        {tags(proposal.proposedZoneNames)}
+                      </div>
+
+                      <div className={styles.profileSection}>
+                        <strong>Atividades sugeridas</strong>
+                        {tags(proposal.proposedActionCodes, actionCodeLabel)}
+                      </div>
+
+                      <div className={styles.profileSection}>
+                        <strong>Horários sugeridos</strong>
+                        {proposal.proposedShiftWindows.length ? (
+                          <ul>
+                            {proposal.proposedShiftWindows.map((window) => (
+                              <li
+                                key={`${window.weekday}-${window.startMinute}`}
+                              >
+                                {shiftWindowLabel(window)}
+                              </li>
                             ))}
-                        </select>
-                      </label>
-                      <label>
-                        Observação
-                        <textarea name="notes" maxLength={600} />
-                      </label>
-                      <div>
-                        <button name="verdict" value="confirm">
-                          Confirmar
-                        </button>
-                        <button
-                          className={styles.secondary}
-                          name="verdict"
-                          value="reassign"
-                        >
-                          Associar
-                        </button>
-                        <button
-                          className={styles.secondary}
-                          name="verdict"
-                          value="uncertain"
-                        >
-                          Manter incerto
-                        </button>
-                        <button
-                          className={styles.danger}
-                          name="verdict"
-                          value="not_staff"
-                        >
-                          Não é equipe
-                        </button>
+                          </ul>
+                        ) : (
+                          <span className={styles.muted}>
+                            Sem alteração de horário
+                          </span>
+                        )}
                       </div>
-                    </form>
-                  ) : null}
-                </article>
-              ))
-            ) : (
-              <div className={styles.empty}>
-                Nenhuma correspondência aguardando revisão.
-              </div>
-            )}
-          </div>
-        </section>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>APRENDIZADO CONTROLADO</span>
-              <h2>Atualizações propostas</h2>
-            </div>
-          </div>
-          <div className={styles.reviewList}>
-            {overview.proposals.length ? (
-              overview.proposals.map((proposal) => (
-                <article className={styles.reviewCard} key={proposal.id}>
-                  <header>
-                    <div>
-                      <span>{proposal.cameraName}</span>
-                      <h3>{proposal.staffProfileLabel}</h3>
-                    </div>
-                    <strong>{confidencePercent(proposal.confidence)}</strong>
-                  </header>
-                  <p>{proposal.reason}</p>
-                  <div className={styles.profileSection}>
-                    <strong>Zonas sugeridas</strong>
-                    {tags(proposal.proposedZoneNames)}
+                      <details className={styles.learningDetails}>
+                        <summary>Detalhes do aprendizado</summary>
+                        <p>
+                          {proposal.observationCount} novas observações em{" "}
+                          {proposal.distinctDaysCount} dias · consistência{" "}
+                          {confidencePercent(proposal.confidence)}.
+                        </p>
+                        {tags(proposal.proposedAppearanceSummary)}
+                      </details>
+
+                      <form
+                        action={reviewStaffProposalAction}
+                        className={styles.reviewForm}
+                      >
+                        <input
+                          type="hidden"
+                          name="proposal_id"
+                          value={proposal.id}
+                        />
+                        <label>
+                          Observação opcional
+                          <textarea name="notes" maxLength={600} />
+                        </label>
+                        <div>
+                          <button name="action" value="apply">
+                            Aprovar atualização
+                          </button>
+                          <button
+                            className={styles.danger}
+                            name="action"
+                            value="reject"
+                          >
+                            Manter padrão atual
+                          </button>
+                        </div>
+                      </form>
+                    </article>
+                  ))
+                ) : (
+                  <div className={styles.empty}>
+                    Nenhuma melhoria aguardando aprovação.
                   </div>
-                  <div className={styles.profileSection}>
-                    <strong>Ações sugeridas</strong>
-                    {tags(proposal.proposedActionCodes, actionCodeLabel)}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Turnos sugeridos</strong>
-                    {proposal.proposedShiftWindows.length ? (
-                      <ul>
-                        {proposal.proposedShiftWindows.map((window) => (
-                          <li key={`${window.weekday}-${window.startMinute}`}>
-                            {shiftWindowLabel(window)}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className={styles.muted}>Sem mudança de turno</span>
-                    )}
-                  </div>
-                  <div className={styles.profileSection}>
-                    <strong>Descritores sugeridos</strong>
-                    {tags(proposal.proposedAppearanceSummary)}
-                  </div>
-                  {canManage ? (
-                    <form
-                      action={reviewStaffProposalAction}
-                      className={styles.reviewForm}
-                    >
-                      <input
-                        type="hidden"
-                        name="proposal_id"
-                        value={proposal.id}
-                      />
-                      <label>
-                        Observação
-                        <textarea name="notes" maxLength={600} />
-                      </label>
-                      <div>
-                        <button name="action" value="apply">
-                          Aplicar como nova versão
-                        </button>
-                        <button
-                          className={styles.danger}
-                          name="action"
-                          value="reject"
-                        >
-                          Rejeitar
-                        </button>
-                      </div>
-                    </form>
-                  ) : null}
-                </article>
-              ))
-            ) : (
-              <div className={styles.empty}>
-                Nenhuma atualização aguardando aprovação.
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+          </>
+        ) : null}
       </main>
     </div>
   );

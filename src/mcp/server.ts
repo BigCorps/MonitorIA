@@ -6,6 +6,7 @@ import {
   GetCapabilitiesInputSchema,
   GetEventDetailsInputSchema,
   GetEvidenceInputSchema,
+  GetOperationPatternsInputSchema,
   GetOperationalSummaryInputSchema,
   GetProcessSummaryInputSchema,
   GetRoutineSummaryInputSchema,
@@ -40,6 +41,7 @@ import {
   searchInsights,
   searchOperationalSessions,
 } from "./data";
+import { getOperationPatterns } from "./operation-patterns";
 import { getProcessSummary } from "./processes";
 import { getRoutineSummary } from "./routines";
 import { toolError, toolResult } from "./envelope";
@@ -77,6 +79,8 @@ function safeTool(
           "Não foi possível consultar as rotinas desta organização.",
         process_summary_failed:
           "Não foi possível consultar os processos desta organização.",
+        operation_patterns_failed:
+          "Não foi possível consultar os padrões da operação desta organização.",
       };
       return toolError(
         messages[code] ?? "A consulta não pôde ser concluída.",
@@ -94,7 +98,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     },
     {
       instructions:
-        "Use list_sites e list_cameras para resolver escopo. As ferramentas não alteram dados operacionais, mas cada chamada registra uma auditoria interna privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Em rotinas, diferencie horário informado, padrão aprendido e comportamento observado. Em processos, diferencie modelos padrão observacionais de processos personalizados pelo cliente; somente regras personalizadas devem ser tratadas como expectativa operacional. Só solicite get_evidence quando imagens forem realmente necessárias.",
+        "Use list_sites e list_cameras para resolver escopo. As ferramentas não alteram dados operacionais, mas cada chamada registra uma auditoria interna privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Em rotinas, diferencie horário informado, padrão aprendido e comportamento observado. Em processos, diferencie modelos padrão observacionais de processos personalizados pelo cliente; somente regras personalizadas devem ser tratadas como expectativa operacional. Em padrões da operação, trate horários, áreas e atividades como recorrências contextuais não biométricas e considere as revisões humanas. Só solicite get_evidence quando imagens forem realmente necessárias.",
     },
   );
 
@@ -247,6 +251,20 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     },
     safeTool(context, "get_process_summary", (args) =>
       getProcessSummary(context, args),
+    ),
+  );
+
+  server.registerTool(
+    "get_operation_patterns",
+    {
+      title: "Consultar padrões da operação",
+      description:
+        "Consulta padrões recorrentes da equipe por câmera ou local, incluindo horários, áreas e atividades habituais já aprendidos ou revisados.",
+      inputSchema: GetOperationPatternsInputSchema.shape,
+      annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
+    },
+    safeTool(context, "get_operation_patterns", (args) =>
+      getOperationPatterns(context, args),
     ),
   );
 

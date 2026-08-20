@@ -1,7 +1,7 @@
 export const MCP_SERVER_NAME = "MonitorIA";
-export const MCP_SERVER_VERSION = "1.2.0";
+export const MCP_SERVER_VERSION = "1.3.0";
 export const MCP_TOOLSET_VERSION =
-  process.env.MCP_TOOLSET_VERSION ?? "1.2.0";
+  process.env.MCP_TOOLSET_VERSION ?? "1.3.0";
 export const MCP_RESPONSE_SCHEMA_VERSION = "1.0";
 
 export const MCP_AUDITED_QUERY_ANNOTATIONS = {
@@ -23,6 +23,7 @@ export const MCP_PUBLIC_TOOL_NAMES = [
   "get_visual_state",
   "get_routine_summary",
   "get_process_summary",
+  "get_operation_patterns",
   "get_operational_summary",
   "compare_periods",
   "get_evidence",
