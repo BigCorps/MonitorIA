@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 function todayInZone(timeZone: string) {
@@ -110,13 +110,13 @@ export default async function SessionsPage({
             </span>
             <h1>Atividades agrupadas</h1>
             <p>
-              Veja atendimentos, entregas, visitas, atividades e procedimentos
-              organizados por período para facilitar a consulta.
+              Acompanhe atendimentos, visitas e outras atividades que aconteceram
+              em sequência, sem precisar abrir cada registro separadamente.
             </p>
           </div>
 
           <Link className="panel-primary-action" href="/dashboard/events">
-            Ver acontecimentos individuais
+            Ver acontecimentos
           </Link>
         </header>
 
@@ -165,15 +165,13 @@ export default async function SessionsPage({
             </select>
           </label>
           <label>
-            <span>Estado</span>
+            <span>Situação</span>
             <select name="status" defaultValue={status}>
-              <option value="all">Todos</option>
+              <option value="all">Todas</option>
               <option value="open">Em andamento</option>
-              <option value="completed">Concluídas</option>
-              <option value="closed_by_inactivity">
-                Encerradas por inatividade
-              </option>
-              <option value="uncertain">Encerramento incerto</option>
+              <option value="completed">Concluídos</option>
+              <option value="closed_by_inactivity">Encerrados</option>
+              <option value="uncertain">Não confirmados</option>
             </select>
           </label>
           <button type="submit">Aplicar filtros</button>

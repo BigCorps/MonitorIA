@@ -9,41 +9,26 @@ import {
   operationalSessionStatusLabel,
   operationalSessionTypeLabel,
 } from "@/src/lib/operational-session-labels";
+import {
+  formatMonitoringDateTime,
+  formatMonitoringDuration,
+  monitoringConfidenceLabel,
+} from "@/src/lib/monitoring-display";
 import { DashboardSidebar } from "../../dashboard-sidebar";
+import { DashboardSectionTabs } from "../../dashboard-section-tabs";
+import { MonitoringAnalysisDetails } from "../../monitoring-analysis-details";
 import styles from "../sessions.module.css";
 
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ sessionId: string }>;
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "medium",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date(value));
-}
-
-function durationLabel(seconds: number) {
-  const rounded = Math.max(0, Math.round(seconds));
-  if (rounded < 60) return `${rounded} segundos`;
-  const hours = Math.floor(rounded / 3600);
-  const minutes = Math.floor((rounded % 3600) / 60);
-  const secondsLeft = rounded % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return secondsLeft ? `${minutes}m ${secondsLeft}s` : `${minutes} minutos`;
-}
-
 function participantRoleLabel(role: string) {
-  if (role === "staff") return "Funcionário provável";
+  if (role === "staff") return "Equipe";
   if (role === "customer") return "Cliente provável";
   if (role === "delivery_person") return "Entregador provável";
   if (role === "visitor") return "Visitante provável";
-  return "Pessoa provável";
+  return "Pessoa observada";
 }
 
 export default async function SessionDetailPage({
@@ -74,63 +59,79 @@ export default async function SessionDetailPage({
       <section className="dashboard-content">
         <div className={styles.detailHeader}>
           <Link className={styles.backLink} href="/dashboard/sessions">
-            ← Voltar às sessões
+            ← Voltar aos períodos
           </Link>
 
           <header className="dashboard-header">
             <div>
               <span className="dashboard-eyebrow">
-                {operationalSessionTypeLabel(session.sessionType).toUpperCase()}
+                {operationalSessionTypeLabel(
+                  session.sessionType,
+                ).toUpperCase()}
               </span>
               <h1>{session.title}</h1>
               <p>{session.summary}</p>
             </div>
 
             <Link className="panel-primary-action" href="/dashboard/events">
-              Ver linha do tempo
+              Ver acontecimentos
             </Link>
           </header>
         </div>
 
+        <DashboardSectionTabs group="monitoring" />
+
         <section className={styles.summaryCard}>
           <div className={styles.summaryGrid}>
             <div className={styles.summaryMetric}>
-              <span>Estado</span>
-              <strong>{operationalSessionStatusLabel(session.status)}</strong>
+              <span>Situação</span>
+              <strong>
+                {operationalSessionStatusLabel(session.status)}
+              </strong>
             </div>
             <div className={styles.summaryMetric}>
-              <span>Duração observada</span>
-              <strong>{durationLabel(session.durationSeconds)}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span>Capítulos</span>
-              <strong>{session.chapterCount}</strong>
-            </div>
-            <div className={styles.summaryMetric}>
-              <span>Confiança</span>
-              <strong>{Math.round(session.confidence * 100)}%</strong>
+              <span>Duração</span>
+              <strong>
+                {formatMonitoringDuration(session.durationSeconds)}
+              </strong>
             </div>
             <div className={styles.summaryMetric}>
               <span>Início</span>
-              <strong>{formatDate(session.startedAt)}</strong>
+              <strong>
+                {formatMonitoringDateTime(
+                  session.startedAt,
+                  session.timezone,
+                )}
+              </strong>
             </div>
             <div className={styles.summaryMetric}>
-              <span>Último registro</span>
-              <strong>{formatDate(session.endedAt)}</strong>
+              <span>Fim / último registro</span>
+              <strong>
+                {formatMonitoringDateTime(
+                  session.endedAt,
+                  session.timezone,
+                )}
+              </strong>
             </div>
             <div className={styles.summaryMetric}>
-              <span>Clientes/visitantes</span>
+              <span>Clientes ou visitantes</span>
               <strong>{session.probableCustomerCount}</strong>
             </div>
             <div className={styles.summaryMetric}>
-              <span>Funcionários</span>
+              <span>Equipe</span>
               <strong>{session.probableStaffCount}</strong>
             </div>
           </div>
         </section>
 
         <section className={styles.participantsCard}>
-          <h2 className={styles.sectionTitle}>Participantes prováveis</h2>
+          <div className={styles.sectionHeading}>
+            <div>
+              <span>PARTICIPANTES</span>
+              <h2>Quem apareceu neste período</h2>
+            </div>
+          </div>
+
           <div className={styles.participantList}>
             {session.participants.length ? (
               session.participants.map((participant) => (
@@ -140,49 +141,76 @@ export default async function SessionDetailPage({
                       participantRoleLabel(participant.role)}
                   </strong>
                   <p>
-                    {participantRoleLabel(participant.role)} · observado de {" "}
-                    {formatDate(participant.firstSeenAt)} até {" "}
-                    {formatDate(participant.lastSeenAt)} · confiança {" "}
-                    {Math.round(participant.confidence * 100)}%
+                    {participantRoleLabel(participant.role)} · observado de{" "}
+                    {formatMonitoringDateTime(
+                      participant.firstSeenAt,
+                      session.timezone,
+                    )}{" "}
+                    até{" "}
+                    {formatMonitoringDateTime(
+                      participant.lastSeenAt,
+                      session.timezone,
+                    )}
                   </p>
                 </div>
               ))
             ) : (
               <div className={styles.participant}>
-                <strong>Sem participante estruturado</strong>
-                <p>A sessão pode ter sido criada por estado visual ou equipamento.</p>
+                <strong>Sem participante identificado no período</strong>
+                <p>
+                  A atividade pode ter sido registrada por uma mudança no
+                  ambiente, objeto ou equipamento.
+                </p>
               </div>
             )}
           </div>
         </section>
 
         <section className={styles.outcomesCard}>
-          <h2 className={styles.sectionTitle}>Resultados visuais</h2>
+          <div className={styles.sectionHeading}>
+            <div>
+              <span>RESULTADO OBSERVADO</span>
+              <h2>Como este período terminou</h2>
+            </div>
+          </div>
+
           <div className={styles.outcomeList}>
             {session.outcomes.length ? (
               session.outcomes.map((outcome) => (
                 <div className={styles.outcome} key={outcome.code}>
-                  <strong>{operationalSessionOutcomeLabel(outcome.code)}</strong>
-                  <p>
-                    {outcome.description} Confiança aproximada: {" "}
-                    {Math.round(outcome.confidence * 100)}%. O resultado não
-                    confirma venda, pagamento ou intenção sem integração externa.
-                  </p>
+                  <strong>
+                    {operationalSessionOutcomeLabel(outcome.code)}
+                  </strong>
+                  <p>{outcome.description}</p>
                 </div>
               ))
             ) : (
               <div className={styles.outcome}>
-                <strong>Sem resultado conclusivo</strong>
-                <p>A sequência ainda está em andamento ou não mostrou um desfecho.</p>
+                <strong>Sem resultado visual conclusivo</strong>
+                <p>
+                  Não houve imagem suficiente para confirmar um desfecho
+                  específico deste período.
+                </p>
               </div>
             )}
           </div>
         </section>
 
         <section className={styles.timelineCard}>
-          <h2 className={styles.sectionTitle}>Capítulos da sessão</h2>
+          <div className={styles.sectionHeading}>
+            <div>
+              <span>REGISTROS DESTE PERÍODO</span>
+              <h2>O que formou esta atividade</h2>
+            </div>
+            <small>
+              {session.chapterCount} registro
+              {session.chapterCount === 1 ? "" : "s"} relacionado
+              {session.chapterCount === 1 ? "" : "s"}
+            </small>
+          </div>
+
           <div className={styles.timeline}>
-            {session.chapters.map((chapter) => (
+            {session.chapters.map((chapter, index) => (
               <article className={styles.chapter} key={chapter.id}>
                 <div className={styles.chapterImage}>
                   {chapter.thumbnailAssetId ? (
@@ -196,20 +224,75 @@ export default async function SessionDetailPage({
                 </div>
                 <div className={styles.chapterBody}>
                   <span>
-                    CAPÍTULO {chapter.chapterOrder} · {" "}
-                    {operationalSessionChapterLabel(chapter.chapterType)}
+                    REGISTRO {index + 1} ·{" "}
+                    {operationalSessionChapterLabel(
+                      chapter.chapterType,
+                    )}
                   </span>
                   <h3>{chapter.headline}</h3>
                   <p>
-                    {formatDate(chapter.startedAt)} · {chapter.summary}
+                    {formatMonitoringDateTime(
+                      chapter.startedAt,
+                      session.timezone,
+                    )}{" "}
+                    · {chapter.summary}
                   </p>
                   <Link href={`/dashboard/events/${chapter.eventId}`}>
-                    Abrir evidência individual →
+                    Ver acontecimento →
                   </Link>
                 </div>
               </article>
             ))}
           </div>
+        </section>
+
+        <section className={styles.analysisDetailsWrap}>
+          <MonitoringAnalysisDetails
+            title="Detalhes da análise"
+            description="Informações adicionais sobre o agrupamento e o nível de certeza."
+          >
+            <div className={styles.technicalGrid}>
+              <dl>
+                <div>
+                  <dt>Tipo do período</dt>
+                  <dd>
+                    {operationalSessionTypeLabel(session.sessionType)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Nível de certeza</dt>
+                  <dd>
+                    {monitoringConfidenceLabel(session.confidence)} ·{" "}
+                    {Math.round(session.confidence * 100)}%
+                  </dd>
+                </div>
+                <div>
+                  <dt>Registros relacionados</dt>
+                  <dd>{session.chapterCount}</dd>
+                </div>
+                <div>
+                  <dt>Resultado usado</dt>
+                  <dd>
+                    {operationalSessionOutcomeLabel(
+                      session.outcomeCode,
+                    )}
+                  </dd>
+                </div>
+                {session.closureReason ? (
+                  <div>
+                    <dt>Motivo técnico do encerramento</dt>
+                    <dd>{session.closureReason}</dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              <p className={styles.technicalNote}>
+                Pessoas e correspondências entre registros são estimativas
+                visuais. O MonitorIA não usa reconhecimento facial para
+                identificar pessoas.
+              </p>
+            </div>
+          </MonitoringAnalysisDetails>
         </section>
       </section>
     </main>

@@ -9,6 +9,7 @@ export type OperationalSessionRow = {
   cameraName: string;
   siteId: string;
   siteName: string;
+  timezone: string;
   sessionType: string;
   status: string;
   title: string;
@@ -77,8 +78,49 @@ function stringArray(value: unknown): string[] {
     : [];
 }
 
+function plural(
+  value: number,
+  singular: string,
+  pluralValue: string,
+) {
+  return `${value} ${value === 1 ? singular : pluralValue}`;
+}
+
+export function operationalPeriodSummary(
+  row: Pick<
+    OperationalSessionRow,
+    "chapterCount" | "probableCustomerCount" | "probableStaffCount"
+  >,
+) {
+  const parts = [
+    plural(row.chapterCount, "registro relacionado", "registros relacionados"),
+  ];
+
+  if (row.probableCustomerCount > 0) {
+    parts.push(
+      plural(
+        row.probableCustomerCount,
+        "cliente ou visitante provável",
+        "clientes ou visitantes prováveis",
+      ),
+    );
+  }
+
+  if (row.probableStaffCount > 0) {
+    parts.push(
+      plural(
+        row.probableStaffCount,
+        "integrante da equipe provável",
+        "integrantes da equipe prováveis",
+      ),
+    );
+  }
+
+  return parts.join(" · ");
+}
+
 function mapSessionRow(row: any): OperationalSessionRow {
-  return {
+  const mapped: OperationalSessionRow = {
     id: String(row.id),
     startedAt: String(row.started_at),
     endedAt: String(row.ended_at),
@@ -87,9 +129,10 @@ function mapSessionRow(row: any): OperationalSessionRow {
     cameraName: String(row.camera_name),
     siteId: String(row.site_id),
     siteName: String(row.site_name),
+    timezone: String(row.timezone ?? "America/Sao_Paulo"),
     sessionType: String(row.session_type ?? "other"),
     status: String(row.status ?? "open"),
-    title: String(row.title ?? "Sessão observada"),
+    title: String(row.title ?? "Atividade observada"),
     summary: String(row.summary ?? ""),
     chapterCount: Number(row.chapter_count ?? 0),
     probablePeopleCount: Number(row.probable_people_count ?? 0),
@@ -100,6 +143,11 @@ function mapSessionRow(row: any): OperationalSessionRow {
     thumbnailAssetId: row.thumbnail_asset_id
       ? String(row.thumbnail_asset_id)
       : null,
+  };
+
+  return {
+    ...mapped,
+    summary: operationalPeriodSummary(mapped),
   };
 }
 
@@ -130,7 +178,7 @@ export async function searchOperationalSessions(
   );
 
   if (error) {
-    console.error("Falha ao pesquisar sessões:", error.message);
+    console.error("Falha ao pesquisar períodos:", error.message);
     return { rows: [] as OperationalSessionRow[], total: 0 };
   }
 
@@ -170,7 +218,7 @@ export async function getOperationalSessionDetail(
       outcome_code,
       confidence,
       camera:cameras(name),
-      site:sites(name)
+      site:sites(name,timezone)
     `)
     .eq("organization_id", organizationId)
     .eq("id", sessionId)
@@ -178,7 +226,7 @@ export async function getOperationalSessionDetail(
 
   if (sessionError || !sessionRow) {
     if (sessionError) {
-      console.error("Falha ao carregar sessão:", sessionError.message);
+      console.error("Falha ao carregar período:", sessionError.message);
     }
     return null;
   }
@@ -224,7 +272,7 @@ export async function getOperationalSessionDetail(
         supabase
           .from("events")
           .select(
-            "id,started_at,ended_at,headline,summary,primary_event_type,corrected_event_type",
+            "id,started_at,ended_at,headline,summary,primary_event_type,corrected_event_type,human_verdict",
           )
           .eq("organization_id", organizationId)
           .in("id", eventIds)
@@ -266,8 +314,11 @@ export async function getOperationalSessionDetail(
     ...sessionRow,
     camera_name: (camera as any)?.name ?? "Câmera",
     site_name: (site as any)?.name ?? "Local",
+    timezone: (site as any)?.timezone ?? "America/Sao_Paulo",
     ended_at:
-      sessionRow.ended_at ?? sessionRow.last_event_at ?? sessionRow.started_at,
+      sessionRow.ended_at ??
+      sessionRow.last_event_at ??
+      sessionRow.started_at,
     thumbnail_asset_id:
       chapterRows
         .map((row: any) => assetByEvent.get(String(row.event_id)))
@@ -301,7 +352,7 @@ export async function getOperationalSessionDetail(
     chapters: chapterRows.flatMap((row: any) => {
       const eventId = String(row.event_id);
       const event = eventsById.get(eventId);
-      if (!event) return [];
+      if (!event || event.human_verdict === "irrelevant") return [];
 
       return [
         {

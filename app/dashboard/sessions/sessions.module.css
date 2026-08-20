@@ -56,14 +56,16 @@
   gap: 20px;
 }
 
-.resultHeading > div:first-child > span {
+.resultHeading > div:first-child > span,
+.sectionHeading span {
   color: #2bad92;
   font-size: 8px;
   font-weight: 850;
   letter-spacing: 0.13em;
 }
 
-.resultHeading h2 {
+.resultHeading h2,
+.sectionHeading h2 {
   margin: 4px 0 0;
   color: #1a2a3f;
   font-size: 18px;
@@ -77,7 +79,8 @@
   gap: 8px;
 }
 
-.headingMeta small {
+.headingMeta small,
+.sectionHeading small {
   color: #8493a6;
   font-size: 9px;
 }
@@ -150,7 +153,9 @@
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 9px 24px rgba(15, 31, 52, 0.035);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .card:hover {
@@ -165,7 +170,11 @@
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at center, rgba(65, 233, 247, 0.13), transparent 30%),
+    radial-gradient(
+      circle at center,
+      rgba(65, 233, 247, 0.13),
+      transparent 30%
+    ),
     #081525;
 }
 
@@ -178,19 +187,6 @@
 .fallbackLogo {
   width: 48px;
   height: 48px;
-}
-
-.thumbnail > span {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  padding: 5px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  color: #c6f7ed;
-  background: rgba(5, 15, 27, 0.74);
-  font-size: 8px;
-  font-weight: 850;
 }
 
 .cardBody {
@@ -221,7 +217,7 @@
 
 .cardHeading time {
   color: #72869d;
-  font: 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
   white-space: nowrap;
 }
 
@@ -347,7 +343,7 @@
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -370,13 +366,16 @@
   display: block;
   margin-top: 5px;
   color: #1d334a;
-  font-size: 15px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
-.sectionTitle {
-  margin: 0 0 13px;
-  color: #1c3248;
-  font-size: 16px;
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 13px;
 }
 
 .participantList,
@@ -462,6 +461,50 @@
   font-weight: 800;
 }
 
+.analysisDetailsWrap {
+  margin-top: 18px;
+}
+
+.technicalGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.technicalGrid dl {
+  margin: 0;
+}
+
+.technicalGrid dl div {
+  min-height: 34px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #edf1f5;
+}
+
+.technicalGrid dt,
+.technicalGrid dd {
+  padding: 8px 0;
+  font-size: 8px;
+}
+
+.technicalGrid dt {
+  color: #7e8e9f;
+}
+
+.technicalGrid dd {
+  margin: 0;
+  color: #40576f;
+  text-align: right;
+}
+
+.technicalNote {
+  margin: 0;
+  color: #778a9c;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
 @media (max-width: 1150px) {
   .filters {
     grid-template-columns: repeat(3, 1fr);
@@ -505,7 +548,18 @@
     grid-template-columns: 1fr;
   }
 
-  .resultHeading {
+  .resultHeading,
+  .sectionHeading {
     align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .liveStatus > span {
+    animation: none !important;
   }
 }

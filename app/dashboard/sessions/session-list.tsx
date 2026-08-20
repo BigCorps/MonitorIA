@@ -5,6 +5,10 @@ import {
   operationalSessionStatusLabel,
   operationalSessionTypeLabel,
 } from "@/src/lib/operational-session-labels";
+import {
+  formatMonitoringDateTime,
+  formatMonitoringDuration,
+} from "@/src/lib/monitoring-display";
 import styles from "./sessions.module.css";
 
 type Props = {
@@ -12,37 +16,23 @@ type Props = {
   timezone: string;
 };
 
-function formatDate(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: timezone,
-  }).format(new Date(value));
-}
-
-function durationLabel(seconds: number) {
-  const rounded = Math.max(0, Math.round(seconds));
-  if (rounded < 60) return `${rounded}s`;
-  const hours = Math.floor(rounded / 3600);
-  const minutes = Math.floor((rounded % 3600) / 60);
-  const secondsLeft = rounded % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return secondsLeft ? `${minutes}m ${secondsLeft}s` : `${minutes}m`;
+function countLabel(
+  count: number,
+  singular: string,
+  pluralValue: string,
+) {
+  return `${count} ${count === 1 ? singular : pluralValue}`;
 }
 
 export function SessionList({ rows, timezone }: Props) {
   if (!rows.length) {
     return (
       <section className={styles.empty}>
-        <span>SEM SESSÕES</span>
-        <h2>Nenhuma história operacional encontrada</h2>
+        <span>SEM PERÍODOS</span>
+        <h2>Nenhuma atividade agrupada encontrada</h2>
         <p>
-          As sessões aparecerão quando novos eventos forem relacionados pela
-          memória curta.
+          Quando acontecimentos relacionados ocorrerem em sequência, eles
+          aparecerão aqui como um único período.
         </p>
       </section>
     );
@@ -69,7 +59,6 @@ export function SessionList({ rows, timezone }: Props) {
                 alt=""
               />
             )}
-            <span>{Math.round(session.confidence * 100)}%</span>
           </div>
 
           <div className={styles.cardBody}>
@@ -80,22 +69,58 @@ export function SessionList({ rows, timezone }: Props) {
                 </span>
                 <h2>{session.title}</h2>
               </div>
-              <time>{formatDate(session.startedAt, timezone)}</time>
+              <time>
+                {formatMonitoringDateTime(
+                  session.startedAt,
+                  session.timezone || timezone,
+                )}
+              </time>
             </div>
 
             <p>{session.summary}</p>
 
             <div className={styles.meta}>
-              <span>{operationalSessionTypeLabel(session.sessionType)}</span>
+              <span>
+                {operationalSessionTypeLabel(session.sessionType)}
+              </span>
               <span data-state={session.status}>
                 {operationalSessionStatusLabel(session.status)}
               </span>
-              <span>↻ {session.chapterCount} capítulos</span>
-              <span>≈ {session.probableCustomerCount} cliente(s)</span>
-              <span>◎ {session.probableStaffCount} funcionário(s)</span>
-              <span>◷ {durationLabel(session.durationSeconds)}</span>
-              {session.outcomeCode !== "in_progress" ? (
-                <span>{operationalSessionOutcomeLabel(session.outcomeCode)}</span>
+              <span>
+                {countLabel(
+                  session.chapterCount,
+                  "registro",
+                  "registros",
+                )}
+              </span>
+              {session.probableCustomerCount > 0 ? (
+                <span>
+                  ≈{" "}
+                  {countLabel(
+                    session.probableCustomerCount,
+                    "cliente/visitante",
+                    "clientes/visitantes",
+                  )}
+                </span>
+              ) : null}
+              {session.probableStaffCount > 0 ? (
+                <span>
+                  ◎{" "}
+                  {countLabel(
+                    session.probableStaffCount,
+                    "pessoa da equipe",
+                    "pessoas da equipe",
+                  )}
+                </span>
+              ) : null}
+              <span>
+                ◷ {formatMonitoringDuration(session.durationSeconds)}
+              </span>
+              {session.outcomeCode !== "in_progress" &&
+              session.outcomeCode !== "no_visible_outcome" ? (
+                <span>
+                  {operationalSessionOutcomeLabel(session.outcomeCode)}
+                </span>
               ) : null}
             </div>
           </div>
