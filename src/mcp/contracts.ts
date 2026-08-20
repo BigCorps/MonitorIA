@@ -93,6 +93,11 @@ export const GetRoutineSummaryInputSchema = FilterScopeSchema.extend({
   to: IsoSchema.optional(),
 });
 
+export const GetProcessSummaryInputSchema = FilterScopeSchema.extend({
+  from: IsoSchema.optional(),
+  to: IsoSchema.optional(),
+});
+
 export const GetOperationalSummaryInputSchema = FilterScopeSchema.extend({
   from: IsoSchema.optional(),
   to: IsoSchema.optional(),
