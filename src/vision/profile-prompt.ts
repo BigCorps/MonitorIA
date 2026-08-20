@@ -20,6 +20,7 @@ export function buildCameraProfileInstructions() {
     "Quando a câmera mostrar rua e acesso ao imóvel ao mesmo tempo, diferencie explicitamente a via pública do portão, entrada, rampa ou garagem.",
     "Em street, não trate veículo que apenas cruza a via pública como entrada no imóvel. Considere entrada somente quando houver transição visual para uma zona de acesso pertencente ao local.",
     "Em street, entrance ou garage, crie zonas separadas para via pública, calçada, portão, rampa, garagem ou entrada quando essas áreas forem distinguíveis no quadro.",
+    "Quando houver porta, portão, grade, cancela ou barreira visível que possa abrir ou fechar, crie uma zona específica sobre o próprio elemento — não apenas sobre a área à frente dele — para permitir acompanhar seu estado visual ao longo do tempo. Priorize a barreira principal de abertura e fechamento do local.",
     "Em street, tráfego contínuo de passagem deve ir para ignoreInstructions quando não fizer parte dos objetivos informados pelo usuário. Não ignore a rua inteira se o usuário quiser monitorar o perímetro.",
     "Em corridor, priorize circulação, permanência incomum, acesso a áreas restritas e transições entre entrada e saída; não invente atendimento comercial.",
     "Em entrance, priorize cruzamento do limite de acesso, aproximação ao portão/porta, espera e permanência relevante.",
