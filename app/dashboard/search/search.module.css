@@ -1137,3 +1137,22 @@
     min-height: 360px;
   }
 }
+
+/* Pesquisa IA — conteúdo visual primeiro, resposta textual por último.
+   Como .messageContent já é grid, order reorganiza somente mensagens da IA
+   sem alterar a marcação nem o comportamento das mensagens do usuário. */
+.assistantMessage .chartCard {
+  order: 1;
+}
+
+.assistantMessage .evidenceList {
+  order: 2;
+}
+
+.assistantMessage .messageBubble {
+  order: 3;
+}
+
+.assistantMessage .followUps {
+  order: 4;
+}
