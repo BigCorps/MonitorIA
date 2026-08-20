@@ -1,14 +1,14 @@
-# MonitorIA — publicação do Agent 1.0.0 na Microsoft Store
+# MonitorIA — publicação do Agent 1.0.1 na Microsoft Store
 
 Caminho oficial **MSI/EXE (Win32)**, mantendo o instalador Inno Setup atual.
 A Microsoft baixa o instalador a partir de uma URL HTTPS versionada informada
 no Partner Center e executa a instalação silenciosa.
 
-## Estado real do 1.0.0
+## Estado real do 1.0.1
 
-- Versão candidata/final: **1.0.0**
-- Agent Windows: **pronto**
-- Agent Linux x64/arm64: **pronto**
+- Versão candidata/final: **1.0.1**
+- Agent Windows: **código 1.0.1 preparado; validar no Actions**
+- Agent Linux x64/arm64: **código 1.0.1 preparado; validar no Actions**
 - DVR real: **testado e aprovado**
 - Instalador: Inno Setup 6 (`installer/monitoria.iss`)
 - Windows 10 1809+ (`MinVersion=10.0.17763`), x64
@@ -18,7 +18,8 @@ no Partner Center e executa a instalação silenciosa.
 - Partner Center: **conta aprovada**
 - Backend Supabase: produção
 - Frontend Vercel: produção
-- Próxima etapa: gerar a release imutável `agent-v1.0.0` e enviar ao Partner Center
+- Certificação 1.0.0: **Attention needed — policy 10.2.4.2 (Software Dependencies)**
+- Próxima etapa: gerar `agent-v1.0.1`, hospedar o Store EXE em URL direta/versionada sem redirecionamento e reenviar com a declaração/notas do serviço NT
 
 > `LTA` está correto e deve permanecer idêntico no workflow, instalador,
 > certificado e nome de exibição do editor no Partner Center.
@@ -57,7 +58,7 @@ O passo `Resumo do build` valida os dois instaladores:
 - certificado com validade suficiente;
 - SHA256 apresentado no resumo do Actions.
 
-As dependências FFmpeg usadas no Agent 1.0.0 estão congeladas em assets
+As dependências FFmpeg usadas no Agent 1.0.1 estão congeladas em assets
 versionados do próprio repositório MonitorIA e validadas por SHA256.
 
 ## Fluxo sem Codespace — somente GitHub web
@@ -86,13 +87,13 @@ Depois do workflow manual verde:
 
 1. abra **Releases**;
 2. clique em **Draft a new release**;
-3. em **Choose a tag**, digite exatamente `agent-v1.0.0`;
+3. em **Choose a tag**, digite exatamente `agent-v1.0.1`;
 4. escolha criar a nova tag a partir de `main`;
-5. título: `MonitorIA Agent 1.0.0`;
-6. use o texto de `store-assets/RELEASE-NOTES-1.0.0.md`;
+5. título: `MonitorIA Agent 1.0.1`;
+6. use o texto de `store-assets/RELEASE-NOTES-1.0.1.md`;
 7. clique em **Publish release**.
 
-A criação da tag `agent-v1.0.0` dispara automaticamente os workflows oficiais
+A criação da tag `agent-v1.0.1` dispara automaticamente os workflows oficiais
 Windows e Linux.
 
 **Não faça upload manual dos instaladores na release.**
@@ -100,16 +101,12 @@ O próprio GitHub Actions adicionará os arquivos após o build.
 
 ### 3. Confirmar a release oficial
 
-A release `agent-v1.0.0` deve conter pelo menos:
+A release `agent-v1.0.1` deve conter pelo menos:
 
 - `MonitorIA-Setup.exe`
 - `MonitorIA-Store-Setup.exe`
 
-O instalador da Store deve estar disponível em:
-
-```text
-https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe
-```
+A release GitHub deve conter `MonitorIA-Store-Setup.exe`, mas o Partner Center deve receber uma **URL HTTPS direta e sem redirecionamento**. No fluxo validado, publique uma cópia versionada em Vercel Blob, por exemplo `MonitorIA-Store-Setup-1.0.1.exe`, e informe a URL pública direta retornada pelo Blob.
 
 Depois de informar essa URL no Partner Center, **não substitua o arquivo**.
 Para qualquer correção futura, use uma nova versão/tag e uma nova URL.
@@ -149,7 +146,7 @@ Também pode conferir o SHA256:
 | Campo | Valor |
 |---|---|
 | Product name | `MonitorIA` |
-| Package URL | `https://github.com/BigCorps/MonitorIA/releases/download/agent-v1.0.0/MonitorIA-Store-Setup.exe` |
+| Package URL | nova URL pública direta do Vercel Blob para `MonitorIA-Store-Setup-1.0.1.exe` |
 | App type | `EXE` |
 | Architecture | `x64` |
 | Language | `Português (Brasil)` |
@@ -188,7 +185,7 @@ Ver:
 
 ```text
 store-assets/LEIA-ME.md
-store-assets/PARTNER-CENTER-1.0.0.md
+store-assets/PARTNER-CENTER-1.0.1.md
 ```
 
 ## Conta de certificação
@@ -220,7 +217,7 @@ Antes de enviar à certificação:
 2. aguardar o deploy normal ficar saudável;
 3. executar manualmente **Build MonitorIA Agent** em `main`;
 4. confirmar assinatura e `MonitorIA-Store-Setup.exe`;
-5. criar/publish a tag/release `agent-v1.0.0` pelo GitHub web;
+5. criar/publish a tag/release `agent-v1.0.1` pelo GitHub web;
 6. aguardar o build por tag terminar verde;
 7. confirmar os assets da release;
 8. baixar e validar o `MonitorIA-Store-Setup.exe`;
@@ -230,4 +227,17 @@ Antes de enviar à certificação:
 12. enviar para certificação;
 13. não alterar o binário/URL submetidos;
 14. enquanto a Microsoft certifica, validar onboarding e dashboard em produção;
-15. qualquer correção posterior ao binário vira uma nova versão (ex.: `1.0.1`).
+15. qualquer correção posterior ao binário vira uma nova versão (ex.: `1.0.2`).
+
+
+## Reenvio após policy 10.2.4.2
+
+O relatório da certificação 1.0.0 marcou **Security - Software Dependencies** com a nota genérica de que o produto contém drivers não fornecidos pela Microsoft. O instalador do MonitorIA não adiciona driver de kernel/hardware; ele instala o serviço NT próprio `MonitorIAAgent`.
+
+No reenvio 1.0.1:
+
+1. manter marcada a declaração de dependência de non-Microsoft drivers or NT services;
+2. explicar nas Notes for certification que a dependência é o serviço NT próprio, e não um driver;
+3. incluir no início da descrição a dependência do serviço Windows para monitoramento contínuo;
+4. usar o texto pronto em `store-assets/PARTNER-CENTER-1.0.1.md`;
+5. trocar apenas a URL do pacote para o novo EXE 1.0.1 e executar novamente Package validation.

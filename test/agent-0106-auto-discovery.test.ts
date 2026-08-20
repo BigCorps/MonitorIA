@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("instalador 1.0.0 só pede o código de pareamento", async () => {
+test("instalador 1.0.1 só pede o código de pareamento", async () => {
   const [installer, cli] = await Promise.all([
     readFile(new URL("../installer/monitoria.iss", import.meta.url), "utf8"),
     readFile(new URL("../agent/src/index.ts", import.meta.url), "utf8"),
@@ -74,3 +74,29 @@ test("descoberta não deixa aparelho inválido bloquear a câmera correta", asyn
   assert.match(discovery, /não respondeu como RTSP/);
   assert.match(client, /DISCOVERY_RESPONSE_TIMEOUT_MS = 75_000/);
 });
+
+test("Agent antecipa a primeira imagem sem remover o fallback periódico", async () => {
+  const service = await readFile(
+    new URL("../agent/src/service.ts", import.meta.url),
+    "utf8",
+  );
+
+  // A descoberta termina normalmente; a captura é iniciada em segundo plano
+  // usando checkCamera(), a mesma rotina já validada pelo timer de 5 minutos.
+  assert.match(service, /const connectedCameraIds: string\[\] = \[\]/);
+  assert.match(service, /connectedCameraIds\.push\(assignment\.cameraId\)/);
+  assert.match(
+    service,
+    /mapWithConcurrency\(\s*connectedCameraIds,\s*2,\s*async \(cameraId\)/s,
+  );
+  assert.match(service, /await this\.checkCamera\(camera, true\)/);
+
+  // Não reduzimos nem removemos o fallback de produção. Se o snapshot
+  // imediato falhar, o ciclo periódico continua tentando normalmente.
+  assert.match(service, /const CAMERA_CHECK_INTERVAL_MS = 5 \* 60_000/);
+  assert.match(
+    service,
+    /!config\.cameras\[camera\.id\]\?\.lastSnapshotUploadedAt/,
+  );
+});
+

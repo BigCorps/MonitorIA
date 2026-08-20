@@ -59,7 +59,7 @@ import type {
   RemoteCamera,
 } from "./types.js";
 
-export const AGENT_VERSION = "1.0.0";
+export const AGENT_VERSION = "1.0.1";
 
 export type TokenState = "ok" | "locked" | "missing";
 
@@ -1844,6 +1844,7 @@ export class AgentService {
     }
 
     let connected = 0;
+    const connectedCameraIds: string[] = [];
 
     for (const assignment of assignments) {
       try {
@@ -1854,12 +1855,36 @@ export class AgentService {
           streamIndex: 0,
         });
         connected += 1;
+        connectedCameraIds.push(assignment.cameraId);
       } catch (error) {
         this.logger.warn(
           `Não foi possível vincular ${assignment.candidata.entry.device.host} ` +
             `canal ${assignment.candidata.channel}: ${errorMessage(error)}`,
         );
       }
+    }
+
+    // A versão anterior só tentava o primeiro snapshot no timer de câmeras, que roda a
+    // cada 5 minutos. A descoberta já acabou de validar o RTSP, então não há
+    // motivo para deixar o cliente esperando esse timer. Disparamos em
+    // segundo plano a MESMA rotina já usada e validada pelo ciclo periódico.
+    // Se falhar, lastSnapshotUploadedAt continua vazio e o fallback de 5
+    // minutos permanece exatamente como antes. Dois workers evitam abrir
+    // muitos processos FFmpeg simultaneamente em DVRs com vários canais.
+    if (connectedCameraIds.length > 0) {
+      void mapWithConcurrency(
+        connectedCameraIds,
+        2,
+        async (cameraId) => {
+          const camera = this.cameras.find((item) => item.id === cameraId);
+          if (!camera || config.cameras[cameraId]?.lastSnapshotUploadedAt) return;
+          await this.checkCamera(camera, true);
+        },
+      ).catch((error) => {
+        this.logger.warn(
+          `Falha ao antecipar a primeira imagem: ${errorMessage(error)}`,
+        );
+      });
     }
 
     return {
