@@ -17,6 +17,44 @@ export type RoutineOverviewInput = {
   limit?: number;
 };
 
+export type RoutineScheduleException = {
+  date: string;
+  closed: boolean;
+  openMinute: number | null;
+  closeMinute: number | null;
+};
+
+export type RoutineDeclaredSchedule = {
+  configured: boolean;
+  workingDays: number[];
+  openMinute: number | null;
+  closeMinute: number | null;
+  exceptions: RoutineScheduleException[];
+};
+
+export type RoutineCameraDashboard = {
+  id: string;
+  name: string;
+  siteId: string;
+  siteName: string;
+  timezone: string;
+  sensitivity: string;
+  graceMinutes: number;
+  declaredSchedule: RoutineDeclaredSchedule;
+  learnedOpen: RoutineBaseline | null;
+  learnedClose: RoutineBaseline | null;
+  today: {
+    localDate: string;
+    dayOfWeek: number;
+    observedOpenAt: string | null;
+    observedCloseAt: string | null;
+  };
+};
+
+export type RoutineDashboardOverview = RoutineOverview & {
+  cameras: RoutineCameraDashboard[];
+};
+
 function relationOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
@@ -31,6 +69,29 @@ function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function localDate(value: Date | string, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(typeof value === "string" ? new Date(value) : value);
+}
+
+function localDayOfWeek(value: Date | string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(typeof value === "string" ? new Date(value) : value);
+
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts);
+}
+
+function managedScheduleMetadata(value: unknown) {
+  const metadata = objectValue(value);
+  return metadata.managedBy === "dashboard_production_v1";
 }
 
 function mapBaseline(row: any): RoutineBaseline {
@@ -77,7 +138,7 @@ function mapDeviation(row: any): OperationalDeviation {
     ) as OperationalDeviation["deviationCode"],
     status: String(row.status ?? "active") as OperationalDeviation["status"],
     severity: String(row.severity ?? "low") as OperationalDeviation["severity"],
-    title: String(row.title ?? "Desvio observado"),
+    title: String(row.title ?? "Mudança observada"),
     summary: String(row.summary ?? ""),
     observedValue:
       row.observed_value === null || row.observed_value === undefined
@@ -108,12 +169,123 @@ function mapDeviation(row: any): OperationalDeviation {
   };
 }
 
+function buildDeclaredSchedule(rows: any[]): RoutineDeclaredSchedule {
+  const managed = rows.filter(
+    (row) =>
+      row.source === "user" &&
+      row.status === "active" &&
+      managedScheduleMetadata(row.metadata),
+  );
+
+  if (!managed.length) {
+    return {
+      configured: false,
+      workingDays: [],
+      openMinute: null,
+      closeMinute: null,
+      exceptions: [],
+    };
+  }
+
+  const weeklyOpen = managed.filter(
+    (row) =>
+      row.expectation_code === "declared_open_minute" &&
+      row.valid_from === null &&
+      row.valid_until === null,
+  );
+  const weeklyClose = managed.filter(
+    (row) =>
+      row.expectation_code === "declared_close_minute" &&
+      row.valid_from === null &&
+      row.valid_until === null,
+  );
+
+  const workingDays = [
+    ...new Set(weeklyOpen.map((row) => Number(row.day_of_week))),
+  ]
+    .filter((day) => day >= 0 && day <= 6)
+    .sort((a, b) => a - b);
+
+  const dates = [
+    ...new Set(
+      managed
+        .filter(
+          (row) =>
+            row.valid_from &&
+            row.valid_until &&
+            row.valid_from === row.valid_until,
+        )
+        .map((row) => String(row.valid_from)),
+    ),
+  ].sort();
+
+  const exceptions: RoutineScheduleException[] = dates.map((date) => {
+    const dateRows = managed.filter(
+      (row) => row.valid_from === date && row.valid_until === date,
+    );
+    const closed = dateRows.some(
+      (row) => row.expectation_code === "declared_closed_day",
+    );
+    const open = dateRows.find(
+      (row) => row.expectation_code === "declared_open_minute",
+    );
+    const close = dateRows.find(
+      (row) => row.expectation_code === "declared_close_minute",
+    );
+
+    return {
+      date,
+      closed,
+      openMinute: open ? Number(open.expected_center) : null,
+      closeMinute: close ? Number(close.expected_center) % 1440 : null,
+    };
+  });
+
+  return {
+    configured: true,
+    workingDays,
+    openMinute: weeklyOpen[0] ? Number(weeklyOpen[0].expected_center) : null,
+    closeMinute: weeklyClose[0]
+      ? Number(weeklyClose[0].expected_center) % 1440
+      : null,
+    exceptions,
+  };
+}
+
 export async function getRoutineOverview(
   organizationId: string,
   input: RoutineOverviewInput = {},
-): Promise<RoutineOverview> {
+): Promise<RoutineDashboardOverview> {
   const supabase = await createClient();
   const limit = Math.max(1, Math.min(input.limit ?? 100, 250));
+
+  let cameraQuery = supabase
+    .from("cameras")
+    .select(`
+      id,
+      site_id,
+      name,
+      routine_deviation_sensitivity,
+      routine_grace_minutes,
+      site:sites(name,timezone)
+    `)
+    .eq("organization_id", organizationId)
+    .eq("routine_intelligence_enabled", true)
+    .order("created_at", { ascending: true });
+
+  if (input.cameraId) cameraQuery = cameraQuery.eq("id", input.cameraId);
+  if (input.siteId) cameraQuery = cameraQuery.eq("site_id", input.siteId);
+
+  const cameraResult = await cameraQuery;
+  if (cameraResult.error) {
+    console.error(
+      "Falha ao carregar câmeras das rotinas:",
+      cameraResult.error.message,
+    );
+  }
+
+  const cameraRows = cameraResult.data ?? [];
+  const cameraIds = cameraRows.map((row: any) => String(row.id));
 
   let baselineQuery = supabase
     .from("camera_behavior_baselines")
@@ -147,12 +319,8 @@ export async function getRoutineOverview(
     .order("confidence", { ascending: false })
     .limit(limit);
 
-  if (input.cameraId) {
-    baselineQuery = baselineQuery.eq("camera_id", input.cameraId);
-  }
-  if (input.siteId) {
-    baselineQuery = baselineQuery.eq("site_id", input.siteId);
-  }
+  if (input.cameraId) baselineQuery = baselineQuery.eq("camera_id", input.cameraId);
+  if (input.siteId) baselineQuery = baselineQuery.eq("site_id", input.siteId);
   if (input.baselineStatus && input.baselineStatus !== "all") {
     baselineQuery = baselineQuery.eq("status", input.baselineStatus);
   } else {
@@ -191,12 +359,8 @@ export async function getRoutineOverview(
 
   if (input.from) deviationQuery = deviationQuery.gte("observed_at", input.from);
   if (input.to) deviationQuery = deviationQuery.lt("observed_at", input.to);
-  if (input.cameraId) {
-    deviationQuery = deviationQuery.eq("camera_id", input.cameraId);
-  }
-  if (input.siteId) {
-    deviationQuery = deviationQuery.eq("site_id", input.siteId);
-  }
+  if (input.cameraId) deviationQuery = deviationQuery.eq("camera_id", input.cameraId);
+  if (input.siteId) deviationQuery = deviationQuery.eq("site_id", input.siteId);
   if (input.severity && input.severity !== "all") {
     deviationQuery = deviationQuery.eq("severity", input.severity);
   }
@@ -204,30 +368,163 @@ export async function getRoutineOverview(
     deviationQuery = deviationQuery.eq("status", input.status);
   }
 
-  const [baselineResult, deviationResult] = await Promise.all([
+  let expectationQuery = supabase
+    .from("operational_expectations")
+    .select(`
+      id,
+      camera_id,
+      expectation_key,
+      expectation_code,
+      source,
+      status,
+      day_of_week,
+      expected_center,
+      valid_from,
+      valid_until,
+      metadata
+    `)
+    .eq("organization_id", organizationId)
+    .eq("source", "user");
+
+  if (cameraIds.length) {
+    expectationQuery = expectationQuery.in("camera_id", cameraIds);
+  } else {
+    expectationQuery = expectationQuery.limit(0);
+  }
+
+  let operatingQuery = supabase
+    .from("site_operating_sessions")
+    .select(
+      "id,camera_id,first_open_observed_at,closed_at,opening_event_id,closing_event_id",
+    )
+    .eq("organization_id", organizationId)
+    .gte(
+      "first_open_observed_at",
+      new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+    )
+    .order("first_open_observed_at", { ascending: false });
+
+  if (cameraIds.length) {
+    operatingQuery = operatingQuery.in("camera_id", cameraIds);
+  } else {
+    operatingQuery = operatingQuery.limit(0);
+  }
+
+  const [
+    baselineResult,
+    deviationResult,
+    expectationResult,
+    operatingResult,
+  ] = await Promise.all([
     baselineQuery,
     deviationQuery,
+    expectationQuery,
+    operatingQuery,
   ]);
 
   if (baselineResult.error) {
     console.error(
-      "Falha ao carregar baselines de rotina:",
+      "Falha ao carregar padrões de rotina:",
       baselineResult.error.message,
     );
   }
   if (deviationResult.error) {
     console.error(
-      "Falha ao carregar desvios operacionais:",
+      "Falha ao carregar mudanças de rotina:",
       deviationResult.error.message,
+    );
+  }
+  if (expectationResult.error) {
+    console.error(
+      "Falha ao carregar horários informados:",
+      expectationResult.error.message,
+    );
+  }
+  if (operatingResult.error) {
+    console.error(
+      "Falha ao carregar funcionamento observado:",
+      operatingResult.error.message,
     );
   }
 
   const baselines = (baselineResult.data ?? []).map(mapBaseline);
   const deviations = (deviationResult.data ?? []).map(mapDeviation);
+  const expectationRows = expectationResult.data ?? [];
+  const operatingRows = operatingResult.data ?? [];
+  const now = new Date();
+
+  const cameras: RoutineCameraDashboard[] = cameraRows.map((row: any) => {
+    const site = relationOne<{ name?: string; timezone?: string }>(row.site);
+    const timezone = String(site?.timezone ?? "America/Sao_Paulo");
+    const todayDate = localDate(now, timezone);
+    const todayDow = localDayOfWeek(now, timezone);
+    const declaredRows = expectationRows.filter(
+      (expectation: any) => String(expectation.camera_id) === String(row.id),
+    );
+    const declaredSchedule = buildDeclaredSchedule(declaredRows);
+
+    const learnedOpen =
+      baselines.find(
+        (baseline) =>
+          baseline.cameraId === String(row.id) &&
+          baseline.baselineCode === "operating_open_minute" &&
+          baseline.status === "active",
+      ) ??
+      baselines.find(
+        (baseline) =>
+          baseline.cameraId === String(row.id) &&
+          baseline.baselineCode === "operating_open_minute",
+      ) ??
+      null;
+
+    const learnedClose =
+      baselines.find(
+        (baseline) =>
+          baseline.cameraId === String(row.id) &&
+          baseline.baselineCode === "operating_close_minute" &&
+          baseline.status === "active",
+      ) ??
+      baselines.find(
+        (baseline) =>
+          baseline.cameraId === String(row.id) &&
+          baseline.baselineCode === "operating_close_minute",
+      ) ??
+      null;
+
+    const todayOperating = operatingRows.find(
+      (operating: any) =>
+        String(operating.camera_id) === String(row.id) &&
+        localDate(String(operating.first_open_observed_at), timezone) === todayDate,
+    );
+
+    return {
+      id: String(row.id),
+      name: String(row.name),
+      siteId: String(row.site_id),
+      siteName: String(site?.name ?? "Local"),
+      timezone,
+      sensitivity: String(row.routine_deviation_sensitivity ?? "balanced"),
+      graceMinutes: Number(row.routine_grace_minutes ?? 15),
+      declaredSchedule,
+      learnedOpen,
+      learnedClose,
+      today: {
+        localDate: todayDate,
+        dayOfWeek: todayDow,
+        observedOpenAt: todayOperating?.first_open_observed_at
+          ? String(todayOperating.first_open_observed_at)
+          : null,
+        observedCloseAt: todayOperating?.closed_at
+          ? String(todayOperating.closed_at)
+          : null,
+      },
+    };
+  });
 
   return {
     baselines,
     deviations,
+    cameras,
     summary: {
       activeBaselines: baselines.filter((item) => item.status === "active")
         .length,

@@ -88,6 +88,11 @@ export const GetVisualStateInputSchema = FilterScopeSchema.extend({
   to: IsoSchema.optional(),
 });
 
+export const GetRoutineSummaryInputSchema = FilterScopeSchema.extend({
+  from: IsoSchema.optional(),
+  to: IsoSchema.optional(),
+});
+
 export const GetOperationalSummaryInputSchema = FilterScopeSchema.extend({
   from: IsoSchema.optional(),
   to: IsoSchema.optional(),

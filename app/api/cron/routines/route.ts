@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-type RoutineCronMode = "evaluate" | "full";
+type RoutineCronMode = "auto" | "evaluate" | "full";
 
 function authorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -34,7 +34,9 @@ function dateOnly(value: string | null) {
 }
 
 function cronMode(value: string | null): RoutineCronMode {
-  return value === "full" ? "full" : "evaluate";
+  if (value === "full") return "full";
+  if (value === "evaluate") return "evaluate";
+  return "auto";
 }
 
 export async function GET(request: NextRequest) {
@@ -54,33 +56,67 @@ export async function GET(request: NextRequest) {
     500,
   );
   const offset = boundedInteger(url.searchParams.get("offset"), 0, 0, 100000);
+  const fullBatch = boundedInteger(
+    process.env.ROUTINE_FULL_BATCH_SIZE,
+    20,
+    1,
+    100,
+  );
   const referenceDate = dateOnly(url.searchParams.get("date"));
+  const observedAt = new Date().toISOString();
   const supabase = createAdminClient();
 
-  const rpcName =
-    mode === "full"
-      ? "refresh_all_routine_intelligence_v1"
-      : "evaluate_all_routine_deviations_v1";
+  if (mode === "full") {
+    const refresh = await supabase.rpc("refresh_all_routine_intelligence_v2", {
+      p_reference_date: referenceDate,
+      p_limit: limit,
+      p_offset: offset,
+    });
 
-  const rpcArguments =
-    mode === "full"
-      ? {
-          p_reference_date: referenceDate,
-          p_limit: limit,
-          p_offset: offset,
-        }
-      : {
-          p_observed_at: new Date().toISOString(),
-          p_limit: limit,
-          p_offset: offset,
-        };
+    if (refresh.error) {
+      console.error("Falha no cron completo de rotinas:", refresh.error.message);
+      return NextResponse.json(
+        { ok: false, error: "routine_refresh_failed", mode },
+        { status: 500, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
-  const { data, error } = await supabase.rpc(rpcName, rpcArguments);
-
-  if (error) {
-    console.error(`Falha no cron de rotinas (${mode}):`, error.message);
     return NextResponse.json(
-      { ok: false, error: "routine_refresh_failed", mode },
+      {
+        ok: true,
+        mode,
+        result: refresh.data,
+        batch: { limit, offset, referenceDate },
+        executedAt: observedAt,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  let bootstrap: unknown = null;
+
+  if (mode === "auto") {
+    const pending = await supabase.rpc("refresh_pending_routine_intelligence_v2", {
+      p_limit: fullBatch,
+    });
+
+    if (pending.error) {
+      console.error("Falha no bootstrap diário de rotinas:", pending.error.message);
+    } else {
+      bootstrap = pending.data;
+    }
+  }
+
+  const evaluation = await supabase.rpc("evaluate_all_routine_deviations_v2", {
+    p_observed_at: observedAt,
+    p_limit: limit,
+    p_offset: offset,
+  });
+
+  if (evaluation.error) {
+    console.error(`Falha no cron de rotinas (${mode}):`, evaluation.error.message);
+    return NextResponse.json(
+      { ok: false, error: "routine_evaluation_failed", mode },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -89,9 +125,10 @@ export async function GET(request: NextRequest) {
     {
       ok: true,
       mode,
-      result: data,
-      batch: { limit, offset, referenceDate },
-      executedAt: new Date().toISOString(),
+      bootstrap,
+      result: evaluation.data,
+      batch: { limit, offset, fullBatch },
+      executedAt: observedAt,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

@@ -7,6 +7,7 @@ import {
   GetEventDetailsInputSchema,
   GetEvidenceInputSchema,
   GetOperationalSummaryInputSchema,
+  GetRoutineSummaryInputSchema,
   GetSessionDetailsInputSchema,
   GetVisualStateInputSchema,
   ListCamerasInputSchema,
@@ -38,6 +39,7 @@ import {
   searchInsights,
   searchOperationalSessions,
 } from "./data";
+import { getRoutineSummary } from "./routines";
 import { toolError, toolResult } from "./envelope";
 
 function safeTool(
@@ -66,11 +68,16 @@ function safeTool(
           "A organização não foi autorizada para este cliente MCP.",
         invalid_date_range: "O período informado é inválido.",
         invalid_cursor: "O cursor de paginação é inválido.",
-        event_not_found: "Evento não encontrado ou sem acesso.",
-        session_not_found: "Sessão não encontrada ou sem acesso.",
+        event_not_found: "Acontecimento não encontrado ou sem acesso.",
+        session_not_found: "Período não encontrado ou sem acesso.",
         camera_not_found: "Câmera não encontrada ou sem acesso.",
+        routine_summary_failed:
+          "Não foi possível consultar as rotinas desta organização.",
       };
-      return toolError(messages[code] ?? "A consulta não pôde ser concluída.", code);
+      return toolError(
+        messages[code] ?? "A consulta não pôde ser concluída.",
+        code,
+      );
     }
   };
 }
@@ -83,7 +90,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     },
     {
       instructions:
-        "Use list_sites e list_cameras para resolver escopo. As ferramentas não alteram dados operacionais, mas cada chamada registra uma auditoria interna privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Só solicite get_evidence quando imagens forem realmente necessárias.",
+        "Use list_sites e list_cameras para resolver escopo. As ferramentas não alteram dados operacionais, mas cada chamada registra uma auditoria interna privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Em rotinas, diferencie horário informado, padrão aprendido e comportamento observado. Só solicite get_evidence quando imagens forem realmente necessárias.",
     },
   );
 
@@ -122,9 +129,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
       inputSchema: ListCamerasInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "list_cameras", (args) =>
-      listCameras(context, args),
-    ),
+    safeTool(context, "list_cameras", (args) => listCameras(context, args)),
   );
 
   server.registerTool(
@@ -132,7 +137,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     {
       title: "Visão geral da câmera",
       description:
-        "Retorna uma visão consolidada da câmera: evento mais recente, estados, horários, sessões, continuidade, veículos e insights disponíveis.",
+        "Retorna uma visão consolidada da câmera: acontecimento mais recente, estados, horários, períodos, continuidade, veículos e insights disponíveis.",
       inputSchema: GetCameraOverviewInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
@@ -144,23 +149,21 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
   server.registerTool(
     "search_events",
     {
-      title: "Pesquisar eventos",
+      title: "Pesquisar acontecimentos",
       description:
         "Pesquisa a linha do tempo visual por período, texto, câmera, local, tipo, confiança, pessoas, veículos e revisão.",
       inputSchema: SearchEventsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "search_events", (args) =>
-      searchEvents(context, args),
-    ),
+    safeTool(context, "search_events", (args) => searchEvents(context, args)),
   );
 
   server.registerTool(
     "get_event_details",
     {
-      title: "Detalhes do evento",
+      title: "Detalhes do acontecimento",
       description:
-        "Obtém observações, pessoas, veículos, ações simultâneas, continuidade, capítulo da sessão e revisão de um evento específico.",
+        "Obtém observações, pessoas, veículos, ações simultâneas, continuidade e revisão de um acontecimento específico.",
       inputSchema: GetEventDetailsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
@@ -172,9 +175,9 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
   server.registerTool(
     "search_operational_sessions",
     {
-      title: "Pesquisar sessões operacionais",
+      title: "Pesquisar períodos",
       description:
-        "Pesquisa atendimentos, entregas, visitas, atividades de funcionários, equipamentos e procedimentos de abertura ou fechamento consolidados em sessões.",
+        "Pesquisa atendimentos, entregas, visitas, atividades da equipe, equipamentos e procedimentos consolidados em períodos relacionados.",
       inputSchema: SearchSessionsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
@@ -186,9 +189,9 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
   server.registerTool(
     "get_session_details",
     {
-      title: "Detalhes da sessão operacional",
+      title: "Detalhes do período",
       description:
-        "Retorna capítulos em ordem, participantes prováveis, resultados visuais e evidências de uma sessão operacional.",
+        "Retorna registros relacionados, participantes prováveis, resultados visuais e evidências de um período.",
       inputSchema: GetSessionDetailsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
@@ -212,11 +215,25 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
   );
 
   server.registerTool(
+    "get_routine_summary",
+    {
+      title: "Consultar rotinas",
+      description:
+        "Consulta separadamente horários informados pelo cliente, padrões aprendidos, observações e diferenças em relação ao esperado ou habitual.",
+      inputSchema: GetRoutineSummaryInputSchema.shape,
+      annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
+    },
+    safeTool(context, "get_routine_summary", (args) =>
+      getRoutineSummary(context, args),
+    ),
+  );
+
+  server.registerTool(
     "get_operational_summary",
     {
       title: "Resumo operacional",
       description:
-        "Consolida eventos, sessões, estados, abertura e fechamento, pessoas prováveis, veículos prováveis e insights em um período.",
+        "Consolida acontecimentos, períodos, estados, abertura e fechamento, pessoas prováveis, veículos prováveis e insights em um período.",
       inputSchema: GetOperationalSummaryInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
@@ -230,13 +247,11 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     {
       title: "Comparar períodos",
       description:
-        "Compara dois períodos usando eventos, sessões e os insights operacionais que estiverem disponíveis para a organização autorizada.",
+        "Compara dois intervalos usando acontecimentos, períodos e os insights operacionais disponíveis.",
       inputSchema: ComparePeriodsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "compare_periods", (args) =>
-      comparePeriods(context, args),
-    ),
+    safeTool(context, "compare_periods", (args) => comparePeriods(context, args)),
   );
 
   server.registerTool(
@@ -244,13 +259,11 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     {
       title: "Obter evidências visuais",
       description:
-        "Gera URLs assinadas e temporárias para imagens de eventos ou sessões. Use apenas quando a evidência visual for necessária.",
+        "Gera URLs assinadas e temporárias para imagens de acontecimentos ou períodos. Use apenas quando a evidência visual for necessária.",
       inputSchema: GetEvidenceInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "get_evidence", (args) =>
-      getEvidence(context, args),
-    ),
+    safeTool(context, "get_evidence", (args) => getEvidence(context, args)),
   );
 
   server.registerTool(
@@ -258,13 +271,11 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     {
       title: "Pesquisar insights operacionais",
       description:
-        "Pesquisa insights operacionais já produzidos pelo MonitorIA, com filtros por tipo, severidade, estado, período, local e câmera. Consulte as capacidades para verificar quais módulos estão disponíveis.",
+        "Pesquisa insights operacionais já produzidos pelo MonitorIA, com filtros por tipo, severidade, estado, período, local e câmera.",
       inputSchema: SearchInsightsInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "search_insights", (args) =>
-      searchInsights(context, args),
-    ),
+    safeTool(context, "search_insights", (args) => searchInsights(context, args)),
   );
 
   server.registerTool(
@@ -276,9 +287,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
       inputSchema: AskMonitoriaInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },
-    safeTool(context, "ask_monitoria", (args) =>
-      askMonitoria(context, args),
-    ),
+    safeTool(context, "ask_monitoria", (args) => askMonitoria(context, args)),
   );
 
   return server;

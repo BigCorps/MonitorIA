@@ -11,27 +11,37 @@ import {
   dateOnlyToIso,
   siteTimezone,
 } from "@/src/lib/event-search-data";
-import { getRoutineOverview } from "@/src/lib/routine-intelligence-data";
+import {
+  getRoutineOverview,
+  type RoutineCameraDashboard,
+} from "@/src/lib/routine-intelligence-data";
 import {
   operationalSeverityLabel,
   routineBaselineLabel,
+  routineMinuteToTime,
   routineRangeLabel,
-  routineScopeLabel,
+  routineSensitivityLabel,
   routineValueLabel,
 } from "@/src/lib/routine-intelligence-labels";
+import {
+  formatMonitoringDateTime,
+  formatMonitoringTime,
+  monitoringConfidenceLabel,
+} from "@/src/lib/monitoring-display";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+import { MonitoringAnalysisDetails } from "../monitoring-analysis-details";
+import { RoutineScheduleEditor } from "./routine-schedule-editor";
 import { RoutinesRealtimeRefresh } from "./routines-realtime-refresh";
 import styles from "./routines.module.css";
 
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
-
-export const metadata = { title: "Rotinas e mudanças" };
+export const metadata = { title: "Rotinas" };
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
-  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 function todayInZone(timeZone: string) {
@@ -43,16 +53,228 @@ function todayInZone(timeZone: string) {
   }).format(new Date());
 }
 
-function confidenceLabel(value: number) {
-  return `${Math.round(value * 100)}% de confiança`;
+function minuteNow(timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+
+  const number = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  return number("hour") * 60 + number("minute");
 }
 
-function dateTimeLabel(value: string, timeZone: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+function localMinute(value: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+
+  const number = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+
+  return number("hour") * 60 + number("minute");
+}
+
+function effectiveTolerance(camera: RoutineCameraDashboard) {
+  if (camera.sensitivity === "conservative") {
+    return Math.max(camera.graceMinutes, 30);
+  }
+  if (camera.sensitivity === "sensitive") {
+    return Math.min(camera.graceMinutes, 5);
+  }
+  return camera.graceMinutes;
+}
+
+function declaredForToday(camera: RoutineCameraDashboard) {
+  const schedule = camera.declaredSchedule;
+  if (!schedule.configured) {
+    return {
+      configured: false,
+      closed: false,
+      openMinute: null as number | null,
+      closeMinute: null as number | null,
+    };
+  }
+
+  const exception = schedule.exceptions.find(
+    (item) => item.date === camera.today.localDate,
+  );
+
+  if (exception) {
+    return {
+      configured: true,
+      closed: exception.closed,
+      openMinute: exception.openMinute,
+      closeMinute: exception.closeMinute,
+    };
+  }
+
+  const working = schedule.workingDays.includes(camera.today.dayOfWeek);
+  return {
+    configured: true,
+    closed: !working,
+    openMinute: working ? schedule.openMinute : null,
+    closeMinute: working ? schedule.closeMinute : null,
+  };
+}
+
+function todayStatus(camera: RoutineCameraDashboard) {
+  const declared = declaredForToday(camera);
+  const observedOpen = camera.today.observedOpenAt;
+  const nowMinute = minuteNow(camera.timezone);
+
+  if (declared.configured && declared.closed) {
+    return observedOpen
+      ? {
+          tone: "attention",
+          title: "Abertura observada em dia marcado como fechado",
+          detail: `Observado às ${formatMonitoringTime(
+            observedOpen,
+            camera.timezone,
+          )}.`,
+        }
+      : {
+          tone: "good",
+          title: "Sem funcionamento esperado hoje",
+          detail: "Nenhuma abertura foi confirmada até agora.",
+        };
+  }
+
+  if (declared.configured && declared.openMinute !== null) {
+    const tolerance = effectiveTolerance(camera);
+
+    if (observedOpen) {
+      const observedMinute = localMinute(observedOpen, camera.timezone);
+
+      if (observedMinute > declared.openMinute + tolerance) {
+        return {
+          tone: "attention",
+          title: "Abertura depois do horário informado",
+          detail: `Esperado ${routineMinuteToTime(
+            declared.openMinute,
+          )} · observado ${routineMinuteToTime(observedMinute)}.`,
+        };
+      }
+
+      if (observedMinute < declared.openMinute - tolerance) {
+        return {
+          tone: "neutral",
+          title: "Abertura antes do horário informado",
+          detail: `Esperado ${routineMinuteToTime(
+            declared.openMinute,
+          )} · observado ${routineMinuteToTime(observedMinute)}.`,
+        };
+      }
+
+      return {
+        tone: "good",
+        title: "Abertura dentro do horário informado",
+        detail: `Observado às ${routineMinuteToTime(observedMinute)}.`,
+      };
+    }
+
+    return nowMinute > declared.openMinute + tolerance
+      ? {
+          tone: "attention",
+          title: "Abertura ainda não confirmada",
+          detail: `Horário informado: ${routineMinuteToTime(
+            declared.openMinute,
+          )}.`,
+        }
+      : {
+          tone: "neutral",
+          title: "Aguardando o horário de abertura",
+          detail: `Horário informado: ${routineMinuteToTime(
+            declared.openMinute,
+          )}.`,
+        };
+  }
+
+  if (camera.learnedOpen) {
+    if (observedOpen) {
+      const observedMinute = localMinute(observedOpen, camera.timezone);
+      const inside =
+        observedMinute >= camera.learnedOpen.lowerValue &&
+        observedMinute <= camera.learnedOpen.upperValue;
+
+      return {
+        tone: inside ? "good" : "attention",
+        title: inside
+          ? "Abertura dentro do habitual"
+          : "Abertura fora da faixa habitual",
+        detail: `Observado ${routineMinuteToTime(
+          observedMinute,
+        )} · habitual ${routineRangeLabel({
+          lower: camera.learnedOpen.lowerValue,
+          center: camera.learnedOpen.centerValue,
+          upper: camera.learnedOpen.upperValue,
+          unit: camera.learnedOpen.unit,
+        })}.`,
+      };
+    }
+
+    return {
+      tone: "neutral",
+      title: "Monitorando a abertura de hoje",
+      detail: `Faixa habitual: ${routineRangeLabel({
+        lower: camera.learnedOpen.lowerValue,
+        center: camera.learnedOpen.centerValue,
+        upper: camera.learnedOpen.upperValue,
+        unit: camera.learnedOpen.unit,
+      })}.`,
+    };
+  }
+
+  return {
+    tone: "learning",
+    title: "Ainda aprendendo esta rotina",
+    detail:
+      "São necessários vários dias observados antes de formar uma faixa habitual.",
+  };
+}
+
+function declaredLabel(camera: RoutineCameraDashboard) {
+  const today = declaredForToday(camera);
+
+  if (!today.configured) return "Não informado";
+  if (today.closed) return "Fechado hoje";
+  if (today.openMinute === null || today.closeMinute === null) {
+    return "Horário parcial";
+  }
+
+  return `${routineMinuteToTime(today.openMinute)}–${routineMinuteToTime(
+    today.closeMinute,
+  )}`;
+}
+
+function learnedLabel(camera: RoutineCameraDashboard) {
+  if (!camera.learnedOpen && !camera.learnedClose) return "Ainda aprendendo";
+
+  const open = camera.learnedOpen
+    ? routineRangeLabel({
+        lower: camera.learnedOpen.lowerValue,
+        center: camera.learnedOpen.centerValue,
+        upper: camera.learnedOpen.upperValue,
+        unit: camera.learnedOpen.unit,
+      })
+    : "—";
+
+  const close = camera.learnedClose
+    ? routineRangeLabel({
+        lower: camera.learnedClose.lowerValue,
+        center: camera.learnedClose.centerValue,
+        upper: camera.learnedClose.upperValue,
+        unit: camera.learnedClose.unit,
+      })
+    : "—";
+
+  return `${open} · ${close}`;
 }
 
 export default async function RoutinesPage({
@@ -79,6 +301,7 @@ export default async function RoutinesPage({
   const today = todayInZone(timeZone);
   const fromDate = scalar(rawParams.from) || addDaysToDateOnly(today, -13);
   const toDate = scalar(rawParams.to) || today;
+  const canManage = ["owner", "admin"].includes(organization.role);
 
   const overview = await getRoutineOverview(organization.id, {
     from: dateOnlyToIso(fromDate, timeZone),
@@ -90,6 +313,10 @@ export default async function RoutinesPage({
     baselineStatus,
     limit: 160,
   });
+
+  const declaredCount = overview.cameras.filter(
+    (camera) => camera.declaredSchedule.configured,
+  ).length;
 
   return (
     <main className="dashboard-shell">
@@ -105,10 +332,10 @@ export default async function RoutinesPage({
             <span className="dashboard-eyebrow">
               ROTINAS · {organization.name.toUpperCase()}
             </span>
-            <h1>Rotinas e mudanças observadas</h1>
+            <h1>Rotinas da operação</h1>
             <p>
-              O MonitorIA identifica o que costuma acontecer e destaca mudanças
-              importantes, sem tirar conclusões sobre intenções.
+              Compare o horário que você informou, o padrão que o MonitorIA
+              aprendeu e o que realmente foi observado hoje.
             </p>
           </div>
 
@@ -124,17 +351,18 @@ export default async function RoutinesPage({
 
         <section className={styles.explanation}>
           <div>
-            <span>ANÁLISE CUIDADOSA</span>
-            <strong>Uma rotina só aparece depois de dias suficientes.</strong>
+            <span>TRÊS REFERÊNCIAS SEPARADAS</span>
+            <strong>Informado · aprendido · observado</strong>
           </div>
           <p>
-            Quando não há registro, isso não prova que algo não aconteceu. Uma
-            mudança indica apenas diferença em relação ao habitual.
+            O horário informado nunca substitui o aprendizado. O MonitorIA
+            mantém as duas referências separadas para mostrar quando o dia está
+            dentro do esperado ou diferente do habitual.
           </p>
         </section>
 
         <details className={styles.filterDisclosure}>
-          <summary>Filtros de rotinas e mudanças</summary>
+          <summary>Filtros</summary>
           <form className={styles.filters} method="get">
             <label>
               <span>De</span>
@@ -167,21 +395,21 @@ export default async function RoutinesPage({
               </select>
             </label>
             <label>
-              <span>Rotina de referência</span>
+              <span>Padrão aprendido</span>
               <select name="baseline" defaultValue={baselineStatus}>
                 <option value="all">Todos</option>
-                <option value="active">Ativos</option>
+                <option value="active">Disponíveis</option>
                 <option value="learning">Aprendendo</option>
-                <option value="stale">Desatualizados</option>
+                <option value="stale">Antigos</option>
               </select>
             </label>
             <label>
-              <span>Diferenças</span>
+              <span>Mudanças</span>
               <select name="status" defaultValue={status}>
-                <option value="all">Todos</option>
-                <option value="active">Ativos</option>
-                <option value="resolved">Resolvidos</option>
-                <option value="dismissed">Dispensados</option>
+                <option value="all">Todas</option>
+                <option value="active">Ativas</option>
+                <option value="resolved">Resolvidas</option>
+                <option value="dismissed">Dispensadas</option>
               </select>
             </label>
             <label>
@@ -200,33 +428,117 @@ export default async function RoutinesPage({
 
         <section className={styles.summaryGrid} aria-label="Resumo das rotinas">
           <article>
-            <span>ROTINAS IDENTIFICADAS</span>
+            <span>HORÁRIOS INFORMADOS</span>
+            <strong>{declaredCount}</strong>
+            <small>câmeras com referência definida por você</small>
+          </article>
+          <article>
+            <span>PADRÕES APRENDIDOS</span>
             <strong>{overview.summary.activeBaselines}</strong>
-            <small>padrões com amostra suficiente</small>
+            <small>faixas com observações suficientes</small>
           </article>
           <article>
-            <span>APRENDENDO</span>
-            <strong>{overview.summary.learningBaselines}</strong>
-            <small>aguardando mais dias observados</small>
-          </article>
-          <article>
-            <span>DIFERENÇAS ATIVAS</span>
+            <span>MUDANÇAS ATIVAS</span>
             <strong>{overview.summary.activeDeviations}</strong>
             <small>diferenças no período selecionado</small>
           </article>
           <article data-attention={overview.summary.importantDeviations > 0}>
-            <span>ALTA PRIORIDADE</span>
+            <span>PEDEM ATENÇÃO</span>
             <strong>{overview.summary.importantDeviations}</strong>
-            <small>diferenças importantes</small>
+            <small>prioridade alta ou crítica</small>
           </article>
         </section>
 
         <section className={styles.sectionHeading}>
           <div>
-            <span>PADRÕES APRENDIDOS</span>
-            <h2>Faixas habituais</h2>
+            <span>HOJE</span>
+            <h2>Esperado, habitual e observado</h2>
           </div>
-          <small>{overview.baselines.length} padrão(ões) exibido(s)</small>
+          <small>{overview.cameras.length} câmera(s)</small>
+        </section>
+
+        {overview.cameras.length ? (
+          <div className={styles.todayGrid}>
+            {overview.cameras.map((camera) => {
+              const state = todayStatus(camera);
+
+              return (
+                <article className={styles.todayCard} key={camera.id}>
+                  <div className={styles.todayHeading}>
+                    <div>
+                      <span>
+                        {camera.siteName} · {camera.name}
+                      </span>
+                      <h3>{state.title}</h3>
+                    </div>
+                    <span data-tone={state.tone}>{state.detail}</span>
+                  </div>
+
+                  <div className={styles.referenceGrid}>
+                    <div>
+                      <span>HORÁRIO INFORMADO</span>
+                      <strong>{declaredLabel(camera)}</strong>
+                      <small>
+                        {camera.declaredSchedule.configured
+                          ? routineSensitivityLabel(camera.sensitivity)
+                          : "Opcional"}
+                      </small>
+                    </div>
+                    <div>
+                      <span>PADRÃO APRENDIDO</span>
+                      <strong>{learnedLabel(camera)}</strong>
+                      <small>
+                        {camera.learnedOpen
+                          ? `Aprendido com ${camera.learnedOpen.dayCount} dia(s)`
+                          : "Aguardando mais dias"}
+                      </small>
+                    </div>
+                    <div>
+                      <span>OBSERVADO HOJE</span>
+                      <strong>
+                        {camera.today.observedOpenAt
+                          ? `Abriu ${formatMonitoringTime(
+                              camera.today.observedOpenAt,
+                              camera.timezone,
+                            )}`
+                          : "Abertura não confirmada"}
+                      </strong>
+                      <small>
+                        {camera.today.observedCloseAt
+                          ? `Fechou ${formatMonitoringTime(
+                              camera.today.observedCloseAt,
+                              camera.timezone,
+                            )}`
+                          : "Fechamento ainda não observado"}
+                      </small>
+                    </div>
+                  </div>
+
+                  {canManage ? (
+                    <RoutineScheduleEditor
+                      key={`${camera.id}:${camera.declaredSchedule.workingDays.join(",")}:${camera.declaredSchedule.openMinute}:${camera.declaredSchedule.closeMinute}:${camera.declaredSchedule.exceptions.length}`}
+                      cameraId={camera.id}
+                      cameraName={camera.name}
+                      sensitivity={camera.sensitivity}
+                      schedule={camera.declaredSchedule}
+                    />
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <strong>Nenhuma câmera encontrada para estes filtros.</strong>
+          </div>
+        )}
+
+        <section className={styles.sectionHeading}>
+          <div>
+            <span>O QUE COSTUMA ACONTECER</span>
+            <h2>Padrões aprendidos</h2>
+          </div>
+          <small>{overview.baselines.length} padrão(ões)</small>
         </section>
 
         {overview.baselines.length ? (
@@ -240,10 +552,10 @@ export default async function RoutinesPage({
                   </div>
                   <span data-baseline-status={baseline.status}>
                     {baseline.status === "active"
-                      ? "Ativo"
+                      ? "Aprendido"
                       : baseline.status === "learning"
                         ? "Aprendendo"
-                        : "Desatualizado"}
+                        : "Antigo"}
                   </span>
                 </div>
 
@@ -256,39 +568,53 @@ export default async function RoutinesPage({
                   })}
                 </strong>
 
-                <div className={styles.baselineMeta}>
-                  <span>
-                    {routineScopeLabel(baseline.dayOfWeek, baseline.bucketHour)}
-                  </span>
-                  {baseline.sessionType ? (
-                    <span>{baseline.sessionType.replaceAll("_", " ")}</span>
-                  ) : null}
-                  <span>{baseline.dayCount} dias</span>
-                  <span>{baseline.sampleCount} amostras</span>
-                  <span>{confidenceLabel(baseline.confidence)}</span>
-                </div>
+                <p className={styles.learnedFrom}>
+                  Aprendido com {baseline.dayCount} dia
+                  {baseline.dayCount === 1 ? "" : "s"} observado
+                  {baseline.dayCount === 1 ? "" : "s"}.
+                </p>
 
-                <small>
-                  Período analisado: {baseline.periodStart} a{" "}
-                  {baseline.periodEnd}
-                </small>
+                <MonitoringAnalysisDetails
+                  title="Detalhes do aprendizado"
+                  description="Amostras e nível de certeza usados para formar esta faixa."
+                >
+                  <dl className={styles.analysisList}>
+                    <div>
+                      <dt>Amostras</dt>
+                      <dd>{baseline.sampleCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Nível de certeza</dt>
+                      <dd>
+                        {monitoringConfidenceLabel(baseline.confidence)} ·{" "}
+                        {Math.round(baseline.confidence * 100)}%
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Período analisado</dt>
+                      <dd>
+                        {baseline.periodStart} a {baseline.periodEnd}
+                      </dd>
+                    </div>
+                  </dl>
+                </MonitoringAnalysisDetails>
               </article>
             ))}
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <strong>Ainda não existem rotinas para estes filtros.</strong>
+            <strong>O MonitorIA ainda está aprendendo estas rotinas.</strong>
             <p>
-              O MonitorIA precisa observar vários dias antes de identificar uma
-              faixa habitual confiável.
+              Os padrões aparecem quando existem dias suficientes com
+              observações comparáveis.
             </p>
           </div>
         )}
 
         <section className={styles.sectionHeading}>
           <div>
-            <span>COMPARAÇÃO COM O HABITUAL</span>
-            <h2>Diferenças observadas</h2>
+            <span>DIFERENÇAS</span>
+            <h2>O que saiu do esperado ou do habitual</h2>
           </div>
           <small>{overview.deviations.length} ocorrência(s)</small>
         </section>
@@ -314,61 +640,76 @@ export default async function RoutinesPage({
                 <p>{deviation.summary}</p>
 
                 <div className={styles.deviationMeta}>
-                  <span>{dateTimeLabel(deviation.observedAt, timeZone)}</span>
-                  <span>{confidenceLabel(deviation.confidence)}</span>
+                  <span>
+                    {formatMonitoringDateTime(deviation.observedAt, timeZone)}
+                  </span>
                   {deviation.observedValue !== null ? (
                     <span>
                       Observado:{" "}
-                      {routineValueLabel(
-                        deviation.observedValue,
-                        deviation.unit,
-                      )}
+                      {routineValueLabel(deviation.observedValue, deviation.unit)}
                     </span>
                   ) : null}
                   {deviation.expectedCenter !== null ? (
                     <span>
-                      Habitual:{" "}
-                      {routineValueLabel(
-                        deviation.expectedCenter,
-                        deviation.unit,
-                      )}
+                      Referência:{" "}
+                      {routineValueLabel(deviation.expectedCenter, deviation.unit)}
                     </span>
                   ) : null}
                   <span>
-                    {deviation.status === "active" ? "Ativo" : "Resolvido"}
+                    {deviation.status === "active" ? "Ativa" : "Resolvida"}
                   </span>
                 </div>
 
                 {deviation.evidenceEventIds.length ? (
                   <div className={styles.evidenceLinks}>
-                    {deviation.evidenceEventIds
-                      .slice(0, 5)
-                      .map((eventId, index) => (
-                        <Link
-                          href={`/dashboard/events/${eventId}`}
-                          key={eventId}
-                        >
-                          Evidência {index + 1}
-                        </Link>
-                      ))}
+                    {deviation.evidenceEventIds.slice(0, 5).map((eventId, index) => (
+                      <Link href={`/dashboard/events/${eventId}`} key={eventId}>
+                        Ver registro {index + 1}
+                      </Link>
+                    ))}
                   </div>
                 ) : (
                   <small>
-                    Esta diferença foi calculada pelo conjunto de registros do
-                    período e pode não ter um acontecimento individual.
+                    A comparação foi calculada pelo conjunto de observações
+                    disponíveis e pode não ter um registro individual.
                   </small>
                 )}
+
+                <MonitoringAnalysisDetails
+                  title="Detalhes da análise"
+                  description="Faixa numérica e nível de certeza usados nesta comparação."
+                >
+                  <dl className={styles.analysisList}>
+                    <div>
+                      <dt>Nível de certeza</dt>
+                      <dd>
+                        {monitoringConfidenceLabel(deviation.confidence)} ·{" "}
+                        {Math.round(deviation.confidence * 100)}%
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Limite inferior</dt>
+                      <dd>
+                        {routineValueLabel(deviation.expectedLower, deviation.unit)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Limite superior</dt>
+                      <dd>
+                        {routineValueLabel(deviation.expectedUpper, deviation.unit)}
+                      </dd>
+                    </div>
+                  </dl>
+                </MonitoringAnalysisDetails>
               </article>
             ))}
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <strong>
-              Nenhuma diferença encontrada para os filtros atuais.
-            </strong>
+            <strong>Nenhuma diferença encontrada para estes filtros.</strong>
             <p>
-              Isso significa apenas que não houve mudança registrada em relação
-              às rotinas disponíveis.
+              Isso significa apenas que não houve uma diferença registrada em
+              relação às referências disponíveis.
             </p>
           </div>
         )}
