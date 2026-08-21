@@ -1,0 +1,201 @@
+name: Build Agent Multicamera Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_version:
+        description: "Versão temporária do Agent para o teste multicâmera"
+        required: true
+        default: "1.0.2"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-test:
+    name: Agent Windows x64 - teste multicâmera
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Preparar versão temporária somente no runner
+        shell: pwsh
+        run: |
+          node scripts/bump-agent-version.mjs "${{ inputs.test_version }}"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao preparar a versão temporária." }
+
+      - name: Instalar Bun baseline 1.3.14
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-download-url: "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
+          no-cache: true
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar TypeScript do Agent
+        run: npx tsc --noEmit -p agent/tsconfig.json
+
+      - name: Compilar Agent de teste
+        shell: pwsh
+        run: |
+          Push-Location agent
+          try {
+            bun run build:win
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o Agent." }
+          }
+          finally {
+            Pop-Location
+          }
+
+          $exe = Resolve-Path "agent\dist\monitoria-agent.exe"
+          if ((Get-Item $exe).Length -lt 1000000) {
+            throw "Executável de teste incompleto."
+          }
+
+      - name: Exigir credenciais de assinatura
+        shell: pwsh
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
+        run: |
+          $faltando = @()
+          if ([string]::IsNullOrWhiteSpace($env:ESIGNER_USERNAME))      { $faltando += "ESIGNER_USERNAME" }
+          if ([string]::IsNullOrWhiteSpace($env:ESIGNER_PASSWORD))      { $faltando += "ESIGNER_PASSWORD" }
+          if ([string]::IsNullOrWhiteSpace($env:ESIGNER_CREDENTIAL_ID)) { $faltando += "ESIGNER_CREDENTIAL_ID" }
+          if ([string]::IsNullOrWhiteSpace($env:ESIGNER_TOTP_SECRET))   { $faltando += "ESIGNER_TOTP_SECRET" }
+          if ($faltando.Count -gt 0) {
+            throw "O Agent de teste só será gerado assinado. Faltando: $($faltando -join ', ')"
+          }
+
+      - name: Assinar Agent de teste
+        uses: sslcom/esigner-codesign@v1.3.2
+        with:
+          command: sign
+          username: ${{ secrets.ESIGNER_USERNAME }}
+          password: ${{ secrets.ESIGNER_PASSWORD }}
+          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
+          file_path: ${{ github.workspace }}\agent\dist\monitoria-agent.exe
+          output_path: ${{ github.workspace }}\agent-test-signed
+          malware_block: true
+          environment_name: PROD
+
+      - name: Montar pacote de teste e validar assinatura
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path test-package | Out-Null
+          Copy-Item "agent-test-signed\monitoria-agent.exe" "test-package\monitoria-agent.exe" -Force
+
+          $assinatura = Get-AuthenticodeSignature "test-package\monitoria-agent.exe"
+          if ($assinatura.Status -ne 'Valid') {
+            throw "Agent de teste sem assinatura válida: $($assinatura.Status)"
+          }
+          if (-not $assinatura.TimeStamperCertificate) {
+            throw "Agent de teste sem carimbo de tempo."
+          }
+
+          @'
+          @echo off
+          setlocal
+          net session >nul 2>&1
+          if not %errorlevel%==0 (
+            echo Solicitando permissao de administrador...
+            powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+            exit /b
+          )
+
+          set "DEST=%ProgramFiles%\MonitorIA"
+          set "TARGET=%DEST%\monitoria-agent.exe"
+          set "BACKUP=%DEST%\monitoria-agent-before-multicamera-test.exe"
+
+          if not exist "%TARGET%" (
+            echo Nao foi encontrado o Agent instalado em "%TARGET%".
+            pause
+            exit /b 1
+          )
+
+          echo Parando MonitorIAAgent...
+          sc stop MonitorIAAgent >nul 2>&1
+          timeout /t 4 /nobreak >nul
+
+          if not exist "%BACKUP%" copy /Y "%TARGET%" "%BACKUP%" >nul
+          copy /Y "%~dp0monitoria-agent.exe" "%TARGET%" >nul
+          if errorlevel 1 (
+            echo Nao foi possivel substituir o Agent.
+            sc start MonitorIAAgent >nul 2>&1
+            pause
+            exit /b 1
+          )
+
+          echo Iniciando MonitorIAAgent...
+          sc start MonitorIAAgent >nul 2>&1
+          timeout /t 3 /nobreak >nul
+          echo.
+          echo Agent multicamera de teste instalado. O pareamento, as cameras e o FFmpeg foram preservados.
+          pause
+          '@ | Set-Content -Path "test-package\INSTALAR-AGENT-TESTE.cmd" -Encoding ascii
+
+          @'
+          @echo off
+          setlocal
+          net session >nul 2>&1
+          if not %errorlevel%==0 (
+            echo Solicitando permissao de administrador...
+            powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+            exit /b
+          )
+
+          set "DEST=%ProgramFiles%\MonitorIA"
+          set "TARGET=%DEST%\monitoria-agent.exe"
+          set "BACKUP=%DEST%\monitoria-agent-before-multicamera-test.exe"
+
+          if not exist "%BACKUP%" (
+            echo Backup do Agent anterior nao encontrado. Reinstale o MonitorIA 1.0.1 para restaurar.
+            pause
+            exit /b 1
+          )
+
+          sc stop MonitorIAAgent >nul 2>&1
+          timeout /t 4 /nobreak >nul
+          copy /Y "%BACKUP%" "%TARGET%" >nul
+          if errorlevel 1 (
+            echo Nao foi possivel restaurar o Agent anterior.
+            pause
+            exit /b 1
+          )
+          sc start MonitorIAAgent >nul 2>&1
+          timeout /t 3 /nobreak >nul
+          echo Agent anterior restaurado.
+          pause
+          '@ | Set-Content -Path "test-package\RESTAURAR-AGENT-ANTERIOR.cmd" -Encoding ascii
+
+          @"
+          MonitorIA Agent ${{ inputs.test_version }} - teste multicâmera
+
+          1. Extraia este ZIP.
+          2. Execute INSTALAR-AGENT-TESTE.cmd.
+          3. Aceite a elevação de administrador.
+          4. Não apague nem altere agent.json, credenciais, FFmpeg ou WinSW.
+          5. Para voltar ao executável anterior, execute RESTAURAR-AGENT-ANTERIOR.cmd.
+
+          Este pacote troca somente monitoria-agent.exe e mantém todo o restante da instalação atual.
+          "@ | Set-Content -Path "test-package\LEIA-ME.txt" -Encoding utf8
+
+          $hash = (Get-FileHash "test-package\monitoria-agent.exe" -Algorithm SHA256).Hash.ToLower()
+          "SHA256: $hash" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "Versao de teste: ${{ inputs.test_version }}" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Publicar pacote de teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonitorIA-Agent-Multicamera-${{ inputs.test_version }}
+          path: test-package/*
+          if-no-files-found: error
+          retention-days: 7
