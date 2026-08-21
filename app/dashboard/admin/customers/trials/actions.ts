@@ -15,9 +15,11 @@ function adminRedirect(
   kind: "message" | "error",
   message: string,
   token?: string,
+  maxCameras?: number,
 ): never {
   const params = new URLSearchParams({ [kind]: message });
   if (token) params.set("token", token);
+  if (maxCameras) params.set("max_cameras", String(maxCameras));
   redirect(`${COMMERCIAL_PATH}?${params.toString()}`);
 }
 
@@ -191,6 +193,7 @@ export async function createSalesTrialInviteAction(formData: FormData) {
     "message",
     "Convite criado. Copie o link abaixo agora; por segurança ele não poderá ser recuperado depois.",
     token,
+    maxCameras,
   );
 }
 

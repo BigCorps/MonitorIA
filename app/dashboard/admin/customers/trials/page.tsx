@@ -7,6 +7,7 @@ import {
   revokeSalesTrialInviteAction,
   setSalesOperatorActiveAction,
 } from "./actions";
+import { CopyLinkButton } from "./copy-link-button";
 import styles from "./trials.module.css";
 
 export const metadata = { title: "Área comercial | MonitorIA" };
@@ -96,6 +97,11 @@ function stageLabel(
 function percentage(value: number, total: number) {
   if (!total) return "0%";
   return `${Math.round((value / total) * 100)}%`;
+}
+
+function cameraLimit(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 6 ? parsed : null;
 }
 
 export default async function SalesTrialsAdminPage({ searchParams }: Props) {
@@ -255,6 +261,7 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
     "",
   );
   const shareUrl = token ? `${origin}/lead/${token}` : null;
+  const shareMaxCameras = cameraLimit(firstValue(query.max_cameras));
   const activeOperators = operators.filter((row) => row.active);
 
   return (
@@ -267,8 +274,8 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
           <span>COMERCIAL · BIGCORPS</span>
           <h1>Trial comercial assistido</h1>
           <p>
-            Gere demonstrações de 60 minutos, acompanhe cada lead e veja quando a
-            venda for convertida.
+            Gere demonstrações de 60 minutos com 1 a 6 câmeras, acompanhe cada
+            lead e veja quando a venda for convertida.
           </p>
         </div>
         <div className={styles.operator}>
@@ -290,8 +297,26 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
 
         {shareUrl ? (
           <div className={styles.shareCard}>
-            <span>LINK GERADO · COPIE AGORA</span>
-            <strong>{shareUrl}</strong>
+            <div className={styles.shareTop}>
+              <div className={styles.shareCopy}>
+                <span>LINK GERADO · COPIE AGORA</span>
+                <strong className={styles.shareLink}>{shareUrl}</strong>
+              </div>
+              <CopyLinkButton value={shareUrl} />
+            </div>
+            <div className={styles.shareMeta}>
+              {shareMaxCameras ? (
+                <span>
+                  Este convite: <strong>até {shareMaxCameras} câmera(s)</strong>
+                </span>
+              ) : null}
+              <span>
+                Duração: <strong>60 minutos</strong>
+              </span>
+              <span>
+                Modo: <strong>Detalhada</strong>
+              </span>
+            </div>
             <p>
               Por segurança, apenas o código protegido fica salvo. Se perder este
               endereço, gere um novo convite.
@@ -445,7 +470,7 @@ export default async function SalesTrialsAdminPage({ searchParams }: Props) {
               <input name="company_name" type="text" />
             </label>
             <label>
-              <span>Máximo de câmeras</span>
+              <span>Máximo de câmeras neste convite</span>
               <select name="max_cameras" defaultValue="6">
                 <option value="1">1 câmera</option>
                 <option value="2">2 câmeras</option>
