@@ -5,6 +5,7 @@ import {
   getCurrentOrganization,
   getOrganizationCameras,
 } from "@/src/lib/dashboard-data";
+import { ensureSalesTrialForOrganization } from "@/src/lib/sales-trial-context";
 import { createClient } from "@/src/lib/supabase/server";
 import {
   effectiveTrialStatus,
@@ -46,7 +47,7 @@ function objectValue(value: unknown): Record<string, unknown> {
 function minutesLabel(minutes: number) {
   if (minutes % 60 === 0) {
     const hours = minutes / 60;
-    return hours === 1 ? "60 minutos" : `${hours} horas`;
+    return hours === 1 ? "1 hora" : `${hours} horas`;
   }
   return `${minutes} minutos`;
 }
@@ -55,6 +56,8 @@ export default async function SalesTrialPage({ searchParams }: Props) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
+
+  await ensureSalesTrialForOrganization(user, organization.id);
 
   const supabase = await createClient();
   const [trialResult, cameras, query] = await Promise.all([
@@ -172,6 +175,7 @@ export default async function SalesTrialPage({ searchParams }: Props) {
   const usedInteractions = Number(
     allowanceResult.data?.used_interactions ?? trial.interactions_used ?? 0,
   );
+  const readyToStart = status === "ready" && allReady;
 
   return (
     <main className="dashboard-shell">
@@ -206,6 +210,26 @@ export default async function SalesTrialPage({ searchParams }: Props) {
         ) : null}
         {firstValue(query.error) ? (
           <div className={styles.error}>{firstValue(query.error)}</div>
+        ) : null}
+
+        {readyToStart ? (
+          <section className={styles.startCard}>
+            <div>
+              <span>TUDO PRONTO</span>
+              <h2>Sua demonstração de {minutesLabel(durationMinutes)} está pronta</h2>
+              <p>
+                As {selectedCameras.length} câmera(s) selecionadas estão prontas.
+                O relógio só começa quando você clicar abaixo.
+              </p>
+            </div>
+            {canManage ? (
+              <form action={startSalesTrialAction}>
+                <button className={styles.startButton} type="submit">
+                  Iniciar minha {minutesLabel(durationMinutes)} agora
+                </button>
+              </form>
+            ) : null}
+          </section>
         ) : null}
 
         <section className={styles.facts}>
@@ -283,26 +307,6 @@ export default async function SalesTrialPage({ searchParams }: Props) {
                   <form action={refreshSalesTrialAction}>
                     <button className={styles.secondaryButton} type="submit">
                       Atualizar prontidão
-                    </button>
-                  </form>
-                ) : null}
-              </section>
-            ) : null}
-
-            {status === "ready" && allReady ? (
-              <section className={styles.startCard}>
-                <div>
-                  <span>PASSO 3 · TUDO PRONTO</span>
-                  <h2>O relógio ainda não começou</h2>
-                  <p>
-                    Ao clicar abaixo, todas as {selectedCameras.length} câmera(s)
-                    começam juntas e param automaticamente após {minutesLabel(durationMinutes)}.
-                  </p>
-                </div>
-                {canManage ? (
-                  <form action={startSalesTrialAction}>
-                    <button className={styles.startButton} type="submit">
-                      Iniciar meus {minutesLabel(durationMinutes)} agora
                     </button>
                   </form>
                 ) : null}

@@ -15,6 +15,14 @@ function salesTrialRedirect(
   );
 }
 
+function durationLabel(minutes: number) {
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 hora" : `${hours} horas`;
+  }
+  return `${minutes} minutos`;
+}
+
 function salesTrialError(message: string) {
   const normalized = message.toLowerCase();
 
@@ -77,6 +85,7 @@ function refreshPaths() {
   revalidatePath("/dashboard/trial/sales");
   revalidatePath("/dashboard/trial");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/events");
   revalidatePath("/dashboard/cameras");
   revalidatePath("/dashboard/plans");
 }
@@ -110,12 +119,13 @@ export async function prepareSalesTrialAction(formData: FormData) {
     data && typeof data === "object" && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : {};
+  const duration = durationLabel(Number(result.durationMinutes ?? 60));
 
   refreshPaths();
   salesTrialRedirect(
     "message",
     result.ready === true
-      ? "Todas as câmeras selecionadas estão prontas. Você já pode iniciar os 60 minutos."
+      ? `Todas as câmeras selecionadas estão prontas. Você já pode iniciar sua demonstração de ${duration}.`
       : "Seleção salva. Conclua as pendências indicadas antes de iniciar o relógio.",
   );
 }
@@ -170,10 +180,13 @@ export async function startSalesTrialAction() {
   }
 
   refreshPaths();
-  salesTrialRedirect(
-    "message",
-    result.duplicate === true
-      ? "A demonstração já estava em andamento."
-      : "Demonstração iniciada. O relógio de 60 minutos começou agora.",
+  const duration = durationLabel(Number(result.durationMinutes ?? 60));
+  redirect(
+    "/dashboard?message=" +
+      encodeURIComponent(
+        result.duplicate === true
+          ? `Sua demonstração de ${duration} já estava em andamento.`
+          : `Demonstração iniciada. O MonitorIA já está analisando as câmeras durante ${duration}.`,
+      ),
   );
 }

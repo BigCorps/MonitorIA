@@ -65,6 +65,31 @@ async function requireActiveInvite(token: string) {
   return invite;
 }
 
+async function redeemInviteForWorkspace(
+  token: string,
+  organizationId: string,
+  userId: string,
+) {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("redeem_sales_trial_invite", {
+    p_token_hash: hashSalesTrialToken(token),
+    p_organization_id: organizationId,
+    p_user_id: userId,
+  });
+
+  if (error) {
+    console.error("Falha ao aplicar convite comercial ao workspace:", error.message);
+    return false;
+  }
+
+  const result =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+
+  return result.success === true;
+}
+
 export async function loginLeadAccountAction(formData: FormData) {
   const token = safeToken(formData.get("token"));
   await requireActiveInvite(token);
@@ -270,7 +295,29 @@ export async function createLeadWorkspaceAction(formData: FormData) {
     );
   }
 
-  redirect(`/lead/${token}`);
+  // O convite é aplicado no mesmo request que cria a empresa. Assim o usuário
+  // nunca chega ao passo 4 como self-service, mesmo se depois navegar direto
+  // pelo dashboard e não voltar à página /lead.
+  const redeemed = await redeemInviteForWorkspace(
+    token,
+    organization.id,
+    user.id,
+  );
+
+  if (!redeemed) {
+    leadRedirect(
+      token,
+      "error",
+      "A empresa foi criada, mas o convite ainda precisa ser ativado. Clique novamente para continuar.",
+    );
+  }
+
+  redirect(
+    "/dashboard?message=" +
+      encodeURIComponent(
+        "Convite de demonstração aplicado. Siga a configuração guiada; o relógio ainda não começou.",
+      ),
+  );
 }
 
 export async function redeemSalesTrialInviteAction(formData: FormData) {
@@ -299,29 +346,18 @@ export async function redeemSalesTrialInviteAction(formData: FormData) {
     );
   }
 
-  const admin = createAdminClient();
-  const { data, error } = await admin.rpc("redeem_sales_trial_invite", {
-    p_token_hash: hashSalesTrialToken(token),
-    p_organization_id: organization.id,
-    p_user_id: user.id,
-  });
+  const redeemed = await redeemInviteForWorkspace(
+    token,
+    organization.id,
+    user.id,
+  );
 
-  if (error) {
-    console.error("Falha ao ativar convite comercial:", error.message);
+  if (!redeemed) {
     leadRedirect(
       token,
       "error",
       "Não foi possível ativar o teste comercial. Fale com a equipe MonitorIA.",
     );
-  }
-
-  const result =
-    data && typeof data === "object" && !Array.isArray(data)
-      ? (data as Record<string, unknown>)
-      : {};
-
-  if (result.success !== true) {
-    leadRedirect(token, "error", "O convite não pôde ser ativado.");
   }
 
   redirect(

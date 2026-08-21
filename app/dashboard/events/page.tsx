@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
+import { getCameraProfileWorkspace } from "@/src/lib/camera-profile-data";
 import {
   getCurrentOrganization,
   getOrganizationCameras,
@@ -15,14 +16,13 @@ import {
 import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { paginationWindow } from "@/src/lib/pagination";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import { EventExportButtons } from "./event-export-buttons";
 import { EventList } from "./event-list";
 import { EventsRealtimeRefresh } from "./events-realtime-refresh";
 import styles from "./events.module.css";
 import disclosureStyles from "./mobile-disclosure.module.css";
 import realtimeStyles from "./events-realtime-refresh.module.css";
-
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
 export const metadata = { title: "Acontecimentos" };
 export const dynamic = "force-dynamic";
@@ -54,6 +54,12 @@ function pageHref(current: Record<string, string>, page: number) {
   params.set("page", String(page));
   return `/dashboard/events?${params.toString()}`;
 }
+
+type StarterFrame = {
+  cameraName: string;
+  siteName: string;
+  url: string;
+};
 
 export default async function EventsPage({
   searchParams,
@@ -114,6 +120,35 @@ export default async function EventsPage({
   ].filter(Boolean).length;
   const visiblePages = paginationWindow(page, totalPages, 5);
 
+  let starterFrame: StarterFrame | null = null;
+
+  // No primeiro acesso ainda pode não existir um acontecimento consolidado,
+  // embora a imagem usada para criar o perfil da câmera já esteja salva.
+  // Mostramos essa referência sem fingir que ela é um acontecimento.
+  if (result.total === 0 && page === 1 && optionalFilterCount === 0) {
+    for (const camera of cameras.slice(0, 6)) {
+      try {
+        const workspace = await getCameraProfileWorkspace(
+          organization.id,
+          camera.id,
+        );
+        if (workspace.latestProfile && workspace.frame?.url) {
+          starterFrame = {
+            cameraName: camera.name,
+            siteName: camera.siteName,
+            url: workspace.frame.url,
+          };
+          break;
+        }
+      } catch (error) {
+        console.error(
+          "Falha ao carregar imagem inicial dos acontecimentos:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+  }
+
   return (
     <main className="dashboard-shell">
       <DashboardSidebar
@@ -135,10 +170,7 @@ export default async function EventsPage({
             </p>
           </div>
 
-          <Link
-            className="panel-primary-action"
-            href="/dashboard/search"
-          >
+          <Link className="panel-primary-action" href="/dashboard/search">
             Perguntar à Pesquisa IA
           </Link>
         </header>
@@ -162,20 +194,11 @@ export default async function EventsPage({
               </strong>
               <small>
                 {optionalFilterCount
-                  ? `${optionalFilterCount} filtro${
-                      optionalFilterCount === 1 ? "" : "s"
-                    } adicional${
-                      optionalFilterCount === 1 ? "" : "is"
-                    } ativo${
-                      optionalFilterCount === 1 ? "" : "s"
-                    }`
+                  ? `${optionalFilterCount} filtro${optionalFilterCount === 1 ? "" : "s"} adicional${optionalFilterCount === 1 ? "" : "is"} ativo${optionalFilterCount === 1 ? "" : "s"}`
                   : "Todos os locais, câmeras e tipos"}
               </small>
             </span>
-            <span
-              className={disclosureStyles.chevron}
-              aria-hidden="true"
-            >
+            <span className={disclosureStyles.chevron} aria-hidden="true">
               ⌄
             </span>
           </summary>
@@ -229,19 +252,13 @@ export default async function EventsPage({
               <label>
                 <span>Avaliação</span>
                 <select name="review" defaultValue={review}>
-                  <option value="all">
-                    Todos, exceto irrelevantes
-                  </option>
+                  <option value="all">Todos, exceto irrelevantes</option>
                   <option value="pending">Pendentes</option>
                   <option value="required">Precisam de revisão</option>
                   <option value="reviewed">Já avaliados</option>
                   <option value="useful">Confirmados como corretos</option>
-                  <option value="incorrect">
-                    Classificação corrigida
-                  </option>
-                  <option value="irrelevant">
-                    Marcados como irrelevantes
-                  </option>
+                  <option value="incorrect">Classificação corrigida</option>
+                  <option value="irrelevant">Marcados como irrelevantes</option>
                 </select>
               </label>
               <button type="submit">Aplicar filtros</button>
@@ -270,27 +287,59 @@ export default async function EventsPage({
           </div>
 
           <div className={realtimeStyles.headingMeta}>
-            <small>
-              Página {page} de {totalPages}
-            </small>
+            <small> Página {page} de {totalPages}</small>
             <EventsRealtimeRefresh organizationId={organization.id} />
           </div>
         </div>
 
-        <EventList
-          rows={result.rows}
-          timezone={timeZone}
-          detailParams={{
-            ...preserved,
-            page: String(page),
-          }}
-        />
+        {result.rows.length ? (
+          <EventList
+            rows={result.rows}
+            timezone={timeZone}
+            detailParams={{
+              ...preserved,
+              page: String(page),
+            }}
+          />
+        ) : starterFrame ? (
+          <section className={styles.card}>
+            <div className={styles.thumbnail}>
+              <img
+                src={starterFrame.url}
+                alt={`Imagem inicial da câmera ${starterFrame.cameraName}`}
+              />
+              <span>Imagem de referência</span>
+            </div>
+            <div className={styles.cardBody}>
+              <div className={styles.cardHeading}>
+                <div>
+                  <span>CONFIGURAÇÃO CONCLUÍDA</span>
+                  <h2>Perfil da câmera salvo</h2>
+                </div>
+              </div>
+              <p>
+                Esta é a primeira imagem recebida de {starterFrame.cameraName}
+                {starterFrame.siteName ? ` · ${starterFrame.siteName}` : ""}. O MonitorIA
+                já conhece o ambiente e começou a acompanhar a câmera. Esta imagem não é
+                um acontecimento; os primeiros registros aparecerão aqui assim que um
+                movimento relevante terminar e for analisado.
+              </p>
+              <div className={styles.meta}>
+                <span>Perfil salvo</span>
+                <span>Aguardando primeiro acontecimento</span>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <EventList
+            rows={[]}
+            timezone={timeZone}
+            emptyMessage="O MonitorIA está acompanhando as câmeras. Os primeiros acontecimentos aparecerão aqui assim que forem concluídos e analisados."
+          />
+        )}
 
         {totalPages > 1 ? (
-          <nav
-            className={styles.pagination}
-            aria-label="Paginação dos acontecimentos"
-          >
+          <nav className={styles.pagination} aria-label="Paginação dos acontecimentos">
             {page > 1 ? (
               <Link
                 className={styles.paginationDirection}
@@ -299,18 +348,13 @@ export default async function EventsPage({
                 ← Anterior
               </Link>
             ) : (
-              <span className={styles.paginationDirectionDisabled}>
-                ← Anterior
-              </span>
+              <span className={styles.paginationDirectionDisabled}>← Anterior</span>
             )}
 
             <div className={styles.paginationPages}>
               {visiblePages.hasPreviousBlock ? (
                 <Link
-                  href={pageHref(
-                    preserved,
-                    visiblePages.previousBlockPage,
-                  )}
+                  href={pageHref(preserved, visiblePages.previousBlockPage)}
                   aria-label="Mostrar as cinco páginas anteriores"
                 >
                   …
@@ -321,9 +365,7 @@ export default async function EventsPage({
                 <Link
                   key={pageNumber}
                   href={pageHref(preserved, pageNumber)}
-                  aria-current={
-                    pageNumber === page ? "page" : undefined
-                  }
+                  aria-current={pageNumber === page ? "page" : undefined}
                 >
                   {pageNumber}
                 </Link>
@@ -331,10 +373,7 @@ export default async function EventsPage({
 
               {visiblePages.hasNextBlock ? (
                 <Link
-                  href={pageHref(
-                    preserved,
-                    visiblePages.nextBlockPage,
-                  )}
+                  href={pageHref(preserved, visiblePages.nextBlockPage)}
                   aria-label="Mostrar as próximas cinco páginas"
                 >
                   …
@@ -350,9 +389,7 @@ export default async function EventsPage({
                 Próxima →
               </Link>
             ) : (
-              <span className={styles.paginationDirectionDisabled}>
-                Próxima →
-              </span>
+              <span className={styles.paginationDirectionDisabled}>Próxima →</span>
             )}
           </nav>
         ) : null}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { ensureSalesTrialForOrganization } from "@/src/lib/sales-trial-context";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./commercial-choice.module.css";
@@ -27,6 +28,15 @@ export default async function CommercialChoicePage({ searchParams }: Props) {
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
 
+  const originTrial = await ensureSalesTrialForOrganization(
+    user,
+    organization.id,
+  );
+
+  if (originTrial?.trialMode === "sales_assisted") {
+    redirect("/dashboard/trial/sales");
+  }
+
   const supabase = createAdminClient();
   const [cameraResult, entitlementResult, trialResult, query] = await Promise.all([
     supabase
@@ -40,7 +50,7 @@ export default async function CommercialChoicePage({ searchParams }: Props) {
       .eq("monitoring_allowed", true),
     supabase
       .from("trial_runs")
-      .select("status,capture_ends_at")
+      .select("status,capture_ends_at,trial_mode")
       .eq("organization_id", organization.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -54,12 +64,15 @@ export default async function CommercialChoicePage({ searchParams }: Props) {
   const trial = trialResult.data as {
     status?: string;
     capture_ends_at?: string | null;
+    trial_mode?: string;
   } | null;
+
+  if (trial?.trial_mode === "sales_assisted") {
+    redirect("/dashboard/trial/sales");
+  }
+
   const trialStatus = String(trial?.status ?? "");
 
-  // Esta rota só oferece o trial antes do primeiro uso.
-  // Depois que o relógio já começou uma vez, o cliente não vê novamente
-  // qualquer card ou CTA sugerindo um novo período gratuito.
   if (TRIAL_ALREADY_USED_STATUSES.has(trialStatus)) {
     if (["capture_completed", "exploration"].includes(trialStatus)) {
       redirect("/dashboard/trial");

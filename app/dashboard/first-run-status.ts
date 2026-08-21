@@ -2,6 +2,7 @@
 
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { ensureSalesTrialForOrganization } from "@/src/lib/sales-trial-context";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 
 export type FirstRunStage = 1 | 2 | 3 | 4 | 5;
@@ -42,6 +43,10 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
   };
 
   if (!organization) return empty;
+
+  // Se a conta nasceu por /lead e o usuário voltou pelo dashboard após confirmar
+  // o e-mail, recupera o convite antes de decidir se o passo 4 é 1h ou 24h.
+  await ensureSalesTrialForOrganization(user, organization.id);
 
   const supabase = createAdminClient();
 

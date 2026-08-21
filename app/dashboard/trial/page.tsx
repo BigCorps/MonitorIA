@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatBrl } from "@/src/billing/pricing";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { ensureSalesTrialForOrganization } from "@/src/lib/sales-trial-context";
 import { getTrialDashboardData } from "@/src/lib/trial-data";
 import {
   formatTrialDate,
@@ -16,6 +17,7 @@ import type {
   TrialRun,
 } from "@/src/trial/types";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import {
   prepareTrialAction,
   refreshTrialAction,
@@ -24,8 +26,6 @@ import {
 import { TrialAutoRefresh } from "./trial-auto-refresh";
 import { TrialCountdown } from "./trial-countdown";
 import styles from "./trial.module.css";
-
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
 export const metadata = { title: "Teste grátis" };
 export const dynamic = "force-dynamic";
@@ -184,6 +184,18 @@ export default async function TrialPage({ searchParams }: Props) {
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
 
+  // Esta página é exclusivamente o trial self-service da landing. Se a conta
+  // veio de um lead comercial, recupera/aplica o convite e usa a experiência
+  // assistida, evitando qualquer texto ou ação de 24 horas.
+  const originTrial = await ensureSalesTrialForOrganization(
+    user,
+    organization.id,
+  );
+
+  if (originTrial?.trialMode === "sales_assisted") {
+    redirect("/dashboard/trial/sales");
+  }
+
   const [data, query] = await Promise.all([
     getTrialDashboardData(organization.id, organization.role),
     searchParams,
@@ -194,6 +206,8 @@ export default async function TrialPage({ searchParams }: Props) {
   const selectedPlan = trial?.selectedPlanCode
     ? data.plans.find((plan) => plan.code === trial.selectedPlanCode) ?? null
     : null;
+  const readyToStart =
+    trial?.status === "ready" && Boolean(camera?.readiness.ready);
 
   return (
     <main className="dashboard-shell">
@@ -225,12 +239,31 @@ export default async function TrialPage({ searchParams }: Props) {
 
         <DashboardSectionTabs group="settings" />
 
-
         {query.message ? (
           <div className={styles.successNotice}>{query.message}</div>
         ) : null}
         {query.error ? (
           <div className={styles.errorNotice}>{query.error}</div>
+        ) : null}
+
+        {readyToStart ? (
+          <section className={styles.startCard}>
+            <div>
+              <span>TUDO PRONTO</span>
+              <h2>As 24 horas começam apenas quando você clicar</h2>
+              <p>
+                A câmera já está pronta. Depois de iniciado, a câmera e o modo
+                ficam bloqueados. Mantenha o computador e o Agent ligados.
+              </p>
+            </div>
+            {data.canManage ? (
+              <form action={startTrialAction}>
+                <button className={styles.startButton} type="submit">
+                  Iniciar minhas 24 horas grátis
+                </button>
+              </form>
+            ) : null}
+          </section>
         ) : null}
 
         <TrialFacts />
@@ -315,26 +348,6 @@ export default async function TrialPage({ searchParams }: Props) {
             </form>
 
             {camera ? <ReadinessPanel camera={camera} /> : null}
-
-            {trial?.status === "ready" && camera?.readiness.ready ? (
-              <section className={styles.startCard}>
-                <div>
-                  <span>TUDO PRONTO</span>
-                  <h2>As 24 horas começam apenas quando você clicar</h2>
-                  <p>
-                    Depois de iniciado, a câmera e o modo ficam bloqueados.
-                    Mantenha o computador e o Agent ligados durante o período.
-                  </p>
-                </div>
-                {data.canManage ? (
-                  <form action={startTrialAction}>
-                    <button className={styles.startButton} type="submit">
-                      Iniciar minhas 24 horas grátis
-                    </button>
-                  </form>
-                ) : null}
-              </section>
-            ) : null}
           </>
         ) : null}
 
@@ -413,9 +426,7 @@ export default async function TrialPage({ searchParams }: Props) {
               </div>
               <div>
                 <span>PERGUNTAS RESTANTES</span>
-                <strong>
-                  {data.allowance?.remainingInteractions ?? 0}
-                </strong>
+                <strong>{data.allowance?.remainingInteractions ?? 0}</strong>
               </div>
               <div>
                 <span>DADOS PROTEGIDOS ATÉ</span>
