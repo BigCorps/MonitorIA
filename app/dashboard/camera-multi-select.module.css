@@ -1,0 +1,129 @@
+.field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+
+.field > span {
+  color: #7b8da1;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.picker {
+  position: relative;
+}
+
+.picker > summary {
+  min-height: 39px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  color: #31465d;
+  border: 1px solid #dce4ec;
+  border-radius: 8px;
+  background: #fbfcfe;
+  font-size: 9px;
+}
+
+.picker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.picker > summary strong {
+  overflow: hidden;
+  font-size: inherit;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker > summary > span {
+  color: #73859a;
+  transition: transform 160ms ease;
+}
+
+.picker[open] > summary > span {
+  transform: rotate(180deg);
+}
+
+.menu {
+  width: min(330px, calc(100vw - 36px));
+  margin-top: 6px;
+  padding: 10px;
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dce5ed;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 31, 52, 0.14);
+}
+
+.allButton {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #dbe4ec;
+  border-radius: 8px;
+  color: #40576f;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
+.allButton[data-active="true"] {
+  color: #08745f;
+  border-color: #9ddfd0;
+  background: #edf9f5;
+}
+
+.options {
+  max-height: 240px;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+}
+
+.options label {
+  min-height: 34px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  color: #40576f;
+  background: #fff;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.options label:hover {
+  background: #f4f8fa;
+}
+
+.options input {
+  width: 15px !important;
+  min-height: 15px !important;
+  height: 15px;
+  margin: 0;
+  accent-color: #2bad92;
+}
+
+.menu small {
+  color: #8090a2;
+  font-size: 8px;
+  line-height: 1.45;
+}

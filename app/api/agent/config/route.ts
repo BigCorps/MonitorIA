@@ -81,8 +81,6 @@ async function claimDiscoveryRequest(
     );
 
     if (!credentials) {
-      // Sem credencial legível não há busca possível. Encerra com texto de
-      // tela e guarda o motivo técnico só no registro.
       await supabase
         .from("discovery_runs")
         .update({
@@ -368,6 +366,23 @@ export async function GET(request: NextRequest) {
     ignoreByProfile.set(profileId, list);
   }
 
+  const monitoringCameraCount = cameraRows.filter((camera: any) => {
+    const cameraId = String(camera.id);
+    return Boolean(profilesByCamera.get(cameraId)) &&
+      Boolean(entitlementsByCamera.get(cameraId)?.monitoring_allowed);
+  }).length;
+
+  // Compatibilidade do Agent 1.0.1 em DVR/NVR com limite pequeno de sessões
+  // RTSP: o modo Detalhada abria um stream para movimento e outro para o buffer
+  // de clipe em cada câmera. Com duas câmeras, a primeira podia consumir as
+  // conexões do equipamento antes da segunda receber seu primeiro quadro.
+  //
+  // Em 1.0.1 + 2 ou mais câmeras ativas, priorizamos o stream principal de
+  // cada câmera. Imagens, eventos e análise Detalhada continuam funcionando;
+  // somente o buffer contínuo de clipes é desativado nesse cenário.
+  const multiCamera101Compatibility =
+    agent.version === "1.0.1" && monitoringCameraCount > 1;
+
   const cameras = cameraRows.map((camera: any) => {
     const cameraId = String(camera.id);
     const activeProfile = profilesByCamera.get(cameraId) ?? null;
@@ -465,7 +480,9 @@ export async function GET(request: NextRequest) {
         entitlement?.maximum_analysis_frames ?? null,
       maximumEscalationPercent:
         entitlement?.maximum_escalation_percent ?? null,
-      clipEnabled: entitlement?.clip_enabled ?? false,
+      clipEnabled: multiCamera101Compatibility
+        ? false
+        : entitlement?.clip_enabled ?? false,
       clipDurationSeconds:
         entitlement?.clip_duration_seconds ?? null,
       clipRetentionDays:
@@ -480,9 +497,16 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     {
       ok: true,
-      configVersion: 4,
+      configVersion: multiCamera101Compatibility ? 5 : 4,
       agent: { id: agent.id, name: agent.name },
       cameras,
+      compatibility: multiCamera101Compatibility
+        ? {
+            mode: "multi_camera_1_0_1",
+            clipsDisabled: true,
+            reason: "prioritize_primary_rtsp_streams",
+          }
+        : null,
       discovery: discovery.pending,
       pollSeconds: discovery.active ? ACTIVE_POLL_SECONDS : IDLE_POLL_SECONDS,
       serverTime: new Date().toISOString(),

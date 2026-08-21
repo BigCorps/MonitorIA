@@ -7,6 +7,7 @@ export type AuthenticatedAgent = {
   organizationId: string;
   siteId: string;
   name: string;
+  version: string;
   metadata: Record<string, unknown>;
 };
 
@@ -27,7 +28,7 @@ export async function authenticateAgent(request: NextRequest): Promise<Authentic
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("agents")
-    .select("id,organization_id,site_id,name,metadata")
+    .select("id,organization_id,site_id,name,version,metadata")
     .eq("agent_token_hash", tokenHash)
     .neq("status", "disabled")
     .maybeSingle();
@@ -43,6 +44,7 @@ export async function authenticateAgent(request: NextRequest): Promise<Authentic
     organizationId: String(data.organization_id),
     siteId: String(data.site_id),
     name: String(data.name),
+    version: String(data.version ?? ""),
     metadata,
   };
 }

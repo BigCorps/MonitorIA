@@ -11,14 +11,22 @@ import {
   dateOnlyToIso,
   siteTimezone,
 } from "@/src/lib/event-search-data";
-import { searchOperationalSessions } from "@/src/lib/operational-session-data";
+import {
+  searchOperationalSessions,
+  type OperationalSessionRow,
+  type OperationalSessionSearchInput,
+} from "@/src/lib/operational-session-data";
 import { OPERATIONAL_SESSION_TYPE_OPTIONS } from "@/src/lib/operational-session-labels";
+import {
+  cameraSelectionCsv,
+  parseCameraSelection,
+} from "@/src/lib/camera-selection";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
+import { CameraMultiSelect } from "../camera-multi-select";
 import { SessionList } from "./session-list";
 import { SessionsRealtimeRefresh } from "./sessions-realtime-refresh";
 import styles from "./sessions.module.css";
-
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
 
 export const metadata = { title: "Períodos" };
 export const dynamic = "force-dynamic";
@@ -44,6 +52,59 @@ function pageHref(current: Record<string, string>, page: number) {
   return `/dashboard/sessions?${params.toString()}`;
 }
 
+async function searchSelectedSessions(
+  organizationId: string,
+  cameraIds: string[],
+  input: Omit<
+    OperationalSessionSearchInput,
+    "cameraId" | "limit" | "offset"
+  > & { limit: number; offset: number },
+) {
+  if (cameraIds.length <= 1) {
+    return searchOperationalSessions(organizationId, {
+      ...input,
+      cameraId: cameraIds[0] ?? null,
+    });
+  }
+
+  const needed = input.offset + input.limit;
+
+  async function loadCamera(cameraId: string) {
+    const rows: OperationalSessionRow[] = [];
+    let total = 0;
+    let offset = 0;
+
+    do {
+      const batchLimit = Math.min(100, Math.max(1, needed - rows.length));
+      const result = await searchOperationalSessions(organizationId, {
+        ...input,
+        cameraId,
+        limit: batchLimit,
+        offset,
+      });
+      total = result.total;
+      rows.push(...result.rows);
+      offset += result.rows.length;
+      if (!result.rows.length) break;
+    } while (rows.length < needed && rows.length < total);
+
+    return { rows, total };
+  }
+
+  const groups = await Promise.all(cameraIds.map(loadCamera));
+  const merged = groups
+    .flatMap((group) => group.rows)
+    .sort(
+      (left, right) =>
+        new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime(),
+    );
+
+  return {
+    rows: merged.slice(input.offset, input.offset + input.limit),
+    total: groups.reduce((sum, group) => sum + group.total, 0),
+  };
+}
+
 export default async function SessionsPage({
   searchParams,
 }: {
@@ -60,7 +121,10 @@ export default async function SessionsPage({
   ]);
 
   const siteId = scalar(rawParams.site);
-  const cameraId = scalar(rawParams.camera);
+  const cameraIds = parseCameraSelection(
+    rawParams.cameras ?? rawParams.camera,
+    cameras,
+  );
   const timeZone = siteTimezone(sites, siteId);
   const today = todayInZone(timeZone);
   const fromDate = scalar(rawParams.from) || addDaysToDateOnly(today, -6);
@@ -73,10 +137,9 @@ export default async function SessionsPage({
   );
   const limit = 24;
 
-  const result = await searchOperationalSessions(organization.id, {
+  const result = await searchSelectedSessions(organization.id, cameraIds, {
     from: dateOnlyToIso(fromDate, timeZone),
     to: dateOnlyToIso(addDaysToDateOnly(toDate, 1), timeZone),
-    cameraId,
     siteId,
     sessionType,
     status,
@@ -89,7 +152,7 @@ export default async function SessionsPage({
     from: fromDate,
     to: toDate,
     ...(siteId ? { site: siteId } : {}),
-    ...(cameraId ? { camera: cameraId } : {}),
+    ...(cameraIds.length ? { cameras: cameraSelectionCsv(cameraIds) } : {}),
     ...(sessionType ? { type: sessionType } : {}),
     ...(status !== "all" ? { status } : {}),
   };
@@ -142,17 +205,7 @@ export default async function SessionsPage({
               ))}
             </select>
           </label>
-          <label>
-            <span>Câmera</span>
-            <select name="camera" defaultValue={cameraId}>
-              <option value="">Todas as câmeras</option>
-              {cameras.map((camera) => (
-                <option key={camera.id} value={camera.id}>
-                  {camera.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CameraMultiSelect cameras={cameras} selectedIds={cameraIds} />
           <label>
             <span>Tipo</span>
             <select name="type" defaultValue={sessionType}>

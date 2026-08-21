@@ -14,6 +14,7 @@ type Props = {
     review: string;
   };
   total: number;
+  multiCameraSelection?: boolean;
 };
 
 function exportUrl(
@@ -29,11 +30,20 @@ function exportUrl(
   return `/api/events/export?${params.toString()}`;
 }
 
-export function EventExportButtons({ filters, total }: Props) {
+export function EventExportButtons({
+  filters,
+  total,
+  multiCameraSelection = false,
+}: Props) {
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
 
   async function copy(format: "md" | "json") {
+    if (multiCameraSelection) {
+      setStatus("Para exportar, use Todas as câmeras ou selecione apenas uma câmera.");
+      return;
+    }
+
     setPending(true);
     setStatus("");
     try {
@@ -54,6 +64,10 @@ export function EventExportButtons({ filters, total }: Props) {
   }
 
   function download(format: "md" | "json") {
+    if (multiCameraSelection) {
+      setStatus("Para exportar, use Todas as câmeras ou selecione apenas uma câmera.");
+      return;
+    }
     window.location.href = exportUrl(filters, format, true);
   }
 
@@ -65,7 +79,11 @@ export function EventExportButtons({ filters, total }: Props) {
           <strong>
             {total} acontecimento{total === 1 ? "" : "s"} em Markdown ou JSON
           </strong>
-          <small>Toque para ver as opções de copiar e baixar</small>
+          <small>
+            {multiCameraSelection
+              ? "Seleções com várias câmeras podem ser consultadas na tela; exporte Todas ou uma câmera por vez"
+              : "Toque para ver as opções de copiar e baixar"}
+          </small>
         </span>
         <span
           className={disclosureStyles.chevron}
@@ -96,22 +114,30 @@ export function EventExportButtons({ filters, total }: Props) {
           <div className={styles.actions}>
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || multiCameraSelection}
               onClick={() => void copy("md")}
             >
               Copiar Markdown
             </button>
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || multiCameraSelection}
               onClick={() => void copy("json")}
             >
               Copiar JSON
             </button>
-            <button type="button" onClick={() => download("md")}>
+            <button
+              type="button"
+              disabled={multiCameraSelection}
+              onClick={() => download("md")}
+            >
               Baixar .md
             </button>
-            <button type="button" onClick={() => download("json")}>
+            <button
+              type="button"
+              disabled={multiCameraSelection}
+              onClick={() => download("json")}
+            >
               Baixar .json
             </button>
           </div>

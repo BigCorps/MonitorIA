@@ -12,10 +12,17 @@ import {
   dateOnlyToIso,
   searchEvents,
   siteTimezone,
+  type EventSearchInput,
+  type SearchEventRow,
 } from "@/src/lib/event-search-data";
 import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { paginationWindow } from "@/src/lib/pagination";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { CameraMultiSelect } from "../camera-multi-select";
+import {
+  cameraSelectionCsv,
+  parseCameraSelection,
+} from "@/src/lib/camera-selection";
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import { EventExportButtons } from "./event-export-buttons";
 import { EventList } from "./event-list";
@@ -55,6 +62,60 @@ function pageHref(current: Record<string, string>, page: number) {
   return `/dashboard/events?${params.toString()}`;
 }
 
+
+async function searchSelectedEvents(
+  organizationId: string,
+  cameraIds: string[],
+  input: Omit<EventSearchInput, "cameraId" | "limit" | "offset"> & {
+    limit: number;
+    offset: number;
+  },
+) {
+  if (cameraIds.length <= 1) {
+    return searchEvents(organizationId, {
+      ...input,
+      cameraId: cameraIds[0] ?? null,
+    });
+  }
+
+  const needed = input.offset + input.limit;
+
+  async function loadCamera(cameraId: string) {
+    const rows: SearchEventRow[] = [];
+    let total = 0;
+    let offset = 0;
+
+    do {
+      const batchLimit = Math.min(200, Math.max(1, needed - rows.length));
+      const result = await searchEvents(organizationId, {
+        ...input,
+        cameraId,
+        limit: batchLimit,
+        offset,
+      });
+      total = result.total;
+      rows.push(...result.rows);
+      offset += result.rows.length;
+      if (!result.rows.length) break;
+    } while (rows.length < needed && rows.length < total);
+
+    return { rows, total };
+  }
+
+  const groups = await Promise.all(cameraIds.map(loadCamera));
+  const merged = groups
+    .flatMap((group) => group.rows)
+    .sort(
+      (left, right) =>
+        new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime(),
+    );
+
+  return {
+    rows: merged.slice(input.offset, input.offset + input.limit),
+    total: groups.reduce((sum, group) => sum + group.total, 0),
+  };
+}
+
 type StarterFrame = {
   cameraName: string;
   siteName: string;
@@ -77,7 +138,10 @@ export default async function EventsPage({
   ]);
 
   const siteId = scalar(rawParams.site);
-  const cameraId = scalar(rawParams.camera);
+  const cameraIds = parseCameraSelection(
+    rawParams.cameras ?? rawParams.camera,
+    cameras,
+  );
   const timeZone = siteTimezone(sites, siteId);
   const today = todayInZone(timeZone);
   const defaultFrom = addDaysToDateOnly(today, -6);
@@ -91,10 +155,9 @@ export default async function EventsPage({
   );
   const limit = 24;
 
-  const result = await searchEvents(organization.id, {
+  const result = await searchSelectedEvents(organization.id, cameraIds, {
     from: dateOnlyToIso(fromDate, timeZone),
     to: dateOnlyToIso(addDaysToDateOnly(toDate, 1), timeZone),
-    cameraId,
     siteId,
     eventType,
     reviewFilter: review,
@@ -107,14 +170,14 @@ export default async function EventsPage({
     from: fromDate,
     to: toDate,
     ...(siteId ? { site: siteId } : {}),
-    ...(cameraId ? { camera: cameraId } : {}),
+    ...(cameraIds.length ? { cameras: cameraSelectionCsv(cameraIds) } : {}),
     ...(eventType ? { type: eventType } : {}),
     ...(review !== "all" ? { review } : {}),
   };
 
   const optionalFilterCount = [
     siteId,
-    cameraId,
+    cameraIds.length ? "cameras" : "",
     eventType,
     review !== "all" ? review : "",
   ].filter(Boolean).length;
@@ -125,8 +188,12 @@ export default async function EventsPage({
   // No primeiro acesso ainda pode não existir um acontecimento consolidado,
   // embora a imagem usada para criar o perfil da câmera já esteja salva.
   // Mostramos essa referência sem fingir que ela é um acontecimento.
-  if (result.total === 0 && page === 1 && optionalFilterCount === 0) {
-    for (const camera of cameras.slice(0, 6)) {
+  if (result.total === 0 && page === 1) {
+    const starterCameras = cameraIds.length
+      ? cameras.filter((camera) => cameraIds.includes(camera.id))
+      : cameras;
+
+    for (const camera of starterCameras.slice(0, 6)) {
       try {
         const workspace = await getCameraProfileWorkspace(
           organization.id,
@@ -227,17 +294,10 @@ export default async function EventsPage({
                   ))}
                 </select>
               </label>
-              <label>
-                <span>Câmera</span>
-                <select name="camera" defaultValue={cameraId}>
-                  <option value="">Todas as câmeras</option>
-                  {cameras.map((camera) => (
-                    <option key={camera.id} value={camera.id}>
-                      {camera.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <CameraMultiSelect
+                cameras={cameras}
+                selectedIds={cameraIds}
+              />
               <label>
                 <span>Tipo</span>
                 <select name="type" defaultValue={eventType}>
@@ -272,10 +332,11 @@ export default async function EventsPage({
             from: fromDate,
             to: toDate,
             site: siteId,
-            camera: cameraId,
+            camera: cameraIds.length === 1 ? cameraIds[0] : "",
             type: eventType,
             review,
           }}
+          multiCameraSelection={cameraIds.length > 1}
         />
 
         <div className={styles.resultHeading}>
