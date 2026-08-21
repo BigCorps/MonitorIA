@@ -173,6 +173,14 @@ export async function getOperationalAlertOverview(
   };
 }
 
+function framePriority(value: unknown) {
+  const label = String(value ?? "").toLowerCase();
+  if (label === "peak") return 0;
+  if (label === "start") return 1;
+  if (label === "end") return 2;
+  return 3;
+}
+
 export async function getCrossCameraJourneys(
   organizationId: string,
   limit = 100,
@@ -183,7 +191,8 @@ export async function getCrossCameraJourneys(
     .select(`
       id,subject_type,from_event_id,to_event_id,observed_from,observed_to,
       travel_seconds,probable_direction,confidence,summary,competing_hypotheses,
-      site:sites(name),from_camera:cameras!cross_camera_journeys_from_camera_id_fkey(name),
+      site:sites(name,timezone),
+      from_camera:cameras!cross_camera_journeys_from_camera_id_fkey(name),
       to_camera:cameras!cross_camera_journeys_to_camera_id_fkey(name)
     `)
     .eq("organization_id", organizationId)
@@ -195,19 +204,73 @@ export async function getCrossCameraJourneys(
     throw new Error(`cross_camera_journeys_unavailable:${error.message}`);
   }
 
-  return (data ?? []).map((row: any) => {
-    const site = relationOne<{ name?: string }>(row.site);
+  const rows = data ?? [];
+  const eventIds = Array.from(
+    new Set(
+      rows.flatMap((row: any) => [
+        String(row.from_event_id),
+        String(row.to_event_id),
+      ]),
+    ),
+  ).filter(Boolean);
+
+  const bestAssetByEvent = new Map<
+    string,
+    { id: string; priority: number }
+  >();
+
+  if (eventIds.length) {
+    const { data: assetRows, error: assetError } = await supabase
+      .from("storage_assets")
+      .select("id,event_id,frame_label,captured_at")
+      .eq("organization_id", organizationId)
+      .in("event_id", eventIds)
+      .eq("status", "ready")
+      .is("deleted_at", null)
+      .neq("kind", "preserved_clip")
+      .order("captured_at", { ascending: true });
+
+    if (assetError) {
+      console.error(
+        "Falha ao carregar imagens das passagens entre câmeras:",
+        assetError.message,
+      );
+    } else {
+      for (const asset of assetRows ?? []) {
+        const eventId = asset.event_id ? String(asset.event_id) : "";
+        if (!eventId) continue;
+
+        const candidate = {
+          id: String(asset.id),
+          priority: framePriority(asset.frame_label),
+        };
+        const current = bestAssetByEvent.get(eventId);
+
+        if (!current || candidate.priority < current.priority) {
+          bestAssetByEvent.set(eventId, candidate);
+        }
+      }
+    }
+  }
+
+  return rows.map((row: any) => {
+    const site = relationOne<{ name?: string; timezone?: string }>(row.site);
     const fromCamera = relationOne<{ name?: string }>(row.from_camera);
     const toCamera = relationOne<{ name?: string }>(row.to_camera);
+    const fromEventId = String(row.from_event_id);
+    const toEventId = String(row.to_event_id);
 
     return {
       id: String(row.id),
       subjectType: String(row.subject_type) as CrossCameraJourney["subjectType"],
       siteName: String(site?.name ?? "Local"),
+      siteTimezone: site?.timezone ? String(site.timezone) : null,
       fromCameraName: String(fromCamera?.name ?? "Câmera"),
       toCameraName: String(toCamera?.name ?? "Câmera"),
-      fromEventId: String(row.from_event_id),
-      toEventId: String(row.to_event_id),
+      fromEventId,
+      toEventId,
+      fromAssetId: bestAssetByEvent.get(fromEventId)?.id ?? null,
+      toAssetId: bestAssetByEvent.get(toEventId)?.id ?? null,
       observedFrom: String(row.observed_from),
       observedTo: String(row.observed_to),
       travelSeconds: Number(row.travel_seconds),

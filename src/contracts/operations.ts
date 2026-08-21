@@ -44,10 +44,13 @@ export type CrossCameraJourney = {
   id: string;
   subjectType: "person" | "vehicle";
   siteName: string;
+  siteTimezone: string | null;
   fromCameraName: string;
   toCameraName: string;
   fromEventId: string;
   toEventId: string;
+  fromAssetId: string | null;
+  toAssetId: string | null;
   observedFrom: string;
   observedTo: string;
   travelSeconds: number;

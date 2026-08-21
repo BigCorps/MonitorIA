@@ -3,58 +3,183 @@ import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { getCrossCameraJourneys } from "@/src/lib/operations-data";
+import { formatMonitoringDateTime } from "@/src/lib/monitoring-display";
 import { IntelligencePageFrame } from "../intelligence-page-frame";
-import styles from "../../operations/operations.module.css";
+import styles from "./cross-camera.module.css";
 
-export const metadata = { title: "Passagens entre câmeras" };
+export const metadata = { title: "Entre câmeras | MonitorIA" };
 export const dynamic = "force-dynamic";
 
-function confidence(value: number) {
-  return `${Math.round(value * 100)}%`;
+function approximateTravel(seconds: number) {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+
+  if (safeSeconds < 60) {
+    return `Aproximadamente ${safeSeconds} segundo${safeSeconds === 1 ? "" : "s"}`;
+  }
+
+  const minutes = Math.max(1, Math.round(safeSeconds / 60));
+  return `Aproximadamente ${minutes} minuto${minutes === 1 ? "" : "s"}`;
+}
+
+function subjectLabel(subjectType: "person" | "vehicle") {
+  return subjectType === "person" ? "Pessoa" : "Veículo";
+}
+
+function humanExplanation(subjectType: "person" | "vehicle") {
+  if (subjectType === "person") {
+    return "Os registros parecem mostrar a mesma pessoa, mas o MonitorIA não faz reconhecimento facial.";
+  }
+
+  return "Os registros parecem mostrar o mesmo veículo com base nas características visíveis e no intervalo entre as câmeras.";
+}
+
+function VisualRecord({
+  assetId,
+  eventId,
+  cameraName,
+  observedAt,
+  timezone,
+  position,
+}: {
+  assetId: string | null;
+  eventId: string;
+  cameraName: string;
+  observedAt: string;
+  timezone: string | null;
+  position: "Primeiro registro" | "Segundo registro";
+}) {
+  return (
+    <figure className={styles.visualRecord}>
+      <Link
+        href={`/dashboard/events/${eventId}`}
+        className={styles.visualLink}
+        aria-label={`Abrir ${position.toLowerCase()} em ${cameraName}`}
+      >
+        {assetId ? (
+          <img
+            src={`/api/storage-assets/${assetId}`}
+            alt={`${position} em ${cameraName}`}
+            loading="lazy"
+          />
+        ) : (
+          <div className={styles.imageUnavailable}>
+            <span>Imagem não disponível</span>
+            <small>O registro ainda pode ser consultado.</small>
+          </div>
+        )}
+      </Link>
+      <figcaption>
+        <span>{position}</span>
+        <strong>{cameraName}</strong>
+        <small>{formatMonitoringDateTime(observedAt, timezone)}</small>
+      </figcaption>
+    </figure>
+  );
 }
 
 export default async function CrossCameraPage() {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
+
   const journeys = await getCrossCameraJourneys(organization.id);
 
   return (
     <IntelligencePageFrame
       organizationName={organization.name}
       userEmail={user.email}
-      eyebrow={`SEQUÊNCIAS · ${organization.name.toUpperCase()}`}
-      title="Passagens prováveis entre câmeras"
-      description="Hipóteses temporárias formadas por janela de tempo e características visíveis, sem reconhecimento facial."
-      actions={<Link className="panel-primary-action" href="/dashboard/search">Perguntar à Pesquisa IA</Link>}
+      eyebrow={`ENTRE CÂMERAS · ${organization.name.toUpperCase()}`}
+      title="Entre câmeras"
+      description="Veja quando registros recentes parecem mostrar uma passagem da mesma pessoa ou veículo entre câmeras diferentes do mesmo local."
+      actions={
+        <Link className="panel-primary-action" href="/dashboard/search">
+          Perguntar à Pesquisa IA
+        </Link>
+      }
     >
-      <div className={styles.notice}>
-        <h2>Hipóteses, não identidades</h2>
-        <p>Uma aparência semelhante pode pertencer a pessoas ou veículos diferentes. O MonitorIA mostra a hipótese concorrente e mantém os registros por no máximo 24 horas.</p>
-      </div>
+      <section className={styles.notice}>
+        <div className={styles.noticeIcon} aria-hidden="true">
+          i
+        </div>
+        <div>
+          <strong>Comparação visual, sem reconhecimento facial</strong>
+          <p>
+            O MonitorIA compara tempo e características visíveis dos registros.
+            O resultado é uma possibilidade para ajudar na análise, não uma
+            confirmação de identidade.
+          </p>
+        </div>
+      </section>
+
       {journeys.length ? (
-        <div className={styles.cards}>
+        <section className={styles.cards} aria-label="Passagens recentes entre câmeras">
           {journeys.map((journey) => (
             <article className={styles.card} key={journey.id}>
-              <header>
-                <div><span className={styles.eyebrow}>{journey.siteName} · {journey.subjectType === "person" ? "Pessoa provável" : "Veículo provável"}</span><h2>{journey.probableDirection}</h2></div>
-                <span className={`${styles.badge} ${styles.info}`}>{confidence(journey.confidence)}</span>
+              <header className={styles.cardHeader}>
+                <div>
+                  <span className={styles.eyebrow}>
+                    {journey.siteName} · {subjectLabel(journey.subjectType)}
+                  </span>
+                  <h2>Possível passagem entre câmeras</h2>
+                  <p className={styles.route}>
+                    {journey.fromCameraName} <span aria-hidden="true">→</span>{" "}
+                    {journey.toCameraName}
+                  </p>
+                </div>
+                <span className={styles.timeBadge}>
+                  {approximateTravel(journey.travelSeconds)}
+                </span>
               </header>
-              <p>{journey.summary}</p>
-              <div className={styles.journeyMeta}>
-                <span>{new Date(journey.observedFrom).toLocaleString("pt-BR")}</span>
-                <span>{journey.travelSeconds}s entre observações</span>
-                <span>{journey.competingHypotheses.length} hipóteses consideradas</span>
+
+              <div className={styles.visualGrid}>
+                <VisualRecord
+                  assetId={journey.fromAssetId}
+                  eventId={journey.fromEventId}
+                  cameraName={journey.fromCameraName}
+                  observedAt={journey.observedFrom}
+                  timezone={journey.siteTimezone}
+                  position="Primeiro registro"
+                />
+                <VisualRecord
+                  assetId={journey.toAssetId}
+                  eventId={journey.toEventId}
+                  cameraName={journey.toCameraName}
+                  observedAt={journey.observedTo}
+                  timezone={journey.siteTimezone}
+                  position="Segundo registro"
+                />
               </div>
-              <footer>
-                <span className={styles.muted}>Câmeras: {journey.fromCameraName} → {journey.toCameraName}</span>
-                <span className={styles.eventLinks}><Link href={`/dashboard/events/${journey.fromEventId}`}>Primeira evidência</Link><Link href={`/dashboard/events/${journey.toEventId}`}>Segunda evidência</Link></span>
+
+              <div className={styles.explanation}>
+                <strong>O que o MonitorIA percebeu</strong>
+                <p>{humanExplanation(journey.subjectType)}</p>
+              </div>
+
+              <footer className={styles.cardFooter}>
+                <Link href={`/dashboard/events/${journey.fromEventId}`}>
+                  Ver primeiro registro
+                </Link>
+                <Link href={`/dashboard/events/${journey.toEventId}`}>
+                  Ver segundo registro
+                </Link>
               </footer>
             </article>
           ))}
-        </div>
-      ) : <div className={styles.empty}><h3>Nenhuma passagem provável recente</h3><p className={styles.muted}>As hipóteses aparecem quando há observações compatíveis em câmeras diferentes do mesmo local.</p></div>}
+        </section>
+      ) : (
+        <section className={styles.empty}>
+          <div className={styles.emptyIcon} aria-hidden="true">
+            ↔
+          </div>
+          <div>
+            <h2>Nenhuma passagem recente entre câmeras</h2>
+            <p>
+              Quando dois registros de câmeras diferentes do mesmo local tiverem
+              características e horários compatíveis, a comparação aparecerá aqui.
+            </p>
+          </div>
+        </section>
+      )}
     </IntelligencePageFrame>
   );
 }
-

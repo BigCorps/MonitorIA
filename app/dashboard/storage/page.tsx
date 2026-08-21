@@ -8,20 +8,19 @@ import {
   retentionPlanLabel,
 } from "@/src/lib/retention-data";
 import { DashboardSidebar } from "../dashboard-sidebar";
+import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import styles from "./storage.module.css";
 
-import { DashboardSectionTabs } from "../dashboard-section-tabs";
-
-export const metadata = { title: "Armazenamento" };
+export const metadata = { title: "Dados armazenados | MonitorIA" };
 export const dynamic = "force-dynamic";
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null, timeZone: string) {
   if (!value) return "—";
 
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZone: "America/Sao_Paulo",
+    timeZone,
   }).format(new Date(value));
 }
 
@@ -35,22 +34,23 @@ export default async function StoragePage() {
   const totals = cameras.reduce(
     (result, camera) => ({
       events: result.events + camera.retainedEvents,
-      longTerm: result.longTerm + camera.longTermAssets,
-      temporary: result.temporary + camera.temporaryAssets,
+      savedImages: result.savedImages + camera.longTermAssets,
+      temporaryImages: result.temporaryImages + camera.temporaryAssets,
       clips: result.clips + camera.clipAssets,
       bytes: result.bytes + camera.totalBytes,
-      mismatches:
-        result.mismatches + camera.eventsWithKeyframeMismatch,
     }),
     {
       events: 0,
-      longTerm: 0,
-      temporary: 0,
+      savedImages: 0,
+      temporaryImages: 0,
       clips: 0,
       bytes: 0,
-      mismatches: 0,
     },
   );
+
+  const longestHistoryDays = cameras.length
+    ? Math.max(...cameras.map((camera) => camera.metadataRetentionDays))
+    : 365;
 
   return (
     <main className="dashboard-shell">
@@ -64,74 +64,56 @@ export default async function StoragePage() {
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">
-              RETENÇÃO · {organization.name.toUpperCase()}
+              DADOS · {organization.name.toUpperCase()}
             </span>
-            <h1>Histórico e armazenamento</h1>
+            <h1>Dados armazenados</h1>
             <p>
-              Acompanhe o histórico pesquisável, as imagens preservadas e os
-              arquivos temporários de cada câmera.
+              Veja o que fica disponível no histórico e por quanto tempo as
+              imagens e vídeos de cada câmera são mantidos.
             </p>
           </div>
 
           <div className={styles.headerFact}>
             <span>Histórico pesquisável</span>
-            <strong>365 dias</strong>
+            <strong>até {longestHistoryDays} dias</strong>
           </div>
         </header>
 
         <DashboardSectionTabs group="settings" />
 
-
-        {totals.mismatches > 0 ? (
-          <div className={styles.warning}>
-            <strong>Retenção em reconciliação</strong>
-            <span>
-              {totals.mismatches} acontecimento(s) apresentam divergência na
-              quantidade de imagens. O cron tentará corrigir automaticamente.
-            </span>
-          </div>
-        ) : (
-          <div className={styles.success}>
-            <strong>Retenção consistente</strong>
-            <span>
-              Todos os acontecimentos possuem a quantidade correta de imagens
-              para o plano usado na análise.
-            </span>
-          </div>
-        )}
-
-        <section className={styles.summaryGrid}>
+        <section className={styles.summaryGrid} aria-label="Resumo dos dados armazenados">
           <article>
-            <span>Acontecimentos</span>
+            <span>Acontecimentos salvos</span>
             <strong>{totals.events.toLocaleString("pt-BR")}</strong>
-            <small>metadados pesquisáveis</small>
+            <small>disponíveis para pesquisa</small>
           </article>
           <article>
-            <span>Imagens de longo prazo</span>
-            <strong>{totals.longTerm.toLocaleString("pt-BR")}</strong>
-            <small>preservadas conforme o plano</small>
+            <span>Imagens guardadas</span>
+            <strong>{totals.savedImages.toLocaleString("pt-BR")}</strong>
+            <small>mantidas conforme o plano</small>
           </article>
           <article>
-            <span>Arquivos temporários</span>
-            <strong>{totals.temporary.toLocaleString("pt-BR")}</strong>
-            <small>removidos automaticamente</small>
+            <span>Vídeos guardados</span>
+            <strong>{totals.clips.toLocaleString("pt-BR")}</strong>
+            <small>quando incluídos no plano</small>
           </article>
           <article>
-            <span>Uso total</span>
+            <span>Espaço usado</span>
             <strong>{formatStorageBytes(totals.bytes)}</strong>
-            <small>imagens e clipes registrados</small>
+            <small>imagens e vídeos armazenados</small>
           </article>
         </section>
 
         <section className={styles.explanation}>
           <div>
             <span>COMO FUNCIONA</span>
-            <h2>Texto por 365 dias, imagens conforme o plano</h2>
+            <h2>O que fica salvo</h2>
           </div>
           <p>
-            Essencial preserva o pico do acontecimento. Atenta preserva início
-            e pico. Detalhada preserva início, pico e fim. Os demais quadros são
-            temporários e servem somente para melhorar a análise.
+            O histórico de acontecimentos continua pesquisável pelo período do
+            plano. As imagens principais ficam guardadas para consulta. Outras
+            imagens usadas apenas durante a análise são apagadas automaticamente
+            depois do prazo indicado em cada câmera.
           </p>
           <Link href="/dashboard/plans">Comparar planos</Link>
         </section>
@@ -139,8 +121,8 @@ export default async function StoragePage() {
         <section className={styles.cameraSection}>
           <div className={styles.sectionHeading}>
             <div>
-              <span>CÂMERAS</span>
-              <h2>Política aplicada</h2>
+              <span>POR CÂMERA</span>
+              <h2>Histórico, imagens e vídeos</h2>
             </div>
             <strong>{cameras.length}</strong>
           </div>
@@ -151,7 +133,7 @@ export default async function StoragePage() {
                 <article className={styles.cameraCard} key={camera.cameraId}>
                   <div className={styles.cameraHeader}>
                     <div>
-                      <span>{retentionPlanLabel(camera.planCode)}</span>
+                      <span>Plano {retentionPlanLabel(camera.planCode)}</span>
                       <h3>{camera.cameraName}</h3>
                     </div>
                     <strong>{formatStorageBytes(camera.totalBytes)}</strong>
@@ -159,71 +141,67 @@ export default async function StoragePage() {
 
                   <dl className={styles.policyGrid}>
                     <div>
-                      <dt>Metadados</dt>
+                      <dt>Histórico pesquisável</dt>
                       <dd>{camera.metadataRetentionDays} dias</dd>
                     </div>
                     <div>
-                      <dt>Imagens por evento</dt>
+                      <dt>Imagens guardadas por acontecimento</dt>
                       <dd>{camera.longTermKeyframes}</dd>
                     </div>
                     <div>
-                      <dt>Quadros temporários</dt>
-                      <dd>{camera.temporaryFrameDays} dias</dd>
+                      <dt>Imagens usadas só durante a análise</dt>
+                      <dd>
+                        Apagadas após {camera.temporaryFrameDays} dia
+                        {camera.temporaryFrameDays === 1 ? "" : "s"}
+                      </dd>
                     </div>
                     <div>
-                      <dt>Clipes</dt>
+                      <dt>Vídeos</dt>
                       <dd>
                         {camera.clipEnabled
-                          ? `${camera.clipRetentionDays ?? 30} dias`
-                          : "Não incluídos"}
+                          ? `Guardados por ${camera.clipRetentionDays ?? 30} dias`
+                          : "Não incluídos neste plano"}
                       </dd>
                     </div>
                   </dl>
 
                   <div className={styles.assetRows}>
                     <div>
-                      <span>Eventos</span>
+                      <span>Acontecimentos</span>
                       <strong>{camera.retainedEvents.toLocaleString("pt-BR")}</strong>
                     </div>
                     <div>
-                      <span>Imagens longas</span>
+                      <span>Imagens guardadas</span>
                       <strong>{camera.longTermAssets.toLocaleString("pt-BR")}</strong>
                     </div>
                     <div>
-                      <span>Temporários</span>
+                      <span>Imagens temporárias</span>
                       <strong>{camera.temporaryAssets.toLocaleString("pt-BR")}</strong>
                     </div>
                     <div>
-                      <span>Clipes</span>
+                      <span>Vídeos</span>
                       <strong>{camera.clipAssets.toLocaleString("pt-BR")}</strong>
-                    </div>
-                  </div>
-
-                  <div className={styles.storageBreakdown}>
-                    <div>
-                      <span>Longo prazo</span>
-                      <strong>{formatStorageBytes(camera.longTermBytes)}</strong>
-                    </div>
-                    <div>
-                      <span>Temporário</span>
-                      <strong>{formatStorageBytes(camera.temporaryBytes)}</strong>
-                    </div>
-                    <div>
-                      <span>Clipes</span>
-                      <strong>{formatStorageBytes(camera.clipBytes)}</strong>
                     </div>
                   </div>
 
                   <footer>
                     <span>
-                      Histórico desde {formatDate(camera.oldestRetainedAt)}
+                      {camera.oldestRetainedAt
+                        ? `Primeiro registro disponível: ${formatDate(
+                            camera.oldestRetainedAt,
+                            camera.timezone,
+                          )}`
+                        : "Ainda não há registros armazenados"}
                     </span>
                     {camera.nextTemporaryExpiry ? (
                       <span>
-                        Próximo expurgo: {formatDate(camera.nextTemporaryExpiry)}
+                        Próxima limpeza automática: {formatDate(
+                          camera.nextTemporaryExpiry,
+                          camera.timezone,
+                        )}
                       </span>
                     ) : (
-                      <span>Sem arquivos temporários pendentes</span>
+                      <span>Sem limpeza pendente</span>
                     )}
                   </footer>
                 </article>
@@ -232,7 +210,10 @@ export default async function StoragePage() {
           ) : (
             <div className={styles.emptyState}>
               <strong>Nenhuma câmera disponível</strong>
-              <p>Cadastre uma câmera para acompanhar a retenção.</p>
+              <p>
+                Cadastre uma câmera para acompanhar o histórico e os arquivos
+                armazenados.
+              </p>
               <Link href="/dashboard/cameras">Abrir câmeras</Link>
             </div>
           )}

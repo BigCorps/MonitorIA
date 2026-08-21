@@ -3,6 +3,7 @@ import { createClient } from "@/src/lib/supabase/server";
 export type CameraRetentionUsage = {
   cameraId: string;
   cameraName: string;
+  timezone: string;
   accessSource: string;
   planCode: string;
   metadataRetentionDays: number;
@@ -29,24 +30,54 @@ function numberValue(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function relationOne<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
 export async function getOrganizationRetentionUsage(
   organizationId: string,
 ): Promise<CameraRetentionUsage[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("camera_retention_usage")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .order("camera_name", { ascending: true });
 
-  if (error) {
-    console.error("Falha ao carregar retenção:", error.message);
+  const [usageResult, cameraResult] = await Promise.all([
+    supabase
+      .from("camera_retention_usage")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("camera_name", { ascending: true }),
+    supabase
+      .from("cameras")
+      .select("id,site:sites(timezone)")
+      .eq("organization_id", organizationId),
+  ]);
+
+  if (usageResult.error) {
+    console.error("Falha ao carregar retenção:", usageResult.error.message);
     return [];
   }
 
-  return (data ?? []).map((row: any) => ({
+  if (cameraResult.error) {
+    console.error(
+      "Falha ao carregar fuso horário das câmeras:",
+      cameraResult.error.message,
+    );
+  }
+
+  const timezoneByCamera = new Map<string, string>();
+
+  for (const row of cameraResult.data ?? []) {
+    const site = relationOne<{ timezone?: string }>((row as any).site);
+    timezoneByCamera.set(
+      String((row as any).id),
+      String(site?.timezone ?? "America/Sao_Paulo"),
+    );
+  }
+
+  return (usageResult.data ?? []).map((row: any) => ({
     cameraId: String(row.camera_id),
     cameraName: String(row.camera_name),
+    timezone:
+      timezoneByCamera.get(String(row.camera_id)) ?? "America/Sao_Paulo",
     accessSource: String(row.access_source ?? "blocked"),
     planCode: String(row.plan_code ?? "basic"),
     metadataRetentionDays: numberValue(row.metadata_retention_days),
