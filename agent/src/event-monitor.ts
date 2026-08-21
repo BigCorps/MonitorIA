@@ -447,16 +447,9 @@ export function startCameraEventMonitor(options: {
       return;
     }
 
-    // No modo manual, a sensibilidade escolhida pelo usuário volta a ser a
-    // autoridade final. A supressão heurística de ruído permanece ativa no
-    // modo adaptativo, protegendo contra mudança global de exposição/IR e
-    // ruído difuso de sensor sem bloquear uma câmera configurada manualmente.
-    const suppressAutomaticNoise =
-      options.camera.motionAdaptiveEnabled && sample.likelyCameraNoise;
-
     if (requireQuietBeforeRestart) {
       if (
-        suppressAutomaticNoise ||
+        sample.likelyCameraNoise ||
         sample.changedPixelPercent <
         lastSnapshot.effectiveContinueThreshold
       ) {
@@ -483,13 +476,13 @@ export function startCameraEventMonitor(options: {
 
     if (!activeEvent) {
       if (
-        !suppressAutomaticNoise &&
+        !sample.likelyCameraNoise &&
         sample.changedPixelPercent >=
         lastSnapshot.effectiveStartThreshold
       ) {
         startCandidateFrames += 1;
       } else {
-        if (suppressAutomaticNoise) {
+        if (sample.likelyCameraNoise) {
           suppressedCameraNoiseSamples += 1;
         }
         startCandidateFrames = 0;
@@ -549,7 +542,7 @@ export function startCameraEventMonitor(options: {
     }
 
     const event = activeEvent;
-    const meaningfulMotionPercent = suppressAutomaticNoise
+    const meaningfulMotionPercent = sample.likelyCameraNoise
       ? 0
       : sample.changedPixelPercent;
     event.framesObserved += 1;
@@ -557,7 +550,7 @@ export function startCameraEventMonitor(options: {
     event.motionSum += meaningfulMotionPercent;
     event.rawPeakMotionPercent = Math.max(
       event.rawPeakMotionPercent,
-      suppressAutomaticNoise
+      sample.likelyCameraNoise
         ? 0
         : sample.rawChangedPixelPercent,
     );
@@ -579,7 +572,7 @@ export function startCameraEventMonitor(options: {
       sample.directionalChangeRatio,
     );
 
-    if (suppressAutomaticNoise) {
+    if (sample.likelyCameraNoise) {
       suppressedCameraNoiseSamples += 1;
     }
 
