@@ -80,7 +80,7 @@ export default async function OperationsPage({
       <DashboardSidebar
         organizationName={organization.name}
         userEmail={user.email}
-        active="operations"
+        active="intelligence"
       />
 
       <section className="dashboard-content">
