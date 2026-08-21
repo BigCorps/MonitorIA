@@ -447,9 +447,16 @@ export function startCameraEventMonitor(options: {
       return;
     }
 
+    // No modo manual, a sensibilidade escolhida pelo usuário volta a ser a
+    // autoridade final. A supressão heurística de ruído permanece ativa no
+    // modo adaptativo, protegendo contra mudança global de exposição/IR e
+    // ruído difuso de sensor sem bloquear uma câmera configurada manualmente.
+    const suppressAutomaticNoise =
+      options.camera.motionAdaptiveEnabled && sample.likelyCameraNoise;
+
     if (requireQuietBeforeRestart) {
       if (
-        sample.likelyCameraNoise ||
+        suppressAutomaticNoise ||
         sample.changedPixelPercent <
         lastSnapshot.effectiveContinueThreshold
       ) {
@@ -476,13 +483,13 @@ export function startCameraEventMonitor(options: {
 
     if (!activeEvent) {
       if (
-        !sample.likelyCameraNoise &&
+        !suppressAutomaticNoise &&
         sample.changedPixelPercent >=
         lastSnapshot.effectiveStartThreshold
       ) {
         startCandidateFrames += 1;
       } else {
-        if (sample.likelyCameraNoise) {
+        if (suppressAutomaticNoise) {
           suppressedCameraNoiseSamples += 1;
         }
         startCandidateFrames = 0;
@@ -542,7 +549,7 @@ export function startCameraEventMonitor(options: {
     }
 
     const event = activeEvent;
-    const meaningfulMotionPercent = sample.likelyCameraNoise
+    const meaningfulMotionPercent = suppressAutomaticNoise
       ? 0
       : sample.changedPixelPercent;
     event.framesObserved += 1;
@@ -550,7 +557,7 @@ export function startCameraEventMonitor(options: {
     event.motionSum += meaningfulMotionPercent;
     event.rawPeakMotionPercent = Math.max(
       event.rawPeakMotionPercent,
-      sample.likelyCameraNoise
+      suppressAutomaticNoise
         ? 0
         : sample.rawChangedPixelPercent,
     );
@@ -572,7 +579,7 @@ export function startCameraEventMonitor(options: {
       sample.directionalChangeRatio,
     );
 
-    if (sample.likelyCameraNoise) {
+    if (suppressAutomaticNoise) {
       suppressedCameraNoiseSamples += 1;
     }
 
