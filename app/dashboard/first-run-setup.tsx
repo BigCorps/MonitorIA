@@ -28,6 +28,14 @@ type Props = {
   message: string | null;
 };
 
+function trialDurationLabel(minutes: number) {
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 hora" : `${hours} horas`;
+  }
+  return `${minutes} minutos`;
+}
+
 export async function FirstRunSetup({
   organizationName,
   userEmail,
@@ -63,6 +71,11 @@ export async function FirstRunSetup({
     workspace: Awaited<ReturnType<typeof getCameraProfileWorkspace>>;
     canManage: boolean;
     cameraIndex: number;
+  } | null = null;
+
+  let salesTrial: {
+    durationMinutes: number;
+    maxCameras: number;
   } | null = null;
 
   if (phase === "context" && firstRun.firstCameraId) {
@@ -106,6 +119,36 @@ export async function FirstRunSetup({
             1,
             cameras.findIndex((camera) => camera.id === cameraId) + 1,
           ),
+        };
+      }
+    }
+  }
+
+  if (phase === "commercial") {
+    const user = await requireAuthenticatedUser();
+    const organization = await getCurrentOrganization(user.id);
+
+    if (organization) {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from("trial_runs")
+        .select("duration_minutes,max_cameras")
+        .eq("organization_id", organization.id)
+        .eq("trial_mode", "sales_assisted")
+        .in("status", ["draft", "ready"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Falha ao identificar demonstração comercial no onboarding:",
+          error.message,
+        );
+      } else if (data) {
+        salesTrial = {
+          durationMinutes: Number(data.duration_minutes ?? 60),
+          maxCameras: Number(data.max_cameras ?? 6),
         };
       }
     }
@@ -284,18 +327,33 @@ export async function FirstRunSetup({
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
                 <span>PASSO 4 DE 4</span>
-                <h2>Escolha como deseja começar</h2>
-                <p>
-                  Escolha 24 horas grátis ou contrate um plano. O teste só começa
-                  quando você confirmar.
-                </p>
+                {salesTrial ? (
+                  <>
+                    <h2>Ative sua demonstração de {trialDurationLabel(salesTrial.durationMinutes)}</h2>
+                    <p>
+                      Seu convite comercial já está aplicado. Escolha até{" "}
+                      {salesTrial.maxCameras} câmera(s) para o teste. O relógio só
+                      começa depois que todas estiverem prontas e você confirmar.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2>Escolha como deseja começar</h2>
+                    <p>
+                      Escolha 24 horas grátis ou contrate um plano. O teste só começa
+                      quando você confirmar.
+                    </p>
+                  </>
+                )}
               </div>
               <div className={styles.firstRunActions}>
                 <Link
-                  href="/dashboard/commercial-choice"
+                  href={salesTrial ? "/dashboard/trial/sales" : "/dashboard/commercial-choice"}
                   className="panel-primary-action"
                 >
-                  Escolher teste ou plano
+                  {salesTrial
+                    ? `Preparar demonstração de ${trialDurationLabel(salesTrial.durationMinutes)}`
+                    : "Escolher teste ou plano"}
                 </Link>
               </div>
             </div>

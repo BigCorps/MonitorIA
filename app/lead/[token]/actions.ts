@@ -7,6 +7,11 @@ import {
   slugify,
 } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import {
+  cleanText,
+  normalizeCameraCount,
+  normalizeIndustry,
+} from "@/src/lib/onboarding-intake";
 import { getSalesTrialInvite } from "@/src/lib/sales-trial";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
@@ -94,7 +99,7 @@ export async function createLeadAccountAction(formData: FormData) {
   const token = safeToken(formData.get("token"));
   await requireActiveInvite(token);
 
-  const fullName = String(formData.get("full_name") ?? "").trim();
+  const fullName = cleanText(formData.get("full_name"), 120);
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
@@ -118,6 +123,7 @@ export async function createLeadAccountAction(formData: FormData) {
         full_name: fullName,
         password_login_enabled: true,
         sales_trial_invite: true,
+        onboarding_source: "sales_lead_v1",
       },
       emailRedirectTo:
         `${origin}/auth/callback?next=` +
@@ -172,10 +178,10 @@ export async function createLeadWorkspaceAction(formData: FormData) {
   const existing = await getCurrentOrganization(user.id);
   if (existing) redirect(`/lead/${token}`);
 
-  const organizationName = String(
-    formData.get("organization_name") ?? "",
-  ).trim();
-  const siteName = String(formData.get("site_name") ?? "").trim();
+  const organizationName = cleanText(formData.get("organization_name"), 160);
+  const siteName = cleanText(formData.get("site_name"), 160);
+  const industry = normalizeIndustry(formData.get("industry"));
+  const cameraCount = normalizeCameraCount(formData.get("camera_count"));
   const timezone = safeTimezone(
     String(formData.get("timezone") ?? "America/Sao_Paulo"),
   );
@@ -226,6 +232,44 @@ export async function createLeadWorkspaceAction(formData: FormData) {
     );
   }
 
+  const { error: profileError } = await supabase
+    .from("organization_profiles")
+    .upsert(
+      {
+        organization_id: organization.id,
+        industry,
+        contact_email: user.email ?? "",
+        updated_by: user.id,
+      },
+      { onConflict: "organization_id" },
+    );
+
+  if (profileError) {
+    console.error(
+      "Falha ao salvar perfil comercial do onboarding lead:",
+      profileError.message,
+    );
+  }
+
+  const { error: metadataError } = await supabase.auth.updateUser({
+    data: {
+      onboarding_source: "sales_lead_v1",
+      onboarding_organization_name: organizationName,
+      onboarding_site_name: siteName,
+      onboarding_industry: industry,
+      onboarding_camera_count: cameraCount,
+      onboarding_workspace_created: true,
+      sales_trial_invite: true,
+    },
+  });
+
+  if (metadataError) {
+    console.error(
+      "Falha ao atualizar metadata do onboarding lead:",
+      metadataError.message,
+    );
+  }
+
   redirect(`/lead/${token}`);
 }
 
@@ -244,7 +288,7 @@ export async function redeemSalesTrialInviteAction(formData: FormData) {
     invite.redeemedBy === user.id &&
     invite.redeemedOrganizationId === organization.id
   ) {
-    redirect("/dashboard/trial/sales");
+    redirect("/dashboard");
   }
 
   if (!invite?.usable) {
@@ -280,6 +324,10 @@ export async function redeemSalesTrialInviteAction(formData: FormData) {
     leadRedirect(token, "error", "O convite não pôde ser ativado.");
   }
 
-  redirect("/dashboard/trial/sales");
+  redirect(
+    "/dashboard?message=" +
+      encodeURIComponent(
+        "Convite ativado. Agora siga a configuração guiada; o relógio ainda não começou.",
+      ),
+  );
 }
-

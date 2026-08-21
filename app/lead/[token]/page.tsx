@@ -2,6 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import {
+  BUSINESS_OPTIONS,
+  DEFAULT_CAMERA_COUNT,
+} from "@/src/lib/onboarding-intake";
 import { getSalesTrialInvite } from "@/src/lib/sales-trial";
 import {
   createLeadAccountAction,
@@ -42,7 +46,9 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
           <span className={styles.eyebrow}>CONVITE COMERCIAL</span>
           <h1>Este link não é válido.</h1>
           <p>Peça um novo convite à equipe MonitorIA.</p>
-          <Link className={styles.secondaryButton} href="/">Voltar ao site</Link>
+          <Link className={styles.secondaryButton} href="/">
+            Voltar ao site
+          </Link>
         </section>
       </main>
     );
@@ -58,7 +64,7 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
     invite.redeemedBy === user.id &&
     invite.redeemedOrganizationId === organization.id
   ) {
-    redirect("/dashboard/trial/sales");
+    redirect("/dashboard");
   }
 
   const message = firstValue(query.message);
@@ -68,18 +74,31 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
   return (
     <main className={styles.page}>
       <section className={styles.hero}>
-        <Link href="/" className={styles.brand}>Monitor<span>IA</span>.cam</Link>
+        <Link href="/" className={styles.brand}>
+          Monitor<span>IA</span>.cam
+        </Link>
         <span className={styles.eyebrow}>DEMONSTRAÇÃO ASSISTIDA</span>
         <h1>Veja a IA trabalhando nas câmeras do seu próprio negócio.</h1>
         <p>
-          Este convite libera uma demonstração real de {durationLabel(invite.durationMinutes)}
-          {" "}com até {invite.maxCameras} câmera(s), usando o modo Detalhada.
-          O relógio só começa depois que as câmeras escolhidas estiverem prontas e você confirmar o início.
+          Este convite libera uma demonstração real de{" "}
+          {durationLabel(invite.durationMinutes)} com até {invite.maxCameras}{" "}
+          câmera(s), usando o modo Detalhada. A configuração segue as mesmas
+          etapas do cadastro normal e o relógio só começa quando tudo estiver
+          pronto e você confirmar o início.
         </p>
         <div className={styles.facts}>
-          <div><strong>{durationLabel(invite.durationMinutes)}</strong><span>de análise real</span></div>
-          <div><strong>Até {invite.maxCameras}</strong><span>câmeras no mesmo teste</span></div>
-          <div><strong>Sem cartão</strong><span>contratação somente depois</span></div>
+          <div>
+            <strong>{durationLabel(invite.durationMinutes)}</strong>
+            <span>de análise real</span>
+          </div>
+          <div>
+            <strong>Até {invite.maxCameras}</strong>
+            <span>câmeras no mesmo teste</span>
+          </div>
+          <div>
+            <strong>Sem cartão</strong>
+            <span>contratação somente depois</span>
+          </div>
         </div>
       </section>
 
@@ -87,7 +106,9 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
         <div className={styles.inviteHeading}>
           <div>
             <span className={styles.eyebrow}>SEU CONVITE</span>
-            <h2>{invite.companyName ?? invite.leadName ?? "Demonstração MonitorIA"}</h2>
+            <h2>
+              {invite.companyName ?? invite.leadName ?? "Demonstração MonitorIA"}
+            </h2>
           </div>
           <span className={unavailable ? styles.badgeOff : styles.badgeOn}>
             {invite.status === "active" ? "Disponível" : "Encerrado"}
@@ -123,9 +144,17 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
               </label>
               <label>
                 <span>Senha</span>
-                <input name="password" type="password" minLength={8} autoComplete="current-password" required />
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  autoComplete="current-password"
+                  required
+                />
               </label>
-              <button type="submit" className={styles.primaryButton}>Entrar e continuar</button>
+              <button type="submit" className={styles.primaryButton}>
+                Entrar e continuar
+              </button>
             </form>
 
             <form action={createLeadAccountAction} className={styles.form}>
@@ -134,7 +163,13 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
               <h3>Criar conta pelo convite</h3>
               <label>
                 <span>Seu nome</span>
-                <input name="full_name" type="text" defaultValue={invite.leadName ?? ""} minLength={2} required />
+                <input
+                  name="full_name"
+                  type="text"
+                  defaultValue={invite.leadName ?? ""}
+                  minLength={2}
+                  required
+                />
               </label>
               <label>
                 <span>E-mail</span>
@@ -148,27 +183,75 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
               </label>
               <label>
                 <span>Crie uma senha</span>
-                <input name="password" type="password" minLength={8} autoComplete="new-password" required />
+                <input
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  autoComplete="new-password"
+                  required
+                />
               </label>
-              <button type="submit" className={styles.secondaryButton}>Criar conta e continuar</button>
+              <button type="submit" className={styles.secondaryButton}>
+                Criar conta e continuar
+              </button>
             </form>
           </div>
         ) : !organization ? (
           <form action={createLeadWorkspaceAction} className={styles.form}>
             <input type="hidden" name="token" value={token} />
             <span className={styles.step}>PASSO 1 DE 2</span>
-            <h3>Prepare sua empresa</h3>
+            <h3>Prepare seu negócio</h3>
             <p className={styles.helper}>
-              O teste ainda não começa aqui. Primeiro vamos criar o local onde o Agent e as câmeras serão conectados.
+              Vamos salvar os mesmos dados usados no cadastro normal do MonitorIA.
+              O teste ainda não começa aqui.
             </p>
+
             <label>
               <span>Nome da empresa</span>
-              <input name="organization_name" type="text" defaultValue={invite.companyName ?? ""} minLength={2} required />
+              <input
+                name="organization_name"
+                type="text"
+                defaultValue={invite.companyName ?? ""}
+                minLength={2}
+                maxLength={160}
+                required
+              />
             </label>
+
             <label>
               <span>Nome do primeiro local</span>
-              <input name="site_name" type="text" placeholder="Ex.: Loja do centro" required />
+              <input
+                name="site_name"
+                type="text"
+                placeholder="Ex.: Loja do centro"
+                maxLength={160}
+                required
+              />
             </label>
+
+            <label>
+              <span>Tipo de negócio</span>
+              <select name="industry" defaultValue="Outro">
+                {BUSINESS_OPTIONS.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Quantas câmeras existem neste local?</span>
+              <input
+                name="camera_count"
+                type="number"
+                min={1}
+                max={64}
+                defaultValue={DEFAULT_CAMERA_COUNT}
+                required
+              />
+            </label>
+
             <label>
               <span>Fuso horário</span>
               <select name="timezone" defaultValue="America/Sao_Paulo">
@@ -179,7 +262,15 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
                 <option value="America/Noronha">Fernando de Noronha</option>
               </select>
             </label>
-            <button type="submit" className={styles.primaryButton}>Salvar empresa e continuar</button>
+
+            <p className={styles.helper}>
+              A quantidade informada ajuda a busca inicial. Na demonstração você
+              poderá escolher até {invite.maxCameras} câmera(s).
+            </p>
+
+            <button type="submit" className={styles.primaryButton}>
+              Salvar empresa e continuar
+            </button>
           </form>
         ) : (
           <form action={redeemSalesTrialInviteAction} className={styles.activation}>
@@ -187,10 +278,15 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
             <span className={styles.step}>PASSO 2 DE 2</span>
             <h3>Ativar demonstração para {organization.name}</h3>
             <p>
-              Ao ativar, você poderá escolher até {invite.maxCameras} câmeras. Os {durationLabel(invite.durationMinutes)}
-              {" "}só começarão quando todas as câmeras selecionadas estiverem prontas e você clicar em iniciar.
+              Ao ativar, o painel continuará pelo mesmo onboarding do cadastro
+              normal: conectar o computador, procurar as câmeras e configurar o
+              contexto. No último passo, seu convite libera{" "}
+              {durationLabel(invite.durationMinutes)} de análise no modo Detalhada
+              com até {invite.maxCameras} câmera(s).
             </p>
-            <button type="submit" className={styles.primaryButton}>Ativar meu teste assistido</button>
+            <button type="submit" className={styles.primaryButton}>
+              Ativar e começar a configuração
+            </button>
           </form>
         )}
       </section>
