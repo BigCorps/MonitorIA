@@ -250,9 +250,10 @@ export default async function EventsPage({
           </div>
         ) : null}
 
-        <details
-          className={`${disclosureStyles.disclosure} ${disclosureStyles.filterDisclosure}`}
-        >
+<details
+  open
+  className={`${disclosureStyles.disclosure} ${disclosureStyles.filterDisclosure}`}
+>
           <summary className={disclosureStyles.summary}>
             <span className={disclosureStyles.summaryCopy}>
               <span>FILTROS</span>
