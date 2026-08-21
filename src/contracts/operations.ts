@@ -9,24 +9,35 @@ export type OperationalAlert = {
   status: OperationalAlertStatus;
   title: string;
   summary: string;
+  cameraId: string | null;
   cameraName: string | null;
+  agentId: string | null;
   agentName: string | null;
   siteName: string | null;
+  siteTimezone: string | null;
   condition: Record<string, unknown>;
   evidence: Record<string, unknown>;
   firstObservedAt: string;
   lastObservedAt: string;
+  resolvedAt: string | null;
   occurrenceCount: number;
   confidence: number | null;
   reason: string | null;
   recommendation: string | null;
   evidenceEventIds: string[];
+  sourceEntityType: string | null;
+  sourceEntityId: string | null;
 };
 
 export type OperationalAlertOverview = {
   active: OperationalAlert[];
   recentResolved: OperationalAlert[];
-  counts: { critical: number; warning: number; acknowledged: number };
+  counts: {
+    total: number;
+    critical: number;
+    warning: number;
+    acknowledged: number;
+  };
 };
 
 export type CrossCameraJourney = {
