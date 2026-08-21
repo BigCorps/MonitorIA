@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./camera-multi-select.module.css";
 
 type CameraOption = {
@@ -21,9 +21,30 @@ export function CameraMultiSelect({
   name = "cameras",
   label = "Câmeras",
 }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string[]>(
     selectedIds.length === cameras.length ? [] : selectedIds,
   );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 761px)");
+
+    const syncOuterDisclosure = () => {
+      const disclosure = rootRef.current?.closest("details");
+      if (!disclosure) return;
+
+      // No desktop os filtros ficam sempre disponíveis. No mobile o primeiro
+      // estado é recolhido e o usuário abre quando precisar.
+      disclosure.open = media.matches;
+    };
+
+    syncOuterDisclosure();
+    media.addEventListener("change", syncOuterDisclosure);
+
+    return () => {
+      media.removeEventListener("change", syncOuterDisclosure);
+    };
+  }, []);
 
   const summary = useMemo(() => {
     if (!selected.length || selected.length === cameras.length) {
@@ -52,7 +73,7 @@ export function CameraMultiSelect({
   }
 
   return (
-    <div className={styles.field}>
+    <div ref={rootRef} className={styles.field}>
       <span>{label}</span>
       <input type="hidden" name={name} value={selected.join(",")} />
       <details className={styles.picker}>

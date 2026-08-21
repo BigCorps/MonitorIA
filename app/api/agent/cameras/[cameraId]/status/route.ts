@@ -17,6 +17,34 @@ type RouteContext = {
   params: Promise<{ cameraId: string }>;
 };
 
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function boundedNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+  fallback = 0,
+) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(minimum, Math.min(maximum, parsed));
+}
+
+function boundedInteger(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+  fallback = 0,
+) {
+  return Math.floor(
+    boundedNumber(value, minimum, maximum, fallback),
+  );
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   const { cameraId } = await context.params;
   if (!z.string().uuid().safeParse(cameraId).success) {
@@ -46,6 +74,50 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   if (body.streamLabel) {
     update.stream_label = body.streamLabel;
+  }
+
+  // O Agent já envia a saúde do monitor contínuo em cada verificação. Antes
+  // esta telemetria era descartada quando a câmera permanecia online, o que
+  // impedia distinguir remotamente "stream sem eventos" de "sampler parado".
+  // Persistimos somente campos conhecidos no JSONB já existente da câmera;
+  // não há migration e isso não interfere na configuração enviada ao Agent.
+  const metadata = objectValue(body.metadata);
+  if (body.status === "online" && metadata.continuousMonitoring === true) {
+    const calibration = objectValue(metadata.calibration);
+
+    update.motion_calibration = {
+      source: "agent_continuous_monitor",
+      observedAt: now,
+      framesObserved: boundedInteger(
+        metadata.framesObserved,
+        0,
+        1_000_000_000,
+      ),
+      ready: calibration.ready === true,
+      samples: boundedInteger(calibration.samples, 0, 100_000),
+      p50: boundedNumber(calibration.p50, 0, 100),
+      p90: boundedNumber(calibration.p90, 0, 100),
+      p95: boundedNumber(calibration.p95, 0, 100),
+      effectiveStartThreshold: boundedNumber(
+        calibration.effectiveStartThreshold,
+        0,
+        100,
+      ),
+      effectiveContinueThreshold: boundedNumber(
+        calibration.effectiveContinueThreshold,
+        0,
+        100,
+      ),
+      activeProfileVersion: boundedInteger(
+        metadata.activeProfileVersion,
+        0,
+        1_000_000,
+      ),
+      planCode:
+        typeof metadata.planCode === "string"
+          ? metadata.planCode.slice(0, 40)
+          : null,
+    };
   }
 
   const { error: updateError } = await authenticated.supabase

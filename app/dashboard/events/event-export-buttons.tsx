@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./event-export.module.css";
 import disclosureStyles from "./mobile-disclosure.module.css";
 
@@ -35,8 +35,29 @@ export function EventExportButtons({
   total,
   multiCameraSelection = false,
 }: Props) {
+  const disclosureRef = useRef<HTMLDetailsElement>(null);
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 761px)");
+
+    const syncDisclosure = () => {
+      if (!disclosureRef.current) return;
+
+      // Desktop: exportação fica visível sem clique.
+      // Mobile: começa recolhida e continua usando o comportamento nativo
+      // do <details> para abrir/fechar pelo usuário.
+      disclosureRef.current.open = media.matches;
+    };
+
+    syncDisclosure();
+    media.addEventListener("change", syncDisclosure);
+
+    return () => {
+      media.removeEventListener("change", syncDisclosure);
+    };
+  }, []);
 
   async function copy(format: "md" | "json") {
     if (multiCameraSelection) {
@@ -72,7 +93,7 @@ export function EventExportButtons({
   }
 
   return (
-    <details className={disclosureStyles.disclosure}>
+    <details ref={disclosureRef} className={disclosureStyles.disclosure}>
       <summary className={disclosureStyles.summary}>
         <span className={disclosureStyles.summaryCopy}>
           <span>EXPORTAR PERÍODO</span>
