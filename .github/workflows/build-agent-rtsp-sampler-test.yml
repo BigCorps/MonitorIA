@@ -23,7 +23,13 @@ jobs:
           const fs = require("fs");
 
           const file = "agent/src/motion.ts";
-          let source = fs.readFileSync(file, "utf8");
+
+          // actions/checkout em Windows pode materializar arquivos com CRLF.
+          // O patch usa trechos LF de propósito para ser determinístico, então
+          // normalizamos apenas a cópia do runner antes das substituições.
+          let source = fs
+            .readFileSync(file, "utf8")
+            .replace(/\r\n?/g, "\n");
 
           function replaceOnce(from, to, label) {
             const first = source.indexOf(from);
@@ -61,6 +67,18 @@ jobs:
             '      previous = frame;\n      lastSampleAt = sampleAt;\n    }\n  });',
             "marcar horário da amostra"
           );
+
+          // Guardrails: se qualquer parte essencial não estiver presente,
+          // o workflow falha antes de compilar um binário incorreto.
+          if (source.includes('`fps=1/${interval}`')) {
+            throw new Error("O filtro fps antigo permaneceu após o patch.");
+          }
+          if (!source.includes("const sampleIntervalMs = interval * 1000;")) {
+            throw new Error("A amostragem por relógio local não foi aplicada.");
+          }
+          if (!source.includes("sampleAt - lastSampleAt < sampleIntervalMs")) {
+            throw new Error("O throttle por relógio local não foi aplicado.");
+          }
 
           fs.writeFileSync(file, source, "utf8");
           console.log("Correção RTSP aplicada somente no workspace do runner.");
