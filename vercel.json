@@ -6,6 +6,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/event-recovery",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/billing",
       "schedule": "*/5 * * * *"
     },

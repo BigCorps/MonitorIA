@@ -1,15 +1,15 @@
 {
   "name": "@monitoria/agent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "MonitorIA Agent local para câmeras RTSP.",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/index-v102.ts",
     "check": "tsc --noEmit -p ./tsconfig.json",
     "build:js": "tsc -p ./tsconfig.json",
-    "build:win": "bun build ./src/index.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --windows-icon=../installer/monitoria.ico --windows-title=\"MonitorIA Agent\" --windows-publisher=\"BIGCORPS TECNOLOGIA LTA\" --windows-version=1.0.1 --windows-description=\"Monitoramento de câmeras MonitorIA\" --outfile ./dist/monitoria-agent.exe",
-    "build:linux": "bun build ./src/index.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --outfile ./dist/monitoria-agent"
+    "build:win": "bun build ./src/index-v102.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --windows-icon=../installer/monitoria.ico --windows-title=\"MonitorIA Agent\" --windows-publisher=\"BIGCORPS TECNOLOGIA LTA\" --windows-version=1.0.2 --windows-description=\"Monitoramento de câmeras MonitorIA\" --outfile ./dist/monitoria-agent.exe",
+    "build:linux": "bun build ./src/index-v102.ts --compile --no-compile-autoload-dotenv --no-compile-autoload-bunfig --outfile ./dist/monitoria-agent"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

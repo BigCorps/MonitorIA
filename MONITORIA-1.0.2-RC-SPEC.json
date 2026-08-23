@@ -1,0 +1,103 @@
+{
+  "product": "MonitorIA",
+  "release": "1.0.2",
+  "status": "release_candidate_spec_locked",
+  "date": "2026-08-23",
+  "previous_store_submission": "1.0.1",
+  "distribution_rule": "no_public_link_change_before_all_gates",
+  "no_intermediate_versions": true,
+  "normal_subscription_camera_hard_limit": null,
+  "trials": {
+    "sales_assisted": {
+      "duration_minutes": 60,
+      "max_cameras": 6
+    },
+    "self_service": {
+      "duration_minutes": 1440,
+      "max_cameras": 1
+    }
+  },
+  "release_gates": [
+    "microsoft_store_approved",
+    "sales_60min_onboarding_approved",
+    "self_service_24h_onboarding_approved"
+  ],
+  "architecture": {
+    "agent": {
+      "windows_linux_shared_core": true,
+      "unified_rtsp_ingest_per_camera": true,
+      "durable_fair_concurrent_event_queue": true,
+      "video_queue_independent": true,
+      "global_disk_budget": true,
+      "camera_count_resource_based_not_hardcoded": true,
+      "dvr_channel_gaps_supported": true,
+      "adaptive_motion_must_not_learn_real_motion": true
+    },
+    "backend": {
+      "fast_persisted_ack": true,
+      "durable_async_ai": "supabase_receipt_lease_next_after_and_vercel_functions",
+      "supabase_source_of_truth": true,
+      "idempotent_agent_event_id": true,
+      "recovery_sweeper": true,
+      "frozen_analysis_context_before_ack": true,
+      "recovery_cron": true,
+      "vercel_workflows_dependency": false
+    },
+    "dashboard": {
+      "pending_analyzing_cards": true,
+      "automatic_refresh": true,
+      "default_period_through_today": true,
+      "multi_camera_single_paginated_query": true,
+      "multi_site_multi_agent": true
+    }
+  },
+  "video": {
+    "purpose": "visual_evidence_not_forensic_recording",
+    "container": "mp4",
+    "preferred_codec": "h264",
+    "audio": false,
+    "preferred_source": "light_substream",
+    "preferred_max_height": 720,
+    "target_kbps": 600,
+    "passthrough_ceiling_kbps": 900,
+    "passthrough_when_within_envelope": true,
+    "transcode_only_when_needed": true,
+    "must_not_block_event_delivery": true,
+    "measured_2026_08_23": {
+      "ready_clips": 749,
+      "avg_mb": 2.01,
+      "median_mb": 1.45,
+      "p90_mb": 4.1,
+      "max_mb": 16.35,
+      "avg_duration_seconds": 51.9,
+      "avg_kbps": 475
+    }
+  },
+  "ai_temporal_evidence": {
+    "send_mp4_to_gpt": false,
+    "primary_frames_from_same_video_timeline": true,
+    "extra_video_frames_only_on_verification": true,
+    "use_existing_verification_budget": true,
+    "frame_timeline_manifest_and_hashes": true
+  },
+  "known_blockers": [
+    "unsupported_unicode_escape_sequence",
+    "analysis_job_not_found",
+    "event_clips_retention_bucket_missing",
+    "serial_global_event_queue",
+    "clip_processing_blocks_queue_completion",
+    "synchronous_ai_in_ingestion_route",
+    "per_camera_512mb_clip_buffer_budget",
+    "dvr_64_channel_hint_ceiling",
+    "dvr_stop_after_two_empty_channels",
+    "multi_camera_dashboard_n_queries",
+    "generic_analyzing_notice_instead_of_pending_event_card"
+  ],
+  "delivery": {
+    "apply_partial_zips_to_main": false,
+    "final_delivery": "single_complete_zip",
+    "include_ordered_sql_migrations": true,
+    "include_readme": true,
+    "include_spec": true
+  }
+}

@@ -10,11 +10,9 @@ import {
 import {
   addDaysToDateOnly,
   dateOnlyToIso,
-  searchEvents,
   siteTimezone,
-  type EventSearchInput,
-  type SearchEventRow,
 } from "@/src/lib/event-search-data";
+import { searchEventTimeline } from "@/src/lib/event-timeline-data";
 import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { paginationWindow } from "@/src/lib/pagination";
 import { DashboardSidebar } from "../dashboard-sidebar";
@@ -34,9 +32,7 @@ import realtimeStyles from "./events-realtime-refresh.module.css";
 export const metadata = { title: "Acontecimentos" };
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<
-  Record<string, string | string[] | undefined>
->;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function scalar(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -62,71 +58,13 @@ function pageHref(current: Record<string, string>, page: number) {
   return `/dashboard/events?${params.toString()}`;
 }
 
-
-async function searchSelectedEvents(
-  organizationId: string,
-  cameraIds: string[],
-  input: Omit<EventSearchInput, "cameraId" | "limit" | "offset"> & {
-    limit: number;
-    offset: number;
-  },
-) {
-  if (cameraIds.length <= 1) {
-    return searchEvents(organizationId, {
-      ...input,
-      cameraId: cameraIds[0] ?? null,
-    });
-  }
-
-  const needed = input.offset + input.limit;
-
-  async function loadCamera(cameraId: string) {
-    const rows: SearchEventRow[] = [];
-    let total = 0;
-    let offset = 0;
-
-    do {
-      const batchLimit = Math.min(200, Math.max(1, needed - rows.length));
-      const result = await searchEvents(organizationId, {
-        ...input,
-        cameraId,
-        limit: batchLimit,
-        offset,
-      });
-      total = result.total;
-      rows.push(...result.rows);
-      offset += result.rows.length;
-      if (!result.rows.length) break;
-    } while (rows.length < needed && rows.length < total);
-
-    return { rows, total };
-  }
-
-  const groups = await Promise.all(cameraIds.map(loadCamera));
-  const merged = groups
-    .flatMap((group) => group.rows)
-    .sort(
-      (left, right) =>
-        new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime(),
-    );
-
-  return {
-    rows: merged.slice(input.offset, input.offset + input.limit),
-    total: groups.reduce((sum, group) => sum + group.total, 0),
-  };
-}
-
 type StarterFrame = {
   cameraName: string;
   siteName: string;
   url: string;
 };
 
-export default async function EventsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function EventsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
@@ -138,10 +76,7 @@ export default async function EventsPage({
   ]);
 
   const siteId = scalar(rawParams.site);
-  const cameraIds = parseCameraSelection(
-    rawParams.cameras ?? rawParams.camera,
-    cameras,
-  );
+  const cameraIds = parseCameraSelection(rawParams.cameras ?? rawParams.camera, cameras);
   const timeZone = siteTimezone(sites, siteId);
   const today = todayInZone(timeZone);
   const defaultFrom = addDaysToDateOnly(today, -6);
@@ -149,15 +84,15 @@ export default async function EventsPage({
   const toDate = scalar(rawParams.to) || today;
   const eventType = scalar(rawParams.type);
   const review = scalar(rawParams.review) || "all";
-  const page = Math.max(
-    1,
-    Number.parseInt(scalar(rawParams.page) || "1", 10) || 1,
-  );
+  const page = Math.max(1, Number.parseInt(scalar(rawParams.page) || "1", 10) || 1);
   const limit = 24;
 
-  const result = await searchSelectedEvents(organization.id, cameraIds, {
+  // 1.0.2: uma única RPC paginada para 0, 1 ou N câmeras. A mesma resposta
+  // contém acontecimentos concluídos e recibos ainda em análise.
+  const result = await searchEventTimeline(organization.id, {
     from: dateOnlyToIso(fromDate, timeZone),
     to: dateOnlyToIso(addDaysToDateOnly(toDate, 1), timeZone),
+    cameraIds,
     siteId,
     eventType,
     reviewFilter: review,
@@ -174,7 +109,6 @@ export default async function EventsPage({
     ...(eventType ? { type: eventType } : {}),
     ...(review !== "all" ? { review } : {}),
   };
-
   const optionalFilterCount = [
     siteId,
     cameraIds.length ? "cameras" : "",
@@ -184,10 +118,6 @@ export default async function EventsPage({
   const visiblePages = paginationWindow(page, totalPages, 5);
 
   let starterFrame: StarterFrame | null = null;
-
-  // No primeiro acesso ainda pode não existir um acontecimento consolidado,
-  // embora a imagem usada para criar o perfil da câmera já esteja salva.
-  // Mostramos essa referência sem fingir que ela é um acontecimento.
   if (result.total === 0 && page === 1) {
     const starterCameras = cameraIds.length
       ? cameras.filter((camera) => cameraIds.includes(camera.id))
@@ -195,10 +125,7 @@ export default async function EventsPage({
 
     for (const camera of starterCameras.slice(0, 6)) {
       try {
-        const workspace = await getCameraProfileWorkspace(
-          organization.id,
-          camera.id,
-        );
+        const workspace = await getCameraProfileWorkspace(organization.id, camera.id);
         if (workspace.latestProfile && workspace.frame?.url) {
           starterFrame = {
             cameraName: camera.name,
@@ -250,32 +177,25 @@ export default async function EventsPage({
           </div>
         ) : null}
 
-<details
-  open
-  className={`${disclosureStyles.disclosure} ${disclosureStyles.filterDisclosure}`}
->
+        <details
+          open
+          className={`${disclosureStyles.disclosure} ${disclosureStyles.filterDisclosure}`}
+        >
           <summary className={disclosureStyles.summary}>
             <span className={disclosureStyles.summaryCopy}>
               <span>FILTROS</span>
-              <strong>
-                {compactDate(fromDate)} até {compactDate(toDate)}
-              </strong>
+              <strong>{compactDate(fromDate)} até {compactDate(toDate)}</strong>
               <small>
                 {optionalFilterCount
                   ? `${optionalFilterCount} filtro${optionalFilterCount === 1 ? "" : "s"} adicional${optionalFilterCount === 1 ? "" : "is"} ativo${optionalFilterCount === 1 ? "" : "s"}`
                   : "Todos os locais, câmeras e tipos"}
               </small>
             </span>
-            <span className={disclosureStyles.chevron} aria-hidden="true">
-              ⌄
-            </span>
+            <span className={disclosureStyles.chevron} aria-hidden="true">⌄</span>
           </summary>
 
           <div className={disclosureStyles.content}>
-            <form
-              className={`${styles.filters} ${disclosureStyles.filterForm}`}
-              method="get"
-            >
+            <form className={`${styles.filters} ${disclosureStyles.filterForm}`} method="get">
               <label>
                 <span>De</span>
                 <input type="date" name="from" defaultValue={fromDate} />
@@ -289,24 +209,17 @@ export default async function EventsPage({
                 <select name="site" defaultValue={siteId}>
                   <option value="">Todos os locais</option>
                   {sites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
+                    <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
                 </select>
               </label>
-              <CameraMultiSelect
-                cameras={cameras}
-                selectedIds={cameraIds}
-              />
+              <CameraMultiSelect cameras={cameras} selectedIds={cameraIds} />
               <label>
                 <span>Tipo</span>
                 <select name="type" defaultValue={eventType}>
                   <option value="">Todos os tipos</option>
                   {EVENT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </label>
@@ -343,13 +256,10 @@ export default async function EventsPage({
         <div className={styles.resultHeading}>
           <div>
             <span>RESULTADOS</span>
-            <h2>
-              {result.total} acontecimento{result.total === 1 ? "" : "s"}
-            </h2>
+            <h2>{result.total} registro{result.total === 1 ? "" : "s"}</h2>
           </div>
-
           <div className={realtimeStyles.headingMeta}>
-            <small> Página {page} de {totalPages}</small>
+            <small>Página {page} de {totalPages}</small>
             <EventsRealtimeRefresh organizationId={organization.id} />
           </div>
         </div>
@@ -358,18 +268,12 @@ export default async function EventsPage({
           <EventList
             rows={result.rows}
             timezone={timeZone}
-            detailParams={{
-              ...preserved,
-              page: String(page),
-            }}
+            detailParams={{ ...preserved, page: String(page) }}
           />
         ) : starterFrame ? (
           <section className={styles.card}>
             <div className={styles.thumbnail}>
-              <img
-                src={starterFrame.url}
-                alt={`Imagem inicial da câmera ${starterFrame.cameraName}`}
-              />
+              <img src={starterFrame.url} alt={`Imagem inicial da câmera ${starterFrame.cameraName}`} />
               <span>Imagem de referência</span>
             </div>
             <div className={styles.cardBody}>
@@ -396,17 +300,14 @@ export default async function EventsPage({
           <EventList
             rows={[]}
             timezone={timeZone}
-            emptyMessage="O MonitorIA está acompanhando as câmeras. Os primeiros acontecimentos aparecerão aqui assim que forem concluídos e analisados."
+            emptyMessage="O MonitorIA está acompanhando as câmeras. Os primeiros acontecimentos aparecerão aqui assim que forem recebidos."
           />
         )}
 
         {totalPages > 1 ? (
           <nav className={styles.pagination} aria-label="Paginação dos acontecimentos">
             {page > 1 ? (
-              <Link
-                className={styles.paginationDirection}
-                href={pageHref(preserved, page - 1)}
-              >
+              <Link className={styles.paginationDirection} href={pageHref(preserved, page - 1)}>
                 ← Anterior
               </Link>
             ) : (
@@ -423,7 +324,7 @@ export default async function EventsPage({
                 </Link>
               ) : null}
 
-              {visiblePages.pages.map((pageNumber) => (
+              {visiblePages.pages.map((pageNumber: number) => (
                 <Link
                   key={pageNumber}
                   href={pageHref(preserved, pageNumber)}
@@ -444,10 +345,7 @@ export default async function EventsPage({
             </div>
 
             {page < totalPages ? (
-              <Link
-                className={styles.paginationDirection}
-                href={pageHref(preserved, page + 1)}
-              >
+              <Link className={styles.paginationDirection} href={pageHref(preserved, page + 1)}>
                 Próxima →
               </Link>
             ) : (
