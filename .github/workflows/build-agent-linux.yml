@@ -146,7 +146,7 @@ jobs:
           # 1.0.2 por cima não pode limpar /var/lib/monitoria.
           sudo -u monitoria sh -c 'printf upgrade-preserved > /var/lib/monitoria/upgrade-sentinel'
           sudo "${OUT}/install.sh" </dev/null
-          grep -q 'upgrade-preserved' /var/lib/monitoria/upgrade-sentinel
+sudo -u monitoria grep -q 'upgrade-preserved' /var/lib/monitoria/upgrade-sentinel
 
           export LD_LIBRARY_PATH="/opt/monitoria/ffmpeg/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           /opt/monitoria/ffmpeg/ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libopenh264'
