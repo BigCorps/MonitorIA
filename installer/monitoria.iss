@@ -282,41 +282,11 @@ end;
 function JsonEscape(Value: String): String;
 begin
   Result := Value;
-
-  StringChangeEx(
-    Result,
-    '\',
-    '\\',
-    True
-  );
-
-  StringChangeEx(
-    Result,
-    '"',
-    '\"',
-    True
-  );
-
-  StringChangeEx(
-    Result,
-    #13,
-    '\r',
-    True
-  );
-
-  StringChangeEx(
-    Result,
-    #10,
-    '\n',
-    True
-  );
-
-  StringChangeEx(
-    Result,
-    #9,
-    '\t',
-    True
-  );
+  StringChangeEx(Result, '\', '\\', True);
+  StringChangeEx(Result, '"', '\"', True);
+  StringChangeEx(Result, #13, '\r', True);
+  StringChangeEx(Result, #10, '\n', True);
+  StringChangeEx(Result, #9, '\t', True);
 end;
 
 
