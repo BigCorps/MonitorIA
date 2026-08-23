@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "1.0.1"
+  AGENT_VERSION: "1.0.2"
 
 jobs:
   build-linux:
@@ -38,24 +38,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Instalar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Instalar Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.14"
           no-cache: true
 
-      - name: Instalar dependências
-        working-directory: agent
-        run: bun install --frozen-lockfile
+      - name: Instalar dependências da árvore oficial
+        run: npm ci
 
       - name: Verificar TypeScript
-        working-directory: agent
-        run: bun run check
+        run: npx tsc --noEmit -p agent/tsconfig.json
 
-      - name: Compilar o Agent
+      - name: Compilar o Agent 1.0.2
         working-directory: agent
         run: |
-          bun build ./src/index.ts --compile \
+          bun build ./src/index-v102.ts --compile \
             --no-compile-autoload-dotenv \
             --no-compile-autoload-bunfig \
             --target=${{ matrix.bun_target }} \
@@ -80,6 +84,20 @@ jobs:
           }
           mkdir -p ffmpeg-tmp && tar xzf ffmpeg.tar.gz -C ffmpeg-tmp
 
+      - name: Validar capacidades FFmpeg da 1.0.2
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$PWD/ffmpeg-tmp/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          ffmpeg-tmp/ffmpeg -hide_banner -version | head -n 1
+          ffmpeg-tmp/ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libopenh264' || {
+            echo "O bundle LGPL não possui libopenh264; a compressão seletiva da 1.0.2 ficaria indisponível." >&2
+            exit 1
+          }
+          ! ffmpeg-tmp/ffmpeg -hide_banner -buildconf 2>&1 | grep -q -- '--enable-gpl' || {
+            echo "Bundle FFmpeg inesperadamente GPL." >&2
+            exit 1
+          }
+
       - name: Montar o pacote
         run: |
           set -euo pipefail
@@ -96,27 +114,25 @@ jobs:
 
           find ffmpeg-tmp -name 'LICENSE*' -maxdepth 2 -exec cp {} "$OUT/LICENSE.txt" \; || true
 
-          cat > "$OUT/FFMPEG-ORIGEM.txt" <<EOF
+          cat > "$OUT/FFMPEG-ORIGEM.txt" <<ORIGIN
           FFmpeg redistribuído sem modificação.
 
           Origem : https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1/${{ matrix.ffmpeg_asset }}
           Licença: LGPL (build sem componentes GPL)
           Fonte  : https://github.com/BtbN/FFmpeg-Builds
           Upstream: https://git.ffmpeg.org/ffmpeg.git
-          EOF
+          ORIGIN
 
           tar czf "${OUT}.tar.gz" "$OUT"
           echo "Pacote: $(du -h "${OUT}.tar.gz" | cut -f1)"
 
-      - name: Validar pacote Linux instalado
+      - name: Validar pacote Linux instalado e upgrade-safe
         run: |
           set -euo pipefail
           OUT="monitoria-agent-linux-${{ matrix.arch }}"
 
           sudo "${OUT}/install.sh" </dev/null
-
           systemd-analyze verify /etc/systemd/system/monitoria-agent.service
-
           systemctl is-enabled --quiet monitoria-agent.service
           systemctl is-active --quiet monitoria-agent.service
           test -x /opt/monitoria/monitoria-agent
@@ -126,13 +142,17 @@ jobs:
           test "$(stat -c '%a' /var/lib/monitoria)" = "700"
           test "$(stat -c '%U' /var/lib/monitoria)" = "monitoria"
 
-          LD_LIBRARY_PATH=/opt/monitoria/ffmpeg/lib /opt/monitoria/ffmpeg/ffmpeg -version | head -n 1
-          LD_LIBRARY_PATH=/opt/monitoria/ffmpeg/lib /opt/monitoria/ffmpeg/ffprobe -version | head -n 1
+          # Um arquivo-sentinela representa config/fila da 1.0.1. Reinstalar
+          # 1.0.2 por cima não pode limpar /var/lib/monitoria.
+          sudo -u monitoria sh -c 'printf upgrade-preserved > /var/lib/monitoria/upgrade-sentinel'
+          sudo "${OUT}/install.sh" </dev/null
+          grep -q 'upgrade-preserved' /var/lib/monitoria/upgrade-sentinel
+
+          export LD_LIBRARY_PATH="/opt/monitoria/ffmpeg/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          /opt/monitoria/ffmpeg/ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libopenh264'
 
           for _ in $(seq 1 30); do
-            if sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status.txt 2>&1; then
-              break
-            fi
+            if sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status.txt 2>&1; then break; fi
             sleep 0.5
           done
           cat /tmp/monitoria-status.txt
@@ -143,17 +163,16 @@ jobs:
           sleep 1
           systemctl is-active --quiet monitoria-agent.service
           sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status-after-restart.txt
+          grep -q "MonitorIA Agent v${AGENT_VERSION}" /tmp/monitoria-status-after-restart.txt
           grep -q "Pareado: não" /tmp/monitoria-status-after-restart.txt
 
           sudo "${OUT}/install.sh" --uninstall
-
           ! systemctl is-active --quiet monitoria-agent.service
           ! systemctl is-enabled --quiet monitoria-agent.service 2>/dev/null
           test ! -e /etc/systemd/system/monitoria-agent.service
           test ! -e /opt/monitoria
           test ! -e /var/lib/monitoria
           ! id -u monitoria >/dev/null 2>&1
-
           echo "Teste Linux completo aprovado para ${{ matrix.arch }}."
 
       - name: Publicar artefato

@@ -2,9 +2,6 @@ name: Build MonitorIA Agent
 
 on:
   workflow_dispatch:
-  # O filtro "paths" foi removido de propósito. Com branches e tags no mesmo
-  # gatilho, o filtro de caminho valeria também para as tags, e uma tag de
-  # release sem mudança em agent/ não dispararia a publicação.
   push:
     tags:
       - "agent-v*"
@@ -13,18 +10,8 @@ permissions:
   contents: write
 
 env:
-  AGENT_VERSION: "1.0.1"
-
-  # Razao social exata da conta do Partner Center e do certificado OV da
-  # SSL.com. Nao e erro de digitacao: o registro da empresa termina em LTA.
-  # Este valor precisa continuar identico em tres lugares — aqui,
-  # installer/monitoria.iss (AppPublisher) e o campo "Nome de exibicao do
-  # editor" no Partner Center.
+  AGENT_VERSION: "1.0.2"
   PUBLISHER_NAME: "BIGCORPS TECNOLOGIA LTA"
-
-  # Dependências fixadas por hash. Nada de "latest": um binário que muda
-  # sozinho muda o hash do instalador, e a reputação do SmartScreen recomeça
-  # do zero a cada troca silenciosa.
   FFMPEG_URL: "https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1/monitoria-ffmpeg-win64-lgpl-shared-v1.zip"
   FFMPEG_SHA256: "e12b6bab3636a9056803cbfc107a4bc724504c1c75a7bbc8aa43c876fb59d02b"
   WINSW_URL: "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW.NET461.exe"
@@ -40,6 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Instalar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Instalar Bun baseline 1.3.14
         uses: oven-sh/setup-bun@v2
         with:
@@ -52,7 +45,7 @@ jobs:
       - name: Verificar TypeScript
         run: npx tsc --noEmit -p agent/tsconfig.json
 
-      - name: Gerar Agent e componente de segurança
+      - name: Gerar Agent 1.0.2 e componente de segurança
         shell: pwsh
         run: |
           Push-Location agent
@@ -60,25 +53,19 @@ jobs:
             bun run build:win
             if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o Agent." }
           }
-          finally {
-            Pop-Location
-          }
+          finally { Pop-Location }
 
           New-Item -ItemType Directory -Force -Path build | Out-Null
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          if ([string]::IsNullOrWhiteSpace($visualStudio)) {
-            throw "Ferramentas C++ do Visual Studio não encontradas."
-          }
-
+          if ([string]::IsNullOrWhiteSpace($visualStudio)) { throw "Ferramentas C++ do Visual Studio não encontradas." }
           $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars64.bat"
           $command = '"' + $vcvars + '" && cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE agent\native\dpapi.c /Fe:build\monitoria-dpapi.exe Crypt32.lib'
           cmd.exe /d /s /c $command
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o componente DPAPI." }
-
           Copy-Item build\monitoria-dpapi.exe agent\dist\monitoria-dpapi.exe
 
-      - name: Validar executável
+      - name: Validar executável 1.0.2
         working-directory: agent
         shell: pwsh
         run: |
@@ -89,29 +76,23 @@ jobs:
           & $exe self-test
           if ($LASTEXITCODE -ne 0) { throw "O autoteste falhou." }
 
-      - name: Baixar e conferir FFmpeg
+      - name: Baixar e conferir FFmpeg LGPL
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build/ffmpeg | Out-Null
           Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile ffmpeg.zip
-
           $hash = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne $env:FFMPEG_SHA256) {
-            throw "SHA256 do FFmpeg divergente. Esperado $env:FFMPEG_SHA256, obtido $hash."
-          }
-
+          if ($hash -ne $env:FFMPEG_SHA256) { throw "SHA256 do FFmpeg divergente. Esperado $env:FFMPEG_SHA256, obtido $hash." }
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
           foreach ($name in @("ffmpeg.exe", "ffprobe.exe")) {
             $source = Get-ChildItem ffmpeg-tmp -Recurse -Filter $name | Select-Object -First 1
             if (-not $source) { throw "$name não encontrado no pacote do FFmpeg." }
             Copy-Item $source.FullName "build/ffmpeg/$name"
           }
-
-          Get-ChildItem ffmpeg-tmp -Recurse -Filter *.dll |
-            ForEach-Object { Copy-Item $_.FullName "build/ffmpeg/$($_.Name)" }
+          Get-ChildItem ffmpeg-tmp -Recurse -Filter *.dll | ForEach-Object { Copy-Item $_.FullName "build/ffmpeg/$($_.Name)" }
           $license = Get-ChildItem ffmpeg-tmp -Recurse -Filter LICENSE.txt | Select-Object -First 1
+          if (-not $license) { throw "LICENSE.txt do FFmpeg não encontrado." }
           Copy-Item $license.FullName build/ffmpeg/LICENSE.txt
-
           @"
           FFmpeg redistribuído sem modificação.
 
@@ -122,14 +103,22 @@ jobs:
           Upstream: https://git.ffmpeg.org/ffmpeg.git
           "@ | Out-File -Encoding utf8 build/ffmpeg/FFMPEG-ORIGEM.txt
 
+      - name: Validar encoder de compressão da 1.0.2
+        shell: pwsh
+        run: |
+          $ffmpeg = Resolve-Path "build/ffmpeg/ffmpeg.exe"
+          $encoders = & $ffmpeg -hide_banner -encoders 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "FFmpeg não iniciou corretamente." }
+          if ($encoders -notmatch 'libopenh264') { throw "FFmpeg LGPL sem libopenh264: compressão seletiva da 1.0.2 ficaria indisponível." }
+          $buildConf = & $ffmpeg -hide_banner -buildconf 2>&1 | Out-String
+          if ($buildConf -match '--enable-gpl') { throw "Bundle FFmpeg inesperadamente GPL." }
+
       - name: Baixar e conferir WinSW
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri $env:WINSW_URL -OutFile build/monitoria-service.exe
           $hash = (Get-FileHash build/monitoria-service.exe -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne $env:WINSW_SHA256) {
-            throw "SHA256 do WinSW divergente. Esperado $env:WINSW_SHA256, obtido $hash."
-          }
+          if ($hash -ne $env:WINSW_SHA256) { throw "SHA256 do WinSW divergente. Esperado $env:WINSW_SHA256, obtido $hash." }
 
       - name: Verificar credenciais de assinatura
         id: signing
@@ -142,23 +131,16 @@ jobs:
         run: |
           $enabled = -not [string]::IsNullOrWhiteSpace($env:ESIGNER_USERNAME)
           "enabled=$($enabled.ToString().ToLower())" | Out-File -Append $env:GITHUB_OUTPUT
-
           if ($enabled) {
             $faltando = @()
             if ([string]::IsNullOrWhiteSpace($env:ESIGNER_PASSWORD))       { $faltando += "ESIGNER_PASSWORD" }
             if ([string]::IsNullOrWhiteSpace($env:ESIGNER_CREDENTIAL_ID)) { $faltando += "ESIGNER_CREDENTIAL_ID" }
             if ([string]::IsNullOrWhiteSpace($env:ESIGNER_TOTP_SECRET))   { $faltando += "ESIGNER_TOTP_SECRET" }
-            if ($faltando.Count -gt 0) {
-              throw "Credenciais incompletas. Faltando: $($faltando -join ', ')"
-            }
+            if ($faltando.Count -gt 0) { throw "Credenciais incompletas. Faltando: $($faltando -join ', ')" }
             Write-Host "Credenciais de assinatura presentes."
             return
           }
-
-          if ("${{ github.ref }}".StartsWith("refs/tags/agent-v")) {
-            throw "Release em tag exige assinatura, e os segredos do eSigner não estão configurados."
-          }
-
+          if ("${{ github.ref }}".StartsWith("refs/tags/agent-v")) { throw "Release em tag exige assinatura, e os segredos do eSigner não estão configurados." }
           Write-Warning "Sem credenciais de assinatura. O build sairá sem assinar e NÃO deve ser distribuído."
 
       - name: Reunir binários para assinatura
@@ -166,10 +148,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path sign-stage | Out-Null
-          Copy-Item build\monitoria-dpapi.exe   sign-stage\ -Force
+          Copy-Item build\monitoria-dpapi.exe sign-stage\ -Force
           Copy-Item build\monitoria-service.exe sign-stage\ -Force
 
-      - name: Assinar binários
+      - name: Assinar binários auxiliares
         if: steps.signing.outputs.enabled == 'true'
         uses: sslcom/esigner-codesign@v1.3.2
         with:
@@ -187,22 +169,12 @@ jobs:
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
-          Copy-Item sign-stage-signed\monitoria-dpapi.exe   build\ -Force
+          Copy-Item sign-stage-signed\monitoria-dpapi.exe build\ -Force
           Copy-Item sign-stage-signed\monitoria-service.exe build\ -Force
-
-          $alvos = @(
-            "build\monitoria-dpapi.exe",
-            "build\monitoria-service.exe",
-            "build\ffmpeg\ffmpeg.exe",
-            "build\ffmpeg\ffprobe.exe"
-          ) + @(
-            Get-ChildItem build\ffmpeg -File -Filter *.dll |
-              ForEach-Object { $_.FullName }
-          )
-
+          $alvos = @("build\monitoria-dpapi.exe", "build\monitoria-service.exe", "build\ffmpeg\ffmpeg.exe", "build\ffmpeg\ffprobe.exe") + @(Get-ChildItem build\ffmpeg -File -Filter *.dll | ForEach-Object { $_.FullName })
           foreach ($alvo in $alvos) {
             $status = (Get-AuthenticodeSignature $alvo).Status
-            if ($status -ne 'Valid') { throw "Binario sem assinatura valida: $alvo ($status)" }
+            if ($status -ne 'Valid') { throw "Binário sem assinatura válida: $alvo ($status)" }
           }
 
       - name: Assinar o executável do Agent
@@ -224,31 +196,21 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item agent-signed\monitoria-agent.exe agent\dist\ -Force
-          $status = (Get-AuthenticodeSignature "agent\dist\monitoria-agent.exe").Status
-          Write-Host "monitoria-agent.exe -> $status"
-          if ($status -ne 'Valid') { throw "Agent sem assinatura valida: $status" }
+          $signature = Get-AuthenticodeSignature "agent\dist\monitoria-agent.exe"
+          if ($signature.Status -ne 'Valid') { throw "Agent sem assinatura válida: $($signature.Status)" }
+          if (-not $signature.TimeStamperCertificate) { throw "Agent assinado sem carimbo de tempo." }
 
       - name: Localizar o Inno Setup
         id: inno
         shell: pwsh
         run: |
-          $candidatos = @(
-            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-            "C:\Program Files\Inno Setup 6\ISCC.exe"
-          )
-
+          $candidatos = @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe", "C:\Program Files\Inno Setup 6\ISCC.exe")
           $iscc = $candidatos | Where-Object { Test-Path $_ } | Select-Object -First 1
-
           if (-not $iscc) {
-            Write-Host "Inno Setup não encontrado na imagem. Instalando..."
             choco install innosetup -y --no-progress
             $iscc = $candidatos | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
-
           if (-not $iscc) { throw "Não foi possível localizar o ISCC.exe." }
-
-          Write-Host "Usando: $iscc"
-          & $iscc /? | Select-Object -First 1
           "path=$iscc" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Preparar assinatura do Inno Setup
@@ -256,62 +218,35 @@ jobs:
         id: inno_sign
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:CODE_SIGN_TOOL_PATH)) {
-            throw "CodeSignTool não ficou disponível após a assinatura dos binários."
-          }
-
+          if ([string]::IsNullOrWhiteSpace($env:CODE_SIGN_TOOL_PATH)) { throw "CodeSignTool não ficou disponível após a assinatura dos binários." }
           $wrapper = Join-Path $env:RUNNER_TEMP "monitoria-inno-sign.ps1"
           @'
           param([Parameter(Mandatory=$true)][string]$FilePath)
-
           $ErrorActionPreference = 'Stop'
           $tool = Join-Path $env:CODE_SIGN_TOOL_PATH 'CodeSignTool.bat'
           if (-not (Test-Path $tool)) { throw "CodeSignTool.bat não encontrado." }
           if (-not (Test-Path $FilePath)) { throw "Arquivo para assinatura não encontrado: $FilePath" }
-
           $workDir = Join-Path $env:RUNNER_TEMP ("monitoria-inno-sign-" + [guid]::NewGuid().ToString('N'))
           $outDir = Join-Path $workDir 'signed'
           $inputExe = Join-Path $workDir 'monitoria-sign-input.exe'
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
           try {
-            # O Inno entrega o desinstalador temporário como *.tmp. O eSigner
-            # trabalha de forma mais previsível com extensão executável, então
-            # assinamos uma cópia .exe e devolvemos os mesmos bytes ao arquivo
-            # temporário original do Inno.
             Copy-Item $FilePath $inputExe -Force
-
-            $args = @(
-              'sign',
-              "-username=$env:ESIGNER_USERNAME",
-              "-password=$env:ESIGNER_PASSWORD",
-              "-credential_id=$env:ESIGNER_CREDENTIAL_ID",
-              "-totp_secret=$env:ESIGNER_TOTP_SECRET",
-              "-input_file_path=$inputExe",
-              "-output_dir_path=$outDir",
-              '-malware_block=true'
-            )
-
+            $args = @('sign', "-username=$env:ESIGNER_USERNAME", "-password=$env:ESIGNER_PASSWORD", "-credential_id=$env:ESIGNER_CREDENTIAL_ID", "-totp_secret=$env:ESIGNER_TOTP_SECRET", "-input_file_path=$inputExe", "-output_dir_path=$outDir", '-malware_block=true')
             & $tool @args
             if ($LASTEXITCODE -ne 0) { throw "CodeSignTool falhou com código $LASTEXITCODE." }
-
             $signed = Join-Path $outDir ([IO.Path]::GetFileName($inputExe))
             if (-not (Test-Path $signed)) { throw "eSigner não devolveu o arquivo assinado." }
-
             $sig = Get-AuthenticodeSignature $signed
             if ($sig.Status -ne 'Valid') { throw "Assinatura inválida: $($sig.Status)" }
             if (-not $sig.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
-
             Copy-Item $signed $FilePath -Force
           }
-          finally {
-            Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          finally { Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue }
           '@ | Set-Content -Path $wrapper -Encoding utf8
-
           "wrapper=$wrapper" | Out-File -Append $env:GITHUB_OUTPUT
 
-      - name: Compilar o instalador
+      - name: Compilar os instaladores 1.0.2
         shell: pwsh
         env:
           ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
@@ -320,27 +255,15 @@ jobs:
           ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
           $iscc = "${{ steps.inno.outputs.path }}"
-
           if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
             $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
-            if (-not (Test-Path $wrapper)) { throw "Wrapper de assinatura do Inno não encontrado." }
-
-            # No /S do Inno, $q é a sequência oficial para inserir aspas.
-            # $f já é substituído pelo próprio Inno pelo caminho do arquivo
-            # entre aspas. Não usamos \"...\" aqui porque o parser do ISCC
-            # transformava as aspas em barras, causando o erro de -File.
-            # Use PowerShell 7 (pwsh), o mesmo ambiente em que o workflow já
-            # validou Authenticode com sucesso. O Windows PowerShell 5.1 do
-            # runner não conseguiu carregar Microsoft.PowerShell.Security.
             $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
             $signCommand = '$q' + $pwsh + '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
             & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
-          }
-          else {
+          } else {
             & $iscc "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
           }
-
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador." }
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador retail." }
 
           if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
             $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
@@ -352,88 +275,75 @@ jobs:
           }
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador Microsoft Store." }
 
-      - name: Resumo do build
+      - name: Validar upgrade Windows e instaladores
         shell: pwsh
         env:
           EDITOR_ESPERADO: ${{ env.PUBLISHER_NAME }}
         run: |
-          # Os dois instaladores são verificados. Antes só o retail passava por
-          # aqui, e o MonitorIA-Store-Setup.exe — o único que a Microsoft baixa
-          # e executa — saía do CI sem nenhuma checagem de assinatura.
+          $assinando = '${{ steps.signing.outputs.enabled }}' -eq 'true'
           $alvos = @(
             @{ Nome = "Retail"; Caminho = "dist\MonitorIA-Setup.exe" },
             @{ Nome = "Microsoft Store"; Caminho = "dist\MonitorIA-Store-Setup.exe" }
           )
-
-          $assinando = '${{ steps.signing.outputs.enabled }}' -eq 'true'
           $falhas = @()
-
           @"
           | Instalador | Tamanho | Assinatura | Carimbo | SHA256 |
           |---|---|---|---|---|
           "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
-
           foreach ($alvo in $alvos) {
-            if (-not (Test-Path $alvo.Caminho)) {
-              $falhas += "$($alvo.Nome): arquivo nao gerado ($($alvo.Caminho))"
-              continue
-            }
-
+            if (-not (Test-Path $alvo.Caminho)) { $falhas += "$($alvo.Nome): arquivo não gerado"; continue }
             $arquivo = Get-Item $alvo.Caminho
             $mb = [math]::Round($arquivo.Length / 1MB, 1)
             $hash = (Get-FileHash $arquivo.FullName -Algorithm SHA256).Hash.ToLower()
             $assinatura = Get-AuthenticodeSignature $arquivo.FullName
             $status = $assinatura.Status
-            $editor = if ($assinatura.SignerCertificate) {
-              $assinatura.SignerCertificate.Subject
-            } else { "(sem assinatura)" }
             $carimbo = if ($assinatura.TimeStamperCertificate) { "sim" } else { "NAO" }
-
-            Write-Host "== $($alvo.Nome) =="
-            Write-Host "  Arquivo   : $($arquivo.Name) ($mb MB)"
-            Write-Host "  Assinatura: $status"
-            Write-Host "  Editor    : $editor"
-            Write-Host "  Carimbo   : $carimbo"
-            Write-Host "  SHA256    : $hash"
-
-            "| $($alvo.Nome) | $mb MB | $status | $carimbo | ``$hash`` |" |
-              Out-File -Append $env:GITHUB_STEP_SUMMARY
-
+            "| $($alvo.Nome) | $mb MB | $status | $carimbo | ``$hash`` |" | Out-File -Append $env:GITHUB_STEP_SUMMARY
             if (-not $assinando) { continue }
-
-            if ($status -ne 'Valid') {
-              $falhas += "$($alvo.Nome): assinatura invalida ($status)"
+            if ($status -ne 'Valid') { $falhas += "$($alvo.Nome): assinatura inválida ($status)" }
+            if (-not $assinatura.TimeStamperCertificate) { $falhas += "$($alvo.Nome): sem carimbo de tempo" }
+            if ($assinatura.SignerCertificate -and $assinatura.SignerCertificate.Subject -notmatch [regex]::Escape($env:EDITOR_ESPERADO)) {
+              $falhas += "$($alvo.Nome): editor divergente: $($assinatura.SignerCertificate.Subject)"
             }
-
-            if (-not $assinatura.TimeStamperCertificate) {
-              $falhas += "$($alvo.Nome): assinatura sem carimbo de tempo"
-            }
-
-            # O Partner Center compara o editor da assinatura com o publisher
-            # display name da conta. Divergencia aqui reprova a certificacao,
-            # e descobrir isso so depois do envio custa dias.
-            if ($assinatura.SignerCertificate -and
-                $assinatura.SignerCertificate.Subject -notmatch [regex]::Escape($env:EDITOR_ESPERADO)) {
-              $falhas += "$($alvo.Nome): editor '$editor' nao contem '$($env:EDITOR_ESPERADO)'"
-            }
-
-            # Certificado prestes a vencer gera build que nao da para
-            # ressubmeter. Trinta dias e o piso para renovar com folga.
-            $expira = $assinatura.SignerCertificate.NotAfter
-            if ($expira -and $expira -lt (Get-Date).AddDays(30)) {
-              $falhas += "$($alvo.Nome): certificado expira em $($expira.ToString('yyyy-MM-dd'))"
+            if ($assinatura.SignerCertificate -and $assinatura.SignerCertificate.NotAfter -lt (Get-Date).AddDays(30)) {
+              $falhas += "$($alvo.Nome): certificado expira em menos de 30 dias"
             }
           }
+          if ($falhas.Count -gt 0) { throw "Validação dos instaladores falhou:`n - $($falhas -join "`n - ")" }
 
-          if ($falhas.Count -gt 0) {
-            $texto = $falhas -join "`n  - "
-            @"
+      - name: Provar upgrade 1.0.2 preservando estado local
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "dist\MonitorIA-Setup.exe").Path
+          $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-')
 
-          **Falhas de validacao:**
+          $first = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($first.ExitCode -ne 0) { throw "Primeira instalação silenciosa falhou: $($first.ExitCode)" }
 
-          - $($falhas -join "`n- ")
-          "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
-            throw "Validacao do instalador falhou:`n  - $texto"
+          $data = Join-Path $env:ProgramData 'MonitorIA'
+          New-Item -ItemType Directory -Force -Path $data | Out-Null
+          $sentinel = Join-Path $data 'upgrade-sentinel-1.0.1'
+          Set-Content -Path $sentinel -Value 'pairing-config-queue-history-preserved' -Encoding utf8
+
+          $second = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($second.ExitCode -ne 0) { throw "Reinstalação/upgrade falhou: $($second.ExitCode)" }
+          if (-not (Test-Path $sentinel)) { throw "Upgrade apagou ProgramData\\MonitorIA." }
+          if ((Get-Content $sentinel -Raw) -notmatch 'preserved') { throw "Upgrade alterou o estado local." }
+
+          $agent = Join-Path $env:ProgramFiles 'MonitorIA\monitoria-agent.exe'
+          if (-not (Test-Path $agent)) { throw "Agent instalado não encontrado." }
+          $status = & $agent status 2>&1 | Out-String
+          if ($status -notmatch 'MonitorIA Agent v1\.0\.2') {
+            throw "Upgrade instalou versão errada. Saída: $status"
+          }
+
+          # Desinstalação explícita CONTINUA limpando o estado; isso comprova
+          # que preservar no upgrade não mudou a política de uninstall.
+          $uninstaller = Join-Path $env:ProgramFiles 'MonitorIA\unins000.exe'
+          if (Test-Path $uninstaller) {
+            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $args -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "Desinstalação de validação falhou: $($uninstall.ExitCode)" }
+            if (Test-Path $data) { throw "Desinstalação explícita não removeu ProgramData\\MonitorIA." }
           }
 
       - name: Publicar artefato
