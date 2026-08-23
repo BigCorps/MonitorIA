@@ -341,8 +341,8 @@ export class CameraTimeline {
       ], 10_000);
       if (result.code !== 0) throw new Error(result.stderr);
       const stream = JSON.parse(result.stdout)?.streams?.[0] ?? {};
-      const [num, den] = String(stream.avg_frame_rate ?? "0/1").split("/").map(Number);
-      const fps = den ? num / den : null;
+const [num = 0, den = 1] = String(stream.avg_frame_rate ?? "0/1").split("/").map(Number);
+const fps = den ? num / den : null;
       return {
         codec: stream.codec_name ? String(stream.codec_name).toLowerCase() : null,
         width: Number.isFinite(Number(stream.width)) ? Number(stream.width) : null,
