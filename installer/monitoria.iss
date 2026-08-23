@@ -27,19 +27,15 @@ VersionInfoVersion={#AppVersion}
 VersionInfoProductName={#AppName}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Instalador do MonitorIA Agent
-
 DefaultDirName={autopf}\{#AppName}
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\monitoria-agent.exe
-
 PrivilegesRequired=admin
-
 MinVersion=10.0.17763
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-
 OutputDir=..\dist
 
 #ifdef StoreBuild
@@ -68,31 +64,28 @@ Source: "..\agent\dist\monitoria-agent.exe"; DestDir: "{app}"; Flags: ignorevers
 Source: "..\build\monitoria-dpapi.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\monitoria-service.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "monitoria-service.xml"; DestDir: "{app}"; Flags: ignoreversion
-
 Source: "..\build\ffmpeg\ffmpeg.exe"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 Source: "..\build\ffmpeg\ffprobe.exe"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 Source: "..\build\ffmpeg\*.dll"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
-
 Source: "..\build\ffmpeg\LICENSE.txt"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 Source: "..\build\ffmpeg\FFMPEG-ORIGEM.txt"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 
 [Run]
-; Primeiro registra o serviço. O início efetivo ocorre no código do instalador,
-; com retentativa para máquinas em que o antivírus ainda está analisando o EXE.
+; Na primeira instalação registra o WinSW. Em upgrade, o serviço já existe:
+; PrepareToInstall o interrompe, os arquivos são substituídos e CurStepChanged
+; o inicia novamente. Isso evita ERROR_SERVICE_EXISTS (1073).
 Filename: "{app}\monitoria-service.exe"; Parameters: "install"; \
   StatusMsg: "Registrando o serviço do Windows..."; \
-  Flags: runhidden waituntilterminated
+  Flags: runhidden waituntilterminated; \
+  Check: PrecisaInstalarServico
 
 [UninstallRun]
 Filename: "{app}\monitoria-service.exe"; Parameters: "stop"; \
   Flags: runhidden waituntilterminated; RunOnceId: "StopService"
-
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /T /IM monitoria-agent.exe"; \
   Flags: runhidden waituntilterminated; RunOnceId: "KillAgentTree"
-
 Filename: "{app}\monitoria-service.exe"; Parameters: "uninstall"; \
   Flags: runhidden waituntilterminated; RunOnceId: "RemoveService"
-
 Filename: "{sys}\sc.exe"; Parameters: "delete MonitorIAAgent"; \
   Flags: runhidden waituntilterminated; RunOnceId: "DeleteServiceFallback"
 
@@ -103,7 +96,6 @@ Type: filesandordirs; Name: "{commonappdata}\MonitorIA"
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-
 var
   PairingPage: TInputQueryWizardPage;
   ServicoPronto: Boolean;
@@ -118,23 +110,24 @@ const
   SAIDA_CAMERA_NAO_CONFIGURADA = 8;
   SAIDA_ENTRADA_INVALIDA = 9;
 
-
 function ServicoInstalado(): Boolean;
 var
   ResultCode: Integer;
 begin
-  Result :=
-    Exec(
-      ExpandConstant('{sys}\sc.exe'),
-      'query MonitorIAAgent',
-      '',
-      SW_HIDE,
-      ewWaitUntilTerminated,
-      ResultCode
-    ) and
-    (ResultCode = 0);
+  Result := Exec(
+    ExpandConstant('{sys}\sc.exe'),
+    'query MonitorIAAgent',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = 0);
 end;
 
+function PrecisaInstalarServico(): Boolean;
+begin
+  Result := not ServicoInstalado();
+end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
@@ -143,8 +136,6 @@ var
 begin
   Result := '';
 
-  { Se já existe uma versão anterior, o serviço precisa ser encerrado antes
-    de substituir monitoria-agent.exe e os componentes do FFmpeg. }
   if not ServicoInstalado() then
     Exit;
 
@@ -157,11 +148,9 @@ begin
     ResultCode
   );
 
-  { Espera até 20 segundos pelo encerramento do serviço. }
   for Tentativa := 1 to 20 do
   begin
     Sleep(1000);
-
     Exec(
       ExpandConstant('{cmd}'),
       '/C sc query MonitorIAAgent | find "RUNNING"',
@@ -175,28 +164,21 @@ begin
       Break;
   end;
 
-  { Pequena folga para Windows/antivírus liberarem os arquivos. }
   Sleep(2000);
 end;
 
-
 procedure InitializeWizard();
 begin
-  PairingPage :=
-    CreateInputQueryPage(
-      wpInstalling,
-      'Conectar ao painel',
-      'Informe o código de pareamento da câmera',
-      'Abra a câmera no painel do MonitorIA, gere o código de pareamento e ' +
-      'digite-o abaixo. O código vale 15 minutos.'
-    );
-
-  PairingPage.Add(
-    'Código de pareamento:',
-    False
+  PairingPage := CreateInputQueryPage(
+    wpInstalling,
+    'Conectar ao painel',
+    'Informe o código de pareamento da câmera',
+    'Abra a câmera no painel do MonitorIA, gere o código de pareamento e ' +
+    'digite-o abaixo. O código vale 15 minutos.'
   );
-end;
 
+  PairingPage.Add('Código de pareamento:', False);
+end;
 
 function IniciarServico(): Boolean;
 var
@@ -205,8 +187,6 @@ var
 begin
   Result := False;
 
-  { O antivírus pode manter o executável recém-instalado ocupado por alguns
-    segundos. Fazemos até seis tentativas antes de considerar falha. }
   for Tentativa := 1 to 6 do
   begin
     if Exec(
@@ -229,31 +209,24 @@ begin
   end;
 end;
 
-
 function AgentCheck(const Command: String): Boolean;
 var
   ResultCode: Integer;
 begin
-  Result :=
-    Exec(
-      ExpandConstant('{app}\monitoria-agent.exe'),
-      Command,
-      ExpandConstant('{app}'),
-      SW_HIDE,
-      ewWaitUntilTerminated,
-      ResultCode
-    ) and
-    (ResultCode = SAIDA_OK);
+  Result := Exec(
+    ExpandConstant('{app}\monitoria-agent.exe'),
+    Command,
+    ExpandConstant('{app}'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = SAIDA_OK);
 end;
-
 
 function AgentPareado(): Boolean;
 begin
-  Result :=
-    ServicoPronto and
-    AgentCheck('paired-check');
+  Result := ServicoPronto and AgentCheck('paired-check');
 end;
-
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
@@ -261,23 +234,12 @@ begin
 
   if PageID = PairingPage.ID then
   begin
-    { /SILENT e /VERYSILENT são usados pelo CI, upgrades automáticos e
-      instalações administradas.
-
-      Nunca podem solicitar um novo código de pareamento.
-
-      Se for upgrade, o estado que já existe em ProgramData\MonitorIA
-      permanece intacto.
-
-      Se for uma instalação silenciosa nova, o Agent fica instalado e
-      aguardando pareamento posterior. }
     if WizardSilent then
       Result := True
     else
       Result := AgentPareado();
   end;
 end;
-
 
 function JsonEscape(Value: String): String;
 begin
@@ -289,7 +251,6 @@ begin
   StringChangeEx(Result, #9, '\t', True);
 end;
 
-
 function RunSetup(): Boolean;
 var
   ResultCode: Integer;
@@ -297,38 +258,18 @@ var
   Json: String;
 begin
   Result := False;
+  SetupFile := ExpandConstant('{tmp}\monitoria-initial-setup.json');
+  Json := '{' + '"code":"' + JsonEscape(Trim(PairingPage.Values[0])) + '"' + '}';
 
-  SetupFile :=
-    ExpandConstant(
-      '{tmp}\monitoria-initial-setup.json'
-    );
-
-  Json :=
-    '{' +
-    '"code":"' +
-    JsonEscape(
-      Trim(PairingPage.Values[0])
-    ) +
-    '"' +
-    '}';
-
-  if not SaveStringToFile(
-    SetupFile,
-    Json,
-    False
-  ) then
+  if not SaveStringToFile(SetupFile, Json, False) then
   begin
-    UltimoCodigoConfiguracao :=
-      SAIDA_ENTRADA_INVALIDA;
-
+    UltimoCodigoConfiguracao := SAIDA_ENTRADA_INVALIDA;
     Exit;
   end;
 
   WizardForm.NextButton.Enabled := False;
   WizardForm.BackButton.Enabled := False;
-  WizardForm.StatusLabel.Caption :=
-    'Conectando ao painel...';
-
+  WizardForm.StatusLabel.Caption := 'Conectando ao painel...';
   WizardForm.Refresh;
 
   try
@@ -343,7 +284,6 @@ begin
       ResultCode := SAIDA_SERVICO_PARADO;
   finally
     DeleteFile(SetupFile);
-
     WizardForm.NextButton.Enabled := True;
     WizardForm.BackButton.Enabled := True;
     WizardForm.StatusLabel.Caption := '';
@@ -353,57 +293,41 @@ begin
   Result := ResultCode = SAIDA_OK;
 end;
 
-
 function MensagemDeFalha(): String;
 begin
   if UltimoCodigoConfiguracao = SAIDA_SEM_PERMISSAO then
-  begin
     Result :=
       'O MonitorIA não conseguiu acessar a própria pasta de dados.' + #13#10#13#10 +
       'Feche o instalador e abra-o novamente, confirmando a solicitação de ' +
-      'administrador do Windows.';
-  end
+      'administrador do Windows.'
   else if UltimoCodigoConfiguracao = SAIDA_SERVICO_PARADO then
-  begin
     Result :=
       'O serviço do MonitorIA ainda não estava em execução.' + #13#10#13#10 +
       'Reinicie o computador e execute novamente este instalador. A ' +
-      'configuração já feita será preservada.';
-  end
+      'configuração já feita será preservada.'
   else if UltimoCodigoConfiguracao = SAIDA_PAREAMENTO_RECUSADO then
-  begin
     Result :=
       'O painel recusou este código de pareamento.' + #13#10#13#10 +
       'Ele vale 15 minutos e só pode ser usado uma vez. ' +
-      'Gere um código novo e tente de novo.';
-  end
+      'Gere um código novo e tente de novo.'
   else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
-  begin
-    Result :=
-      'Informe o código gerado no painel do MonitorIA.';
-  end
+    Result := 'Informe o código gerado no painel do MonitorIA.'
   else
-  begin
     Result :=
       'Não foi possível conectar este computador ao painel.' + #13#10#13#10 +
       'Verifique a internet e tente novamente.';
-  end;
 end;
-
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep <> ssPostInstall then
     Exit;
 
-  ServicoPronto :=
-    IniciarServico();
+  ServicoPronto := IniciarServico();
 
   if ServicoPronto then
     Exit;
 
-  { Em instalação silenciosa não podemos abrir nenhuma caixa de diálogo.
-    O workflow/administrador poderá detectar a falha pelo status do serviço. }
   if WizardSilent then
     Exit;
 
@@ -417,27 +341,19 @@ begin
   );
 end;
 
-
-function NextButtonClick(
-  CurPageID: Integer
-): Boolean;
+function NextButtonClick(CurPageID: Integer): Boolean;
 var
   Code: String;
 begin
   Result := True;
 
-  { Defesa adicional: mesmo que uma mudança futura no wizard deixe a página
-    de pareamento acessível, instalação silenciosa jamais exigirá interação. }
   if WizardSilent then
     Exit;
 
   if CurPageID <> PairingPage.ID then
     Exit;
 
-  Code :=
-    Trim(
-      PairingPage.Values[0]
-    );
+  Code := Trim(PairingPage.Values[0]);
 
   if Code = '' then
   begin
@@ -446,7 +362,6 @@ begin
       mbError,
       MB_OK
     );
-
     Result := False;
     Exit;
   end;
@@ -461,15 +376,9 @@ begin
       mbInformation,
       MB_OK
     );
-
     Exit;
   end;
 
-  MsgBox(
-    MensagemDeFalha(),
-    mbError,
-    MB_OK
-  );
-
+  MsgBox(MensagemDeFalha(), mbError, MB_OK);
   Result := False;
 end;
