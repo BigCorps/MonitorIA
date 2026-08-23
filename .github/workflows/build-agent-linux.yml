@@ -28,6 +28,7 @@ jobs:
             bun_target: bun-linux-x64-baseline
             ffmpeg_asset: monitoria-ffmpeg-linux-x64-v1.tar.gz
             ffmpeg_sha256: d27ef4e034b31e0ddfeebf16af54742d50455139e57517da15207113665a78f8
+
           - arch: arm64
             runner: ubuntu-24.04-arm
             bun_target: bun-linux-aarch64
@@ -76,23 +77,31 @@ jobs:
           set -euo pipefail
           BASE="https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1"
           curl -fsSL -o ffmpeg.tar.gz "${BASE}/${{ matrix.ffmpeg_asset }}"
+
           HASH="$(sha256sum ffmpeg.tar.gz | cut -d' ' -f1)"
           echo "SHA256: ${HASH}"
+
           test "${HASH}" = "${{ matrix.ffmpeg_sha256 }}" || {
             echo "SHA256 divergente. Esperado ${{ matrix.ffmpeg_sha256 }}, obtido ${HASH}" >&2
             exit 1
           }
-          mkdir -p ffmpeg-tmp && tar xzf ffmpeg.tar.gz -C ffmpeg-tmp
+
+          mkdir -p ffmpeg-tmp
+          tar xzf ffmpeg.tar.gz -C ffmpeg-tmp
 
       - name: Validar capacidades FFmpeg da 1.0.2
         run: |
           set -euo pipefail
+
           export LD_LIBRARY_PATH="$PWD/ffmpeg-tmp/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
           ffmpeg-tmp/ffmpeg -hide_banner -version | head -n 1
+
           ffmpeg-tmp/ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libopenh264' || {
             echo "O bundle LGPL não possui libopenh264; a compressão seletiva da 1.0.2 ficaria indisponível." >&2
             exit 1
           }
+
           ! ffmpeg-tmp/ffmpeg -hide_banner -buildconf 2>&1 | grep -q -- '--enable-gpl' || {
             echo "Bundle FFmpeg inesperadamente GPL." >&2
             exit 1
@@ -101,18 +110,28 @@ jobs:
       - name: Montar o pacote
         run: |
           set -euo pipefail
+
           OUT="monitoria-agent-linux-${{ matrix.arch }}"
+
           mkdir -p "$OUT"
 
           cp agent/dist/monitoria-agent "$OUT/"
           cp ffmpeg-tmp/ffmpeg ffmpeg-tmp/ffprobe "$OUT/"
+
           mkdir -p "$OUT/lib"
           cp -a ffmpeg-tmp/lib/. "$OUT/lib/"
+
           cp packaging/linux/monitoria-agent.service "$OUT/"
           cp packaging/linux/install.sh "$OUT/"
-          chmod +x "$OUT/install.sh" "$OUT/monitoria-agent" "$OUT/ffmpeg" "$OUT/ffprobe"
 
-          find ffmpeg-tmp -name 'LICENSE*' -maxdepth 2 -exec cp {} "$OUT/LICENSE.txt" \; || true
+          chmod +x \
+            "$OUT/install.sh" \
+            "$OUT/monitoria-agent" \
+            "$OUT/ffmpeg" \
+            "$OUT/ffprobe"
+
+          find ffmpeg-tmp -maxdepth 2 -name 'LICENSE*' \
+            -exec cp {} "$OUT/LICENSE.txt" \; || true
 
           cat > "$OUT/FFMPEG-ORIGEM.txt" <<ORIGIN
           FFmpeg redistribuído sem modificação.
@@ -124,55 +143,100 @@ jobs:
           ORIGIN
 
           tar czf "${OUT}.tar.gz" "$OUT"
+
           echo "Pacote: $(du -h "${OUT}.tar.gz" | cut -f1)"
 
       - name: Validar pacote Linux instalado e upgrade-safe
         run: |
           set -euo pipefail
+
           OUT="monitoria-agent-linux-${{ matrix.arch }}"
 
           sudo "${OUT}/install.sh" </dev/null
+
           systemd-analyze verify /etc/systemd/system/monitoria-agent.service
           systemctl is-enabled --quiet monitoria-agent.service
           systemctl is-active --quiet monitoria-agent.service
+
           test -x /opt/monitoria/monitoria-agent
           test -x /opt/monitoria/ffmpeg/ffmpeg
           test -x /opt/monitoria/ffmpeg/ffprobe
+
           test -d /var/lib/monitoria
           test "$(stat -c '%a' /var/lib/monitoria)" = "700"
           test "$(stat -c '%U' /var/lib/monitoria)" = "monitoria"
 
-          # Um arquivo-sentinela representa config/fila da 1.0.1. Reinstalar
-          # 1.0.2 por cima não pode limpar /var/lib/monitoria.
-          sudo -u monitoria sh -c 'printf upgrade-preserved > /var/lib/monitoria/upgrade-sentinel'
+          # Um arquivo-sentinela representa config/fila da 1.0.1.
+          # Reinstalar 1.0.2 por cima não pode limpar /var/lib/monitoria.
+          sudo -u monitoria sh -c \
+            'printf upgrade-preserved > /var/lib/monitoria/upgrade-sentinel'
+
           sudo "${OUT}/install.sh" </dev/null
-sudo -u monitoria grep -q 'upgrade-preserved' /var/lib/monitoria/upgrade-sentinel
+
+          sudo -u monitoria \
+            grep -q 'upgrade-preserved' \
+            /var/lib/monitoria/upgrade-sentinel
 
           export LD_LIBRARY_PATH="/opt/monitoria/ffmpeg/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-          /opt/monitoria/ffmpeg/ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libopenh264'
+
+          /opt/monitoria/ffmpeg/ffmpeg \
+            -hide_banner \
+            -encoders \
+            2>/dev/null | grep -q 'libopenh264'
 
           for _ in $(seq 1 30); do
-            if sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status.txt 2>&1; then break; fi
+            if sudo -u monitoria \
+              /opt/monitoria/monitoria-agent status \
+              >/tmp/monitoria-status.txt 2>&1
+            then
+              break
+            fi
+
             sleep 0.5
           done
+
           cat /tmp/monitoria-status.txt
-          grep -q "MonitorIA Agent v${AGENT_VERSION}" /tmp/monitoria-status.txt
-          grep -q "Pareado: não" /tmp/monitoria-status.txt
+
+          grep -q \
+            "MonitorIA Agent v${AGENT_VERSION}" \
+            /tmp/monitoria-status.txt
+
+          grep -q \
+            "Pareado: não" \
+            /tmp/monitoria-status.txt
 
           sudo systemctl restart monitoria-agent.service
           sleep 1
+
           systemctl is-active --quiet monitoria-agent.service
-          sudo -u monitoria /opt/monitoria/monitoria-agent status >/tmp/monitoria-status-after-restart.txt
-          grep -q "MonitorIA Agent v${AGENT_VERSION}" /tmp/monitoria-status-after-restart.txt
-          grep -q "Pareado: não" /tmp/monitoria-status-after-restart.txt
+
+          sudo -u monitoria \
+            /opt/monitoria/monitoria-agent status \
+            >/tmp/monitoria-status-after-restart.txt
+
+          grep -q \
+            "MonitorIA Agent v${AGENT_VERSION}" \
+            /tmp/monitoria-status-after-restart.txt
+
+          grep -q \
+            "Pareado: não" \
+            /tmp/monitoria-status-after-restart.txt
 
           sudo "${OUT}/install.sh" --uninstall
+
           ! systemctl is-active --quiet monitoria-agent.service
-          ! systemctl is-enabled --quiet monitoria-agent.service 2>/dev/null
+
+          ! systemctl is-enabled \
+            --quiet \
+            monitoria-agent.service \
+            2>/dev/null
+
           test ! -e /etc/systemd/system/monitoria-agent.service
           test ! -e /opt/monitoria
           test ! -e /var/lib/monitoria
+
           ! id -u monitoria >/dev/null 2>&1
+
           echo "Teste Linux completo aprovado para ${{ matrix.arch }}."
 
       - name: Publicar artefato
