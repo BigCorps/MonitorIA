@@ -238,7 +238,6 @@ jobs:
             choco install innosetup -y --no-progress
             $iscc = $candidatos | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
-
           if (-not $iscc) { throw "Não foi possível localizar o ISCC.exe." }
           "path=$iscc" | Out-File -Append $env:GITHUB_OUTPUT
 
@@ -252,11 +251,9 @@ jobs:
           }
 
           $wrapper = Join-Path $env:RUNNER_TEMP "monitoria-inno-sign.ps1"
-
           @'
           param([Parameter(Mandatory=$true)][string]$FilePath)
           $ErrorActionPreference = 'Stop'
-
           $tool = Join-Path $env:CODE_SIGN_TOOL_PATH 'CodeSignTool.bat'
           if (-not (Test-Path $tool)) { throw "CodeSignTool.bat não encontrado." }
           if (-not (Test-Path $FilePath)) { throw "Arquivo para assinatura não encontrado: $FilePath" }
@@ -268,7 +265,6 @@ jobs:
 
           try {
             Copy-Item $FilePath $inputExe -Force
-
             $args = @(
               'sign',
               "-username=$env:ESIGNER_USERNAME",
@@ -279,7 +275,6 @@ jobs:
               "-output_dir_path=$outDir",
               '-malware_block=true'
             )
-
             & $tool @args
             if ($LASTEXITCODE -ne 0) { throw "CodeSignTool falhou com código $LASTEXITCODE." }
 
@@ -289,14 +284,12 @@ jobs:
             $sig = Get-AuthenticodeSignature $signed
             if ($sig.Status -ne 'Valid') { throw "Assinatura inválida: $($sig.Status)" }
             if (-not $sig.TimeStamperCertificate) { throw "Assinatura sem carimbo de tempo." }
-
             Copy-Item $signed $FilePath -Force
           }
           finally {
             Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
           }
           '@ | Set-Content -Path $wrapper -Encoding utf8
-
           "wrapper=$wrapper" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Compilar os instaladores 1.0.2
@@ -313,40 +306,22 @@ jobs:
             $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
             $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
             $signCommand = '$q' + $pwsh + '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
-
-            & $iscc `
-              "/DAppVersion=$env:AGENT_VERSION" `
-              "/DSignCommand=1" `
-              "/Smonitoria=$signCommand" `
-              "installer\monitoria.iss"
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
           }
           else {
-            & $iscc `
-              "/DAppVersion=$env:AGENT_VERSION" `
-              "installer\monitoria.iss"
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "installer\monitoria.iss"
           }
-
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador retail." }
 
           if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
             $wrapper = "${{ steps.inno_sign.outputs.wrapper }}"
             $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
             $signCommand = '$q' + $pwsh + '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' + $wrapper + '$q $f'
-
-            & $iscc `
-              "/DAppVersion=$env:AGENT_VERSION" `
-              "/DStoreBuild=1" `
-              "/DSignCommand=1" `
-              "/Smonitoria=$signCommand" `
-              "installer\monitoria.iss"
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DStoreBuild=1" "/DSignCommand=1" "/Smonitoria=$signCommand" "installer\monitoria.iss"
           }
           else {
-            & $iscc `
-              "/DAppVersion=$env:AGENT_VERSION" `
-              "/DStoreBuild=1" `
-              "installer\monitoria.iss"
+            & $iscc "/DAppVersion=$env:AGENT_VERSION" "/DStoreBuild=1" "installer\monitoria.iss"
           }
-
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o instalador Microsoft Store." }
 
       - name: Validar upgrade Windows e instaladores
@@ -355,12 +330,10 @@ jobs:
           EDITOR_ESPERADO: ${{ env.PUBLISHER_NAME }}
         run: |
           $assinando = '${{ steps.signing.outputs.enabled }}' -eq 'true'
-
           $alvos = @(
             @{ Nome = "Retail"; Caminho = "dist\MonitorIA-Setup.exe" },
             @{ Nome = "Microsoft Store"; Caminho = "dist\MonitorIA-Store-Setup.exe" }
           )
-
           $falhas = @()
 
           @"
@@ -379,39 +352,17 @@ jobs:
             $hash = (Get-FileHash $arquivo.FullName -Algorithm SHA256).Hash.ToLower()
             $assinatura = Get-AuthenticodeSignature $arquivo.FullName
             $status = $assinatura.Status
+            $carimbo = if ($assinatura.TimeStamperCertificate) { "sim" } else { "NAO" }
 
-            $carimbo = if ($assinatura.TimeStamperCertificate) {
-              "sim"
-            }
-            else {
-              "NAO"
-            }
-
-            "| $($alvo.Nome) | $mb MB | $status | $carimbo | ``$hash`` |" |
-              Out-File -Append $env:GITHUB_STEP_SUMMARY
+            "| $($alvo.Nome) | $mb MB | $status | $carimbo | ``$hash`` |" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
             if (-not $assinando) { continue }
-
-            if ($status -ne 'Valid') {
-              $falhas += "$($alvo.Nome): assinatura inválida ($status)"
-            }
-
-            if (-not $assinatura.TimeStamperCertificate) {
-              $falhas += "$($alvo.Nome): sem carimbo de tempo"
-            }
-
-            if (
-              $assinatura.SignerCertificate -and
-              $assinatura.SignerCertificate.Subject -notmatch
-                [regex]::Escape($env:EDITOR_ESPERADO)
-            ) {
+            if ($status -ne 'Valid') { $falhas += "$($alvo.Nome): assinatura inválida ($status)" }
+            if (-not $assinatura.TimeStamperCertificate) { $falhas += "$($alvo.Nome): sem carimbo de tempo" }
+            if ($assinatura.SignerCertificate -and $assinatura.SignerCertificate.Subject -notmatch [regex]::Escape($env:EDITOR_ESPERADO)) {
               $falhas += "$($alvo.Nome): editor divergente: $($assinatura.SignerCertificate.Subject)"
             }
-
-            if (
-              $assinatura.SignerCertificate -and
-              $assinatura.SignerCertificate.NotAfter -lt (Get-Date).AddDays(30)
-            ) {
+            if ($assinatura.SignerCertificate -and $assinatura.SignerCertificate.NotAfter -lt (Get-Date).AddDays(30)) {
               $falhas += "$($alvo.Nome): certificado expira em menos de 30 dias"
             }
           }
@@ -428,7 +379,6 @@ jobs:
 
           $setup = (Resolve-Path "dist\MonitorIA-Setup.exe").Path
           $logDir = Join-Path $env:RUNNER_TEMP 'monitoria-install-logs'
-
           New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
           function Invoke-MonitorIAInstaller {
@@ -440,26 +390,17 @@ jobs:
             )
 
             Write-Host ">>> $Label iniciada."
-
-            $process = Start-Process `
-              -FilePath $FilePath `
-              -ArgumentList $Arguments `
-              -PassThru
+            $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -PassThru
 
             try {
               $finished = $process.WaitForExit($TimeoutSeconds * 1000)
-
               if (-not $finished) {
                 & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
                 throw "$Label excedeu o timeout de ${TimeoutSeconds}s."
               }
 
               $process.Refresh()
-
-              if ($process.ExitCode -ne 0) {
-                throw "$Label falhou com código $($process.ExitCode)."
-              }
-
+              if ($process.ExitCode -ne 0) { throw "$Label falhou com código $($process.ExitCode)." }
               Write-Host "<<< $Label terminou com sucesso."
             }
             finally {
@@ -468,78 +409,41 @@ jobs:
           }
 
           function Show-InstallLogs {
-            Get-ChildItem `
-              $logDir `
-              -Filter *.log `
-              -ErrorAction SilentlyContinue |
-              ForEach-Object {
-                Write-Host "===== $($_.Name) (últimas 200 linhas) ====="
-                Get-Content `
-                  $_.FullName `
-                  -Tail 200 `
-                  -ErrorAction SilentlyContinue
-              }
+            Get-ChildItem $logDir -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "===== $($_.Name) (últimas 200 linhas) ====="
+              Get-Content $_.FullName -Tail 200 -ErrorAction SilentlyContinue
+            }
           }
 
           function Show-AgentLogs {
-            $serviceLogDir = Join-Path `
-              $env:ProgramData `
-              'MonitorIA\logs'
+            $serviceLogDir = Join-Path $env:ProgramData 'MonitorIA\logs'
+            if (-not (Test-Path $serviceLogDir)) { return }
 
-            if (-not (Test-Path $serviceLogDir)) {
-              return
+            Get-ChildItem $serviceLogDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "===== Log do Agent: $($_.Name) ====="
+              Get-Content $_.FullName -Tail 100 -ErrorAction SilentlyContinue
             }
-
-            Get-ChildItem `
-              $serviceLogDir `
-              -File `
-              -ErrorAction SilentlyContinue |
-              ForEach-Object {
-                Write-Host "===== Log do Agent: $($_.Name) ====="
-                Get-Content `
-                  $_.FullName `
-                  -Tail 100 `
-                  -ErrorAction SilentlyContinue
-              }
           }
 
           function Assert-AgentInstalledAndRunning {
-            param(
-              [Parameter(Mandatory=$true)]
-              [string]$Stage
-            )
+            param([Parameter(Mandatory=$true)][string]$Stage)
 
-            $agentPath = Join-Path `
-              $env:ProgramFiles `
-              'MonitorIA\monitoria-agent.exe'
-
+            $agentPath = Join-Path $env:ProgramFiles 'MonitorIA\monitoria-agent.exe'
             $deadline = (Get-Date).AddSeconds(60)
             $lastStatus = ''
             $lastServiceState = 'não encontrado'
 
             do {
-              $service = Get-Service `
-                -Name 'MonitorIAAgent' `
-                -ErrorAction SilentlyContinue
+              $service = Get-Service -Name 'MonitorIAAgent' -ErrorAction SilentlyContinue
+              if ($service) { $lastServiceState = $service.Status.ToString() }
 
-              if ($service) {
-                $lastServiceState = $service.Status.ToString()
-              }
-
-              if (
-                (Test-Path $agentPath) -and
-                $service -and
-                $service.Status -eq 'Running'
-              ) {
+              if ((Test-Path $agentPath) -and $service -and $service.Status -eq 'Running') {
                 $statusLines = & $agentPath status 2>&1
                 $statusExitCode = $LASTEXITCODE
                 $lastStatus = $statusLines | Out-String
 
-                if (
-                  $statusExitCode -eq 0 -and
-                  $lastStatus -match 'MonitorIA Agent v1\.0\.2'
-                ) {
-                  Write-Host ">>> $Stage: serviço e IPC prontos."
+                if ($statusExitCode -eq 0 -and $lastStatus -match 'MonitorIA Agent v1\.0\.2') {
+                  Write-Host ">>> ${Stage}: serviço e IPC prontos."
                   Write-Host $lastStatus
                   return $agentPath
                 }
@@ -550,128 +454,56 @@ jobs:
             while ((Get-Date) -lt $deadline)
 
             Write-Host "Estado final do SCM: $lastServiceState"
-
             if ($lastStatus) {
               Write-Host "Última resposta do Agent:"
               Write-Host $lastStatus
             }
 
             Write-Host "Diagnóstico do serviço:"
-            & sc.exe query MonitorIAAgent 2>&1 |
-              Out-String |
-              Write-Host
-
+            & sc.exe query MonitorIAAgent 2>&1 | Out-String | Write-Host
             Show-AgentLogs
 
             throw "$Stage instalou o Agent, mas ele não ficou pronto para responder pelo IPC em até 60 segundos."
           }
 
-          $baseArgs = @(
-            '/VERYSILENT',
-            '/SUPPRESSMSGBOXES',
-            '/NORESTART',
-            '/SP-'
-          )
+          $baseArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-')
 
           try {
-            $firstLog = Join-Path `
-              $logDir `
-              '01-primeira-instalacao.log'
+            $firstLog = Join-Path $logDir '01-primeira-instalacao.log'
+            $firstArgs = $baseArgs + @("/LOG=`"$firstLog`"")
+            Invoke-MonitorIAInstaller -FilePath $setup -Arguments $firstArgs -Label 'Primeira instalação 1.0.2'
+            $agent = Assert-AgentInstalledAndRunning -Stage 'Primeira instalação'
 
-            $firstArgs = $baseArgs + @(
-              "/LOG=`"$firstLog`""
-            )
+            $data = Join-Path $env:ProgramData 'MonitorIA'
+            New-Item -ItemType Directory -Force -Path $data | Out-Null
+            $sentinel = Join-Path $data 'upgrade-sentinel-1.0.1'
+            Set-Content -Path $sentinel -Value 'pairing-config-queue-history-preserved' -Encoding utf8
 
-            Invoke-MonitorIAInstaller `
-              -FilePath $setup `
-              -Arguments $firstArgs `
-              -Label 'Primeira instalação 1.0.2'
+            $secondLog = Join-Path $logDir '02-reinstalacao-upgrade.log'
+            $secondArgs = $baseArgs + @("/LOG=`"$secondLog`"")
+            Invoke-MonitorIAInstaller -FilePath $setup -Arguments $secondArgs -Label 'Reinstalação/upgrade 1.0.2'
+            $agent = Assert-AgentInstalledAndRunning -Stage 'Reinstalação/upgrade'
 
-            $agent = Assert-AgentInstalledAndRunning `
-              -Stage 'Primeira instalação'
-
-            $data = Join-Path `
-              $env:ProgramData `
-              'MonitorIA'
-
-            New-Item `
-              -ItemType Directory `
-              -Force `
-              -Path $data |
-              Out-Null
-
-            $sentinel = Join-Path `
-              $data `
-              'upgrade-sentinel-1.0.1'
-
-            Set-Content `
-              -Path $sentinel `
-              -Value 'pairing-config-queue-history-preserved' `
-              -Encoding utf8
-
-            $secondLog = Join-Path `
-              $logDir `
-              '02-reinstalacao-upgrade.log'
-
-            $secondArgs = $baseArgs + @(
-              "/LOG=`"$secondLog`""
-            )
-
-            Invoke-MonitorIAInstaller `
-              -FilePath $setup `
-              -Arguments $secondArgs `
-              -Label 'Reinstalação/upgrade 1.0.2'
-
-            $agent = Assert-AgentInstalledAndRunning `
-              -Stage 'Reinstalação/upgrade'
-
-            if (-not (Test-Path $sentinel)) {
-              throw "Upgrade apagou ProgramData\MonitorIA."
-            }
-
-            if ((Get-Content $sentinel -Raw) -notmatch 'preserved') {
-              throw "Upgrade alterou o estado local."
-            }
+            if (-not (Test-Path $sentinel)) { throw "Upgrade apagou ProgramData\MonitorIA." }
+            if ((Get-Content $sentinel -Raw) -notmatch 'preserved') { throw "Upgrade alterou o estado local." }
 
             $statusLines = & $agent status 2>&1
             $statusExitCode = $LASTEXITCODE
             $status = $statusLines | Out-String
-
             Write-Host $status
 
-            if (
-              $statusExitCode -ne 0 -or
-              $status -notmatch 'MonitorIA Agent v1\.0\.2'
-            ) {
+            if ($statusExitCode -ne 0 -or $status -notmatch 'MonitorIA Agent v1\.0\.2') {
               throw "Upgrade instalou versão errada ou o serviço deixou de responder. Saída: $status"
             }
 
-            $uninstaller = Join-Path `
-              $env:ProgramFiles `
-              'MonitorIA\unins000.exe'
+            $uninstaller = Join-Path $env:ProgramFiles 'MonitorIA\unins000.exe'
+            if (-not (Test-Path $uninstaller)) { throw "Desinstalador não foi criado." }
 
-            if (-not (Test-Path $uninstaller)) {
-              throw "Desinstalador não foi criado."
-            }
+            $uninstallLog = Join-Path $logDir '03-desinstalacao.log'
+            $uninstallArgs = $baseArgs + @("/LOG=`"$uninstallLog`"")
+            Invoke-MonitorIAInstaller -FilePath $uninstaller -Arguments $uninstallArgs -Label 'Desinstalação de validação' -TimeoutSeconds 120
 
-            $uninstallLog = Join-Path `
-              $logDir `
-              '03-desinstalacao.log'
-
-            $uninstallArgs = $baseArgs + @(
-              "/LOG=`"$uninstallLog`""
-            )
-
-            Invoke-MonitorIAInstaller `
-              -FilePath $uninstaller `
-              -Arguments $uninstallArgs `
-              -Label 'Desinstalação de validação' `
-              -TimeoutSeconds 120
-
-            if (Test-Path $data) {
-              throw "Desinstalação explícita não removeu ProgramData\MonitorIA."
-            }
-
+            if (Test-Path $data) { throw "Desinstalação explícita não removeu ProgramData\MonitorIA." }
             Write-Host "Upgrade-safe Windows aprovado."
           }
           catch {
