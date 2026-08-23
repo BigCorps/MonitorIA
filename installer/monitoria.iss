@@ -71,15 +71,15 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 [Files]
 Source: "..\agent\dist\monitoria-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\monitoria-dpapi.exe";       DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\monitoria-service.exe";   DestDir: "{app}"; Flags: ignoreversion
-Source: "monitoria-service.xml";            DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\ffmpeg\ffmpeg.exe";       DestDir: "{app}\ffmpeg"; Flags: ignoreversion
-Source: "..\build\ffmpeg\ffprobe.exe";      DestDir: "{app}\ffmpeg"; Flags: ignoreversion
-Source: "..\build\ffmpeg\*.dll";            DestDir: "{app}\ffmpeg"; Flags: ignoreversion
+Source: "..\build\monitoria-service.exe";     DestDir: "{app}"; Flags: ignoreversion
+Source: "monitoria-service.xml";              DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\ffmpeg\ffmpeg.exe";         DestDir: "{app}\ffmpeg"; Flags: ignoreversion
+Source: "..\build\ffmpeg\ffprobe.exe";        DestDir: "{app}\ffmpeg"; Flags: ignoreversion
+Source: "..\build\ffmpeg\*.dll";              DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 
 ; Obrigações de licença do FFmpeg. O binário é redistribuído sem modificação
 ; e a origem exata fica registrada em FFMPEG-ORIGEM.txt.
-Source: "..\build\ffmpeg\LICENSE.txt";      DestDir: "{app}\ffmpeg"; Flags: ignoreversion
+Source: "..\build\ffmpeg\LICENSE.txt";        DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 Source: "..\build\ffmpeg\FFMPEG-ORIGEM.txt"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 
 [Run]
@@ -128,8 +128,14 @@ function ServicoInstalado(): Boolean;
 var
   ResultCode: Integer;
 begin
-  Result := Exec(ExpandConstant('{sys}\\sc.exe'), 'query MonitorIAAgent',
-                 '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+  Result := Exec(
+    ExpandConstant('{sys}\sc.exe'),
+    'query MonitorIAAgent',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) and (ResultCode = 0);
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -149,8 +155,14 @@ begin
   if not ServicoInstalado() then
     Exit;
 
-  Exec(ExpandConstant('{sys}\\sc.exe'), 'stop MonitorIAAgent',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(
+    ExpandConstant('{sys}\sc.exe'),
+    'stop MonitorIAAgent',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
 
   { O encerramento fecha as sessões de captura no servidor e leva alguns
     segundos. Espera ativa, com teto de 20 segundos. }
@@ -158,8 +170,14 @@ begin
   begin
     Sleep(1000);
 
-    Exec(ExpandConstant('{cmd}'), '/C sc query MonitorIAAgent | find "RUNNING"',
-         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec(
+      ExpandConstant('{cmd}'),
+      '/C sc query MonitorIAAgent | find "RUNNING"',
+      '',
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      ResultCode
+    );
 
     if ResultCode <> 0 then
       Break;
@@ -199,8 +217,14 @@ begin
     vai se repetir em campo. }
   for Tentativa := 1 to 6 do
   begin
-    if Exec(ExpandConstant('{app}\monitoria-service.exe'), 'start',
-            ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    if Exec(
+      ExpandConstant('{app}\monitoria-service.exe'),
+      'start',
+      ExpandConstant('{app}'),
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      ResultCode
+    ) then
     begin
       if ResultCode = 0 then
       begin
@@ -250,7 +274,19 @@ begin
   Result := False;
 
   if PageID = PairingPage.ID then
-    Result := AgentPareado();
+  begin
+    { Instalações /SILENT e /VERYSILENT são usadas para upgrade,
+      CI e distribuição automatizada. Nunca devem exigir interação
+      nem um novo código de pareamento.
+
+      Em atualização, os dados existentes em ProgramData\MonitorIA
+      permanecem intactos. Em uma instalação silenciosa nova, o
+      Agent é instalado e fica aguardando pareamento posterior. }
+    if WizardSilent then
+      Result := True
+    else
+      Result := AgentPareado();
+  end;
 end;
 
 function JsonEscape(Value: String): String;
@@ -272,6 +308,7 @@ begin
   Result := False;
 
   SetupFile := ExpandConstant('{tmp}\monitoria-initial-setup.json');
+
   { Só o código de pareamento. As câmeras são adicionadas pelo painel, onde
     a janela não trava e dá para mostrar progresso de verdade. }
   Json :=
@@ -319,24 +356,29 @@ begin
     expirado" fazia gerar código novo indefinidamente sem resolver nada. }
   if UltimoCodigoConfiguracao = SAIDA_SEM_PERMISSAO then
     Result :=
-      'O MonitorIA não conseguiu acessar a própria pasta de dados.' + #13#10#13#10 +
+      'O MonitorIA não conseguiu acessar a própria pasta de dados.' +
+      #13#10#13#10 +
       'Feche o instalador e abra-o novamente, confirmando a solicitação de ' +
       'administrador do Windows.'
   else if UltimoCodigoConfiguracao = SAIDA_SERVICO_PARADO then
     Result :=
-      'O serviço do MonitorIA ainda não estava em execução.' + #13#10#13#10 +
+      'O serviço do MonitorIA ainda não estava em execução.' +
+      #13#10#13#10 +
       'Reinicie o computador e execute novamente este instalador. A ' +
       'configuração já feita será preservada.'
   else if UltimoCodigoConfiguracao = SAIDA_PAREAMENTO_RECUSADO then
     Result :=
-      'O painel recusou este código de pareamento.' + #13#10#13#10 +
+      'O painel recusou este código de pareamento.' +
+      #13#10#13#10 +
       'Ele vale 15 minutos e só pode ser usado uma vez. ' +
       'Gere um código novo e tente de novo.'
   else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
-    Result := 'Informe o código gerado no painel do MonitorIA.'
+    Result :=
+      'Informe o código gerado no painel do MonitorIA.'
   else
     Result :=
-      'Não foi possível conectar este computador ao painel.' + #13#10#13#10 +
+      'Não foi possível conectar este computador ao painel.' +
+      #13#10#13#10 +
       'Verifique a internet e tente novamente.';
 end;
 
@@ -351,7 +393,8 @@ begin
     Exit;
 
   MsgBox(
-    'O MonitorIA foi instalado, mas o serviço não iniciou.' + #13#10#13#10 +
+    'O MonitorIA foi instalado, mas o serviço não iniciou.' +
+    #13#10#13#10 +
     'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
     'Reinicie o computador e execute novamente este instalador. A instalação ' +
     'será reconhecida e continuará da etapa pendente.',
@@ -365,6 +408,13 @@ var
   Code: String;
 begin
   Result := True;
+
+  { Defesa adicional para instalação ou atualização silenciosa.
+    ShouldSkipPage já impede a exibição da página, mas esta verificação
+    garante que uma futura mudança no fluxo não volte a exigir código
+    durante /SILENT ou /VERYSILENT. }
+  if WizardSilent then
+    Exit;
 
   if CurPageID <> PairingPage.ID then
     Exit;
@@ -385,9 +435,11 @@ begin
   if RunSetup() then
   begin
     MsgBox(
-      'Pronto! Este computador está conectado ao painel.' + #13#10#13#10 +
+      'Pronto! Este computador está conectado ao painel.' +
+      #13#10#13#10 +
       'Agora abra o painel do MonitorIA e clique em "Procurar câmeras". ' +
-      'Ele encontra as câmeras sozinho e mostra o andamento na tela.' + #13#10#13#10 +
+      'Ele encontra as câmeras sozinho e mostra o andamento na tela.' +
+      #13#10#13#10 +
       'O MonitorIA inicia junto com o Windows. Pode fechar o instalador.',
       mbInformation,
       MB_OK
@@ -395,6 +447,11 @@ begin
     Exit;
   end;
 
-  MsgBox(MensagemDeFalha(), mbError, MB_OK);
+  MsgBox(
+    MensagemDeFalha(),
+    mbError,
+    MB_OK
+  );
+
   Result := False;
 end;
