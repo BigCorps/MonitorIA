@@ -240,10 +240,21 @@ jobs:
           & $agent self-test
           if ($LASTEXITCODE -ne 0) { throw "Autoteste do pacote final falhou." }
 
-          & $dpapi
-          if ($LASTEXITCODE -ne 2) {
-            throw "Helper DPAPI final não iniciou como esperado. Código: $LASTEXITCODE"
+          # Não execute o helper diretamente com "& $dpapi": o GitHub Actions
+          # trata qualquer exit code nativo diferente de zero como falha do
+          # passo antes de conseguirmos validar o código. Sem argumentos, o
+          # helper DEVE sair com 2; Start-Process permite inspecionar esse
+          # código sem o PowerShell abortar o job.
+          $dpapiProcess = Start-Process `
+            -FilePath $dpapi.Path `
+            -Wait `
+            -PassThru
+
+          if ($dpapiProcess.ExitCode -ne 2) {
+            throw "Helper DPAPI final não iniciou como esperado. Código: $($dpapiProcess.ExitCode)"
           }
+
+          Write-Host "Helper DPAPI final iniciou corretamente (código esperado 2 sem argumentos)."
 
           if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
             foreach ($alvo in @($agent.Path, $dpapi.Path, (Resolve-Path "build\monitoria-service.exe").Path)) {
