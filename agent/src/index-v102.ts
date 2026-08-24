@@ -1,4 +1,9 @@
 import { installV102Runtime } from "./v102/service-runtime.js";
+import {
+  assertV102SchedulerInstalled,
+  installV102Scheduler,
+  v102SchedulerContract,
+} from "./v102/runtime-scheduler.js";
 import { protectSecret, revealSecret } from "./secret-store.js";
 import { AdaptiveMotionCalibration } from "./motion-calibration.js";
 import { calculateMotion } from "./motion.js";
@@ -8,8 +13,11 @@ import { AGENT_V102_VERSION } from "./v102/version.js";
 /**
  * O autoteste da 1.0.1 tratava 1,2% de alteração como amostra de repouso e
  * exigia que o adaptativo elevasse o threshold. Isso contradiz diretamente a
- * correção 1.0.2 que impede movimento real de virar baseline. A entrada oficial
- * executa este teste antes de importar a CLI legada.
+ * correção 1.0.2 que impede movimento real de virar baseline.
+ *
+ * A entrada oficial também instala e valida o scheduler explícito da 1.0.2.
+ * Ele é o guard rail que impede os timers privados da base 1.0.1 de voltarem
+ * silenciosamente a enviar acontecimentos pelo endpoint legado.
  */
 async function runV102SelfTest() {
   const sample = "MonitorIA 1.0.2 DPAPI autoteste: çã 🔐";
@@ -40,8 +48,6 @@ async function runV102SelfTest() {
     throw new Error("O autoteste de repouso da calibração adaptativa falhou.");
   }
 
-  // Movimento acima do teto de repouso não pode contaminar o baseline, mesmo
-  // que algum chamador marque a amostra como elegível por engano.
   const beforeSamples = quiet.samples;
   for (let index = 0; index < 20; index += 1) calibration.observe(2.5, 1, true);
   const afterMovement = calibration.snapshot(1, 0.25, true);
@@ -49,15 +55,35 @@ async function runV102SelfTest() {
     throw new Error("A calibração aprendeu movimento real como ruído.");
   }
 
+  assertV102SchedulerInstalled();
+  const scheduler = v102SchedulerContract();
+  if (
+    scheduler.version !== "1.0.2" ||
+    scheduler.eventTransport !== "durable-v2" ||
+    scheduler.eventEndpointPrefix !== "/api/agent/v2/cameras/" ||
+    scheduler.heartbeatProfile !== "v102" ||
+    scheduler.legacyQueueAndHeartbeatTimersDisabled !== true
+  ) {
+    throw new Error("O contrato do scheduler 1.0.2 não está ativo.");
+  }
+
   const layout = await resolvePaths();
   console.log(`Autoteste MonitorIA Agent v${AGENT_V102_VERSION} concluído com sucesso.`);
+  console.log(`Transporte de eventos: ${scheduler.eventTransport}`);
+  console.log(`Endpoint obrigatório: ${scheduler.eventEndpointPrefix}<cameraId>/events`);
+  console.log(`Heartbeat: ${scheduler.heartbeatProfile}`);
   console.log(`Pasta de dados: ${layout.root}`);
   console.log(`Permissões restritas: ${layout.restricted ? "sim" : "não"}`);
 }
 
+// Ordem deliberada: primeiro aplica as substituições funcionais da 1.0.2;
+// depois troca explicitamente os dois timers que, no executável compilado,
+// ainda estavam executando a fila/heartbeat 1.0.1 em campo.
+installV102Runtime();
+installV102Scheduler();
+
 if ((process.argv[2]?.toLowerCase() ?? "status") === "self-test") {
   await runV102SelfTest();
 } else {
-  installV102Runtime();
   await import("./index.js");
 }

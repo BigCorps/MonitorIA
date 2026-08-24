@@ -80,15 +80,22 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
   const timeZone = siteTimezone(sites, siteId);
   const today = todayInZone(timeZone);
   const defaultFrom = addDaysToDateOnly(today, -6);
-  const fromDate = scalar(rawParams.from) || defaultFrom;
-  const toDate = scalar(rawParams.to) || today;
+
+  // `from`/`to` só são persistidos quando o usuário aplicou explicitamente
+  // um intervalo. Antes da 1.0.2, a própria navegação gravava as datas padrão
+  // na URL. Depois da virada do dia, refresh e Realtime continuavam buscando
+  // o dia anterior até o usuário sair da seção e voltar.
+  const customDateRange = scalar(rawParams.range) === "custom";
+  const requestedFrom = scalar(rawParams.from);
+  const requestedTo = scalar(rawParams.to);
+  const fromDate = customDateRange && requestedFrom ? requestedFrom : defaultFrom;
+  const toDate = customDateRange && requestedTo ? requestedTo : today;
+
   const eventType = scalar(rawParams.type);
   const review = scalar(rawParams.review) || "all";
   const page = Math.max(1, Number.parseInt(scalar(rawParams.page) || "1", 10) || 1);
   const limit = 24;
 
-  // 1.0.2: uma única RPC paginada para 0, 1 ou N câmeras. A mesma resposta
-  // contém acontecimentos concluídos e recibos ainda em análise.
   const result = await searchEventTimeline(organization.id, {
     from: dateOnlyToIso(fromDate, timeZone),
     to: dateOnlyToIso(addDaysToDateOnly(toDate, 1), timeZone),
@@ -102,14 +109,16 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
 
   const totalPages = Math.max(1, Math.ceil(result.total / limit));
   const preserved = {
-    from: fromDate,
-    to: toDate,
+    ...(customDateRange
+      ? { range: "custom", from: fromDate, to: toDate }
+      : {}),
     ...(siteId ? { site: siteId } : {}),
     ...(cameraIds.length ? { cameras: cameraSelectionCsv(cameraIds) } : {}),
     ...(eventType ? { type: eventType } : {}),
     ...(review !== "all" ? { review } : {}),
   };
   const optionalFilterCount = [
+    customDateRange ? "datas" : "",
     siteId,
     cameraIds.length ? "cameras" : "",
     eventType,
@@ -188,14 +197,23 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
               <small>
                 {optionalFilterCount
                   ? `${optionalFilterCount} filtro${optionalFilterCount === 1 ? "" : "s"} adicional${optionalFilterCount === 1 ? "" : "is"} ativo${optionalFilterCount === 1 ? "" : "s"}`
-                  : "Todos os locais, câmeras e tipos"}
+                  : "Período automático · todos os locais, câmeras e tipos"}
               </small>
             </span>
             <span className={disclosureStyles.chevron} aria-hidden="true">⌄</span>
           </summary>
 
           <div className={disclosureStyles.content}>
-            <form className={`${styles.filters} ${disclosureStyles.filterForm}`} method="get">
+            <form
+              id="events-filter-form"
+              className={`${styles.filters} ${disclosureStyles.filterForm}`}
+              method="get"
+            >
+              <input
+                type="hidden"
+                name="range"
+                value={customDateRange ? "custom" : "auto"}
+              />
               <label>
                 <span>De</span>
                 <input type="date" name="from" defaultValue={fromDate} />
@@ -260,7 +278,12 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
           </div>
           <div className={realtimeStyles.headingMeta}>
             <small>Página {page} de {totalPages}</small>
-            <EventsRealtimeRefresh organizationId={organization.id} />
+            <EventsRealtimeRefresh
+              organizationId={organization.id}
+              autoDateRange={!customDateRange}
+              automaticFromDate={defaultFrom}
+              automaticToDate={today}
+            />
           </div>
         </div>
 

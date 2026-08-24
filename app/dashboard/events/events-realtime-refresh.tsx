@@ -1,19 +1,75 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/client";
 import styles from "./events-realtime-refresh.module.css";
 
-type Props = { organizationId: string };
+type Props = {
+  organizationId: string;
+  autoDateRange?: boolean;
+  automaticFromDate: string;
+  automaticToDate: string;
+};
 type RealtimeState = "connecting" | "live" | "updating" | "offline";
 const REFRESH_DEBOUNCE_MS = 1400;
 const PENDING_POLL_MS = 8_000;
 
-export function EventsRealtimeRefresh({ organizationId }: Props) {
+export function EventsRealtimeRefresh({
+  organizationId,
+  autoDateRange = false,
+  automaticFromDate,
+  automaticToDate,
+}: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<RealtimeState>("connecting");
+
+
+  useEffect(() => {
+    const form = document.getElementById("events-filter-form") as HTMLFormElement | null;
+    if (!form) return;
+
+    const fromInput = form.elements.namedItem("from") as HTMLInputElement | null;
+    const toInput = form.elements.namedItem("to") as HTMLInputElement | null;
+    const rangeInput = form.elements.namedItem("range") as HTMLInputElement | null;
+    if (!fromInput || !toInput || !rangeInput) return;
+
+    const syncRangeMode = () => {
+      rangeInput.value =
+        fromInput.value === automaticFromDate && toInput.value === automaticToDate
+          ? "auto"
+          : "custom";
+    };
+
+    fromInput.addEventListener("change", syncRangeMode);
+    toInput.addEventListener("change", syncRangeMode);
+    syncRangeMode();
+
+    return () => {
+      fromInput.removeEventListener("change", syncRangeMode);
+      toInput.removeEventListener("change", syncRangeMode);
+    };
+  }, [automaticFromDate, automaticToDate]);
+
+  useEffect(() => {
+    if (!autoDateRange) return;
+    if (!searchParams.has("from") && !searchParams.has("to")) return;
+
+    // Versões anteriores serializavam a faixa automática na URL. Depois da
+    // virada do dia, refresh/realtime repetiam para sempre a data antiga.
+    // URLs sem range=custom são automáticas: limpamos os parâmetros herdados
+    // e deixamos o Server Component recalcular "hoje" no fuso do local.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("from");
+    params.delete("to");
+    params.delete("range");
+    params.delete("page");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [autoDateRange, pathname, router, searchParams]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -49,12 +105,11 @@ export function EventsRealtimeRefresh({ organizationId }: Props) {
       .subscribe((status: string) => {
         if (!active) return;
         if (status === "SUBSCRIBED") return void setState("live");
-        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) setState("offline");
+        if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+          setState("offline");
+        }
       });
 
-    // O INSERT de analysis_jobs é service-role e nem toda configuração de
-    // Realtime o publica para o cliente. Poll leve garante que o card
-    // "Analisando…" apareça antes da conclusão e também cobre uma queda do WS.
     const pendingPoll = window.setInterval(() => {
       if (!active || document.visibilityState !== "visible") return;
       router.refresh();
