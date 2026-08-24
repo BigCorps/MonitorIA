@@ -301,8 +301,14 @@ export class CameraTimeline {
       result = await run(this.options.ffmpegPath, [
         "-hide_banner", "-loglevel", "error", "-ss", (offsetMs / 1000).toFixed(3),
         "-i", segment.path, "-map", "0:v:0", "-frames:v", "1", "-an",
-        "-vf", `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease`,
-        "-q:v", String(quality), "-y", output,
+        // O MJPEG exige faixa JPEG/full-range. Alguns builds recentes do
+        // FFmpeg recusam YUV limitado com EINVAL ("Non full-range YUV is
+        // non-standard"). Convertemos explicitamente para full-range e
+        // marcamos o encoder como JPEG/PC para manter a evidência compatível
+        // no Windows sem relaxar strict_std_compliance.
+        "-vf", `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease:out_range=full,format=yuv420p`,
+        "-c:v", "mjpeg", "-color_range", "pc",
+        "-q:v", String(quality), "-update", "1", "-y", output,
       ], 20_000);
 
       if (result.code !== 0) throw new Error(sanitizeFfmpegError(result.stderr) || "Falha ao extrair evidência da timeline.");
