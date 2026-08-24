@@ -45,6 +45,9 @@ jobs:
       - name: Verificar TypeScript
         run: npx tsc --noEmit -p agent/tsconfig.json
 
+      - name: Testar transporte autenticado 1.0.2
+        run: node --import tsx --test test/agent-0102-http-redirect.test.ts
+
       - name: Gerar Agent 1.0.2 e componente de segurança
         shell: pwsh
         run: |
@@ -223,6 +226,32 @@ jobs:
           $signature = Get-AuthenticodeSignature "agent\dist\monitoria-agent.exe"
           if ($signature.Status -ne 'Valid') { throw "Agent sem assinatura válida: $($signature.Status)" }
           if (-not $signature.TimeStamperCertificate) { throw "Agent assinado sem carimbo de tempo." }
+
+      - name: Validar pacote final que irá ao instalador
+        shell: pwsh
+        run: |
+          # O helper usado no primeiro autoteste era a cópia pré-assinatura.
+          # A partir daqui o Agent usa exatamente o DPAPI que será empacotado.
+          Copy-Item build\monitoria-dpapi.exe agent\dist\monitoria-dpapi.exe -Force
+
+          $agent = Resolve-Path "agent\dist\monitoria-agent.exe"
+          $dpapi = Resolve-Path "agent\dist\monitoria-dpapi.exe"
+
+          & $agent self-test
+          if ($LASTEXITCODE -ne 0) { throw "Autoteste do pacote final falhou." }
+
+          & $dpapi
+          if ($LASTEXITCODE -ne 2) {
+            throw "Helper DPAPI final não iniciou como esperado. Código: $LASTEXITCODE"
+          }
+
+          if ('${{ steps.signing.outputs.enabled }}' -eq 'true') {
+            foreach ($alvo in @($agent.Path, $dpapi.Path, (Resolve-Path "build\monitoria-service.exe").Path)) {
+              $sig = Get-AuthenticodeSignature $alvo
+              if ($sig.Status -ne 'Valid') { throw "Binário final sem assinatura válida: $alvo ($($sig.Status))" }
+              if (-not $sig.TimeStamperCertificate) { throw "Binário final sem carimbo de tempo: $alvo" }
+            }
+          }
 
       - name: Localizar o Inno Setup
         id: inno
@@ -445,6 +474,14 @@ jobs:
                 if ($statusExitCode -eq 0 -and $lastStatus -match 'MonitorIA Agent v1\.0\.2') {
                   Write-Host ">>> ${Stage}: serviço e IPC prontos."
                   Write-Host $lastStatus
+
+                  # Valida o Agent instalado usando o helper DPAPI que saiu de
+                  # dentro do instalador, não uma cópia do workspace.
+                  & $agentPath self-test
+                  if ($LASTEXITCODE -ne 0) {
+                    throw "${Stage}: autoteste do Agent instalado falhou."
+                  }
+
                   return $agentPath
                 }
               }
