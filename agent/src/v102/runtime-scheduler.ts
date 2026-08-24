@@ -1,7 +1,7 @@
 import os from "node:os";
 import { AgentService } from "../service.js";
 import { ApiError, sendHeartbeat } from "../api.js";
-import { resolveConfigDirectory } from "../config.js";
+import { resolveConfigDirectory, saveConfig } from "../config.js";
 import { platformMetadata, systemMetrics } from "../system.js";
 import { submitCameraEventV102 } from "./api.js";
 import { AGENT_V102_VERSION } from "./version.js";
@@ -12,6 +12,21 @@ const SCHEDULER_MARK = Symbol.for("monitoria.v102.scheduler.installed");
 
 const proto = AgentService.prototype as any;
 type V102Service = any;
+
+function cameraMap(value: unknown): Record<string, any> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, any>;
+}
+
+export function mergePreservedCameraConfig(
+  previous: Record<string, any>,
+  current: Record<string, any>,
+) {
+  return {
+    ...previous,
+    ...current,
+  };
+}
 
 function classify(error: unknown): "retry" | "reject" | "unauthorized" {
   if (!(error instanceof ApiError)) return "retry";
@@ -190,8 +205,12 @@ export function installV102Scheduler() {
   if (proto[SCHEDULER_MARK] === true) return;
 
   const startWithV102Runtime = proto.start;
+  const pairWithV102Runtime = proto.pair;
   if (typeof startWithV102Runtime !== "function") {
     throw new Error("monitoria_v102_scheduler_start_missing");
+  }
+  if (typeof pairWithV102Runtime !== "function") {
+    throw new Error("monitoria_v102_scheduler_pair_missing");
   }
 
   proto.start = async function(this: V102Service, ...args: any[]) {
@@ -240,6 +259,51 @@ export function installV102Scheduler() {
     return result;
   };
 
+  proto.pair = async function(this: V102Service, ...args: any[]) {
+    const previousCameras = {
+      ...cameraMap(this.config?.cameras),
+    };
+
+    const result = await pairWithV102Runtime.apply(this, args);
+
+    const config = this.config;
+    if (config) {
+      const merged = mergePreservedCameraConfig(
+        previousCameras,
+        cameraMap(config.cameras),
+      );
+
+      config.cameras = merged;
+      await saveConfig(config);
+
+      // O pareamento legado executa bootstrap antes de sabermos que a
+      // configuração local precisa ser reaproveitada. Sincronizamos de novo
+      // depois de restaurar os RTSPs; pruneOrphanCameras remove com segurança
+      // qualquer câmera que pertença a outro local/organização.
+      try {
+        await this.syncConfiguration();
+      } catch (error) {
+        this.logger.warn(
+          `Pareamento concluído, mas a ressincronização 1.0.2 falhou: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    // Novo token não pode aguardar o próximo minuto para provar que está
+    // válido. Também acordamos a fila imediatamente para que backlog
+    // preservado use o token novo e o endpoint v2.
+    void tickQueueV102Scheduled(this);
+    void tickHeartbeatV102Scheduled(this);
+
+    this.logger.info(
+      `Pareamento 1.0.2 atualizado: ${Object.keys(previousCameras).length} configuração(ões) local(is) preservada(s); heartbeat v2 disparado.`,
+    );
+
+    return result;
+  };
+
   proto[SCHEDULER_MARK] = true;
 }
 
@@ -256,5 +320,7 @@ export function v102SchedulerContract() {
     eventEndpointPrefix: "/api/agent/v2/cameras/",
     heartbeatProfile: "v102",
     legacyQueueAndHeartbeatTimersDisabled: true,
+    preservesLocalCameraStateOnRepair: true,
+    pairingRefreshesV102Immediately: true,
   } as const;
 }

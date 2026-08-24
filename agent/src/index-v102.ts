@@ -62,7 +62,9 @@ async function runV102SelfTest() {
     scheduler.eventTransport !== "durable-v2" ||
     scheduler.eventEndpointPrefix !== "/api/agent/v2/cameras/" ||
     scheduler.heartbeatProfile !== "v102" ||
-    scheduler.legacyQueueAndHeartbeatTimersDisabled !== true
+    scheduler.legacyQueueAndHeartbeatTimersDisabled !== true ||
+    scheduler.preservesLocalCameraStateOnRepair !== true ||
+    scheduler.pairingRefreshesV102Immediately !== true
   ) {
     throw new Error("O contrato do scheduler 1.0.2 não está ativo.");
   }
@@ -72,6 +74,7 @@ async function runV102SelfTest() {
   console.log(`Transporte de eventos: ${scheduler.eventTransport}`);
   console.log(`Endpoint obrigatório: ${scheduler.eventEndpointPrefix}<cameraId>/events`);
   console.log(`Heartbeat: ${scheduler.heartbeatProfile}`);
+  console.log(`Repareamento preserva câmeras: ${scheduler.preservesLocalCameraStateOnRepair ? "sim" : "não"}`);
   console.log(`Pasta de dados: ${layout.root}`);
   console.log(`Permissões restritas: ${layout.restricted ? "sim" : "não"}`);
 }
