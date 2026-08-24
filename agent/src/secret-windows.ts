@@ -45,10 +45,22 @@ function transientSpawnError(error: unknown) {
   return ["EPERM", "EACCES", "EBUSY", "ETXTBSY"].includes(error.code ?? "");
 }
 
-function runDpapiOnce(
+function spawnErrorCode(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+      ? String((error as { code: string }).code)
+      : null
+  );
+}
+
+function runDpapiChild(
   operation: Operation,
   payload: string,
   entropy: string,
+  viaCommandProcessor: boolean,
 ) {
   return new Promise<string>((resolve, reject) => {
     if (process.platform !== "win32") {
@@ -56,27 +68,26 @@ function runDpapiOnce(
       return;
     }
 
-    // Em algumas máquinas o Windows/antivírus pode recusar o CreateProcess
-    // antes de o ChildProcess emitir o evento "error". Nesse caso spawn()
-    // lança sincronicamente (ex.: uv_spawn EPERM). Normalizamos esse caminho
-    // para o mesmo DpapiSpawnError usado pelo evento assíncrono, garantindo
-    // que o retry abaixo seja aplicado nos dois casos.
+    const helper = helperPath();
+    const commandProcessor =
+      process.env.ComSpec ||
+      path.join(process.env.SystemRoot || "C:\\Windows", "System32", "cmd.exe");
+    const executable = viaCommandProcessor ? commandProcessor : helper;
+    // O fallback não coloca segredo na linha de comando: payload e entropia
+    // continuam indo exclusivamente por stdin. O comando contém somente o
+    // caminho fixo do helper e a operação fechada protect/unprotect.
+    const args = viaCommandProcessor
+      ? ["/d", "/s", "/c", `""${helper}" ${operation}"`]
+      : [operation];
+
     const child = (() => {
       try {
-        return spawn(helperPath(), [operation], {
+        return spawn(executable, args, {
           stdio: ["pipe", "pipe", "pipe"],
           windowsHide: true,
         });
       } catch (error) {
-        const code =
-          typeof error === "object" &&
-          error !== null &&
-          "code" in error &&
-          typeof (error as { code?: unknown }).code === "string"
-            ? String((error as { code: string }).code)
-            : null;
-
-        reject(new DpapiSpawnError(code));
+        reject(new DpapiSpawnError(spawnErrorCode(error)));
         return null;
       }
     })();
@@ -131,9 +142,26 @@ function runDpapiOnce(
     // O evento `error` do próprio ChildProcess ou o `close` abaixo carrega a
     // causa correta, então não deixamos o stdin mascarar um EPERM transitório.
     child.stdin.on("error", () => undefined);
-
     child.stdin.end(`${payload}\n${entropy}\n`, "utf8");
   });
+}
+
+async function runDpapiOnce(
+  operation: Operation,
+  payload: string,
+  entropy: string,
+) {
+  try {
+    return await runDpapiChild(operation, payload, entropy, false);
+  } catch (error) {
+    if (!transientSpawnError(error)) throw error;
+
+    // Caso real de produção: sob LocalSystem o Windows permite executar o
+    // helper, mas o uv_spawn do executável Bun pode receber EPERM enquanto
+    // cmd.exe consegue iniciar o mesmo binário. O fallback usa somente o
+    // processador de comandos nativo e mantém os segredos em stdin.
+    return runDpapiChild(operation, payload, entropy, true);
+  }
 }
 
 /**

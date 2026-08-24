@@ -303,10 +303,11 @@ export class CameraTimeline {
         "-i", segment.path, "-map", "0:v:0", "-frames:v", "1", "-an",
         // O MJPEG exige faixa JPEG/full-range. Alguns builds recentes do
         // FFmpeg recusam YUV limitado com EINVAL ("Non full-range YUV is
-        // non-standard"). Convertemos explicitamente para full-range e
-        // marcamos o encoder como JPEG/PC para manter a evidência compatível
-        // no Windows sem relaxar strict_std_compliance.
-        "-vf", `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease:out_range=full,format=yuv420p`,
+        // non-standard"). O pixel format yuv420p continua sendo tratado como
+        // faixa limitada por alguns builds do encoder MJPEG mesmo com
+        // color_range=pc. yuvj420p é o formato JPEG full-range explícito e
+        // evita o EINVAL observado no FFmpeg distribuído no Windows.
+        "-vf", `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease:out_range=full,format=yuvj420p`,
         "-c:v", "mjpeg", "-color_range", "pc",
         "-q:v", String(quality), "-update", "1", "-y", output,
       ], 20_000);
