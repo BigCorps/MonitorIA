@@ -34,6 +34,22 @@ export class CircularClipBuffer {
     this.options.log(`Timeline compartilhada de vídeo ativa em "${this.options.cameraName}".`);
   }
 
+  /**
+   * Retorna a evidência de vídeo já preservada para um acontecimento.
+   *
+   * O runtime 1.0.2 consulta este método antes de montar um clipe novo. A
+   * CameraTimeline já possui a implementação durável; este wrapper apenas
+   * expõe a mesma operação na interface do CircularClipBuffer.
+   *
+   * Manter essa distinção é importante: quando o clipe vem da área de
+   * evidência preservada, o service-runtime não pode apagar o diretório pai
+   * como faz com os clipes temporários gerados sob %TEMP%.
+   */
+  async preservedClip(agentEventId: string) {
+    if (!this.timeline) return null;
+    return this.timeline.preservedClip(agentEventId);
+  }
+
   async buildClip(request: ClipUploadRequest | (ClipUploadRequest & { claimToken?: string; agentEventId?: string })) {
     if (!this.timeline) throw new Error("A timeline de vídeo não está disponível.");
     const agentEventId = "agentEventId" in request ? request.agentEventId : undefined;
