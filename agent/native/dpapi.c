@@ -79,29 +79,80 @@ static BOOL decode_base64(const char *text, DATA_BLOB *blob) {
   return TRUE;
 }
 
+/*
+ * Base64 próprio para a saída do helper.
+ *
+ * Em campo, CryptUnprotectData retornou sucesso sob LocalSystem, porém
+ * CryptBinaryToStringA falhou ao serializar o plaintext e o helper terminou
+ * com exit code 5. Isso fazia o Agent interpretar um token íntegro como se a
+ * entropia tivesse mudado.
+ *
+ * A decodificação de entrada continua usando CryptStringToBinaryA (ela foi
+ * comprovadamente bem-sucedida); somente a serialização de saída deixa de
+ * depender de CryptBinaryToStringA.
+ */
 static BOOL write_base64(const DATA_BLOB *blob) {
-  DWORD characters = 0;
+  static const char table[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const SIZE_T input_length = (SIZE_T)blob->cbData;
+  const SIZE_T output_length = ((input_length + 2) / 3) * 4;
   char *output;
+  SIZE_T i = 0;
+  SIZE_T j = 0;
   BOOL ok;
-  const DWORD flags = CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF;
 
-  if (!CryptBinaryToStringA(
-        blob->pbData, blob->cbData, flags, NULL, &characters
-      )) {
-    return FALSE;
-  }
+  if (input_length > 0 && !blob->pbData) return FALSE;
+
+  /*
+   * O helper limita a entrada textual a 1 MiB; esta checagem evita overflow
+   * e alocação inesperada caso a API do Windows devolva um blob anômalo.
+   */
+  if (input_length > 1024 * 1024) return FALSE;
+  if (output_length > (SIZE_T)-2) return FALSE;
 
   output = (char *)HeapAlloc(
-    GetProcessHeap(), HEAP_ZERO_MEMORY, characters
+    GetProcessHeap(), HEAP_ZERO_MEMORY, output_length + 1
   );
   if (!output) return FALSE;
 
-  ok = CryptBinaryToStringA(
-    blob->pbData, blob->cbData, flags, output, &characters
-  );
-  if (ok) fputs(output, stdout);
+  while (i + 2 < input_length) {
+    const unsigned int value =
+      ((unsigned int)blob->pbData[i] << 16) |
+      ((unsigned int)blob->pbData[i + 1] << 8) |
+      (unsigned int)blob->pbData[i + 2];
 
-  SecureZeroMemory(output, characters);
+    output[j++] = table[(value >> 18) & 0x3F];
+    output[j++] = table[(value >> 12) & 0x3F];
+    output[j++] = table[(value >> 6) & 0x3F];
+    output[j++] = table[value & 0x3F];
+    i += 3;
+  }
+
+  if (i < input_length) {
+    const unsigned int first = (unsigned int)blob->pbData[i];
+    const unsigned int second =
+      (i + 1 < input_length) ? (unsigned int)blob->pbData[i + 1] : 0;
+    const unsigned int value = (first << 16) | (second << 8);
+
+    output[j++] = table[(value >> 18) & 0x3F];
+    output[j++] = table[(value >> 12) & 0x3F];
+
+    if (i + 1 < input_length) {
+      output[j++] = table[(value >> 6) & 0x3F];
+    } else {
+      output[j++] = '=';
+    }
+
+    output[j++] = '=';
+  }
+
+  output[j] = '\0';
+
+  ok =
+    fwrite(output, 1, output_length, stdout) == output_length &&
+    fflush(stdout) == 0;
+
+  SecureZeroMemory(output, output_length + 1);
   HeapFree(GetProcessHeap(), 0, output);
   return ok;
 }
