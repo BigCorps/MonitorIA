@@ -488,8 +488,17 @@ jobs:
 
                   # Valida o Agent instalado usando o helper DPAPI que saiu de
                   # dentro do instalador, não uma cópia do workspace.
-                  & $agentPath self-test
-                  if ($LASTEXITCODE -ne 0) {
+                  #
+                  # IMPORTANTE: em PowerShell, toda saída não capturada dentro de
+                  # uma função passa a fazer parte do valor retornado. Se executarmos
+                  # "& $agentPath self-test" diretamente, as linhas do autoteste
+                  # entram junto com o caminho retornado e transformam $agent em um
+                  # array/string inválido na etapa seguinte.
+                  $selfTestLines = & $agentPath self-test 2>&1
+                  $selfTestExitCode = $LASTEXITCODE
+                  $selfTestLines | ForEach-Object { Write-Host $_ }
+
+                  if ($selfTestExitCode -ne 0) {
                     throw "${Stage}: autoteste do Agent instalado falhou."
                   }
 
