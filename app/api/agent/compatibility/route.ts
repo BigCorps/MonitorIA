@@ -13,9 +13,21 @@ export const dynamic = "force-dynamic";
  * envia apenas o caminho normalizado — sem credencial e sem IP —, e o schema
  * abaixo rejeita qualquer coisa que pareça um endereço concreto, para o caso
  * de uma versão futura do Agent regredir nesse ponto.
+ *
+ * Builds anteriores usaram {USUARIO}/{SENHA} nos caminhos ONVIF, enquanto o
+ * catálogo novo usa {USERNAME}/{PASSWORD}. Aceitamos os dois formatos na
+ * borda e persistimos somente o formato canônico em inglês. Assim a correção
+ * é retrocompatível e não exige migration nem invalida Agents já instalados.
  */
 
-const NORMALIZED_PATH = /^rtsp:\/\/\{USERNAME\}:\{PASSWORD\}@\{IP\}:\{PORT\}\//;
+const NORMALIZED_PATH =
+  /^rtsp:\/\/(?:\{USERNAME\}:\{PASSWORD\}|\{USUARIO\}:\{SENHA\})@\{IP\}:\{PORT\}\//;
+
+function canonicalPathTemplate(value: string) {
+  return value
+    .replace(/\{USUARIO\}/g, "{USERNAME}")
+    .replace(/\{SENHA\}/g, "{PASSWORD}");
+}
 
 const CompatibilitySchema = z.object({
   vendor: z.string().trim().max(120).nullable().optional(),
@@ -79,7 +91,7 @@ export async function POST(request: NextRequest) {
     p_device_type: body.deviceType,
     p_source: body.source,
     p_rtsp_port: body.rtspPort,
-    p_path_template: body.pathTemplate,
+    p_path_template: canonicalPathTemplate(body.pathTemplate),
     p_stream_type: body.streamType,
     p_codec: body.codec ?? null,
     p_resolution: body.resolution ?? null,

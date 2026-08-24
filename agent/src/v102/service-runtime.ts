@@ -23,11 +23,14 @@ import { startCameraEventMonitor } from "../event-monitor.js";
 import { CircularClipBuffer } from "../clip-buffer.js";
 import { platformMetadata, systemMetrics } from "../system.js";
 import { AGENT_V102_VERSION } from "./version.js";
-import { submitCameraEventV102 } from "./api.js";
+import {
+  normalizeAgentApiBaseUrl,
+  requestAgentJsonV102,
+  submitCameraEventV102,
+} from "./api.js";
 import type { LocalMotionEvent } from "../types.js";
 
 const proto = AgentService.prototype as any;
-const originalFetch = globalThis.fetch.bind(globalThis);
 let installed = false;
 
 type V102Service = any;
@@ -39,7 +42,6 @@ function classify(error: unknown): "retry" | "reject" | "unauthorized" {
   if (error.status >= 400) return "reject";
   return "retry";
 }
-
 
 function requireRuntimeString(payload: Record<string, unknown>, key: string) {
   const value = payload[key];
@@ -58,10 +60,11 @@ async function pairV102(this: V102Service, payload: Record<string, unknown>) {
   }
 
   const code = requireRuntimeString(payload, "code");
-  const apiBaseUrl =
+  const apiBaseUrl = normalizeAgentApiBaseUrl(
     typeof payload.apiBaseUrl === "string" && payload.apiBaseUrl.trim()
       ? payload.apiBaseUrl.trim()
-      : DEFAULT_API_URL;
+      : DEFAULT_API_URL,
+  );
   const agentName =
     typeof payload.agentName === "string" && payload.agentName.trim()
       ? payload.agentName.trim()
@@ -91,7 +94,7 @@ async function pairV102(this: V102Service, payload: Record<string, unknown>) {
   const nextConfig = {
     schemaVersion: 2 as const,
     secretScope: "local-machine" as const,
-    apiBaseUrl: apiBaseUrl.replace(/\/+$/, ""),
+    apiBaseUrl,
     agentId: paired.agent.id,
     agentName,
     protectedAgentToken: await this.vault.seal(paired.agent.token),
@@ -101,6 +104,7 @@ async function pairV102(this: V102Service, payload: Record<string, unknown>) {
 
   // Só troca o estado local depois que o servidor aceitou o código e o novo
   // token já está protegido. Upgrade 1.0.1 -> 1.0.2 não toca neste caminho.
+  // O wrapper do scheduler restaura os RTSPs locais depois de um reparo.
   for (const cameraId of [...this.runtimes.keys()]) {
     await this.stopRuntime(cameraId, "repaired");
   }
@@ -129,21 +133,27 @@ async function pairV102(this: V102Service, payload: Record<string, unknown>) {
   };
 }
 
-async function reportCompatibilityV102(this: V102Service, entry: DiscoveryResult, chosen: DiscoveryResult["streams"][number]) {
+async function reportCompatibilityV102(
+  this: V102Service,
+  entry: DiscoveryResult,
+  chosen: DiscoveryResult["streams"][number],
+) {
   const config = this.config;
   const token = this.token;
   if (!config || !token) return;
   const record = compatibilityRecordFrom(entry, chosen, AGENT_V102_VERSION);
+
   try {
-    const response = await originalFetch(`${config.apiBaseUrl}/api/agent/compatibility`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Authorization: `Bearer ${token}`,
+    await requestAgentJsonV102(
+      config.apiBaseUrl,
+      token,
+      "/api/agent/compatibility",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify(record),
       },
-      body: JSON.stringify(record),
-    });
-    if (!response.ok) this.logger.warn(`Registro de compatibilidade 1.0.2 recusado: ${response.status}`);
+    );
   } catch (error) {
     this.logger.warn(
       `Falha ao registrar compatibilidade 1.0.2: ${error instanceof Error ? error.message : String(error)}`,
@@ -203,7 +213,6 @@ async function tickQueueV102(this: V102Service) {
     workers.add(task);
   }
 }
-
 
 function cameraSignatureV102(camera: any, localRtsp: string | null) {
   return JSON.stringify({
@@ -290,8 +299,6 @@ async function syncMonitoringV102(this: V102Service) {
         rtspUrl,
         sessionId: session.sessionId,
         enqueue: async (event: LocalMotionEvent) => {
-          // Aguardar a transação local da fila é parte do contrato 1.0.2.
-          // O EventMonitor não fecha o acontecimento antes deste await.
           await this.queue.enqueue(event);
           return true;
         },
@@ -362,24 +369,19 @@ async function syncMonitoringV102(this: V102Service) {
   }
 }
 
-async function jsonRequest(base: string, token: string, pathName: string, init: RequestInit = {}) {
-  const response = await originalFetch(`${base.replace(/\/+$/, "")}${pathName}`, {
+async function jsonRequest(
+  base: string,
+  token: string,
+  pathName: string,
+  init: RequestInit = {},
+) {
+  return requestAgentJsonV102<any>(base, token, pathName, {
     ...init,
     headers: {
-      ...(init.headers ?? {}),
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...((init.headers as Record<string, string>) ?? {}),
     },
   });
-  const text = await response.text();
-  let payload: any = null;
-  try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-  if (!response.ok) throw new ApiError(
-    String(payload?.message ?? payload?.error ?? `HTTP ${response.status}`),
-    response.status,
-    payload?.error ? String(payload.error) : null,
-  );
-  return payload;
 }
 
 async function processClip(service: V102Service, request: any) {
@@ -392,9 +394,6 @@ async function processClip(service: V102Service, request: any) {
 
   try {
     if (!buffer) throw new Error("clip_timeline_unavailable");
-    // O vídeo é fixado no fechamento do evento, antes da IA. Sob backlog, o
-    // ring buffer pode ter avançado; por isso a prova local preservada é a
-    // fonte primária. Só caímos para o ring quando o pedido é legado/antigo.
     built = request.agentEventId
       ? await buffer.preservedClip(String(request.agentEventId))
       : null;
@@ -450,10 +449,6 @@ async function processClip(service: V102Service, request: any) {
       }),
     }).catch(() => undefined);
   } finally {
-    // `preservedClip()` aponta para o repositório durável de evidências. Ele
-    // só é removido explicitamente depois de upload confirmado. `buildClip`,
-    // por outro lado, devolve uma pasta temporária de trabalho que pode ser
-    // descartada ao fim da tentativa.
     if (built?.path && !builtFromPreservedEvidence) {
       await rm(path.dirname(built.path), { recursive: true, force: true });
     }
@@ -646,11 +641,6 @@ async function discoverFallbackWinner(
 }
 
 async function discoverExpanded(service: V102Service, device: any, credentials: any, tools: any, expected: number) {
-  // Primeiro preserva tudo o que o ONVIF/catálogo oficial já conhece. Depois
-  // prova uma única vez um caminho de fallback no canal 1. Isso é essencial
-  // para DVRs cujo ONVIF anuncia só a primeira fonte: os canais extras ainda
-  // podem ser encontrados pelo caminho RTSP oficial sem repetir ONVIF a cada
-  // canal e sem abrir uma tempestade de conexões.
   const base = await discoverDeviceStreams({
     device, credentials, channels: [1], tools,
     log: (m: string) => service.logger.info(m),
@@ -680,15 +670,10 @@ async function discoverExpanded(service: V102Service, device: any, credentials: 
     found.add(1);
   }
 
-  // A expectativa dimensiona TEMPO, nunca quantidade. Não existe 6/16/32/64
-  // aqui e nenhuma sequência de lacunas encerra a enumeração. Em hardware com
-  // numeração esparsa, o scanner segue adiante enquanto houver orçamento.
   const budgetMs = Math.min(10 * 60_000, Math.max(60_000, expected * 7_500));
   const deadline = Date.now() + budgetMs;
   const frontierKey = `${device.host}|${winner.port}|${winner.candidate.pathTemplate}`;
   const frontiers: Map<string, number> = service.__v102DiscoveryFrontier ??= new Map();
-  // A busca pode continuar em uma segunda rodada sem recomeçar no canal 2.
-  // A expectativa informada só dimensiona o orçamento; nunca vira teto.
   let channel = Math.max(2, Number(frontiers.get(frontierKey) ?? 2));
   let probed = 0;
 
@@ -777,7 +762,6 @@ async function runDiscoveryV102(this: V102Service, payload: Record<string, unkno
   }
 }
 
-
 function assertServiceContract() {
   const required = [
     "start",
@@ -820,6 +804,20 @@ export function installV102Runtime() {
   const originalStart = proto.start;
   proto.start = async function(this: V102Service, ...args: any[]) {
     const result = await originalStart.apply(this, args);
+
+    // Migração in-place e idempotente: instalações antigas podem ter guardado
+    // https://www.monitoria.cam. A base 1.0.1 tolera esse endereço, mas um
+    // worker novo com fetch direto perdeu Authorization no 308. Persistimos a
+    // origem canônica antes de acordar o worker de clipes.
+    if (this.config?.apiBaseUrl) {
+      const canonical = normalizeAgentApiBaseUrl(String(this.config.apiBaseUrl));
+      if (canonical !== this.config.apiBaseUrl) {
+        this.config.apiBaseUrl = canonical;
+        await saveConfig(this.config);
+        this.logger.info(`Servidor do Agent normalizado para ${canonical}.`);
+      }
+    }
+
     const timer = setInterval(() => void tickClipsV102.call(this), 5_000);
     this.timers.push(timer);
     void tickClipsV102.call(this);

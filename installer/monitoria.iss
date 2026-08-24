@@ -170,22 +170,22 @@ end;
 
 procedure InitializeWizard();
 begin
-  { Captura o estado antes da instalação. Se agent.json já existe, este
-    computador já foi configurado anteriormente e a execução atual é
-    upgrade/reinstalação. Nunca pedir novo código nesse caso. }
+  { FileExists é usado apenas para reconhecer que vale esperar o serviço
+    recuperar um pareamento antigo. A presença de agent.json NUNCA é usada
+    como prova de pareamento: token ilegível/revogado precisa pedir reparo. }
   ConfiguracaoLocalExistente := FileExists(
     ExpandConstant('{commonappdata}\MonitorIA\agent.json')
   );
 
   PairingPage := CreateInputQueryPage(
     wpInstalling,
-    'Conectar ao painel',
-    'Informe o código de pareamento da câmera',
-    'Abra a câmera no painel do MonitorIA, gere o código de pareamento e ' +
-    'digite-o abaixo. O código vale 15 minutos.'
+    'Conectar este computador',
+    'Informe o código de conexão do MonitorIA',
+    'No painel do MonitorIA, abra os próximos passos da instalação e gere ' +
+    'o código para conectar este computador ao local. O código vale 15 minutos.'
   );
 
-  PairingPage.Add('Código de pareamento:', False);
+  PairingPage.Add('Código de conexão:', False);
 end;
 
 function IniciarServico(): Boolean;
@@ -236,16 +236,36 @@ begin
   Result := ServicoPronto and AgentCheck('paired-check');
 end;
 
+function AguardarPareamentoExistente(): Boolean;
+var
+  Tentativa: Integer;
+begin
+  Result := AgentPareado();
+  if Result or (not ConfiguracaoLocalExistente) then
+    Exit;
+
+  { Em upgrade, antivírus pode reter o helper DPAPI assinado enquanto valida.
+    Damos até 60 s para o próprio Agent concluir as retentativas. Se ainda não
+    estiver utilizável, mostramos a tela de reparo em vez de pular o código. }
+  for Tentativa := 1 to 30 do
+  begin
+    Sleep(2000);
+    Result := AgentPareado();
+    if Result then
+      Exit;
+  end;
+end;
+
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
   if PageID = PairingPage.ID then
   begin
-    if WizardSilent or ConfiguracaoLocalExistente then
+    if WizardSilent then
       Result := True
     else
-      Result := AgentPareado();
+      Result := AguardarPareamentoExistente();
   end;
 end;
 
@@ -311,11 +331,11 @@ begin
   else if UltimoCodigoConfiguracao = SAIDA_SERVICO_PARADO then
     Result :=
       'O serviço do MonitorIA ainda não estava em execução.' + #13#10#13#10 +
-      'Reinicie o computador e execute novamente este instalador. A ' +
+      'Aguarde a análise do antivírus terminar e tente novamente. A ' +
       'configuração já feita será preservada.'
   else if UltimoCodigoConfiguracao = SAIDA_PAREAMENTO_RECUSADO then
     Result :=
-      'O painel recusou este código de pareamento.' + #13#10#13#10 +
+      'O painel recusou este código de conexão.' + #13#10#13#10 +
       'Ele vale 15 minutos e só pode ser usado uma vez. ' +
       'Gere um código novo e tente de novo.'
   else if UltimoCodigoConfiguracao = SAIDA_ENTRADA_INVALIDA then
@@ -341,9 +361,9 @@ begin
 
   MsgBox(
     'O MonitorIA foi instalado, mas o serviço não iniciou.' + #13#10#13#10 +
-    'Isso costuma ser o antivírus retendo o programa recém-instalado. ' +
-    'Reinicie o computador e execute novamente este instalador. A instalação ' +
-    'será reconhecida e continuará da etapa pendente.',
+    'Isso pode acontecer enquanto o antivírus valida o programa recém-instalado. ' +
+    'Aguarde a análise terminar e execute novamente este instalador. A instalação ' +
+    'será reconhecida e a configuração será preservada.',
     mbInformation,
     MB_OK
   );
@@ -355,10 +375,15 @@ var
 begin
   Result := True;
 
-  if WizardSilent or ConfiguracaoLocalExistente then
+  if WizardSilent then
     Exit;
 
   if CurPageID <> PairingPage.ID then
+    Exit;
+
+  { O token pode ter ficado disponível enquanto o usuário lia a tela. Nesse
+    caso a atualização saudável segue sem exigir código. }
+  if AgentPareado() then
     Exit;
 
   Code := Trim(PairingPage.Values[0]);

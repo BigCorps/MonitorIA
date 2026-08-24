@@ -17,8 +17,16 @@ import { machineEntropy } from "./paths.js";
 
 const PREFIX_V2 = "v2:";
 const DPAPI_TIMEOUT_MS = 15_000;
+const DPAPI_SPAWN_RETRY_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 16_000, 32_000] as const;
 
 type Operation = "protect" | "unprotect";
+
+class DpapiSpawnError extends Error {
+  constructor(readonly code: string | null) {
+    super(`monitoria_dpapi_spawn_${code ?? "unknown"}`);
+    this.name = "DpapiSpawnError";
+  }
+}
 
 function helperPath() {
   return path.join(
@@ -27,7 +35,16 @@ function helperPath() {
   );
 }
 
-function runDpapi(
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function transientSpawnError(error: unknown) {
+  if (!(error instanceof DpapiSpawnError)) return false;
+  return ["EPERM", "EACCES", "EBUSY", "ETXTBSY"].includes(error.code ?? "");
+}
+
+function runDpapiOnce(
   operation: Operation,
   payload: string,
   entropy: string,
@@ -68,12 +85,8 @@ function runDpapi(
     // de baixo nível não devem correr o risco de repetir conteúdo sensível.
     child.stderr.resume();
 
-    child.on("error", () => {
-      finish(
-        new Error(
-          "O componente de segurança do MonitorIA não foi encontrado. Reinstale o aplicativo.",
-        ),
-      );
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      finish(new DpapiSpawnError(error.code ?? null));
     });
 
     child.on("close", (code) => {
@@ -91,16 +104,59 @@ function runDpapi(
       );
     });
 
-    child.stdin.on("error", () => {
-      finish(
-        new Error(
-          "Não foi possível enviar os dados ao cofre do Windows.",
-        ),
-      );
-    });
+    // EPIPE pode ser efeito secundário de um spawn bloqueado pelo antivírus.
+    // O evento `error` do próprio ChildProcess ou o `close` abaixo carrega a
+    // causa correta, então não deixamos o stdin mascarar um EPERM transitório.
+    child.stdin.on("error", () => undefined);
 
     child.stdin.end(`${payload}\n${entropy}\n`, "utf8");
   });
+}
+
+/**
+ * Antivírus pode reter um executável recém-instalado por alguns segundos
+ * enquanto conclui a análise. Em campo o Avast devolveu EPERM ao spawn do
+ * helper assinado e o liberou depois. Isso é transitório e não significa que
+ * o token está perdido, então repetimos somente erros de abertura do processo.
+ * Erro criptográfico real nunca entra neste loop.
+ */
+async function runDpapi(
+  operation: Operation,
+  payload: string,
+  entropy: string,
+) {
+  let lastError: unknown = null;
+
+  for (const delayMs of DPAPI_SPAWN_RETRY_DELAYS_MS) {
+    if (delayMs > 0) await wait(delayMs);
+
+    try {
+      return await runDpapiOnce(operation, payload, entropy);
+    } catch (error) {
+      lastError = error;
+      if (!transientSpawnError(error)) break;
+    }
+  }
+
+  if (lastError instanceof DpapiSpawnError) {
+    if (lastError.code === "ENOENT") {
+      throw new Error(
+        "O componente de segurança do MonitorIA não foi encontrado. Reinstale o aplicativo.",
+      );
+    }
+
+    if (transientSpawnError(lastError)) {
+      throw new Error(
+        "O componente de segurança do MonitorIA continua temporariamente bloqueado pelo Windows ou antivírus. Tente novamente em instantes.",
+      );
+    }
+
+    throw new Error(
+      "O Windows não permitiu iniciar o componente de segurança do MonitorIA.",
+    );
+  }
+
+  throw lastError;
 }
 
 export async function protectWindows(plain: string) {
