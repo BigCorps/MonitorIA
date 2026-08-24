@@ -99,6 +99,7 @@ Type: filesandordirs; Name: "{app}"
 var
   PairingPage: TInputQueryWizardPage;
   ServicoPronto: Boolean;
+  ConfiguracaoLocalExistente: Boolean;
   UltimoCodigoConfiguracao: Integer;
 
 const
@@ -169,6 +170,13 @@ end;
 
 procedure InitializeWizard();
 begin
+  { Captura o estado antes da instalação. Se agent.json já existe, este
+    computador já foi configurado anteriormente e a execução atual é
+    upgrade/reinstalação. Nunca pedir novo código nesse caso. }
+  ConfiguracaoLocalExistente := FileExists(
+    ExpandConstant('{commonappdata}\MonitorIA\agent.json')
+  );
+
   PairingPage := CreateInputQueryPage(
     wpInstalling,
     'Conectar ao painel',
@@ -234,7 +242,7 @@ begin
 
   if PageID = PairingPage.ID then
   begin
-    if WizardSilent then
+    if WizardSilent or ConfiguracaoLocalExistente then
       Result := True
     else
       Result := AgentPareado();
@@ -347,7 +355,7 @@ var
 begin
   Result := True;
 
-  if WizardSilent then
+  if WizardSilent or ConfiguracaoLocalExistente then
     Exit;
 
   if CurPageID <> PairingPage.ID then
