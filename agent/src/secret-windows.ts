@@ -17,7 +17,8 @@ import { machineEntropy } from "./paths.js";
 
 const PREFIX_V2 = "v2:";
 const DPAPI_TIMEOUT_MS = 15_000;
-const DPAPI_SPAWN_RETRY_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 16_000, 32_000] as const;
+// Mantém a recuperação inteira abaixo da janela de 60 s do instalador.
+const DPAPI_SPAWN_RETRY_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 16_000] as const;
 
 type Operation = "protect" | "unprotect";
 
@@ -55,10 +56,32 @@ function runDpapiOnce(
       return;
     }
 
-    const child = spawn(helperPath(), [operation], {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-    });
+    // Em algumas máquinas o Windows/antivírus pode recusar o CreateProcess
+    // antes de o ChildProcess emitir o evento "error". Nesse caso spawn()
+    // lança sincronicamente (ex.: uv_spawn EPERM). Normalizamos esse caminho
+    // para o mesmo DpapiSpawnError usado pelo evento assíncrono, garantindo
+    // que o retry abaixo seja aplicado nos dois casos.
+    const child = (() => {
+      try {
+        return spawn(helperPath(), [operation], {
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        });
+      } catch (error) {
+        const code =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          typeof (error as { code?: unknown }).code === "string"
+            ? String((error as { code: string }).code)
+            : null;
+
+        reject(new DpapiSpawnError(code));
+        return null;
+      }
+    })();
+
+    if (!child) return;
 
     let stdout = "";
     let settled = false;
