@@ -2,6 +2,12 @@ const TECHNICAL_LABELS: Record<string, string> = {
   observed_only: "estado observado, sem transição visível",
   visible_transition: "mudança visível nas imagens",
   persistent_confirmation: "estado confirmado em imagens sucessivas",
+  estimated_interval: "horário estimado dentro de uma faixa observada",
+  camera_health_regime_shift:
+    "mudança persistente do ambiente observada pela câmera",
+  open_estimated: "aberto por inferência operacional",
+  closed_estimated: "fechado por inferência operacional",
+  strong_snapshot: "estado confirmado por uma imagem forte, sem transição visível",
   closed_by_inactivity: "encerrada após um período sem nova atividade",
   explicit_departure: "encerrada quando a saída foi observada",
   operating_state_confirmed: "encerrada após confirmação visual do estado",
