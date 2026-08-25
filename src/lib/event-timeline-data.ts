@@ -77,6 +77,81 @@ function mapRow(row: any): TimelineSearchRow {
   };
 }
 
+type ThumbnailAsset = {
+  id: string;
+  event_id: string | null;
+  frame_label: string | null;
+  captured_at: string | null;
+};
+
+function thumbnailPriority(label: string | null) {
+  if (label === "peak") return 0;
+  if (label === "start") return 1;
+  if (label === "end") return 2;
+  if (label === "extra") return 3;
+  return 4;
+}
+
+async function normalizeCompletedThumbnails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: TimelineSearchRow[],
+) {
+  const eventIds = rows
+    .filter((row) => row.rowKind === "event")
+    .map((row) => row.id);
+
+  if (!eventIds.length) return rows;
+
+  const { data, error } = await supabase
+    .from("storage_assets")
+    .select("id,event_id,frame_label,captured_at")
+    .in("event_id", eventIds)
+    .eq("kind", "event_keyframe")
+    .eq("mime_type", "image/jpeg")
+    .eq("status", "ready")
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error("Falha ao validar thumbnails da timeline:", error.message);
+    return rows;
+  }
+
+  const selected = new Map<string, ThumbnailAsset>();
+
+  for (const asset of (data ?? []) as ThumbnailAsset[]) {
+    if (!asset.event_id) continue;
+
+    const current = selected.get(asset.event_id);
+    if (!current) {
+      selected.set(asset.event_id, asset);
+      continue;
+    }
+
+    const left = thumbnailPriority(asset.frame_label);
+    const right = thumbnailPriority(current.frame_label);
+    if (left < right) {
+      selected.set(asset.event_id, asset);
+      continue;
+    }
+
+    if (
+      left === right &&
+      String(asset.captured_at ?? "") < String(current.captured_at ?? "")
+    ) {
+      selected.set(asset.event_id, asset);
+    }
+  }
+
+  return rows.map((row) =>
+    row.rowKind === "event"
+      ? {
+          ...row,
+          thumbnailAssetId: selected.get(row.id)?.id ?? null,
+        }
+      : row,
+  );
+}
+
 /** Uma chamada paginada para qualquer quantidade de câmeras selecionadas. */
 export async function searchEventTimeline(
   organizationId: string,
@@ -102,7 +177,9 @@ export async function searchEventTimeline(
     return { rows: [], total: 0 };
   }
 
-  const rows = (data ?? []).map(mapRow);
+  const mapped = (data ?? []).map(mapRow);
+  const rows = await normalizeCompletedThumbnails(supabase, mapped);
+
   return {
     rows,
     total: Number((data?.[0] as any)?.total_count ?? 0),

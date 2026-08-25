@@ -6,6 +6,7 @@ import {
   formatMonitoringDateTime,
   formatMonitoringDuration,
 } from "@/src/lib/monitoring-display";
+import { EventThumbnailImage } from "./event-thumbnail";
 import styles from "./events.module.css";
 
 type Row = SearchEventRow | TimelineSearchRow;
@@ -36,7 +37,7 @@ function CardContents({ event, timezone }: { event: Row; timezone: string }) {
     <>
       <div className={styles.thumbnail}>
         {event.thumbnailAssetId ? (
-          <img src={`/api/storage-assets/${event.thumbnailAssetId}`} alt="" />
+          <EventThumbnailImage assetId={event.thumbnailAssetId} />
         ) : (
           <img className={styles.fallbackLogo} src="/favicon.svg" alt="" />
         )}
@@ -129,7 +130,12 @@ export function EventList({
             <CardContents event={event} timezone={timezone} />
           </article>
         ) : (
-          <Link key={event.id} href={detailHref(event.id, detailParams)} className={styles.card}>
+          <Link
+            key={event.id}
+            href={detailHref(event.id, detailParams)}
+            prefetch={false}
+            className={styles.card}
+          >
             <CardContents event={event} timezone={timezone} />
           </Link>
         ),

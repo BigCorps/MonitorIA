@@ -13,7 +13,7 @@ type Props = {
 };
 type RealtimeState = "connecting" | "live" | "updating" | "offline";
 const REFRESH_DEBOUNCE_MS = 1400;
-const PENDING_POLL_MS = 8_000;
+const SAFETY_POLL_MS = 60_000;
 
 export function EventsRealtimeRefresh({
   organizationId,
@@ -26,7 +26,6 @@ export function EventsRealtimeRefresh({
   const searchParams = useSearchParams();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<RealtimeState>("connecting");
-
 
   useEffect(() => {
     const form = document.getElementById("events-filter-form") as HTMLFormElement | null;
@@ -58,10 +57,6 @@ export function EventsRealtimeRefresh({
     if (!autoDateRange) return;
     if (!searchParams.has("from") && !searchParams.has("to")) return;
 
-    // Versões anteriores serializavam a faixa automática na URL. Depois da
-    // virada do dia, refresh/realtime repetiam para sempre a data antiga.
-    // URLs sem range=custom são automáticas: limpamos os parâmetros herdados
-    // e deixamos o Server Component recalcular "hoje" no fuso do local.
     const params = new URLSearchParams(searchParams.toString());
     params.delete("from");
     params.delete("to");
@@ -110,10 +105,14 @@ export function EventsRealtimeRefresh({
         }
       });
 
-    const pendingPoll = window.setInterval(() => {
+    // Realtime é a via principal. Este poll é apenas uma rede de segurança
+    // para uma aba que perdeu uma mensagem do canal. O poll antigo de 8 s
+    // fazia refresh constante mesmo sem nada pendente e rearmava prefetches
+    // de dezenas de cards.
+    const safetyPoll = window.setInterval(() => {
       if (!active || document.visibilityState !== "visible") return;
       router.refresh();
-    }, PENDING_POLL_MS);
+    }, SAFETY_POLL_MS);
 
     const onVisibility = () => {
       if (active && document.visibilityState === "visible") router.refresh();
@@ -123,7 +122,7 @@ export function EventsRealtimeRefresh({
     return () => {
       active = false;
       if (timerRef.current) clearTimeout(timerRef.current);
-      window.clearInterval(pendingPoll);
+      window.clearInterval(safetyPoll);
       document.removeEventListener("visibilitychange", onVisibility);
       void supabase.removeChannel(channel);
     };
