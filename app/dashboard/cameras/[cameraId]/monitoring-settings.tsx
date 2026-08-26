@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import type { CameraSummary } from "@/src/lib/dashboard-data";
 import { CAMERA_ANALYSIS_PLANS } from "@/src/lib/analysis-plans";
@@ -82,6 +82,13 @@ export function MonitoringSettings({
   const [operationalAccessEnabled, setOperationalAccessEnabled] =
     useState(operationalDefaults.enabled);
 
+  // Quando a Server Action devolve os dados atualizados, alinhe o switch
+  // explicitamente ao valor persistido. Isso evita um ícone visualmente
+  // desativado mesmo depois de o backend ter salvo a função.
+  useEffect(() => {
+    setOperationalAccessEnabled(operationalDefaults.enabled);
+  }, [operationalDefaults.enabled]);
+
   const plan =
     CAMERA_ANALYSIS_PLANS[
       camera.planCode as keyof typeof CAMERA_ANALYSIS_PLANS
@@ -94,8 +101,8 @@ export function MonitoringSettings({
           <span>OBSERVAÇÃO LOCAL</span>
           <h2>Segmentação e agenda</h2>
           <p>
-            O Agent calibra o ruído localmente e só envia acontecimentos
-            que ultrapassam os limites efetivos da câmera.
+            Defina como esta câmera reage a movimento, horários e mudanças
+            operacionais do local.
           </p>
         </div>
 
@@ -108,7 +115,7 @@ export function MonitoringSettings({
         <input type="hidden" name="camera_id" value={camera.id} />
 
         <div className={styles.grid}>
-          <div>
+          <div className={styles.infoCard}>
             <span>Plano atual</span>
             <strong>{plan.label}</strong>
             <small>{plan.description}</small>
@@ -129,7 +136,7 @@ export function MonitoringSettings({
             </span>
           </label>
 
-          <label>
+          <label className={styles.fieldCard}>
             <span>Relógio ou sobreposição</span>
             <select
               name="overlay_mask"
@@ -146,10 +153,16 @@ export function MonitoringSettings({
           </label>
         </div>
 
-        <fieldset disabled={!canManage || pending}>
+        <fieldset
+          className={styles.section}
+          disabled={!canManage || pending}
+        >
           <legend>Abertura e fechamento do local</legend>
 
-          <label className={styles.toggle}>
+          <label
+            className={`${styles.toggle} ${styles.accessToggle}`}
+            data-active={operationalAccessEnabled ? "true" : "false"}
+          >
             <input
               type="checkbox"
               name="operational_access_enabled"
@@ -167,10 +180,16 @@ export function MonitoringSettings({
                 persiana que define o acesso estiver realmente visível.
               </small>
             </span>
+            <em
+              className={styles.statusPill}
+              data-active={operationalAccessEnabled ? "true" : "false"}
+            >
+              {operationalAccessEnabled ? "Ativada" : "Desativada"}
+            </em>
           </label>
 
-          <div className={styles.grid}>
-            <label>
+          <div className={`${styles.grid} ${styles.operationalGrid}`}>
+            <label className={styles.fieldCard}>
               <span>Horário aproximado de abertura</span>
               <input
                 type="time"
@@ -183,7 +202,7 @@ export function MonitoringSettings({
               </small>
             </label>
 
-            <label>
+            <label className={styles.fieldCard}>
               <span>Horário aproximado de fechamento</span>
               <input
                 type="time"
@@ -196,12 +215,12 @@ export function MonitoringSettings({
               </small>
             </label>
 
-            <div>
+            <div className={styles.infoCard}>
               <span>Comportamento</span>
               <strong>
                 {operationalAccessEnabled
                   ? "Monitoramento 24 horas"
-                  : "Desativado para esta câmera"}
+                  : "Função desativada"}
               </strong>
               <small>
                 Uma câmera de referência por local. As demais câmeras online
@@ -212,6 +231,7 @@ export function MonitoringSettings({
         </fieldset>
 
         <fieldset
+          className={styles.section}
           disabled={
             !canManage ||
             pending ||
@@ -221,10 +241,10 @@ export function MonitoringSettings({
           <legend>Agenda</legend>
 
           {operationalAccessEnabled ? (
-            <p>
+            <p className={styles.notice}>
               A agenda semanal fica desativada enquanto esta câmera for a
-              referência de abertura/fechamento. Ela precisa continuar
-              observando inclusive antes da abertura e depois do fechamento.
+              referência de abertura/fechamento. Ela permanece observando
+              antes da abertura, depois do fechamento e durante a madrugada.
             </p>
           ) : null}
 
@@ -265,7 +285,7 @@ export function MonitoringSettings({
           </div>
 
           <div className={styles.grid}>
-            <label>
+            <label className={styles.fieldCard}>
               <span>Início</span>
               <input
                 type="time"
@@ -274,7 +294,7 @@ export function MonitoringSettings({
               />
             </label>
 
-            <label>
+            <label className={styles.fieldCard}>
               <span>Fim</span>
               <input
                 type="time"
@@ -283,7 +303,7 @@ export function MonitoringSettings({
               />
             </label>
 
-            <label>
+            <label className={styles.fieldCard}>
               <span>Fora do horário</span>
               <select
                 name="outside_mode"
@@ -312,9 +332,8 @@ export function MonitoringSettings({
               </p>
             ) : (
               <p>
-                O vídeo contínuo permanece local. A troca de plano é
-                feita na página Planos e não pode ser contornada por
-                esta configuração técnica.
+                O vídeo contínuo permanece local. As alterações são
+                sincronizadas com o Agent automaticamente.
               </p>
             )}
           </div>
