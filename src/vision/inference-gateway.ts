@@ -203,17 +203,63 @@ export async function analyzeEventThroughGateway(
     });
   }
 
+  // Abertura/fechamento é uma função opt-in e depende de uma fotografia
+  // estruturada do marcador primário. Se a análise principal omitir esse
+  // estado, fazemos uma segunda passagem focada usando os mesmos quadros.
+  // Isso é backend-only: não muda captura, fila ou transporte do Agent.
+  const primaryOperationalMarkerIds = input.profile.visualEntities
+    .filter(
+      (entity) =>
+        entity.primaryOperationalMarker &&
+        entity.type === "access_barrier",
+    )
+    .map((entity) => entity.id);
+
+  const observedStateEntityIds = new Set(
+    primary.event.stateObservations.map(
+      (observation) => observation.entityId,
+    ),
+  );
+
+  const missingOperationalMarkerIds =
+    primaryOperationalMarkerIds.filter(
+      (entityId) => !observedStateEntityIds.has(entityId),
+    );
+
+  const operationalMarkerVerificationRequired =
+    missingOperationalMarkerIds.length > 0;
+
+  const verificationDecision: VisionRoutingDecision =
+    operationalMarkerVerificationRequired
+      ? {
+          ...postflight,
+          verificationRequested: true,
+          critical: true,
+          reasons: [
+            ...postflight.reasons,
+            {
+              code: "primary_operational_marker_missing",
+              weight: 12,
+              detail:
+                "A análise principal não devolveu o estado do marcador operacional configurado.",
+            },
+          ],
+        }
+      : postflight;
+
   const attempts: VisionAnalysisAttempt[] = [primary];
 
   const verifierWouldRepeatPrimary = Boolean(
     execution.route === "strong" &&
-      execution.verifierModel === execution.model,
+      execution.verifierModel === execution.model &&
+      !operationalMarkerVerificationRequired,
   );
+
   const verificationAllowed =
-    postflight.verificationRequested &&
+    verificationDecision.verificationRequested &&
     execution.verifierModel &&
     !verifierWouldRepeatPrimary
-      ? await options?.allowVerification?.(postflight) ?? true
+      ? await options?.allowVerification?.(verificationDecision) ?? true
       : false;
 
   if (verificationAllowed && execution.verifierModel) {
@@ -225,7 +271,7 @@ export async function analyzeEventThroughGateway(
         "strong",
         Math.min(input.frames.length, planCode === "intensive" ? 4 : 3),
       ),
-      routingDecision: postflight,
+      routingDecision: verificationDecision,
       verificationCandidate: primary.event,
     };
 
@@ -246,7 +292,7 @@ export async function analyzeEventThroughGateway(
         execution.route !== "strong" ||
         execution.verifierModel !== execution.model,
       verified: true,
-      routing: postflight,
+      routing: verificationDecision,
     };
   }
 
@@ -256,9 +302,10 @@ export async function analyzeEventThroughGateway(
     escalated: false,
     verified: false,
     routing: {
-      ...postflight,
+      ...verificationDecision,
       verificationLimitedByPlan:
-        postflight.verificationRequested && !verificationAllowed,
+        verificationDecision.verificationRequested &&
+        !verificationAllowed,
     },
   };
 }

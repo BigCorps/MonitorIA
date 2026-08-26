@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import type { CameraSummary } from "@/src/lib/dashboard-data";
 import { CAMERA_ANALYSIS_PLANS } from "@/src/lib/analysis-plans";
@@ -44,6 +44,28 @@ function scheduleDefaults(value: Record<string, unknown>) {
   };
 }
 
+function operationalAccessDefaults(value: Record<string, unknown>) {
+  const raw =
+    value.operationalAccess &&
+    typeof value.operationalAccess === "object" &&
+    !Array.isArray(value.operationalAccess)
+      ? (value.operationalAccess as Record<string, unknown>)
+      : {};
+
+  const openingTime = String(raw.openingTime ?? "08:00");
+  const closingTime = String(raw.closingTime ?? "18:00");
+
+  return {
+    enabled: raw.enabled === true,
+    openingTime: /^\d{2}:\d{2}$/.test(openingTime)
+      ? openingTime
+      : "08:00",
+    closingTime: /^\d{2}:\d{2}$/.test(closingTime)
+      ? closingTime
+      : "18:00",
+  };
+}
+
 export function MonitoringSettings({
   camera,
   canManage,
@@ -54,6 +76,12 @@ export function MonitoringSettings({
   );
 
   const schedule = scheduleDefaults(camera.monitoringSchedule);
+  const operationalDefaults = operationalAccessDefaults(
+    camera.monitoringSchedule,
+  );
+  const [operationalAccessEnabled, setOperationalAccessEnabled] =
+    useState(operationalDefaults.enabled);
+
   const plan =
     CAMERA_ANALYSIS_PLANS[
       camera.planCode as keyof typeof CAMERA_ANALYSIS_PLANS
@@ -119,7 +147,86 @@ export function MonitoringSettings({
         </div>
 
         <fieldset disabled={!canManage || pending}>
+          <legend>Abertura e fechamento do local</legend>
+
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              name="operational_access_enabled"
+              checked={operationalAccessEnabled}
+              onChange={(event) =>
+                setOperationalAccessEnabled(event.target.checked)
+              }
+            />
+            <span>
+              <strong>
+                Usar esta câmera como referência de abertura e fechamento
+              </strong>
+              <small>
+                Ative somente quando a porta, portão, grade, cancela ou
+                persiana que define o acesso estiver realmente visível.
+              </small>
+            </span>
+          </label>
+
+          <div className={styles.grid}>
+            <label>
+              <span>Horário aproximado de abertura</span>
+              <input
+                type="time"
+                name="operational_opening_time"
+                defaultValue={operationalDefaults.openingTime}
+                required={operationalAccessEnabled}
+              />
+              <small>
+                Serve como janela de atenção. A imagem continua sendo a prova.
+              </small>
+            </label>
+
+            <label>
+              <span>Horário aproximado de fechamento</span>
+              <input
+                type="time"
+                name="operational_closing_time"
+                defaultValue={operationalDefaults.closingTime}
+                required={operationalAccessEnabled}
+              />
+              <small>
+                Fechar mais cedo ou mais tarde continua sendo detectável.
+              </small>
+            </label>
+
+            <div>
+              <span>Comportamento</span>
+              <strong>
+                {operationalAccessEnabled
+                  ? "Monitoramento 24 horas"
+                  : "Desativado para esta câmera"}
+              </strong>
+              <small>
+                Uma câmera de referência por local. As demais câmeras online
+                continuam ajudando a corroborar mudanças visuais.
+              </small>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset
+          disabled={
+            !canManage ||
+            pending ||
+            operationalAccessEnabled
+          }
+        >
           <legend>Agenda</legend>
+
+          {operationalAccessEnabled ? (
+            <p>
+              A agenda semanal fica desativada enquanto esta câmera for a
+              referência de abertura/fechamento. Ela precisa continuar
+              observando inclusive antes da abertura e depois do fechamento.
+            </p>
+          ) : null}
 
           <div className={styles.scheduleMode}>
             <label>
