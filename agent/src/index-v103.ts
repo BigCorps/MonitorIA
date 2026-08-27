@@ -14,6 +14,7 @@ import {
 } from "./v103/service-runtime.js";
 import { resolveAgentHostMode } from "./v103/host-mode.js";
 import { installV103ClipIntegrity } from "./v103/clip-integrity.js";
+import { installV103EarlyEvidencePinning } from "./v103/early-evidence-pinning.js";
 import { AGENT_V103_VERSION } from "./v103/version.js";
 
 /**
@@ -24,6 +25,7 @@ import { AGENT_V103_VERSION } from "./v103/version.js";
  * para Windows 24/7, Store Desktop e Linux.
  */
 installV102Runtime();
+installV103EarlyEvidencePinning();
 installV103ClipIntegrity();
 installV103Runtime();
 installV102Scheduler();

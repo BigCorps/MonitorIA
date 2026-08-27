@@ -897,3 +897,85 @@ serem removidos antes de o evento terminar quando existe pressão de disco.
 
 A 3A deve passar pelo build e pelos testes Windows/Linux antes da 3B para não
 misturar duas mudanças críticas de vídeo no mesmo diagnóstico.
+
+
+---
+
+# 23. Entrega 3B — pinning antecipado da timeline
+
+**Objetivo:** preservar o começo e o meio do acontecimento enquanto ele ainda
+está acontecendo, antes da IA e antes do pedido de vídeo do backend.
+
+## 23.1 Estratégia
+
+A 1.0.3 não cria um segundo detector.
+
+O Core observa os próprios `captureAt` já produzidos pelo monitor existente:
+
+- `<eventId>-start`;
+- `<eventId>-peak`;
+- `<eventId>-extra`;
+- `<eventId>-end`;
+- equivalentes do detector estrutural 1.0.3.
+
+Quando o primeiro quadro de um acontecimento é capturado e a câmera possui
+vídeo habilitado:
+
+1. cria uma área `<eventId>.pinning`;
+2. copia os segmentos da timeline que cobrem o início e o pré-roll;
+3. protege as cópias contra a poda de disco;
+4. a cada aproximadamente 4 segundos incorpora novos segmentos;
+5. no encerramento, espera também a margem posterior do vídeo;
+6. mantém as fontes até o upload ser concluído.
+
+Assim o ring-buffer pode continuar descartável sem levar junto a prova de um
+acontecimento que já começou.
+
+## 23.2 Pressão de disco
+
+Os arquivos `.pinning` usam o mesmo mecanismo `protectVideoFiles` do orçamento
+global já homologado.
+
+Portanto:
+
+- timeline descartável continua sendo removida primeiro;
+- segmentos fixados de um acontecimento em andamento ficam protegidos;
+- fila/fotos continuam fora do orçamento de vídeo e mantêm prioridade;
+- a proteção possui TTL para não criar vazamento de disco permanente.
+
+## 23.3 Reinício
+
+O manifesto do pinning é persistente.
+
+Depois de reinício do Agent, fontes recentes são protegidas novamente por uma
+janela de recuperação. Se o backend pedir o clipe e o MP4 final ainda não
+existir, o worker pode montar o vídeo diretamente das fontes fixadas.
+
+Isso cobre principalmente o cenário:
+
+`evento entrou na fila durável -> Agent reiniciou -> pedido de clipe chegou`.
+
+## 23.4 Integração com 03A
+
+A 03B escolhe as fontes.
+
+A 03A continua responsável por validar o resultado com `ffprobe`.
+
+Portanto:
+
+- pinning completo + MP4 completo -> upload;
+- pinning incompleto + MP4 curto -> 03A rejeita;
+- nunca transformar clipe parcial em `ready`.
+
+## 23.5 Windows e Linux
+
+A implementação fica em `agent/src/v103`, acima do host.
+
+O mesmo mecanismo é usado por:
+
+- Windows 24/7;
+- Microsoft Store;
+- Linux x64;
+- Linux arm64.
+
+Nenhuma regra de pinning depende de Windows Service, tray ou systemd.
