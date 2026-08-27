@@ -1,0 +1,306 @@
+name: Validate MonitorIA 1.0.3 Store Install Experience
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "agent/native/desktop-host.c"
+      - "agent/native/desktop-host.rc"
+      - "agent/native/desktop-host.manifest"
+      - "installer/monitoria-store-v103.iss"
+      - "app/dashboard/installer/**"
+      - "src/components/installer/smartscreen-notice.tsx"
+      - "src/lib/installer-data.ts"
+      - "test/agent-0103-store-desktop-host.test.ts"
+      - "test/agent-0103-store-install-experience.test.ts"
+      - ".github/workflows/validate-store-install-v103.yml"
+
+permissions:
+  contents: read
+
+env:
+  FFMPEG_URL: "https://github.com/BigCorps/MonitorIA/releases/download/agent-deps-v1/monitoria-ffmpeg-win64-lgpl-shared-v1.zip"
+  FFMPEG_SHA256: "e12b6bab3636a9056803cbfc107a4bc724504c1c75a7bbc8aa43c876fb59d02b"
+
+jobs:
+  store-installer:
+    name: Store Installer 1.0.3
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Bun baseline 1.3.14
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-download-url: "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
+          no-cache: true
+
+      - name: Dependências
+        run: npm ci
+
+      - name: TypeScript
+        run: |
+          npx tsc --noEmit -p agent/tsconfig.json
+          npx tsc --noEmit
+
+      - name: Contrato da experiência Store
+        run: |
+          node --import tsx --test test/agent-0103-store-desktop-host.test.ts
+          node --import tsx --test test/agent-0103-store-install-experience.test.ts
+
+      - name: Regressões do Core 1.0.3
+        run: |
+          node --import tsx --test test/agent-0103-foundation.test.ts
+          node --import tsx --test test/agent-0103-operational.test.ts
+          node --import tsx --test test/agent-0103-video-integrity.test.ts
+          node --import tsx --test test/agent-0103-early-pinning.test.ts
+          node --import tsx --test test/agent-0103-evidence-coherence.test.ts
+          node --import tsx --test test/agent-0103-evidence-priority.test.ts
+          node --import tsx --test test/agent-0103-evidence-gap.test.ts
+
+      - name: Compilar Core compartilhado 1.0.3
+        working-directory: agent
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          bun build ./src/index-v103.ts --compile `
+            --no-compile-autoload-dotenv `
+            --no-compile-autoload-bunfig `
+            --windows-icon=../installer/monitoria.ico `
+            --windows-title="MonitorIA Agent" `
+            --windows-publisher="BIGCORPS TECNOLOGIA LTA" `
+            --windows-version=1.0.3 `
+            --windows-description="Monitoramento de câmeras MonitorIA" `
+            --outfile ./dist/monitoria-agent.exe
+
+          & ./dist/monitoria-agent.exe self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "Autoteste do Core 1.0.3 falhou."
+          }
+
+      - name: Compilar Desktop Host e componente de segurança
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          Copy-Item agent\dist\monitoria-agent.exe build\monitoria-agent.exe -Force
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          if ([string]::IsNullOrWhiteSpace($visualStudio)) {
+            throw "Ferramentas C++ do Visual Studio não encontradas."
+          }
+
+          $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars64.bat"
+          $workspace = $env:GITHUB_WORKSPACE
+          $native = Join-Path $workspace "agent\native"
+          $script = Join-Path $env:RUNNER_TEMP "build-monitoria-store-native.cmd"
+
+          @"
+          @echo off
+          call "$vcvars"
+          if errorlevel 1 exit /b 1
+          cd /d "$workspace"
+          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE agent\native\dpapi.c /Fe:build\monitoria-dpapi.exe Crypt32.lib
+          if errorlevel 1 exit /b 1
+          cd /d "$native"
+          rc.exe /nologo /fo ..\..\build\monitoria-desktop.res desktop-host.rc
+          if errorlevel 1 exit /b 1
+          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE desktop-host.c ..\..\build\monitoria-desktop.res /Fe:..\..\build\monitoria-desktop.exe Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          if errorlevel 1 exit /b 1
+          "@ | Set-Content -Encoding ascii $script
+
+          & cmd.exe /d /c $script
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao compilar os componentes Win32 da edição Store."
+          }
+
+          if ((Get-Item build\monitoria-dpapi.exe).Length -lt 10000) {
+            throw "Componente de segurança incompleto."
+          }
+
+          if ((Get-Item build\monitoria-desktop.exe).Length -lt 15000) {
+            throw "Desktop Host incompleto."
+          }
+
+      - name: Self-test do Desktop Host
+        shell: pwsh
+        run: |
+          $process = Start-Process `
+            -FilePath (Resolve-Path "build\monitoria-desktop.exe") `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory (Resolve-Path "build") `
+            -Wait `
+            -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "Self-test do Desktop Host falhou: $($process.ExitCode)."
+          }
+
+      - name: Baixar e conferir FFmpeg LGPL
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\ffmpeg | Out-Null
+          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile ffmpeg.zip
+
+          $hash = (Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:FFMPEG_SHA256) {
+            throw "SHA256 do FFmpeg divergente. Esperado $env:FFMPEG_SHA256, obtido $hash."
+          }
+
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-tmp
+
+          foreach ($name in @("ffmpeg.exe", "ffprobe.exe")) {
+            $source = Get-ChildItem ffmpeg-tmp -Recurse -Filter $name |
+              Select-Object -First 1
+            if (-not $source) { throw "$name não encontrado." }
+            Copy-Item $source.FullName "build\ffmpeg\$name"
+          }
+
+          Get-ChildItem ffmpeg-tmp -Recurse -Filter *.dll | ForEach-Object {
+            Copy-Item $_.FullName "build\ffmpeg\$($_.Name)"
+          }
+
+          $license = Get-ChildItem ffmpeg-tmp -Recurse -Filter LICENSE.txt |
+            Select-Object -First 1
+          if (-not $license) { throw "LICENSE.txt não encontrado." }
+          Copy-Item $license.FullName build\ffmpeg\LICENSE.txt
+
+          @"
+          FFmpeg redistribuído sem modificação.
+
+          Origem : $env:FFMPEG_URL
+          SHA256 : $env:FFMPEG_SHA256
+          Licença: LGPL (build sem componentes GPL)
+          Fonte  : https://github.com/BtbN/FFmpeg-Builds
+          Upstream: https://git.ffmpeg.org/ffmpeg.git
+          "@ | Out-File -Encoding utf8 build\ffmpeg\FFMPEG-ORIGEM.txt
+
+      - name: Guard da edição Store
+        shell: pwsh
+        run: |
+          $installer = Get-Content installer\monitoria-store-v103.iss -Raw
+          $hostSource = Get-Content agent\native\desktop-host.c -Raw
+
+          foreach ($forbidden in @(
+            "monitoria-service.exe",
+            "monitoria-service.xml",
+            "MonitorIAAgent",
+            "OpenSCManager",
+            "CreateService"
+          )) {
+            if ($installer -match [regex]::Escape($forbidden)) {
+              throw "Instalador Store contém referência proibida: $forbidden"
+            }
+          }
+
+          foreach ($forbidden in @(
+            "OpenSCManager",
+            "OpenService",
+            "CreateService",
+            "SERVICE_CONTROL",
+            "WinSW",
+            "sc.exe",
+            "MonitorIAAgent"
+          )) {
+            if ($hostSource -match [regex]::Escape($forbidden)) {
+              throw "Desktop Host contém dependência proibida: $forbidden"
+            }
+          }
+
+          if ($installer -notmatch "PrivilegesRequired=lowest") {
+            throw "Instalador Store não está em modo por usuário."
+          }
+
+          if ($installer -match "CreateInputQueryPage") {
+            throw "Pareamento não pode depender da UI do instalador Store."
+          }
+
+          if ($hostSource -notmatch "Conecte este computador ao MonitorIA") {
+            throw "Desktop Host perdeu a primeira execução de pareamento."
+          }
+
+      - name: Compilar instalador Store de validação
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          )
+
+          $iscc = $candidates |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = $candidates |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+          }
+
+          if (-not $iscc) {
+            throw "Inno Setup não encontrado."
+          }
+
+          & $iscc /DAppVersion=1.0.3 installer\monitoria-store-v103.iss
+          if ($LASTEXITCODE -ne 0) {
+            throw "Instalador Store 1.0.3 inválido."
+          }
+
+          $setup = "dist-store-v103\MonitorIA-Store-Setup.exe"
+          if (-not (Test-Path $setup)) {
+            throw "MonitorIA-Store-Setup.exe não foi produzido."
+          }
+
+          if ((Get-Item $setup).Length -lt 5MB) {
+            throw "Instalador Store parece incompleto."
+          }
+
+          Write-Host "Pacote Store de validação: $setup"
+
+      - name: Guard final do staging
+        shell: pwsh
+        run: |
+          if (Test-Path build\monitoria-service.exe) {
+            throw "Staging Store contém componente da edição 24/7."
+          }
+
+          if (Test-Path build\monitoria-service.xml) {
+            throw "Staging Store contém configuração da edição 24/7."
+          }
+
+          foreach ($required in @(
+            "build\monitoria-desktop.exe",
+            "build\monitoria-dpapi.exe",
+            "agent\dist\monitoria-agent.exe",
+            "build\ffmpeg\ffmpeg.exe",
+            "build\ffmpeg\ffprobe.exe",
+            "dist-store-v103\MonitorIA-Store-Setup.exe"
+          )) {
+            if (-not (Test-Path $required)) {
+              throw "Arquivo obrigatório ausente: $required"
+            }
+          }
+
+      - name: Artefato temporário para inspeção
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonitorIA-Store-Setup-1.0.3-validation
+          path: dist-store-v103/MonitorIA-Store-Setup.exe
+          retention-days: 3
+          if-no-files-found: error
