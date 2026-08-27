@@ -1,0 +1,181 @@
+name: Validate MonitorIA 1.0.3 Windows Tray Host
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "agent/native/tray.c"
+      - "agent/native/tray.rc"
+      - "agent/native/tray.manifest"
+      - "installer/monitoria-service-v103.iss"
+      - "test/agent-0103-tray-contract.test.ts"
+      - ".github/workflows/validate-windows-tray-v103.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tray-host:
+    name: Windows 24/7 Tray
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Bun baseline 1.3.14
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-download-url: "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
+          no-cache: true
+
+      - name: Dependências
+        run: npm ci
+
+      - name: TypeScript do Agent
+        run: npx tsc --noEmit -p agent/tsconfig.json
+
+      - name: Contrato do tray 1.0.3
+        run: node --import tsx --test test/agent-0103-tray-contract.test.ts
+
+      - name: Compilar Core 1.0.3
+        working-directory: agent
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          bun build ./src/index-v103.ts --compile `
+            --no-compile-autoload-dotenv `
+            --no-compile-autoload-bunfig `
+            --windows-icon=../installer/monitoria.ico `
+            --windows-title="MonitorIA Agent" `
+            --windows-publisher="BIGCORPS TECNOLOGIA LTA" `
+            --windows-version=1.0.3 `
+            --windows-description="Monitoramento de câmeras MonitorIA" `
+            --outfile ./dist/monitoria-agent-v103.exe
+
+          & ./dist/monitoria-agent-v103.exe self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "Autoteste do Core 1.0.3 falhou."
+          }
+
+      - name: Compilar tray Win32 nativo
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          if ([string]::IsNullOrWhiteSpace($visualStudio)) {
+            throw "Ferramentas C++ do Visual Studio não encontradas."
+          }
+
+          $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars64.bat"
+          $native = Join-Path $env:GITHUB_WORKSPACE "agent\native"
+          $script = Join-Path $env:RUNNER_TEMP "build-monitoria-tray.cmd"
+
+          @"
+          @echo off
+          call "$vcvars"
+          if errorlevel 1 exit /b 1
+          cd /d "$native"
+          rc.exe /nologo /fo ..\..\build\monitoria-tray.res tray.rc
+          if errorlevel 1 exit /b 1
+          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE tray.c ..\..\build\monitoria-tray.res /Fe:..\..\build\monitoria-tray.exe Advapi32.lib Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          if errorlevel 1 exit /b 1
+          "@ | Set-Content -Encoding ascii $script
+
+          & cmd.exe /d /c $script
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao compilar monitoria-tray.exe."
+          }
+
+          if ((Get-Item build\monitoria-tray.exe).Length -lt 15000) {
+            throw "Tray compilado parece incompleto."
+          }
+
+      - name: Autoteste do tray
+        shell: pwsh
+        run: |
+          $process = Start-Process `
+            -FilePath (Resolve-Path "build\monitoria-tray.exe") `
+            -ArgumentList "--self-test" `
+            -Wait `
+            -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "Autoteste do tray falhou com código $($process.ExitCode)."
+          }
+
+      - name: Validar sintaxe do instalador 24/7
+        shell: pwsh
+        run: |
+          # O objetivo deste job é validar a composição Inno do novo host.
+          # Dependências grandes não são publicadas aqui; criamos stubs apenas
+          # para o compilador conseguir verificar os caminhos e seções.
+          Copy-Item agent\dist\monitoria-agent-v103.exe agent\dist\monitoria-agent.exe -Force
+
+          New-Item -ItemType Directory -Force -Path build\ffmpeg | Out-Null
+          foreach ($file in @(
+            "build\monitoria-dpapi.exe",
+            "build\monitoria-service.exe",
+            "build\ffmpeg\ffmpeg.exe",
+            "build\ffmpeg\ffprobe.exe",
+            "build\ffmpeg\monitoria-stub.dll"
+          )) {
+            if (-not (Test-Path $file)) {
+              [IO.File]::WriteAllBytes(
+                (Join-Path $env:GITHUB_WORKSPACE $file),
+                [byte[]](1,2,3,4)
+              )
+            }
+          }
+
+          "LGPL validation stub - CI only" | Out-File -Encoding utf8 build\ffmpeg\LICENSE.txt
+          "CI syntax validation only" | Out-File -Encoding utf8 build\ffmpeg\FFMPEG-ORIGEM.txt
+
+          $candidates = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          )
+
+          $iscc = $candidates |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = $candidates |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+          }
+
+          if (-not $iscc) {
+            throw "Inno Setup não encontrado."
+          }
+
+          & $iscc /DAppVersion=1.0.3 installer\monitoria-service-v103.iss
+          if ($LASTEXITCODE -ne 0) {
+            throw "Sintaxe do instalador 24/7 1.0.3 inválida."
+          }
+
+          $setup = Get-ChildItem dist -Filter "MonitorIA-Setup*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $setup) {
+            throw "O instalador de validação não foi produzido."
+          }
+
+          Write-Host "Instalador 24/7 validado: $($setup.Name)"
