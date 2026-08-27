@@ -18,6 +18,7 @@ on:
     paths:
       - "agent/**"
       - "app/api/agent/v103/**"
+      - "app/api/agent/clips/**"
       - "supabase/migrations/*v103.sql"
       - "test/agent-0103-*.test.ts"
       - ".github/workflows/validate-agent-v103-foundation.yml"
@@ -49,6 +50,8 @@ jobs:
         run: node --import tsx --test test/agent-0103-operational.test.ts
       - name: Integridade de vídeo 1.0.3
         run: node --import tsx --test test/agent-0103-video-integrity.test.ts
+      - name: Pinning antecipado de vídeo 1.0.3
+        run: node --import tsx --test test/agent-0103-early-pinning.test.ts
       - name: Regressões 1.0.2 preservadas
         run: |
           node --import tsx --test test/agent-0102-production.test.ts
