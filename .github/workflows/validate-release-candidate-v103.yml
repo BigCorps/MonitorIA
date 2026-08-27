@@ -1,0 +1,33 @@
+name: Validate MonitorIA 1.0.3 Release Candidate Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+    paths:
+      - ".github/workflows/build-release-candidate-v103.yml"
+      - ".github/workflows/validate-release-candidate-v103.yml"
+      - "test/agent-0103-release-candidate-contract.test.ts"
+      - "docs/MONITORIA-1.0.3-ENTREGA-05A.md"
+      - "docs/MONITORIA-1.0.3-MATRIZ-RC.md"
+      - "scripts/collect-rc-v103-evidence.ps1"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Release Candidate Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Contrato da Fase 05A
+        run: node --import tsx --test test/agent-0103-release-candidate-contract.test.ts
