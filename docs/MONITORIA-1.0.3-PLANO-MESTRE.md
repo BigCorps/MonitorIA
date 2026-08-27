@@ -979,3 +979,86 @@ O mesmo mecanismo é usado por:
 - Linux arm64.
 
 Nenhuma regra de pinning depende de Windows Service, tray ou systemd.
+
+
+---
+
+# 24. Entrega 3C — coerência temporal entre fotos e vídeo
+
+**Objetivo:** fazer JPEGs e vídeo pertencerem formalmente ao mesmo intervalo do
+acontecimento.
+
+## 24.1 Intervalo canônico
+
+Antes de o acontecimento atravessar a fila durável da 1.0.3, o Core executa
+`canonicalizeEventEvidenceV103`.
+
+Ele passa a garantir:
+
+- todo `capturedAt` enviado pertence a `startedAt..endedAt`;
+- se uma foto válida cair poucos segundos além da borda original, o intervalo
+  canônico é expandido para incluí-la;
+- essa expansão é limitada a 5 segundos por evidência;
+- um timestamp muito distante é tratado como outlier e não transforma duas
+  ocorrências diferentes em um único acontecimento;
+- nunca é permitido um intervalo canônico maior que 15 minutos;
+- labels duplicadas não atravessam a fronteira durável;
+- o resultado registra offsets de cada foto a partir do começo do evento.
+
+## 24.2 Relação com o vídeo
+
+O backend do MonitorIA cria `clipStartsAt`, `clipEndsAt` e `durationSeconds`
+usando `startedAt` e `endedAt` persistidos do acontecimento.
+
+Como a 1.0.3 canonicaliza esses valores **antes do enqueue**, a janela usada
+para solicitar o MP4 passa a cobrir matematicamente todos os JPEGs aceitos.
+
+A política existente ainda acrescenta:
+
+- 3 segundos antes do começo;
+- 2 segundos depois do fim, respeitando o teto comercial.
+
+Portanto, depois da 03C:
+
+`JPEG válido -> intervalo canônico -> pedido de vídeo do mesmo intervalo`.
+
+## 24.3 Auditoria da timeline
+
+Cada JPEG originado da timeline possui:
+
+- `capturedAt`;
+- `sourceTimestamp`;
+- `segmentStartedAt`;
+- `offsetMs`;
+- hash do conteúdo.
+
+A 03C mede a coerência entre esses campos e grava:
+
+- `evidenceFrameWindowValid`;
+- `evidenceTimelineCoherent`;
+- `evidenceFrameOffsetsSeconds`;
+- `evidenceDroppedOutOfWindowLabels`;
+- `evidenceCanonicalStartAt`;
+- `evidenceCanonicalEndAt`.
+
+Assim conseguimos distinguir no diagnóstico uma imagem simplesmente ausente de
+uma evidência temporalmente inconsistente.
+
+## 24.4 Compatibilidade
+
+A validação fica no Core 1.0.3 e não altera a 1.0.2 congelada.
+
+A mesma rotina é executada por:
+
+- Windows 24/7;
+- Microsoft Store;
+- Linux x64;
+- Linux arm64.
+
+## 24.5 Integração com 03A e 03B
+
+- 03B protege os segmentos durante o acontecimento;
+- 03C define o intervalo canônico comum de fotos e vídeo;
+- 03A mede o MP4 final e rejeita vídeo incompleto.
+
+As três camadas são independentes e complementares.

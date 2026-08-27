@@ -30,6 +30,10 @@ import {
   AGENT_V103_RUNTIME_ARCHITECTURE,
   AGENT_V103_VERSION,
 } from "./version.js";
+import {
+  canonicalizeEventEvidenceV103,
+  evidenceWindowContractV103,
+} from "./evidence-coherence.js";
 
 const proto = AgentService.prototype as any;
 let installed = false;
@@ -275,9 +279,27 @@ async function syncMonitoringV103(
       const enqueue = async (
         event: LocalMotionEvent,
       ) => {
+        // 1.0.3: antes da fronteira durável, JPEGs e acontecimento passam a
+        // compartilhar um único intervalo canônico. O vídeo do backend será
+        // solicitado usando startedAt/endedAt deste mesmo payload.
+        const coherent =
+          canonicalizeEventEvidenceV103(
+            event,
+          );
+        const contract =
+          evidenceWindowContractV103(
+            coherent,
+          );
+
+        if (!contract.valid) {
+          throw new Error(
+            `v103_evidence_window_contract_failed:${contract.reason}`,
+          );
+        }
+
         const enriched =
           enrichOperationalEventV103(
-            event,
+            coherent,
             operationalAccess,
             camera.timezone,
           );
