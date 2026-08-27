@@ -772,3 +772,93 @@ Uma alteração funcional do MonitorIA Core não deve ser considerada concluída
 3. não criar comportamento funcional divergente sem justificativa de plataforma.
 
 A Store será validada depois sobre o mesmo Core.
+
+
+---
+
+# 21. Entrega 2 — Operação e segurança (implementação)
+
+**Status ao preparar o pacote:** código pronto para subir e validar; ainda não promover para produção do Agent.
+
+Esta entrega implementa a primeira mudança funcional da linha 1.0.3 no Core compartilhado.
+
+## 21.1 Configuração operacional entregue ao Agent 1.0.3
+
+A 1.0.2 recebia os limiares reduzidos da câmera operacional, porém o normalizador da configuração não entregava ao executável os metadados completos de abertura/fechamento.
+
+A 1.0.3 passa a consultar um endpoint complementar autenticado:
+
+`/api/agent/v103/operational-config`
+
+Ele entrega somente para câmeras vinculadas ao Agent:
+
+- opt-in de abertura/fechamento;
+- horário aproximado de abertura;
+- horário aproximado de fechamento;
+- fuso do local;
+- polígono do marcador operacional principal, quando existir;
+- confiança mínima do marcador.
+
+Isso não altera o endpoint 1.0.2 e mantém a versão congelada.
+
+## 21.2 Movimento estrutural lento
+
+Além do detector normal quadro a quadro, câmeras com opt-in operacional passam a ter um observador estrutural da 1.0.3.
+
+Características:
+
+- usa a mesma timeline RTSP compartilhada;
+- compara a cena atual com uma referência de aproximadamente 12 segundos atrás;
+- usa uma janela curta de aproximadamente 3 segundos para saber se a mudança ainda está acontecendo;
+- quando há polígono do acesso, analisa prioritariamente essa área;
+- sem polígono, funciona em quadro inteiro com limiar mais conservador;
+- evita duplicar acontecimentos quando o movimento quadro a quadro normal já é suficiente;
+- permite capturar portões, persianas, portas e cancelas que se movem lentamente;
+- preserva quadro anterior, quadro de maior mudança e estado final;
+- solicita preservação do vídeo usando o mesmo eventId e a mesma timeline.
+
+## 21.3 Fora do horário
+
+Todo acontecimento da câmera marcada como referência operacional recebe contexto local:
+
+- `business_hours`;
+- `outside_hours`;
+- proximidade da janela de abertura/fechamento;
+- prioridade operacional.
+
+O horário continua sendo contexto, nunca prova visual.
+
+O detector estrutural fica mais atento fora do horário e pode registrar mudanças lentas relevantes durante a madrugada.
+
+Mudança puramente global de iluminação/IR fora das janelas operacionais não cria, sozinha, evento estrutural. Próximo de abertura/fechamento, ela pode ser preservada como evidência para a IA decidir junto das imagens.
+
+## 21.4 Correção de `visible_transition`
+
+Foi adicionada migration de proteção para impedir novamente o caso observado em 27/08/2026.
+
+Uma sessão só pode permanecer com precisão `visible_transition` quando:
+
+- existe transição registrada;
+- `from_state` não é nulo;
+- `to_state` é o estado final esperado;
+- a observação estruturada possui `previous_visible_state`;
+- o estado anterior difere do atual;
+- `transition_visible=true`.
+
+Quando isso não é verdadeiro, o banco tenta reconstruir uma faixa entre a última evidência clara do estado anterior e a primeira evidência clara do novo estado.
+
+Quando essa faixa existe, usa `estimated_interval`.
+
+Quando não existe, rebaixa a precisão para observação/estado forte em vez de inventar horário exato.
+
+## 21.5 Paridade Linux
+
+O observador estrutural e o enriquecimento operacional ficam no Core 1.0.3, não no host Windows.
+
+O workflow da 1.0.3 continua compilando e executando autotestes em:
+
+- Windows;
+- Linux x64;
+- Linux arm64.
+
+Portanto, esta funcionalidade acompanha a versão Linux desde a primeira implementação.
