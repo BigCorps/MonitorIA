@@ -4,11 +4,11 @@ import test from "node:test";
 import {
   hostCapabilities,
   resolveAgentHostMode,
-} from "../agent/src/v103/host-mode.ts";
+} from "../agent/src/v103/host-mode.js";
 import {
   assertV103HostContract,
   V103_CORE_CONTRACT,
-} from "../agent/src/v103/runtime-contract.ts";
+} from "../agent/src/v103/runtime-contract.js";
 
 test("1.0.3 mantém um único Core", () => {
   assert.equal(V103_CORE_CONTRACT.version, "1.0.3");

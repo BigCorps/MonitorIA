@@ -4,11 +4,11 @@ import test from "node:test";
 
 import {
   operationalMomentContext,
-} from "../agent/src/v103/operational-config.ts";
+} from "../agent/src/v103/operational-config.js";
 import {
   structuralContinueThreshold,
   structuralStartThreshold,
-} from "../agent/src/v103/structural-motion.ts";
+} from "../agent/src/v103/structural-motion.js";
 
 const access = {
   enabled: true,
