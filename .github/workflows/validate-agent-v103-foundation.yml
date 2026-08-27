@@ -52,6 +52,8 @@ jobs:
         run: node --import tsx --test test/agent-0103-video-integrity.test.ts
       - name: Pinning antecipado de vídeo 1.0.3
         run: node --import tsx --test test/agent-0103-early-pinning.test.ts
+      - name: Coerência temporal de evidências 1.0.3
+        run: node --import tsx --test test/agent-0103-evidence-coherence.test.ts
       - name: Regressões 1.0.2 preservadas
         run: |
           node --import tsx --test test/agent-0102-production.test.ts
