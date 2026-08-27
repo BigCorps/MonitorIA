@@ -275,36 +275,56 @@ export async function POST(
     );
   }
 
-  await supabase
-    .from("audit_logs")
-    .insert({
-      organization_id:
-        authenticated.camera
-          .organizationId,
-      actor_user_id: null,
-      action:
-        "camera.evidence_gap_recorded",
-      entity_type: "camera",
-      entity_id: cameraId,
-      metadata: {
-        gap_id: inserted.id,
-        agent_id:
-          authenticated.agent.id,
-        agent_event_id:
-          input.eventId,
-        detector: input.detector,
-        priority: input.priority,
-        reason: input.reason,
-        time_precision:
-          input.timePrecision,
-        started_at:
-          startedAt.toISOString(),
-        ended_at:
-          endedAt.toISOString(),
-      },
-    })
-    .then(() => undefined)
-    .catch(() => undefined);
+  // O builder do Supabase implementa PromiseLike, mas não Promise completo;
+  // por isso não possui `.catch()` tipado. A auditoria continua best-effort
+  // sem bloquear a resposta principal e sem esconder erro de TypeScript.
+  void (async () => {
+    try {
+      const { error: auditError } =
+        await supabase
+          .from("audit_logs")
+          .insert({
+            organization_id:
+              authenticated.camera
+                .organizationId,
+            actor_user_id: null,
+            action:
+              "camera.evidence_gap_recorded",
+            entity_type: "camera",
+            entity_id: cameraId,
+            metadata: {
+              gap_id: inserted.id,
+              agent_id:
+                authenticated.agent.id,
+              agent_event_id:
+                input.eventId,
+              detector: input.detector,
+              priority: input.priority,
+              reason: input.reason,
+              time_precision:
+                input.timePrecision,
+              started_at:
+                startedAt.toISOString(),
+              ended_at:
+                endedAt.toISOString(),
+            },
+          });
+
+      if (auditError) {
+        console.warn(
+          "Evidence gap salvo, mas o audit log falhou:",
+          auditError.message,
+        );
+      }
+    } catch (auditError) {
+      console.warn(
+        "Evidence gap salvo, mas o audit log lançou exceção:",
+        auditError instanceof Error
+          ? auditError.message
+          : String(auditError),
+      );
+    }
+  })();
 
   return NextResponse.json(
     {
