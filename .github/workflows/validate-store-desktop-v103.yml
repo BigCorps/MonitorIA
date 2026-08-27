@@ -1,0 +1,161 @@
+name: Validate MonitorIA 1.0.3 Store Desktop Host
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "agent/native/desktop-host.c"
+      - "agent/native/desktop-host.rc"
+      - "agent/native/desktop-host.manifest"
+      - "agent/src/paths.ts"
+      - "test/agent-0103-store-desktop-host.test.ts"
+      - ".github/workflows/validate-store-desktop-v103.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-host:
+    name: Store Desktop Host
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Bun baseline 1.3.14
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-download-url: "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
+          no-cache: true
+
+      - name: Dependências
+        run: npm ci
+
+      - name: TypeScript completo do Agent
+        run: npx tsc --noEmit -p agent/tsconfig.json
+
+      - name: Contrato do Desktop Host
+        run: node --import tsx --test test/agent-0103-store-desktop-host.test.ts
+
+      - name: Regressões do Core 1.0.3
+        run: |
+          node --import tsx --test test/agent-0103-foundation.test.ts
+          node --import tsx --test test/agent-0103-operational.test.ts
+          node --import tsx --test test/agent-0103-video-integrity.test.ts
+          node --import tsx --test test/agent-0103-early-pinning.test.ts
+          node --import tsx --test test/agent-0103-evidence-coherence.test.ts
+          node --import tsx --test test/agent-0103-evidence-priority.test.ts
+          node --import tsx --test test/agent-0103-evidence-gap.test.ts
+
+      - name: Compilar Core compartilhado 1.0.3
+        working-directory: agent
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          bun build ./src/index-v103.ts --compile `
+            --no-compile-autoload-dotenv `
+            --no-compile-autoload-bunfig `
+            --windows-icon=../installer/monitoria.ico `
+            --windows-title="MonitorIA Agent" `
+            --windows-publisher="BIGCORPS TECNOLOGIA LTA" `
+            --windows-version=1.0.3 `
+            --windows-description="Monitoramento de câmeras MonitorIA" `
+            --outfile ./dist/monitoria-agent.exe
+
+          & ./dist/monitoria-agent.exe self-test
+          if ($LASTEXITCODE -ne 0) {
+            throw "Autoteste do Core 1.0.3 falhou."
+          }
+
+      - name: Compilar Desktop Host Win32
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          Copy-Item agent\dist\monitoria-agent.exe build\monitoria-agent.exe -Force
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+
+          if ([string]::IsNullOrWhiteSpace($visualStudio)) {
+            throw "Ferramentas C++ do Visual Studio não encontradas."
+          }
+
+          $vcvars = Join-Path $visualStudio "VC\Auxiliary\Build\vcvars64.bat"
+          $native = Join-Path $env:GITHUB_WORKSPACE "agent\native"
+          $script = Join-Path $env:RUNNER_TEMP "build-monitoria-desktop.cmd"
+
+          @"
+          @echo off
+          call "$vcvars"
+          if errorlevel 1 exit /b 1
+          cd /d "$native"
+          rc.exe /nologo /fo ..\..\build\monitoria-desktop.res desktop-host.rc
+          if errorlevel 1 exit /b 1
+          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE desktop-host.c ..\..\build\monitoria-desktop.res /Fe:..\..\build\monitoria-desktop.exe Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          if errorlevel 1 exit /b 1
+          "@ | Set-Content -Encoding ascii $script
+
+          & cmd.exe /d /c $script
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao compilar monitoria-desktop.exe."
+          }
+
+          if ((Get-Item build\monitoria-desktop.exe).Length -lt 15000) {
+            throw "Desktop Host compilado parece incompleto."
+          }
+
+      - name: Self-test do Desktop Host
+        shell: pwsh
+        run: |
+          $process = Start-Process `
+            -FilePath (Resolve-Path "build\monitoria-desktop.exe") `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory (Resolve-Path "build") `
+            -Wait `
+            -PassThru
+
+          if ($process.ExitCode -ne 0) {
+            throw "Self-test do Desktop Host falhou: $($process.ExitCode)."
+          }
+
+      - name: Bloquear artefatos de serviço na edição Store
+        shell: pwsh
+        run: |
+          $source = Get-Content agent\native\desktop-host.c -Raw
+
+          foreach ($forbidden in @(
+            "OpenSCManager",
+            "OpenService",
+            "CreateService",
+            "SERVICE_CONTROL",
+            "monitoria-service.exe",
+            "monitoria-service.xml",
+            "WinSW",
+            "sc.exe",
+            "MonitorIAAgent"
+          )) {
+            if ($source -match [regex]::Escape($forbidden)) {
+              throw "Desktop Host contém dependência proibida da edição Service: $forbidden"
+            }
+          }
+
+          if (Test-Path build\monitoria-service.exe) {
+            throw "Pacote de validação Store contém WinSW."
+          }
+
+          if (Test-Path build\monitoria-service.xml) {
+            throw "Pacote de validação Store contém XML de serviço."
+          }
