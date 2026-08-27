@@ -44,6 +44,11 @@ import {
 import {
   storageHealthV103,
 } from "./storage-health.js";
+import {
+  createEvidenceGapTrackerV103,
+  EvidenceGapQueueV103,
+  flushEvidenceGapsV103,
+} from "./evidence-gap.js";
 
 const proto = AgentService.prototype as any;
 let installed = false;
@@ -333,6 +338,43 @@ async function syncMonitoringV103(
         return true;
       };
 
+      const gapTracker =
+        createEvidenceGapTrackerV103({
+          cameraId: camera.id,
+          cameraName: camera.name,
+          sessionId: session.sessionId,
+          timezone: camera.timezone,
+          operationalAccess,
+          record: async (gap) => {
+            const queue = this
+              .__v103EvidenceGapQueue as
+              | EvidenceGapQueueV103
+              | undefined;
+
+            if (!queue) {
+              throw new Error(
+                "v103_evidence_gap_queue_unavailable",
+              );
+            }
+
+            const persisted =
+              await queue.enqueue(gap);
+
+            void flushEvidenceGapsV103(
+              this,
+            );
+            return persisted;
+          },
+          log: (message: string) =>
+            this.logger.warn(message),
+        });
+
+      const monitoredLog =
+        (message: string) => {
+          gapTracker.observe(message);
+          this.logger.info(message);
+        };
+
       const regular =
         startCameraEventMonitor({
           camera,
@@ -340,8 +382,7 @@ async function syncMonitoringV103(
           rtspUrl,
           sessionId: session.sessionId,
           enqueue,
-          log: (message: string) =>
-            this.logger.info(message),
+          log: monitoredLog,
           onFatalError: (error: Error) => {
             const failure =
               classifyCameraFailure(
@@ -413,10 +454,7 @@ async function syncMonitoringV103(
                 sessionId:
                   session.sessionId,
                 enqueue,
-                log: (message: string) =>
-                  this.logger.info(
-                    message,
-                  ),
+                log: monitoredLog,
               },
             );
         } catch (error) {
@@ -519,7 +557,20 @@ async function tickHeartbeatV103(
   this.__v103HeartbeatBusy = true;
 
   try {
+    await flushEvidenceGapsV103(this);
+
     const stats = await this.queue.stats();
+    const evidenceGapStats =
+      this.__v103EvidenceGapQueue
+        ? await (
+            this.__v103EvidenceGapQueue as
+              EvidenceGapQueueV103
+          ).stats()
+        : {
+            pending: 0,
+            oldestCreatedAt: null,
+            oldestAgeSeconds: 0,
+          };
     const directory =
       await resolveConfigDirectory();
     const metrics = await systemMetrics(
@@ -676,6 +727,12 @@ async function tickHeartbeatV103(
             storageHealth.videoCaptureSuspended,
           recommendedDiskFreeBytes:
             storageHealth.recommendedFreeBytes,
+          evidenceGapBacklog:
+            evidenceGapStats.pending,
+          evidenceGapOldestAt:
+            evidenceGapStats.oldestCreatedAt,
+          evidenceGapOldestAgeSeconds:
+            evidenceGapStats.oldestAgeSeconds,
         },
       },
     );
@@ -743,11 +800,26 @@ export function installV103Runtime() {
     this: V103Service,
     ...args: any[]
   ) {
+    if (
+      !this.__v103EvidenceGapQueue
+    ) {
+      const evidenceGapQueue =
+        new EvidenceGapQueueV103(
+          (message) =>
+            this.logger.info(message),
+        );
+      await evidenceGapQueue.open();
+      this.__v103EvidenceGapQueue =
+        evidenceGapQueue;
+    }
+
     const result =
       await previousStart.apply(
         this,
         args,
       );
+
+    void flushEvidenceGapsV103(this);
 
     this.logger.info(
       `Core compartilhado MonitorIA ${AGENT_V103_VERSION} ativado.`,

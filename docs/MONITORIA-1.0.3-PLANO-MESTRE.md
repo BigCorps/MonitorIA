@@ -1164,3 +1164,103 @@ O caso extremo `movimento detectado -> nenhuma foto pôde ser extraída` ainda
 não deve ser mascarado. A próxima subetapa criará um registro durável de
 "evidence gap" para que nem esse acontecimento desapareça do diagnóstico ou
 da experiência do usuário.
+
+
+---
+
+# 26. Entrega 3E — Evidence Gap durável
+
+**Objetivo:** impedir que `movimento detectado -> nenhum JPEG disponível`
+desapareça do histórico técnico.
+
+## 26.1 Problema fechado
+
+O detector legado possui uma saída explícita:
+
+`Evento local <id> preservado sem envio porque nenhum quadro da timeline ficou disponível.`
+
+Até a 1.0.2, esse caso terminava apenas em log local.
+
+A 1.0.3 passa a transformá-lo em `Evidence Gap`.
+
+O detector estrutural também entra no mesmo mecanismo.
+
+## 26.2 Horário sem falsa precisão
+
+Como não existe JPEG capaz de provar uma transição visual, o horário não é
+marcado como exato.
+
+O registro utiliza:
+
+`timePrecision = detector_log_interval`
+
+A faixa começa no instante em que o Core registrou o início do detector e
+termina quando ficou confirmado que nenhuma imagem pôde ser extraída.
+
+## 26.3 Persistência local
+
+Evidence Gaps vivem em:
+
+- Windows 24/7: dentro do diretório protegido de dados do Agent;
+- Linux: dentro de `/var/lib/monitoria/evidence-gaps`;
+- Store: usará o diretório próprio do Desktop Host quando essa etapa for
+  implementada.
+
+A escrita é atômica.
+
+ENOSPC libera vídeo descartável antes de desistir da gravação.
+
+Não existe política destrutiva automática da fila.
+
+## 26.4 Backend
+
+Novo endpoint:
+
+`POST /api/agent/v103/cameras/:cameraId/evidence-gaps`
+
+Novo armazenamento:
+
+`public.camera_evidence_gaps`
+
+O registro é idempotente por:
+
+`(camera_id, agent_event_id)`
+
+O Agent só apaga o JSON local depois do ACK do backend.
+
+Falhas transitórias usam retry/backoff.
+
+401 mantém o comportamento normal de reparo de pareamento.
+
+## 26.5 Prioridade
+
+Evidence Gap recebe:
+
+- `critical`: detector estrutural operacional ou atividade da câmera
+  operacional fora do horário;
+- `important`: câmera operacional durante o expediente;
+- `normal`: detector comum sem contexto operacional especial.
+
+Isso é prioridade de evidência, não acusação de crime.
+
+## 26.6 Telemetria
+
+Heartbeat 1.0.3 acrescenta:
+
+- `evidenceGapBacklog`;
+- `evidenceGapOldestAt`;
+- `evidenceGapOldestAgeSeconds`.
+
+Assim um Agent que esteja acumulando falhas visuais passa a ser detectável
+antes que o cliente perceba sozinho.
+
+## 26.7 Visibilidade para o cliente
+
+Esta entrega torna o gap durável no backend e autorizado por RLS para membros
+da organização.
+
+A apresentação visual no dashboard será conectada na etapa de UX/Hosts da
+1.0.3, usando a mesma tabela, sem precisar alterar novamente o Agent.
+
+Nenhum gap será tratado como um acontecimento analisado por IA, pois não há
+imagem para sustentar essa afirmação.
