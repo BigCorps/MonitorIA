@@ -862,3 +862,38 @@ O workflow da 1.0.3 continua compilando e executando autotestes em:
 - Linux arm64.
 
 Portanto, esta funcionalidade acompanha a versão Linux desde a primeira implementação.
+
+
+---
+
+# 22. Entrega 3A — integridade temporal do vídeo
+
+**Objetivo:** impedir que um vídeo parcial seja apresentado como vídeo completo.
+
+Implementação:
+
+- o Agent 1.0.3 mede a duração REAL do MP4 com `ffprobe`;
+- `TimelineBuiltClip.durationSeconds` reportado pela 1.0.3 passa a significar
+  duração real medida, não duração solicitada;
+- um arquivo muito curto é descartado antes do upload e o pedido é reagendado;
+- um clipe preservado localmente que já nasceu incompleto é removido para
+  permitir tentativa de reconstrução com a timeline ainda disponível;
+- o backend compara duração solicitada e duração reportada;
+- Agent >=1.0.3 não consegue transformar clipe incompleto em `ready`;
+- o backend registra `requestedDurationSeconds`, `reportedDurationSeconds`,
+  `clipCoverageRatio` e `clipIntegrityStatus` no metadata do pedido;
+- defesa em profundidade remove do Storage um upload curto que porventura
+  chegue ao endpoint de conclusão.
+
+Esta entrega corrige diretamente o caso observado em produção em que um pedido
+de aproximadamente 50 segundos foi exibido como disponível embora o MP4
+possuísse aproximadamente 4 segundos reais.
+
+## Próximo passo da Entrega 3
+
+A 3B fará a preservação antecipada dos segmentos enquanto o acontecimento ainda
+está em andamento. Isso elimina a outra metade do problema: segmentos antigos
+serem removidos antes de o evento terminar quando existe pressão de disco.
+
+A 3A deve passar pelo build e pelos testes Windows/Linux antes da 3B para não
+misturar duas mudanças críticas de vídeo no mesmo diagnóstico.
