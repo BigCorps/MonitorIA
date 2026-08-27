@@ -355,7 +355,8 @@ static void StopAgentCore(void) {
   ) {
     /*
      * Desktop Host e Core vivem no mesmo Job Object.
-     * Não há NT Service, sc.exe, WinSW nem processo SYSTEM.
+     * Esta edição usa somente processos da sessão do usuário e não depende
+     * do gerenciador de serviços do Windows nem de processo SYSTEM.
      *
      * O encerramento explícito da edição Store encerra também o Core.
      * A fila já é durável antes desta fronteira.
