@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - "agent/**"
+      - "app/api/agent/v103/**"
+      - "supabase/migrations/*v103.sql"
       - "test/agent-0103-*.test.ts"
       - ".github/workflows/validate-agent-v103-foundation.yml"
       - "docs/MONITORIA-1.0.3-PLANO-MESTRE.md"
@@ -29,7 +31,10 @@ jobs:
           no-cache: true
       - run: npm ci
       - run: npx tsc --noEmit -p agent/tsconfig.json
-      - run: node --import tsx --test test/agent-0103-foundation.test.ts
+      - name: Fundação 1.0.3
+        run: node --import tsx --test test/agent-0103-foundation.test.ts
+      - name: Operação e segurança 1.0.3
+        run: node --import tsx --test test/agent-0103-operational.test.ts
       - name: Regressões 1.0.2 preservadas
         run: |
           node --import tsx --test test/agent-0102-production.test.ts
