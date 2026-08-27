@@ -15,6 +15,7 @@ import {
 import { resolveAgentHostMode } from "./v103/host-mode.js";
 import { installV103ClipIntegrity } from "./v103/clip-integrity.js";
 import { installV103EarlyEvidencePinning } from "./v103/early-evidence-pinning.js";
+import { installV103PriorityQueue } from "./v103/priority-queue.js";
 import { AGENT_V103_VERSION } from "./v103/version.js";
 
 /**
@@ -26,6 +27,7 @@ import { AGENT_V103_VERSION } from "./v103/version.js";
  */
 installV102Runtime();
 installV103EarlyEvidencePinning();
+installV103PriorityQueue();
 installV103ClipIntegrity();
 installV103Runtime();
 installV102Scheduler();

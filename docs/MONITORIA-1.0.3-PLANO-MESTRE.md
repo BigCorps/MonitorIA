@@ -1062,3 +1062,105 @@ A mesma rotina é executada por:
 - 03A mede o MP4 final e rejeita vídeo incompleto.
 
 As três camadas são independentes e complementares.
+
+
+---
+
+# 25. Entrega 3D — prioridade, completude visual e pressão de disco
+
+**Objetivo:** fazer acontecimentos operacionais importantes atravessarem
+backlog e preparação de evidência antes de ocorrências rotineiras, sem
+descartar silenciosamente fotos principais.
+
+## 25.1 Prioridade local
+
+A 1.0.3 classifica a evidência antes do commit na fila:
+
+### `critical`
+
+- atividade da câmera operacional fora do horário declarado;
+- movimento estrutural da abertura/fechamento;
+- demais ocorrências operacionais que requeiram precedência de evidência.
+
+### `important`
+
+- acontecimentos da câmera operacional durante o expediente;
+- evidência cuja auditoria da timeline identificou degradação.
+
+### `normal`
+
+- acontecimentos rotineiros sem contexto operacional especial.
+
+Essa prioridade NÃO afirma crime, invasão ou intenção. Ela serve apenas para
+ordenação técnica da prova.
+
+## 25.2 Fila prioritária sem perder fairness
+
+O armazenamento local continua durável e não destrutivo.
+
+Quando existem vários acontecimentos prontos para envio, a 1.0.3 olha uma
+janela maior de leases elegíveis e devolve primeiro os de maior prioridade.
+
+Dentro do mesmo nível de prioridade, mantém rotação entre câmeras.
+
+Leases examinados mas não selecionados são liberados imediatamente.
+
+## 25.3 Fotos principais são requisito
+
+Na 1.0.3:
+
+- `start`;
+- `peak`;
+- `end`;
+
+que já existirem no acontecimento passam a ser evidências obrigatórias.
+
+`extra` continua sendo enriquecimento opcional.
+
+Antes de entrar na fila, as imagens são pré-ajustadas para o mesmo teto que o
+uploader v2 já utiliza.
+
+Se uma imagem principal não puder ser lida ou reduzida para um tamanho seguro,
+o enqueue falha e o monitor tenta novamente. O comportamento deixa de ser
+"envia o que sobrou" para esses quadros principais.
+
+As origens substituídas somente são apagadas DEPOIS do commit confirmado da
+fila durável.
+
+## 25.4 Falha de upload
+
+A política existente permanece:
+
+- erro transitório -> `defer`;
+- token inválido -> preserva lease/backlog e inicia reparo;
+- 4xx incompatível -> `reject` lógico, mas o diretório local NÃO é apagado;
+- somente ACK durável do backend chama `complete` e remove as fotos locais.
+
+A 1.0.3 acrescenta prioridade; não enfraquece nenhuma dessas garantias.
+
+## 25.5 Pressão de disco
+
+O heartbeat 1.0.3 passa a reportar:
+
+- `storageHealthV103`;
+- `videoEvidenceAtRisk`;
+- `videoCaptureSuspended`;
+- `recommendedDiskFreeBytes`.
+
+Faixas iniciais:
+
+- 10 GB ou mais: normal;
+- 6–10 GB: atenção;
+- 4–6 GB: alerta;
+- abaixo de 4 GB ou orçamento de vídeo zerado: crítico/vídeo suspenso.
+
+Esses campos serão usados posteriormente pelo dashboard e pelos hosts/tray.
+
+## 25.6 O que ainda falta para fechar evidência degradada
+
+Esta entrega protege acontecimentos que possuem pelo menos uma foto válida.
+
+O caso extremo `movimento detectado -> nenhuma foto pôde ser extraída` ainda
+não deve ser mascarado. A próxima subetapa criará um registro durável de
+"evidence gap" para que nem esse acontecimento desapareça do diagnóstico ou
+da experiência do usuário.

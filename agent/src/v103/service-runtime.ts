@@ -34,6 +34,16 @@ import {
   canonicalizeEventEvidenceV103,
   evidenceWindowContractV103,
 } from "./evidence-coherence.js";
+import {
+  cleanupSupersededEvidenceV103,
+  prepareEssentialEvidenceV103,
+} from "./essential-evidence.js";
+import {
+  prioritizeEventV103,
+} from "./event-priority.js";
+import {
+  storageHealthV103,
+} from "./storage-health.js";
 
 const proto = AgentService.prototype as any;
 let installed = false;
@@ -303,7 +313,23 @@ async function syncMonitoringV103(
             operationalAccess,
             camera.timezone,
           );
-        await this.queue.enqueue(enriched);
+        const prioritized =
+          prioritizeEventV103(enriched);
+        const prepared =
+          await prepareEssentialEvidenceV103(
+            ffmpegPath,
+            prioritized,
+          );
+
+        // A limpeza das origens substituídas acontece somente depois que a
+        // fila durável confirmou o commit. Se ENOSPC/restart ocorrer antes,
+        // tanto a origem quanto a versão comprimida continuam recuperáveis.
+        await this.queue.enqueue(
+          prepared.event,
+        );
+        await cleanupSupersededEvidenceV103(
+          prepared.supersededPaths,
+        );
         return true;
       };
 
@@ -575,6 +601,13 @@ async function tickHeartbeatV103(
         videoStats
           ?.timelineEvictionsTotal ?? 0,
       );
+    const storageHealth =
+      storageHealthV103(
+        metrics.diskFreeBytes,
+        Number(
+          videoStats?.maxVideoBytes ?? 0,
+        ),
+      );
 
     await sendHeartbeat(
       config.apiBaseUrl,
@@ -635,6 +668,14 @@ async function tickHeartbeatV103(
           ),
           videoEvidenceEvictionsTotal,
           videoTimelineEvictionsTotal,
+          storageHealthV103:
+            storageHealth.level,
+          videoEvidenceAtRisk:
+            storageHealth.videosAtRisk,
+          videoCaptureSuspended:
+            storageHealth.videoCaptureSuspended,
+          recommendedDiskFreeBytes:
+            storageHealth.recommendedFreeBytes,
         },
       },
     );
