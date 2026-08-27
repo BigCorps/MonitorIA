@@ -24,12 +24,19 @@ export type InstallerDownload = {
   available: boolean;
 };
 
+export type StoreDistribution = {
+  label: string;
+  available: boolean;
+  url: string | null;
+};
+
 export type InstallerWorkspace = {
   agents: InstallerAgent[];
   pairedCameras: number;
   totalCameras: number;
   recommendedVersion: string;
   downloads: InstallerDownload[];
+  storeDistribution: StoreDistribution;
   /** Verdadeiro quando ao menos uma plataforma tem download publicado. */
   downloadAvailable: boolean;
 };
@@ -39,8 +46,7 @@ export type InstallerWorkspace = {
  *
  * Os binários ficam em GitHub Releases, não no Supabase Storage nem em rota
  * da Vercel: banda de release é gratuita e nenhum byte passa pela nossa
- * infraestrutura. A rota /api/installer/[platform] apenas redireciona, então
- * o custo por download é o de uma resposta HTTP vazia.
+ * infraestrutura. A rota /api/installer/[platform] apenas redireciona.
  */
 export const INSTALLER_ENV_VARS: Record<InstallerPlatform, string> = {
   windows: "AGENT_WINDOWS_DOWNLOAD_URL",
@@ -48,10 +54,7 @@ export const INSTALLER_ENV_VARS: Record<InstallerPlatform, string> = {
   "linux-arm64": "AGENT_LINUX_ARM64_DOWNLOAD_URL",
 };
 
-/**
- * Endereços permanentes. A versão muda na release, não no painel nem na
- * Vercel. Assim um deploy antigo continua baixando o Agent mais recente.
- */
+/** Endereços permanentes da edição direta e das edições Linux. */
 export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
   windows:
     "https://github.com/BigCorps/MonitorIA/releases/latest/download/MonitorIA-Setup.exe",
@@ -62,18 +65,7 @@ export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
 };
 
 /**
- * URL do instalador entregue à Microsoft Store.
- *
- * Diferente do painel, aqui NÃO se usa `releases/latest/download`. A Microsoft
- * exige um binário imutável: a URL submetida é baixada durante a certificação
- * e continua sendo baixada por cada usuário que instalar pela Store. Se o
- * conteúdo daquele endereço mudar, o app é removido.
- *
- * `latest` aponta para a release mais recente e muda sozinho na próxima tag —
- * é exatamente o que a Store proíbe. Por isso a tag entra na URL.
- *
- * Cada versão nova exige uma submissão nova no Partner Center com a URL nova.
- * A URL da versão anterior deve permanecer no ar até a nova ser publicada.
+ * URL imutável do instalador entregue à Microsoft durante a certificação.
  */
 export const STORE_INSTALLER_FILENAME = "MonitorIA-Store-Setup.exe";
 
@@ -102,9 +94,6 @@ const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
 export function installerUrlFor(platform: InstallerPlatform) {
   const configured = process.env[INSTALLER_ENV_VARS[platform]]?.trim();
 
-  // URLs antigas continham a tag da versão e quebravam a cada atualização.
-  // Quando o destino é a release oficial, normalizamos para o endereço
-  // permanente. Uma CDN própria configurada pelo operador continua aceita.
   if (
     !configured ||
     configured.startsWith(
@@ -115,6 +104,33 @@ export function installerUrlFor(platform: InstallerPlatform) {
   }
 
   return configured;
+}
+
+/**
+ * O dashboard só anuncia a Store quando a listagem pública já existe.
+ *
+ * Antes da aprovação, o card continua visível como "em preparação". Isso
+ * impede que um cliente seja enviado para uma submissão ainda indisponível.
+ */
+export function publicStoreUrl() {
+  const configured = process.env.MONITORIA_STORE_PUBLIC_URL?.trim();
+
+  if (!configured) return null;
+
+  try {
+    const parsed = new URL(configured);
+
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.hostname.toLowerCase() !== "apps.microsoft.com"
+    ) {
+      return null;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
 }
 
 export function isInstallerPlatform(value: string): value is InstallerPlatform {
@@ -232,6 +248,8 @@ export async function getInstallerWorkspace(
     available: Boolean(installerUrlFor(platform)),
   }));
 
+  const storeUrl = publicStoreUrl();
+
   return {
     agents,
     totalCameras: cameras.length,
@@ -241,6 +259,12 @@ export async function getInstallerWorkspace(
     recommendedVersion:
       process.env.AGENT_RECOMMENDED_VERSION?.trim() || "1.0.1",
     downloads,
-    downloadAvailable: downloads.some((download) => download.available),
+    storeDistribution: {
+      label: "Microsoft Store",
+      available: Boolean(storeUrl),
+      url: storeUrl,
+    },
+    downloadAvailable:
+      downloads.some((download) => download.available) || Boolean(storeUrl),
   };
 }

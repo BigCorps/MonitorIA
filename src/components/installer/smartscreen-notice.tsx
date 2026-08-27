@@ -1,22 +1,10 @@
 import styles from "./smartscreen-notice.module.css";
 
 /**
- * Aviso sobre a mensagem de segurança do Windows.
+ * Aviso da edição instalada diretamente pelo site/painel.
  *
- * Aparece em dois lugares: na página que baixa o instalador
- * (app/dashboard/installer/page.tsx) e na etapa do onboarding em que o
- * cliente baixa o programa pela primeira vez.
- *
- * Por que existe: o certificado do MonitorIA é OV. A assinatura é válida e
- * o editor aparece verificado, mas o SmartScreen só deixa de avisar depois
- * de acumular histórico de downloads. Nas primeiras semanas a mensagem
- * ainda pode surgir.
- *
- * O texto foi escrito para não assustar e não mentir: explica o que a
- * mensagem é, o que fazer, e por que ela vai desaparecer. Sem jargão —
- * nada de "Authenticode", "reputação de binário" ou "OV".
- *
- * `variant="compact"` é para o onboarding, onde o espaço é curto.
+ * A mensagem evita prometer que SmartScreen ou antivírus nunca analisarão o
+ * arquivo. Também não orienta o cliente a desativar proteção do Windows.
  */
 export function SmartScreenNotice({
   variant = "full",
@@ -26,14 +14,12 @@ export function SmartScreenNotice({
   if (variant === "compact") {
     return (
       <aside className={`${styles.notice} ${styles.compact}`}>
-        <p className={styles.title}>
-          O Windows pode mostrar um aviso azul
-        </p>
+        <p className={styles.title}>O Windows pode pedir uma confirmação</p>
         <p className={styles.text}>
-          Se aparecer, clique em <strong>Mais informações</strong> e depois em{" "}
-          <strong>Executar assim mesmo</strong>. O programa é assinado pela
-          BIGCORPS TECNOLOGIA e verificado por uma autoridade de certificação
-          — o aviso é só porque ele é recente.
+          A edição 24/7 é instalada diretamente pelo MonitorIA e trabalha em
+          segundo plano. O SmartScreen ou seu antivírus pode analisar o arquivo
+          ou pedir uma confirmação. Use somente o instalador baixado pelo site
+          ou painel oficial do MonitorIA e confira o editor antes de continuar.
         </p>
       </aside>
     );
@@ -43,46 +29,49 @@ export function SmartScreenNotice({
     <aside className={styles.notice}>
       <p className={styles.eyebrow}>Antes de instalar</p>
       <h3 className={styles.title}>
-        O Windows pode mostrar um aviso. É esperado.
+        O Windows ou seu antivírus pode analisar o instalador
       </h3>
 
       <p className={styles.text}>
-        Ao abrir o instalador, o Windows pode exibir uma tela azul dizendo que
-        não reconhece o programa. Isso não significa que há algo errado com o
-        arquivo.
+        Isso pode acontecer com programas instalados diretamente no Windows,
+        especialmente quando trabalham continuamente em segundo plano. Uma
+        análise ou confirmação de segurança não significa, por si só, que o
+        arquivo esteja com problema.
       </p>
 
       <div className={styles.steps}>
-        <p className={styles.stepsTitle}>Se a mensagem aparecer:</p>
+        <p className={styles.stepsTitle}>Antes de continuar:</p>
         <ol className={styles.list}>
           <li>
-            Clique em <strong>Mais informações</strong>
+            Confirme que o arquivo foi baixado pelo <strong>site ou painel
+            oficial do MonitorIA</strong>.
           </li>
           <li>
-            Clique em <strong>Executar assim mesmo</strong>
+            Nas propriedades do arquivo, confira a aba <strong>Assinaturas
+            Digitais</strong> e o editor BIGCORPS TECNOLOGIA.
+          </li>
+          <li>
+            Se o Windows mostrar uma confirmação adicional, leia a mensagem e
+            confirme somente se o arquivo e o editor estiverem corretos.
           </li>
         </ol>
       </div>
 
       <p className={styles.text}>
-        O instalador é assinado digitalmente pela{" "}
-        <strong>BIGCORPS TECNOLOGIA</strong> e essa identidade foi verificada
-        por uma autoridade de certificação. Você pode confirmar isso a
-        qualquer momento: clique com o botão direito no arquivo, abra{" "}
-        <strong>Propriedades</strong> e veja a aba{" "}
-        <strong>Assinaturas Digitais</strong>.
+        Não é necessário desativar o antivírus nem reduzir a proteção do
+        computador para usar o MonitorIA. Se uma ferramenta de segurança
+        bloquear o arquivo, mantenha a proteção ativa e fale com o suporte para
+        conferirmos o instalador e a assinatura.
       </p>
 
       <p className={styles.footnote}>
-        O Windows aprende a confiar em um programa conforme mais pessoas o
-        instalam. Como o MonitorIA é recente, esse histórico ainda está sendo
-        formado, e por isso o aviso pode surgir nas primeiras semanas. Ele
-        desaparece sozinho, sem que você precise fazer nada.
+        A edição pela Microsoft Store usa outro processo de instalação e tende
+        a ter menos atrito nessa etapa, mas o Windows e ferramentas de segurança
+        continuam livres para analisar o aplicativo normalmente.
       </p>
 
       <p className={styles.help}>
-        Ficou em dúvida? Fale com a gente antes de instalar. Preferimos tirar
-        a dúvida a deixar você desconfortável.
+        Ficou em dúvida? Fale com a gente antes de instalar.
       </p>
     </aside>
   );
