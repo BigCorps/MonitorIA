@@ -1264,3 +1264,94 @@ A apresentação visual no dashboard será conectada na etapa de UX/Hosts da
 
 Nenhum gap será tratado como um acontecimento analisado por IA, pois não há
 imagem para sustentar essa afirmação.
+
+
+---
+
+# 27. Entrega 4A — Tray do Windows 24/7
+
+**Status do backend antes desta entrega:** a migration
+`camera_evidence_gaps_v103` foi aplicada em produção após o build 03E ficar
+verde. A tabela está criada com RLS habilitado.
+
+## 27.1 Objetivo
+
+A edição direta/24x7 precisa continuar sendo um Windows Service, porém o
+cliente deve ter um sinal visual claro de que o MonitorIA existe e está
+monitorando.
+
+A 4A cria `monitoria-tray.exe`, um companion Win32 nativo.
+
+Ele NÃO hospeda o Core e NÃO substitui o serviço.
+
+Arquitetura:
+
+`Windows Service (LocalSystem) -> Core 1.0.3`
+
+`Sessão do usuário -> monitoria-tray.exe -> consulta o estado do serviço`
+
+Fechar o tray não para o monitoramento.
+
+## 27.2 Comportamento
+
+O tray:
+
+- usa o ícone oficial do MonitorIA;
+- consulta `MonitorIAAgent` com `SERVICE_QUERY_STATUS`;
+- atualiza o tooltip periodicamente;
+- duplo clique abre `https://monitoria.cam/dashboard`;
+- menu mostra se o serviço está ativo;
+- permite abrir o painel;
+- permite solicitar reinício do serviço com UAC;
+- permite fechar apenas o ícone;
+- reaparece se o Explorer reiniciar;
+- limita uma instância por sessão de usuário;
+- uma segunda abertura leva ao painel.
+
+A ação de fechar não contém `SERVICE_CONTROL_STOP`.
+
+## 27.3 Inicialização
+
+A edição 24/7 passa a possuir:
+
+- atalho `MonitorIA` no Menu Iniciar;
+- entrada HKLM `CurrentVersion\Run` para iniciar o tray após login;
+- o serviço continua iniciando no boot, antes do login.
+
+Portanto:
+
+- sem login: serviço monitora, sem tray;
+- após login: serviço continua monitorando e o tray aparece;
+- usuário fecha tray: serviço continua monitorando.
+
+O Windows pode colocar ícones novos na área de ícones ocultos; o MonitorIA não
+deve tentar burlar essa preferência do sistema.
+
+## 27.4 Privilégios
+
+`monitoria-tray.exe` usa manifesto `asInvoker`.
+
+Consultar o estado e abrir o dashboard não requer elevação.
+
+Somente `Reiniciar monitoramento` chama o helper de serviço com verbo `runas`,
+causando UAC de forma explícita.
+
+## 27.5 Store
+
+Este tray ainda é o **Service Companion**.
+
+Ele não será copiado cegamente para o pacote Store.
+
+Na 4B, o mesmo padrão visual será reutilizado num **Desktop Host** sem WinSW,
+sem `sc.exe` e sem NT Service, atendendo o requisito de certificação.
+
+## 27.6 Linux
+
+Nenhuma mudança funcional de câmera/Core existe nesta entrega.
+
+Linux continua usando o mesmo Core 1.0.3 via systemd e não recebe tray em
+instalações headless.
+
+O workflow principal de Core continua sendo a autoridade para paridade
+Windows/Linux; a 4A acrescenta um segundo workflow exclusivamente do host
+Win32.
