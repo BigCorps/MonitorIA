@@ -360,10 +360,10 @@ export async function prepareEssentialEvidenceV103(
       ...event,
       frames,
       localMetrics: {
-        ...(event.localMetrics as Record<
-          string,
-          unknown
-        >),
+        // Importante: espalhar o tipo original preserva todas as métricas
+        // obrigatórias. Converter primeiro para Record<string, unknown>
+        // apagava essas garantias e fazia o TypeScript acusar TS2352.
+        ...event.localMetrics,
         evidencePreBudgetV103: true,
         evidencePreBudgetBytesV103:
           totalBytes,

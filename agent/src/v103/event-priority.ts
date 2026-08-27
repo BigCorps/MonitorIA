@@ -98,7 +98,9 @@ export function prioritizeEventV103(
   return {
     ...event,
     localMetrics: {
-      ...metrics,
+      // Usamos as métricas tipadas originais como base para preservar todos
+      // os campos obrigatórios de LocalMotionEvent["localMetrics"].
+      ...event.localMetrics,
       evidencePriorityVersion: 1,
       evidencePriorityV103: priority,
       evidencePriorityScoreV103:
