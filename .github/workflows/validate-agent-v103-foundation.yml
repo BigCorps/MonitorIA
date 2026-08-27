@@ -56,6 +56,8 @@ jobs:
         run: node --import tsx --test test/agent-0103-evidence-coherence.test.ts
       - name: Prioridade e preservação de evidências 1.0.3
         run: node --import tsx --test test/agent-0103-evidence-priority.test.ts
+      - name: Evidence gap durável 1.0.3
+        run: node --import tsx --test test/agent-0103-evidence-gap.test.ts
       - name: Regressões 1.0.2 preservadas
         run: |
           node --import tsx --test test/agent-0102-production.test.ts
