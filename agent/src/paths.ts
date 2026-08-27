@@ -1,21 +1,36 @@
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
-import { access, chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 
 /**
- * Todo o estado do Agent vive em %PROGRAMDATA%\MonitorIA.
+ * Estado do MonitorIA por host.
  *
- * Esta pasta é escrita pelo serviço, que roda como LocalSystem. A ACL é
- * fechada para SYSTEM e Administradores: um usuário comum da loja não lê o
- * endpoint do canal local nem a entropia do DPAPI, mesmo tendo acesso físico
- * ao computador.
+ * Windows 24/7 / Service Host:
+ *   %PROGRAMDATA%\MonitorIA
+ *   ACL fechada para SYSTEM + Administradores.
  *
- * As SIDs abaixo são usadas em vez dos nomes ("Administrators") porque o
- * Windows em português nomeia o grupo como "Administradores" e o icacls
- * falharia com o nome em inglês.
+ * Windows Desktop / Microsoft Store:
+ *   %LOCALAPPDATA%\MonitorIA
+ *   ACL herdada do perfil do usuário. O Desktop Host define explicitamente
+ *   MONITORIA_DESKTOP_MODE=1 e MONITORIA_CONFIG_DIR antes de iniciar o Core.
+ *
+ * Linux:
+ *   /var/lib/monitoria
+ *
+ * A diferença é somente de host/escopo de dados; fila, câmeras, timeline,
+ * eventos e evidências continuam no mesmo Core 1.0.3.
  */
 const SID_LOCAL_SYSTEM = "*S-1-5-18";
 const SID_ADMINISTRATORS = "*S-1-5-32-544";
@@ -30,9 +45,8 @@ export type PathLayout = {
   logDirectory: string;
   frameDirectory: string;
   /**
-   * true quando a ACL foi aplicada com sucesso, false quando falhou, e null
-   * quando nem foi tentada — o caso dos comandos de interface, que não têm
-   * (nem devem ter) autoridade sobre as permissões da pasta.
+   * true quando a proteção de diretório adequada ao host foi preservada,
+   * false quando falhou, e null quando nem foi tentada.
    */
   restricted: boolean | null;
 };
@@ -40,12 +54,10 @@ export type PathLayout = {
 let cached: PathLayout | null = null;
 
 /**
- * Só o serviço gerencia a ACL.
+ * O processo longo do Core gerencia a proteção da pasta.
  *
- * Antes, qualquer comando reaplicava permissões — `status`, `diagnose`,
- * `camera`, todos. Um processo de usuário reescrevendo a ACL do diretório de
- * dados dezenas de vezes é como se chega a um estado onde nem administrador
- * entra mais. Os comandos de interface agora apenas leem.
+ * No Service Host isso aplica icacls.
+ * No Desktop Host não se remove a ACL herdada do perfil do usuário.
  */
 let manageAcl = false;
 
@@ -53,122 +65,213 @@ export function enableAclManagement() {
   manageAcl = true;
 }
 
-function candidateRoots() {
-  const overridden = process.env.MONITORIA_CONFIG_DIR?.trim();
-  const programData = process.env.PROGRAMDATA?.trim();
+export function isWindowsDesktopHost() {
+  return (
+    process.platform === "win32" &&
+    process.env.MONITORIA_DESKTOP_MODE?.trim() === "1"
+  );
+}
 
-  // LOCALAPPDATA foi deliberadamente removido da lista. Um serviço rodando
-  // como LocalSystem tem LOCALAPPDATA apontando para o perfil da conta de
-  // sistema, e o Agent leria pasta diferente da que o instalador escreveu.
+function candidateRoots() {
+  const overridden =
+    process.env.MONITORIA_CONFIG_DIR?.trim();
+  const programData =
+    process.env.PROGRAMDATA?.trim();
+  const localAppData =
+    process.env.LOCALAPPDATA?.trim();
+
   if (process.platform !== "win32") {
-    // /var/lib é o lugar canônico de estado de serviço em Linux, e o systemd
-    // cria o diretório com dono e modo corretos via StateDirectory.
     return [
       overridden || undefined,
       "/var/lib/monitoria",
-      path.join(os.homedir(), ".local", "share", "monitoria"),
-      path.join(process.cwd(), ".monitoria"),
-    ].filter((value): value is string => Boolean(value));
+      path.join(
+        os.homedir(),
+        ".local",
+        "share",
+        "monitoria",
+      ),
+      path.join(
+        process.cwd(),
+        ".monitoria",
+      ),
+    ].filter(
+      (value): value is string =>
+        Boolean(value),
+    );
+  }
+
+  if (isWindowsDesktopHost()) {
+    return [
+      overridden || undefined,
+      localAppData
+        ? path.join(
+            localAppData,
+            "MonitorIA",
+          )
+        : undefined,
+      path.join(
+        os.homedir(),
+        "AppData",
+        "Local",
+        "MonitorIA",
+      ),
+    ].filter(
+      (value): value is string =>
+        Boolean(value),
+    );
   }
 
   return [
     overridden || undefined,
-    programData ? path.join(programData, "MonitorIA") : undefined,
-    path.join(process.cwd(), ".monitoria"),
-  ].filter((value): value is string => Boolean(value));
+    programData
+      ? path.join(
+          programData,
+          "MonitorIA",
+        )
+      : undefined,
+    path.join(
+      process.cwd(),
+      ".monitoria",
+    ),
+  ].filter(
+    (value): value is string =>
+      Boolean(value),
+  );
 }
 
 /**
- * Fecha as permissões do diretório em Linux e macOS.
- *
- * 0700 no diretório e 0600 nos arquivos: apenas o usuário do serviço lê a
- * entropia e o endpoint do canal local. É o equivalente POSIX da ACL que o
- * icacls aplica no Windows.
+ * Fecha as permissões do diretório em Linux/macOS.
  */
-async function restrictPosix(target: string) {
+async function restrictPosix(
+  target: string,
+) {
   try {
     await chmod(target, 0o700);
-    const mode = (await stat(target)).mode & 0o777;
+    const mode =
+      (await stat(target)).mode &
+      0o777;
     return mode === 0o700;
   } catch {
     return false;
   }
 }
 
-async function runIcacls(target: string) {
-  return new Promise<boolean>((resolve) => {
-    if (process.platform !== "win32") {
-      resolve(false);
-      return;
-    }
+/**
+ * Service Host: só SYSTEM e Administradores.
+ *
+ * Nunca executar no Desktop Host: remover a ACL herdada de LOCALAPPDATA
+ * expulsaria justamente o usuário que precisa continuar executando o Core.
+ */
+async function runIcacls(
+  target: string,
+) {
+  return new Promise<boolean>(
+    (resolve) => {
+      if (
+        process.platform !== "win32"
+      ) {
+        resolve(false);
+        return;
+      }
 
-    const child = spawn(
-      "icacls.exe",
-      [
-        target,
-        "/inheritance:r",
-        "/grant:r",
-        `${SID_LOCAL_SYSTEM}:(OI)(CI)F`,
-        "/grant:r",
-        `${SID_ADMINISTRATORS}:(OI)(CI)F`,
-      ],
-      { stdio: ["ignore", "ignore", "ignore"], windowsHide: true },
-    );
+      const child = spawn(
+        "icacls.exe",
+        [
+          target,
+          "/inheritance:r",
+          "/grant:r",
+          `${SID_LOCAL_SYSTEM}:(OI)(CI)F`,
+          "/grant:r",
+          `${SID_ADMINISTRATORS}:(OI)(CI)F`,
+        ],
+        {
+          stdio: [
+            "ignore",
+            "ignore",
+            "ignore",
+          ],
+          windowsHide: true,
+        },
+      );
 
-    const timer = setTimeout(() => {
-      child.kill();
-      resolve(false);
-    }, 15_000);
+      const timer = setTimeout(() => {
+        child.kill();
+        resolve(false);
+      }, 15_000);
 
-    child.on("error", () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
 
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve(code === 0);
-    });
-  });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        resolve(code === 0);
+      });
+    },
+  );
 }
 
 function errorCode(error: unknown) {
-  return error && typeof error === "object" && "code" in error
-    ? String((error as { code?: unknown }).code)
-    : "";
+  return (
+    error &&
+    typeof error === "object" &&
+    "code" in error
+      ? String(
+          (
+            error as {
+              code?: unknown;
+            }
+          ).code,
+        )
+      : ""
+  );
 }
 
-/**
- * Distingue "não existe" de "não tenho permissão".
- *
- * O `mkdir` recursivo devolve EEXIST quando a pasta existe mas o processo não
- * consegue enxergá-la. Em campo isso virou a mensagem
- * "EEXIST: file already exists, mkdir C:\ProgramData\MonitorIA\queue" para
- * um usuário cuja única falta era não ter aberto o terminal como
- * administrador. Um programa que mente sobre a própria falha faz o operador
- * desistir da instalação.
- */
-async function usableDirectory(candidate: string) {
+async function usableDirectory(
+  candidate: string,
+) {
   try {
-    await access(candidate, constants.R_OK | constants.W_OK);
+    await access(
+      candidate,
+      constants.R_OK |
+        constants.W_OK,
+    );
     return candidate;
   } catch (error) {
     const code = errorCode(error);
 
-    if (code === "EACCES" || code === "EPERM") {
-      throw new PermissionError(candidate);
+    if (
+      code === "EACCES" ||
+      code === "EPERM"
+    ) {
+      throw new PermissionError(
+        candidate,
+      );
     }
   }
 
   try {
-    await mkdir(candidate, { recursive: true });
-    await access(candidate, constants.R_OK | constants.W_OK);
+    await mkdir(candidate, {
+      recursive: true,
+    });
+    await access(
+      candidate,
+      constants.R_OK |
+        constants.W_OK,
+    );
     return candidate;
   } catch (error) {
     const code = errorCode(error);
 
-    if (code === "EACCES" || code === "EPERM" || code === "EEXIST") {
-      throw new PermissionError(candidate);
+    if (
+      code === "EACCES" ||
+      code === "EPERM" ||
+      code === "EEXIST"
+    ) {
+      throw new PermissionError(
+        candidate,
+      );
     }
 
     throw error;
@@ -176,30 +279,36 @@ async function usableDirectory(candidate: string) {
 }
 
 export class PermissionError extends Error {
-  constructor(readonly directory: string) {
+  constructor(
+    readonly directory: string,
+  ) {
     super(
-      `Sem permissão para acessar ${directory}. ` +
-        "Execute novamente o instalador do MonitorIA e confirme a solicitação " +
-        "de administrador do Windows.",
+      isWindowsDesktopHost()
+        ? `Sem permissão para acessar ${directory}. Feche o MonitorIA e abra o aplicativo novamente.`
+        : `Sem permissão para acessar ${directory}. Execute novamente o instalador do MonitorIA e confirme a solicitação de administrador do Windows.`,
     );
     this.name = "PermissionError";
   }
 }
 
 /**
- * Cria a árvore de diretórios e tenta fechar a ACL. Falha de ACL não
- * interrompe a execução — apenas marca `restricted: false`, para o comando
- * `diagnose` conseguir apontar o problema em vez de o Agent morrer no boot.
+ * Cria a árvore de diretórios e aplica a proteção apropriada ao host.
  */
-export async function resolvePaths(): Promise<PathLayout> {
+export async function resolvePaths():
+Promise<PathLayout> {
   if (cached) return cached;
 
   let root: string | null = null;
   let lastError: unknown;
 
-  for (const candidate of candidateRoots()) {
+  for (
+    const candidate of candidateRoots()
+  ) {
     try {
-      root = await usableDirectory(candidate);
+      root =
+        await usableDirectory(
+          candidate,
+        );
       break;
     } catch (error) {
       lastError = error;
@@ -207,11 +316,18 @@ export async function resolvePaths(): Promise<PathLayout> {
   }
 
   if (!root) {
-    if (lastError instanceof PermissionError) throw lastError;
+    if (
+      lastError instanceof
+      PermissionError
+    ) {
+      throw lastError;
+    }
 
     throw new Error(
       `Não foi possível criar a pasta de dados do Agent: ${
-        lastError instanceof Error ? lastError.message : "erro desconhecido"
+        lastError instanceof Error
+          ? lastError.message
+          : "erro desconhecido"
       }`,
     );
   }
@@ -219,81 +335,144 @@ export async function resolvePaths(): Promise<PathLayout> {
   const restricted = !manageAcl
     ? null
     : process.platform === "win32"
-      ? await runIcacls(root)
+      ? isWindowsDesktopHost()
+        // LOCALAPPDATA já nasce dentro da ACL do perfil do usuário.
+        // Não removemos herança e não concedemos acesso a outros usuários.
+        ? true
+        : await runIcacls(root)
       : await restrictPosix(root);
 
   const layout: PathLayout = {
     root,
-    configFile: path.join(root, "agent.json"),
-    entropyFile: path.join(root, "machine.key"),
-    ipcEndpointFile: path.join(root, "ipc.json"),
-    queueDirectory: path.join(root, "queue"),
-    logDirectory: path.join(root, "logs"),
-    frameDirectory: path.join(root, "frames"),
+    configFile: path.join(
+      root,
+      "agent.json",
+    ),
+    entropyFile: path.join(
+      root,
+      "machine.key",
+    ),
+    ipcEndpointFile: path.join(
+      root,
+      "ipc.json",
+    ),
+    queueDirectory: path.join(
+      root,
+      "queue",
+    ),
+    logDirectory: path.join(
+      root,
+      "logs",
+    ),
+    frameDirectory: path.join(
+      root,
+      "frames",
+    ),
     restricted,
   };
 
   await Promise.all([
-    mkdir(layout.queueDirectory, { recursive: true }),
-    mkdir(layout.logDirectory, { recursive: true }),
-    mkdir(layout.frameDirectory, { recursive: true }),
+    mkdir(layout.queueDirectory, {
+      recursive: true,
+    }),
+    mkdir(layout.logDirectory, {
+      recursive: true,
+    }),
+    mkdir(layout.frameDirectory, {
+      recursive: true,
+    }),
   ]);
 
   cached = layout;
   return layout;
 }
 
-/** Descarta o cache. Usado apenas pelo `reset`. */
+/** Descarta o cache. Usado apenas pelo reset. */
 export function forgetPaths() {
   cached = null;
 }
 
 /**
- * Escrita atômica: grava em arquivo temporário e renomeia.
- *
- * O `rename` no mesmo volume é atômico no NTFS, então uma queda de energia
- * no meio da gravação deixa o arquivo anterior intacto em vez de deixar a
- * pasta sem configuração nenhuma.
+ * Escrita atômica.
  */
-export async function writeFileAtomic(target: string, contents: string | Buffer) {
-  const temporary = `${target}.${process.pid}.tmp`;
+export async function writeFileAtomic(
+  target: string,
+  contents: string | Buffer,
+) {
+  const temporary =
+    `${target}.${process.pid}.tmp`;
 
   try {
-    await writeFile(temporary, contents, { mode: 0o600 });
-    await rename(temporary, target);
+    await writeFile(
+      temporary,
+      contents,
+      { mode: 0o600 },
+    );
+    await rename(
+      temporary,
+      target,
+    );
   } catch (error) {
-    await rm(temporary, { force: true });
+    await rm(
+      temporary,
+      { force: true },
+    );
     throw error;
   }
 }
 
 /**
- * Entropia adicional do DPAPI, em base64.
+ * Entropia adicional do cofre Windows.
  *
- * O escopo LocalMachine sozinho permite que qualquer processo da máquina
- * decifre o segredo. Somando esta entropia — que vive em arquivo legível
- * apenas por SYSTEM e Administradores — um processo sem elevação passa a
- * precisar de duas coisas, não de uma.
+ * Service Host: arquivo protegido pela ACL SYSTEM/Admin.
+ * Desktop Host: arquivo protegido pela ACL do perfil em LOCALAPPDATA.
  *
- * Este arquivo nunca pode ser apagado sozinho: sem a entropia, o token
- * pareado se torna irrecuperável e a loja precisa parear de novo.
+ * O DPAPI continua LocalMachine + entropia, preservando um único formato de
+ * segredo entre as duas distribuições Windows.
  */
 export async function machineEntropy() {
-  const layout = await resolvePaths();
+  const layout =
+    await resolvePaths();
 
   try {
-    const existing = (await readFile(layout.entropyFile, "utf8")).trim();
-    if (existing.length >= 32) return existing;
+    const existing = (
+      await readFile(
+        layout.entropyFile,
+        "utf8",
+      )
+    ).trim();
+
+    if (existing.length >= 32) {
+      return existing;
+    }
   } catch (error) {
     const code =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: unknown }).code)
+      error &&
+      typeof error === "object" &&
+      "code" in error
+        ? String(
+            (
+              error as {
+                code?: unknown;
+              }
+            ).code,
+          )
         : "";
 
-    if (code !== "ENOENT") throw error;
+    if (code !== "ENOENT") {
+      throw error;
+    }
   }
 
-  const generated = randomBytes(32).toString("base64");
-  await writeFileAtomic(layout.entropyFile, `${generated}\n`);
+  const generated =
+    randomBytes(32).toString(
+      "base64",
+    );
+
+  await writeFileAtomic(
+    layout.entropyFile,
+    `${generated}\n`,
+  );
+
   return generated;
 }

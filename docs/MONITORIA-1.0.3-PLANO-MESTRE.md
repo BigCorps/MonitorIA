@@ -1355,3 +1355,95 @@ instalações headless.
 O workflow principal de Core continua sendo a autoridade para paridade
 Windows/Linux; a 4A acrescenta um segundo workflow exclusivamente do host
 Win32.
+
+
+---
+
+# 28. Entrega 4B — Microsoft Store Desktop Host
+
+## 28.1 Objetivo
+
+Criar o host de execução da Microsoft Store sem NT Service e sem alterar o
+MonitorIA Core.
+
+Arquitetura:
+
+`monitoria-desktop.exe (sessão do usuário)`
+→ `monitoria-agent.exe run`
+→ `Core compartilhado 1.0.3`
+
+Não existem nesta cadeia:
+
+- WinSW;
+- `monitoria-service.exe`;
+- `monitoria-service.xml`;
+- `sc.exe`;
+- Service Control Manager;
+- processo LocalSystem.
+
+## 28.2 Ciclo de vida
+
+O Desktop Host:
+
+- é aplicativo Win32 `asInvoker`;
+- inicia o Core como processo filho oculto;
+- mantém os dois no mesmo Job Object;
+- reinicia o Core se ele cair;
+- mostra tray/status;
+- abre o dashboard;
+- permite reiniciar o Core sem UAC;
+- ao escolher `Sair do MonitorIA`, encerra também o Core.
+
+Comportamento esperado:
+
+- depois do login: pode monitorar;
+- tela bloqueada: continua monitorando;
+- logoff: encerra;
+- reboot antes do próximo login: não monitora;
+- próximo login/autostart: volta a monitorar.
+
+## 28.3 Dados da edição Store
+
+O Desktop Host define:
+
+- `MONITORIA_DESKTOP_MODE=1`;
+- `MONITORIA_CONFIG_DIR=%LOCALAPPDATA%\MonitorIA`.
+
+`paths.ts` mantém o comportamento antigo do Service Host e do Linux.
+
+Somente quando `MONITORIA_DESKTOP_MODE=1`:
+
+- o Core usa LOCALAPPDATA;
+- não executa o `icacls` destinado ao serviço;
+- preserva a ACL herdada do perfil do usuário.
+
+O DPAPI continua no mesmo formato LocalMachine + entropia. A entropia da Store
+fica dentro do perfil do usuário, em vez de ProgramData.
+
+## 28.4 Paridade do Core
+
+Nenhum detector, câmera, fila, evidência ou lógica operacional foi duplicado
+no Desktop Host.
+
+O executável lançado é o mesmo `index-v103.ts`.
+
+Assim as correções 03A–03E valem igualmente para:
+
+- Windows 24/7;
+- Microsoft Store;
+- Linux.
+
+## 28.5 O que ainda falta na Entrega 4
+
+A 4B cria e valida o host.
+
+A 4C fará:
+
+- instalador Store separado e sem privilégios administrativos;
+- primeira execução/pareamento amigável;
+- autostart após login;
+- atalhos e desinstalação;
+- dashboard explicando claramente 24/7 x Microsoft Store;
+- pacote de teste em máquina limpa.
+
+A 4C será a última fase de implementação antes da Release Candidate/certificação.
