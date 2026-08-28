@@ -10,10 +10,17 @@ on:
       - ".github/workflows/validate-release-candidate-v103.yml"
       - "agent/src/index-v103.ts"
       - "agent/src/v103/timeline-segment-timing.ts"
+      - "app/dashboard/dashboard-navigation.ts"
+      - "app/dashboard/dashboard-section-tabs.tsx"
+      - "app/dashboard/installer/pair/**"
+      - "supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql"
       - "test/agent-0103-release-candidate-contract.test.ts"
       - "test/agent-0103-timeline-segment-timing.test.ts"
+      - "test/agent-0103-store-install-experience.test.ts"
       - "docs/MONITORIA-1.0.3-ENTREGA-05A.md"
       - "docs/MONITORIA-1.0.3-MATRIZ-RC.md"
+      - "docs/MONITORIA-1.0.3-ENTREGA-05B6.1-REPAIR-WIZARD.md"
+      - "docs/MONITORIA-1.0.3-HANDOFF-RC.md"
       - "scripts/collect-rc-v103-evidence.ps1"
       - "scripts/sign-inno-authenticode.ps1"
       - "installer/monitoria.iss"
@@ -27,7 +34,7 @@ jobs:
   contract:
     name: Release Candidate Contract
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
       - uses: actions/checkout@v5
@@ -38,7 +45,11 @@ jobs:
       - run: npm ci
       - name: TypeScript do Agent 1.0.3
         run: npx tsc --noEmit -p agent/tsconfig.json
+      - name: TypeScript web
+        run: npx tsc --noEmit
       - name: Regressão de timeline RTSP/GOP variável
         run: node --import tsx --test test/agent-0103-timeline-segment-timing.test.ts
       - name: Contrato da Fase 05A
         run: node --import tsx --test test/agent-0103-release-candidate-contract.test.ts
+      - name: Contrato Store + reparo 1.0.3
+        run: node --import tsx --test test/agent-0103-store-install-experience.test.ts
