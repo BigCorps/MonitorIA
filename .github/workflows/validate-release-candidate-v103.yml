@@ -8,7 +8,10 @@ on:
     paths:
       - ".github/workflows/build-release-candidate-v103.yml"
       - ".github/workflows/validate-release-candidate-v103.yml"
+      - "agent/src/index-v103.ts"
+      - "agent/src/v103/timeline-segment-timing.ts"
       - "test/agent-0103-release-candidate-contract.test.ts"
+      - "test/agent-0103-timeline-segment-timing.test.ts"
       - "docs/MONITORIA-1.0.3-ENTREGA-05A.md"
       - "docs/MONITORIA-1.0.3-MATRIZ-RC.md"
       - "scripts/collect-rc-v103-evidence.ps1"
@@ -29,5 +32,9 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: TypeScript do Agent 1.0.3
+        run: npx tsc --noEmit -p agent/tsconfig.json
+      - name: Regressão de timeline RTSP/GOP variável
+        run: node --import tsx --test test/agent-0103-timeline-segment-timing.test.ts
       - name: Contrato da Fase 05A
         run: node --import tsx --test test/agent-0103-release-candidate-contract.test.ts
