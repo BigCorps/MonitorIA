@@ -15,6 +15,10 @@ on:
       - "docs/MONITORIA-1.0.3-ENTREGA-05A.md"
       - "docs/MONITORIA-1.0.3-MATRIZ-RC.md"
       - "scripts/collect-rc-v103-evidence.ps1"
+      - "scripts/sign-inno-authenticode.ps1"
+      - "installer/monitoria.iss"
+      - "installer/monitoria-service-v103.iss"
+      - "installer/monitoria-store-v103.iss"
 
 permissions:
   contents: read

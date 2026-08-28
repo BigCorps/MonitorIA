@@ -346,52 +346,90 @@ jobs:
           if (-not $iscc) { throw "Inno Setup não encontrado." }
           "path=$iscc" | Out-File -Append $env:GITHUB_OUTPUT
 
-      - name: Compilar os dois instaladores a partir do mesmo Core assinado
+      - name: Compilar e assinar Setup + uninstaller dos dois canais Windows
         shell: pwsh
+        env:
+          ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
+          ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
+          ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
+          ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
-          & "${{ steps.inno.outputs.path }}" /DAppVersion=1.0.3 installer\monitoria-service-v103.iss
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar MonitorIA 24/7 1.0.3." }
+          $signWrapper = Join-Path $env:GITHUB_WORKSPACE "scripts\sign-inno-authenticode.ps1"
+          if (-not (Test-Path -LiteralPath $signWrapper)) {
+            throw "Wrapper de assinatura Inno não encontrado: $signWrapper"
+          }
 
-          & "${{ steps.inno.outputs.path }}" /DAppVersion=1.0.3 installer\monitoria-store-v103.iss
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar MonitorIA Store 1.0.3." }
+          if (
+            [string]::IsNullOrWhiteSpace($env:CODE_SIGN_TOOL_PATH) -and
+            [string]::IsNullOrWhiteSpace($env:CODESIGNTOOL_PATH)
+          ) {
+            throw "CodeSignTool da SSL.com não foi inicializado antes da compilação Inno."
+          }
+
+          $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+          $signTool =
+            'monitoria=$q' + $pwsh +
+            '$q -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $q' +
+            $signWrapper + '$q $f'
+
+          $isccArgs = @(
+            "/DAppVersion=1.0.3",
+            "/DSignCommand=1",
+            "/S$signTool"
+          )
+
+          $signLog = Join-Path $env:RUNNER_TEMP "monitoria-inno-signatures.jsonl"
+          Remove-Item -LiteralPath $signLog -Force -ErrorAction SilentlyContinue
+
+          $env:MONITORIA_SIGN_CONTEXT = "windows-247"
+          & "${{ steps.inno.outputs.path }}" @isccArgs installer\monitoria-service-v103.iss
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar/assinar MonitorIA 24/7 1.0.3." }
+
+          $env:MONITORIA_SIGN_CONTEXT = "windows-store"
+          & "${{ steps.inno.outputs.path }}" @isccArgs installer\monitoria-store-v103.iss
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar/assinar MonitorIA Store 1.0.3." }
+
+          Remove-Item Env:MONITORIA_SIGN_CONTEXT -ErrorAction SilentlyContinue
 
           if (-not (Test-Path dist\MonitorIA-Setup.exe)) { throw "MonitorIA-Setup.exe não foi criado." }
           if (-not (Test-Path dist-store-v103\MonitorIA-Store-Setup.exe)) { throw "MonitorIA-Store-Setup.exe não foi criado." }
           if ((Get-Item dist\MonitorIA-Setup.exe).Length -lt 5000000) { throw "Instalador 24/7 parece incompleto." }
           if ((Get-Item dist-store-v103\MonitorIA-Store-Setup.exe).Length -lt 5000000) { throw "Instalador Store parece incompleto." }
 
-      - name: Assinar instalador MonitorIA 24/7
-        uses: sslcom/esigner-codesign@v1.3.2
-        with:
-          command: sign
-          username: ${{ secrets.ESIGNER_USERNAME }}
-          password: ${{ secrets.ESIGNER_PASSWORD }}
-          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
-          file_path: ${{ github.workspace }}\dist\MonitorIA-Setup.exe
-          output_path: ${{ github.workspace }}\setup-247-signed
-          malware_block: true
-          environment_name: PROD
+          if (-not (Test-Path -LiteralPath $signLog)) {
+            throw "O Inno não registrou nenhuma chamada de assinatura."
+          }
 
-      - name: Assinar instalador MonitorIA Store
-        uses: sslcom/esigner-codesign@v1.3.2
-        with:
-          command: sign
-          username: ${{ secrets.ESIGNER_USERNAME }}
-          password: ${{ secrets.ESIGNER_PASSWORD }}
-          credential_id: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ESIGNER_TOTP_SECRET }}
-          file_path: ${{ github.workspace }}\dist-store-v103\MonitorIA-Store-Setup.exe
-          output_path: ${{ github.workspace }}\setup-store-signed
-          malware_block: true
-          environment_name: PROD
+          $records = @(
+            Get-Content -LiteralPath $signLog |
+              Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+              ForEach-Object { $_ | ConvertFrom-Json }
+          )
+
+          foreach ($expectation in @(
+            @{ Context = "windows-247"; Setup = "MonitorIA-Setup.exe" },
+            @{ Context = "windows-store"; Setup = "MonitorIA-Store-Setup.exe" }
+          )) {
+            $contextRecords = @($records | Where-Object { $_.context -eq $expectation.Context })
+            if ($contextRecords.Count -lt 2) {
+              throw "O Inno não assinou Setup + uninstaller no contexto $($expectation.Context)."
+            }
+            if (-not ($contextRecords | Where-Object { $_.fileName -eq $expectation.Setup })) {
+              throw "Setup não passou pelo SignTool do Inno: $($expectation.Setup)"
+            }
+            if (-not ($contextRecords | Where-Object { $_.fileName -ne $expectation.Setup })) {
+              throw "Uninstaller não passou pelo SignTool do Inno: $($expectation.Context)"
+            }
+            foreach ($record in $contextRecords) {
+              if ($record.status -ne "Valid" -or -not $record.hasTimestamp) {
+                throw "Registro de assinatura Inno inválido: $($record.fileName) / $($record.status)"
+              }
+            }
+          }
 
       - name: Validar instaladores assinados e montar artifacts RC
         shell: pwsh
         run: |
-          Copy-Item setup-247-signed\MonitorIA-Setup.exe dist\MonitorIA-Setup.exe -Force
-          Copy-Item setup-store-signed\MonitorIA-Store-Setup.exe dist-store-v103\MonitorIA-Store-Setup.exe -Force
-
           foreach ($target in @("dist\MonitorIA-Setup.exe", "dist-store-v103\MonitorIA-Store-Setup.exe")) {
             $sig = Get-AuthenticodeSignature $target
             if ($sig.Status -ne 'Valid') { throw "Instalador sem assinatura válida: $target ($($sig.Status))" }
