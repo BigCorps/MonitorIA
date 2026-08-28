@@ -151,15 +151,15 @@ jobs:
           call "$vcvars"
           if errorlevel 1 exit /b 1
           cd /d "$native"
-          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE dpapi.c /Fe:..\..\build\monitoria-dpapi.exe Crypt32.lib
+          cl.exe /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE dpapi.c /Fe:..\..\build\monitoria-dpapi.exe Crypt32.lib
           if errorlevel 1 exit /b 1
           rc.exe /nologo /fo ..\..\build\monitoria-tray.res tray.rc
           if errorlevel 1 exit /b 1
-          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE tray.c ..\..\build\monitoria-tray.res /Fe:..\..\build\monitoria-tray.exe Advapi32.lib Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          cl.exe /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE tray.c ..\..\build\monitoria-tray.res /Fe:..\..\build\monitoria-tray.exe Advapi32.lib Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
           if errorlevel 1 exit /b 1
           rc.exe /nologo /fo ..\..\build\monitoria-desktop.res desktop-host.rc
           if errorlevel 1 exit /b 1
-          cl.exe /nologo /O2 /W4 /DUNICODE /D_UNICODE desktop-host.c ..\..\build\monitoria-desktop.res /Fe:..\..\build\monitoria-desktop.exe Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          cl.exe /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE desktop-host.c ..\..\build\monitoria-desktop.res /Fe:..\..\build\monitoria-desktop.exe Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
           if errorlevel 1 exit /b 1
           "@ | Set-Content -Encoding ascii $script
 
@@ -169,6 +169,57 @@ jobs:
           if ((Get-Item build\monitoria-dpapi.exe).Length -lt 10000) { throw "DPAPI incompleto." }
           if ((Get-Item build\monitoria-tray.exe).Length -lt 15000) { throw "Tray incompleto." }
           if ((Get-Item build\monitoria-desktop.exe).Length -lt 15000) { throw "Desktop Host incompleto." }
+
+
+          # Regressão real do bug de mojibake observado no RC Store.
+          # Não basta o fonte usar APIs W: o MSVC precisa decodificar o .c como UTF-8.
+          function Test-ByteSequence {
+            param(
+              [byte[]]$Haystack,
+              [byte[]]$Needle
+            )
+
+            if ($Needle.Length -eq 0 -or $Haystack.Length -lt $Needle.Length) {
+              return $false
+            }
+
+            for ($i = 0; $i -le ($Haystack.Length - $Needle.Length); $i++) {
+              $matches = $true
+              for ($j = 0; $j -lt $Needle.Length; $j++) {
+                if ($Haystack[$i + $j] -ne $Needle[$j]) {
+                  $matches = $false
+                  break
+                }
+              }
+              if ($matches) { return $true }
+            }
+
+            return $false
+          }
+
+          function Test-Utf16Literal {
+            param(
+              [string]$Path,
+              [string]$Text
+            )
+
+            $bytes = [IO.File]::ReadAllBytes((Resolve-Path $Path))
+            $needleBytes = [Text.Encoding]::Unicode.GetBytes($Text)
+            return Test-ByteSequence -Haystack $bytes -Needle $needleBytes
+          }
+
+          if (-not (Test-Utf16Literal "build\monitoria-desktop.exe" "código de conexão")) {
+            throw "Desktop Host compilado sem os textos Unicode corretos."
+          }
+          if (Test-Utf16Literal "build\monitoria-desktop.exe" "cÃ³digo de conexÃ£o") {
+            throw "Desktop Host contém mojibake UTF-8/ANSI."
+          }
+          if (-not (Test-Utf16Literal "build\monitoria-tray.exe" "atenção: serviço parado")) {
+            throw "Tray 24/7 compilado sem os textos Unicode corretos."
+          }
+          if (Test-Utf16Literal "build\monitoria-tray.exe" "atenÃ§Ã£o: serviÃ§o parado") {
+            throw "Tray 24/7 contém mojibake UTF-8/ANSI."
+          }
 
       - name: Autotestes dos hosts Windows
         shell: pwsh
