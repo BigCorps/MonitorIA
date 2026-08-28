@@ -45,8 +45,12 @@ function parseSegmentIdentity(name: string) {
   const match = /^(\d{13})-(\d{6})\.ts$/i.exec(name);
   if (!match) return null;
 
-  const runStartedAt = Number(match[1]);
-  const index = Number(match[2]);
+  const runKey = match[1];
+  const indexText = match[2];
+  if (!runKey || !indexText) return null;
+
+  const runStartedAt = Number(runKey);
+  const index = Number(indexText);
   if (
     !Number.isFinite(runStartedAt) ||
     !Number.isInteger(index) ||
@@ -58,7 +62,7 @@ function parseSegmentIdentity(name: string) {
   return {
     runStartedAt,
     index,
-    runKey: match[1],
+    runKey,
   };
 }
 
