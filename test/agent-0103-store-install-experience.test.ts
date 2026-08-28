@@ -81,6 +81,29 @@ test("dashboard explica as duas edições sem prometer ausência de análise de 
   assert.match(source, /não é necessário desativar a proteção/);
 });
 
+test("painel permite trocar ou reparar o computador com código por local", async () => {
+  const page = await readFile(
+    new URL("../app/dashboard/installer/pair/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const navigation = await readFile(
+    new URL("../app/dashboard/dashboard-navigation.ts", import.meta.url),
+    "utf8",
+  );
+  const action = await readFile(
+    new URL("../app/dashboard/site-pairing-actions.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /SitePairingCode/);
+  assert.match(page, /Conectar ou trocar o computador/);
+  assert.match(page, /computador anterior deste local é desativado/);
+  assert.match(page, /\["owner", "admin"\]/);
+  assert.match(navigation, /Parear computador/);
+  assert.match(navigation, /\/dashboard\/installer\/pair/);
+  assert.match(action, /create_site_pairing_code/);
+});
+
 test("Store pública só é habilitada com link oficial apps.microsoft.com", async () => {
   const source = await readFile(
     new URL("../src/lib/installer-data.ts", import.meta.url),
