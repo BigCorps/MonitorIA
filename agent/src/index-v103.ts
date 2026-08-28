@@ -17,6 +17,10 @@ import { resolveAgentHostMode } from "./v103/host-mode.js";
 import { installV103ClipIntegrity } from "./v103/clip-integrity.js";
 import { installV103EarlyEvidencePinning } from "./v103/early-evidence-pinning.js";
 import { installV103PriorityQueue } from "./v103/priority-queue.js";
+import {
+  installV103TimelineSegmentTiming,
+  timelineSegmentTimingContractV103,
+} from "./v103/timeline-segment-timing.js";
 import { AGENT_V103_VERSION } from "./v103/version.js";
 
 /**
@@ -27,6 +31,10 @@ import { AGENT_V103_VERSION } from "./v103/version.js";
  * para Windows 24/7, Store Desktop e Linux.
  */
 installV102Runtime();
+
+// Deve entrar antes do early-pinning: o pinning encapsula captureAt(), então
+// precisa enxergar a versão 1.0.3 que entende segmentos RTSP maiores que 3 s.
+installV103TimelineSegmentTiming();
 installV103EarlyEvidencePinning();
 installV103PriorityQueue();
 installV103ClipIntegrity();
@@ -52,6 +60,8 @@ if (command === "self-test") {
     v102SchedulerContract();
   const runtime =
     v103RuntimeContract();
+  const timelineTiming =
+    timelineSegmentTimingContractV103();
 
   if (
     scheduler.eventTransport !==
@@ -94,6 +104,16 @@ if (command === "self-test") {
     );
   }
 
+  if (
+    !timelineTiming.variableGopWindow ||
+    !timelineTiming.longSegmentSeekPreserved ||
+    timelineTiming.extendedWaitMs < 15_000
+  ) {
+    throw new Error(
+      "A 1.0.3 perdeu a correção de evidência para GOP/segmentos RTSP variáveis.",
+    );
+  }
+
   console.log(
     `Autoteste MonitorIA Agent v${AGENT_V103_VERSION} aprovado.`,
   );
@@ -105,6 +125,14 @@ if (command === "self-test") {
   );
   console.log(
     `Heartbeat do scheduler: ${scheduler.heartbeatProfile}`,
+  );
+  console.log(
+    `Timeline RTSP variável: ${
+      timelineTiming.variableGopWindow &&
+      timelineTiming.longSegmentSeekPreserved
+        ? "sim"
+        : "não"
+    }`,
   );
   console.log(
     `Detector estrutural lento: ${
