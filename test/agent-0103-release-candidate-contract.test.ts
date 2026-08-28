@@ -49,6 +49,25 @@ test("Windows RC exige assinatura e timestamp", () => {
   assert.match(buildWorkflow, /Get-AuthenticodeSignature/);
 });
 
+
+test("hosts nativos Windows são compilados em UTF-8 e bloqueiam mojibake", () => {
+  const nativeCompileLines = buildWorkflow
+    .split("\n")
+    .filter((line) => /cl\.exe/.test(line) && /(?:dpapi|tray|desktop-host)\.c/.test(line));
+
+  assert.equal(nativeCompileLines.length, 3);
+  for (const line of nativeCompileLines) {
+    assert.match(line, /\/utf-8/);
+  }
+
+  assert.match(buildWorkflow, /código de conexão/);
+  assert.match(buildWorkflow, /cÃ³digo de conexÃ£o/);
+  assert.match(buildWorkflow, /atenção: serviço parado/);
+  assert.match(buildWorkflow, /atenÃ§Ã£o: serviÃ§o parado/);
+  assert.match(buildWorkflow, /Desktop Host contém mojibake UTF-8\/ANSI/);
+  assert.match(buildWorkflow, /Tray 24\/7 contém mojibake UTF-8\/ANSI/);
+});
+
 test("Inno assina Setup e uninstaller nos dois canais Windows", () => {
   for (const installer of [installer247Base, storeInstaller]) {
     assert.match(installer, /SignTool=monitoria/);
