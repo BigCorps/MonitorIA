@@ -107,6 +107,9 @@ if (command === "self-test") {
   if (
     !timelineTiming.variableGopWindow ||
     !timelineTiming.longSegmentSeekPreserved ||
+    !timelineTiming.closedSegmentGate ||
+    !timelineTiming.decodeBeforeSeek ||
+    timelineTiming.jpegRetryAttempts < 2 ||
     timelineTiming.extendedWaitMs < 15_000
   ) {
     throw new Error(
@@ -130,6 +133,15 @@ if (command === "self-test") {
     `Timeline RTSP variável: ${
       timelineTiming.variableGopWindow &&
       timelineTiming.longSegmentSeekPreserved
+        ? "sim"
+        : "não"
+    }`,
+  );
+  console.log(
+    `JPEG após fechamento do segmento: ${
+      timelineTiming.closedSegmentGate &&
+      timelineTiming.decodeBeforeSeek &&
+      timelineTiming.jpegRetryAttempts >= 2
         ? "sim"
         : "não"
     }`,

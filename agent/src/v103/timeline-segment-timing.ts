@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { sanitizeFfmpegError } from "../ffmpeg.js";
@@ -16,6 +16,7 @@ const SEGMENT_SETTLE_MARGIN_MS = 1_500;
 const SEGMENT_WAIT_MS = 20_000;
 const MIN_SEGMENT_WINDOW_MS = 250;
 const MAX_SEGMENT_WINDOW_MS = 120_000;
+const JPEG_RETRY_BACKOFF_MS = [0, 350, 900] as const;
 
 type SegmentLike = {
   path: string;
@@ -140,6 +141,56 @@ export function reconstructSegmentWindowsV103(
   });
 }
 
+export function closedSegmentsV103(
+  source: SegmentLike[],
+  fileNames: string[],
+): SegmentLike[] {
+  const identities = fileNames
+    .map((name) => parseSegmentIdentity(name))
+    .filter((value): value is NonNullable<ReturnType<typeof parseSegmentIdentity>> =>
+      value !== null,
+    );
+
+  return source.filter((segment) => {
+    const identity = parseSegmentIdentity(
+      segment.name,
+    );
+    if (!identity) return false;
+
+    return identities.some((candidate) =>
+      (
+        candidate.runKey === identity.runKey &&
+        candidate.index > identity.index
+      ) ||
+      candidate.runStartedAt > identity.runStartedAt,
+    );
+  });
+}
+
+async function timelineSegmentFileNames(
+  timeline: CameraTimeline,
+) {
+  const directory = String(
+    (timeline as any).directory ?? "",
+  );
+  if (!directory) return [] as string[];
+
+  try {
+    const entries = await readdir(directory, {
+      withFileTypes: true,
+    });
+    return entries
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.endsWith(".ts"),
+      )
+      .map((entry) => entry.name);
+  } catch {
+    return [] as string[];
+  }
+}
+
 export function segmentContainsTargetV103(
   segment: SegmentLike,
   targetMs: number,
@@ -182,11 +233,9 @@ function selectSegment(
       targetMs,
     ),
   );
-  const pool = covering.length
-    ? covering
-    : segments;
+  if (!covering.length) return null;
 
-  return [...pool].sort((left, right) => {
+  return [...covering].sort((left, right) => {
     const leftMid =
       (left.startedAt + left.modifiedAt) / 2;
     const rightMid =
@@ -244,6 +293,117 @@ function run(
   });
 }
 
+export function evidenceSeekAttemptsV103(
+  offsetMs: number,
+) {
+  const normalized = Math.max(
+    0,
+    Math.round(offsetMs),
+  );
+  return [
+    ...new Set(
+      JPEG_RETRY_BACKOFF_MS.map((backoff) =>
+        Math.max(0, normalized - backoff),
+      ),
+    ),
+  ];
+}
+
+export function evidenceSeekPrefixV103(
+  segmentPath: string,
+  offsetMs: number,
+) {
+  return [
+    "-fflags",
+    "+genpts",
+    "-i",
+    segmentPath,
+    "-ss",
+    (offsetMs / 1000).toFixed(3),
+  ];
+}
+
+async function extractJpegWithRetry(
+  input: {
+    ffmpegPath: string;
+    segment: SegmentLike;
+    output: string;
+    offsetMs: number;
+    maxWidth: number;
+    quality: number;
+  },
+) {
+  let lastError =
+    "FFmpeg encerrou sem produzir o JPEG da evidência.";
+
+  for (const attemptOffsetMs of
+    evidenceSeekAttemptsV103(input.offsetMs)) {
+    await rm(input.output, {
+      force: true,
+    }).catch(() => undefined);
+
+    const result = await run(
+      input.ffmpegPath,
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        ...evidenceSeekPrefixV103(
+          input.segment.path,
+          attemptOffsetMs,
+        ),
+        "-map",
+        "0:v:0",
+        "-frames:v",
+        "1",
+        "-an",
+        "-vf",
+        `scale=${input.maxWidth}:-2:force_original_aspect_ratio=decrease:out_range=full,format=yuvj420p`,
+        "-c:v",
+        "mjpeg",
+        "-color_range",
+        "pc",
+        "-q:v",
+        String(input.quality),
+        "-update",
+        "1",
+        "-y",
+        input.output,
+      ],
+      20_000,
+    );
+
+    if (result.code !== 0) {
+      lastError =
+        sanitizeFfmpegError(result.stderr) ||
+        "Falha ao extrair evidência da timeline.";
+      continue;
+    }
+
+    try {
+      const info = await stat(input.output);
+      if (info.size < 1024) {
+        lastError =
+          "A evidência extraída ficou vazia.";
+        continue;
+      }
+      const bytes = await readFile(
+        input.output,
+      );
+      return {
+        info,
+        bytes,
+        offsetMs: attemptOffsetMs,
+      };
+    } catch {
+      lastError =
+        "FFmpeg encerrou sem produzir o JPEG da evidência.";
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 export function timelineSegmentTimingContractV103() {
   const runStartedAt = 1_780_000_000_000;
   const source: SegmentLike[] = [
@@ -272,6 +432,15 @@ export function timelineSegmentTimingContractV103() {
   const first = reconstructed[0]!;
   const second = reconstructed[1]!;
 
+  const closed = closedSegmentsV103(
+    reconstructed,
+    source.map((segment) => segment.name),
+  );
+  const seekPrefix = evidenceSeekPrefixV103(
+    first.path,
+    8_000,
+  );
+
   return {
     variableGopWindow:
       first.startedAt === runStartedAt &&
@@ -282,6 +451,14 @@ export function timelineSegmentTimingContractV103() {
         first,
         runStartedAt + 8_000,
       ) === 8_000,
+    closedSegmentGate:
+      closed.length === 1 &&
+      closed[0]?.name === first.name,
+    decodeBeforeSeek:
+      seekPrefix.indexOf("-i") <
+      seekPrefix.indexOf("-ss"),
+    jpegRetryAttempts:
+      evidenceSeekAttemptsV103(2_000).length,
     extendedWaitMs: SEGMENT_WAIT_MS,
   } as const;
 }
@@ -326,27 +503,33 @@ export function installV103TimelineSegmentTiming() {
   ) {
     const deadline =
       Date.now() + SEGMENT_WAIT_MS;
-    let all: SegmentLike[] = [];
+    let closed: SegmentLike[] = [];
 
     do {
       const method =
         (this as any).segments;
-      all =
+      const all =
         typeof method === "function"
           ? ((await method.call(
               this,
             )) as SegmentLike[])
           : [];
+      const fileNames =
+        await timelineSegmentFileNames(this);
+      closed = closedSegmentsV103(
+        all,
+        fileNames,
+      );
 
       if (
-        all.some((segment) =>
+        closed.some((segment) =>
           segmentContainsTargetV103(
             segment,
             targetMs,
           ),
         )
       ) {
-        return all;
+        return closed;
       }
 
       await new Promise((resolve) =>
@@ -354,7 +537,7 @@ export function installV103TimelineSegmentTiming() {
       );
     } while (Date.now() < deadline);
 
-    return all;
+    return closed;
   };
 
   proto.captureAt = async function (
@@ -443,73 +626,36 @@ export function installV103TimelineSegmentTiming() {
 
     const releaseSegment =
       protectVideoFiles([segment.path]);
-    let result: RunResult;
-    let info;
-    let bytes: Buffer;
+    let extracted: Awaited<
+      ReturnType<typeof extractJpegWithRetry>
+    >;
 
     try {
-      result = await run(
-        runtimeOptions.ffmpegPath,
-        [
-          "-hide_banner",
-          "-loglevel",
-          "error",
-          "-ss",
-          (offsetMs / 1000).toFixed(3),
-          "-i",
-          segment.path,
-          "-map",
-          "0:v:0",
-          "-frames:v",
-          "1",
-          "-an",
-          "-vf",
-          `scale=${maxWidth}:-2:force_original_aspect_ratio=decrease:out_range=full,format=yuvj420p`,
-          "-c:v",
-          "mjpeg",
-          "-color_range",
-          "pc",
-          "-q:v",
-          String(quality),
-          "-update",
-          "1",
-          "-y",
-          output,
-        ],
-        20_000,
-      );
-
-      if (result.code !== 0) {
-        throw new Error(
-          sanitizeFfmpegError(
-            result.stderr,
-          ) ||
-            "Falha ao extrair evidência da timeline.",
-        );
-      }
-
-      info = await stat(output);
-      if (info.size < 1024) {
-        throw new Error(
-          "A evidência extraída ficou vazia.",
-        );
-      }
-      bytes = await readFile(output);
+      extracted = await extractJpegWithRetry({
+        ffmpegPath: runtimeOptions.ffmpegPath,
+        segment,
+        output,
+        offsetMs,
+        maxWidth,
+        quality,
+      });
     } finally {
       releaseSegment();
     }
 
     const sha = createHash("sha256")
-      .update(bytes)
+      .update(extracted.bytes)
       .digest("hex");
+    const capturedAtMs =
+      segment.startedAt + extracted.offsetMs;
 
     return {
       path: output,
       width: null,
       height: null,
-      byteSize: info.size,
+      byteSize: extracted.info.size,
       capturedAt: new Date(
-        targetMs,
+        capturedAtMs,
       ).toISOString(),
       timeline: {
         source: "rtsp_timeline",
@@ -518,9 +664,11 @@ export function installV103TimelineSegmentTiming() {
           segment.startedAt,
         ).toISOString(),
         sourceTimestamp: new Date(
-          targetMs,
+          capturedAtMs,
         ).toISOString(),
-        offsetMs: Math.round(offsetMs),
+        offsetMs: Math.round(
+          extracted.offsetMs,
+        ),
         contentSha256: sha,
       },
     };
