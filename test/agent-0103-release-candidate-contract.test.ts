@@ -49,7 +49,6 @@ test("Windows RC exige assinatura e timestamp", () => {
   assert.match(buildWorkflow, /Get-AuthenticodeSignature/);
 });
 
-
 test("Inno assina Setup e uninstaller nos dois canais Windows", () => {
   for (const installer of [installer247Base, storeInstaller]) {
     assert.match(installer, /SignTool=monitoria/);
@@ -68,6 +67,18 @@ test("Inno assina Setup e uninstaller nos dois canais Windows", () => {
   assert.match(innoSigner, /TimeStamperCertificate/);
   assert.match(innoSigner, /Copy-Item/);
   assert.match(innoSigner, /monitoria-inno-signatures\.jsonl/);
+
+  // Inno 6 entrega o uninstaller ao SignTool como uninst.e32.tmp.
+  // O wrapper deve normalizar apenas a entrada da SSL.com para .exe e
+  // devolver exatamente os mesmos bytes assinados ao caminho original.
+  assert.match(innoSigner, /Assert-PeImage/);
+  assert.match(innoSigner, /monitoria-inno-sign\.exe/);
+  assert.match(
+    innoSigner,
+    /Copy-Item -LiteralPath \$resolvedPath -Destination \$stagedInput -Force/,
+  );
+  assert.match(innoSigner, /signerInputFileName/);
+  assert.match(innoSigner, /\$finalHash -ne \$signedHash/);
 });
 
 test("RC gera manifesto rastreável pelo mesmo commit", () => {
