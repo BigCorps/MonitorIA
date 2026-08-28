@@ -2,6 +2,7 @@ import { installV102Runtime } from "./v102/service-runtime.js";
 import {
   assertV102SchedulerInstalled,
   installV102Scheduler,
+  useRuntimeHeartbeatForV102Scheduler,
   v102SchedulerContract,
 } from "./v102/runtime-scheduler.js";
 import {
@@ -30,6 +31,12 @@ installV103EarlyEvidencePinning();
 installV103PriorityQueue();
 installV103ClipIntegrity();
 installV103Runtime();
+
+// A fila/retries continuam no scheduler homologado da 1.0.2, porém o
+// heartbeat deve ser o do runtime que está realmente executando. Sem esta
+// chave, o scheduler explícito chamava diretamente o heartbeat 1.0.2 e o
+// backend continuava registrando 1.0.2 mesmo com o Core 1.0.3 instalado.
+useRuntimeHeartbeatForV102Scheduler();
 installV102Scheduler();
 
 const command =
@@ -51,6 +58,8 @@ if (command === "self-test") {
       "durable-v2" ||
     scheduler.eventEndpointPrefix !==
       "/api/agent/v2/cameras/" ||
+    scheduler.heartbeatProfile !==
+      "runtime" ||
     scheduler
       .legacyQueueAndHeartbeatTimersDisabled !==
       true ||
@@ -59,7 +68,7 @@ if (command === "self-test") {
       true
   ) {
     throw new Error(
-      "A 1.0.3 perdeu uma garantia homologada da 1.0.2.",
+      "A 1.0.3 perdeu uma garantia homologada da 1.0.2 ou não assumiu o heartbeat do runtime.",
     );
   }
 
@@ -93,6 +102,9 @@ if (command === "self-test") {
   );
   console.log(
     `Host detectado: ${hostMode}`,
+  );
+  console.log(
+    `Heartbeat do scheduler: ${scheduler.heartbeatProfile}`,
   );
   console.log(
     `Detector estrutural lento: ${

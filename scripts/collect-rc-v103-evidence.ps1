@@ -68,11 +68,27 @@ $processes = @()
 foreach ($name in $processNames) {
   $found = @(Get-Process -Name $name -ErrorAction SilentlyContinue)
   foreach ($process in $found) {
+    # Windows PowerShell 5.1 não aceita try/catch como valor diretamente
+    # dentro de um literal de hashtable. Calcule antes e só então monte o objeto.
+    $processStartTime = $null
+    try {
+      $processStartTime = $process.StartTime.ToUniversalTime().ToString("o")
+    } catch {
+      $processStartTime = $null
+    }
+
+    $processPath = $null
+    try {
+      $processPath = $process.Path
+    } catch {
+      $processPath = $null
+    }
+
     $processes += [ordered]@{
       name = $process.ProcessName
       id = $process.Id
-      startTime = try { $process.StartTime.ToUniversalTime().ToString("o") } catch { $null }
-      path = try { $process.Path } catch { $null }
+      startTime = $processStartTime
+      path = $processPath
     }
   }
 }
