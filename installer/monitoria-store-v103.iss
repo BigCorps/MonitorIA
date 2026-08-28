@@ -37,6 +37,14 @@ OutputBaseFilename=MonitorIA-Store-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMANumBlockThreads=4
+
+; Na RC assinada, o Inno chama o mesmo eSigner usado pelo pipeline.
+; Isso assina o Setup e também o unins???.exe antes de ele ser embutido.
+#ifdef SignCommand
+SignTool=monitoria
+SignedUninstaller=yes
+#endif
+
 WizardStyle=modern
 SetupIconFile=monitoria.ico
 CloseApplications=yes

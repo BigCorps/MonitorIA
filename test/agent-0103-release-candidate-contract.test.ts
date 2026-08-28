@@ -13,6 +13,9 @@ const validateWorkflow = readFileSync(
 const handoff = readFileSync("docs/MONITORIA-1.0.3-ENTREGA-05A.md", "utf8");
 const matrix = readFileSync("docs/MONITORIA-1.0.3-MATRIZ-RC.md", "utf8");
 const collector = readFileSync("scripts/collect-rc-v103-evidence.ps1", "utf8");
+const installer247Base = readFileSync("installer/monitoria.iss", "utf8");
+const storeInstaller = readFileSync("installer/monitoria-store-v103.iss", "utf8");
+const innoSigner = readFileSync("scripts/sign-inno-authenticode.ps1", "utf8");
 
 test("RC 1.0.3 é manual e não publica release/tag", () => {
   assert.match(buildWorkflow, /workflow_dispatch:/);
@@ -44,6 +47,27 @@ test("Windows RC exige assinatura e timestamp", () => {
   assert.match(buildWorkflow, /sslcom\/esigner-codesign@v1\.3\.2/);
   assert.match(buildWorkflow, /TimeStamperCertificate/);
   assert.match(buildWorkflow, /Get-AuthenticodeSignature/);
+});
+
+
+test("Inno assina Setup e uninstaller nos dois canais Windows", () => {
+  for (const installer of [installer247Base, storeInstaller]) {
+    assert.match(installer, /SignTool=monitoria/);
+    assert.match(installer, /SignedUninstaller=yes/);
+  }
+
+  assert.match(buildWorkflow, /\/DSignCommand=1/);
+  assert.match(buildWorkflow, /sign-inno-authenticode\.ps1/);
+  assert.match(buildWorkflow, /monitoria-inno-signatures\.jsonl/);
+  assert.match(buildWorkflow, /Uninstaller não passou pelo SignTool do Inno/);
+  assert.doesNotMatch(buildWorkflow, /setup-247-signed/);
+  assert.doesNotMatch(buildWorkflow, /setup-store-signed/);
+
+  assert.match(innoSigner, /CodeSignTool\.bat/);
+  assert.match(innoSigner, /Get-AuthenticodeSignature/);
+  assert.match(innoSigner, /TimeStamperCertificate/);
+  assert.match(innoSigner, /Copy-Item/);
+  assert.match(innoSigner, /monitoria-inno-signatures\.jsonl/);
 });
 
 test("RC gera manifesto rastreável pelo mesmo commit", () => {
