@@ -2,9 +2,95 @@
   min-width: 0;
 }
 
-.card {
-  max-width: 820px;
-  margin-top: 18px;
+.maintenanceNotice {
+  max-width: 900px;
+  margin: -4px 0 16px;
+  padding: 13px 15px;
+  border: 1px solid #dce7e4;
+  border-radius: 12px;
+  background: #f5fbf9;
+}
+
+.maintenanceNotice strong {
+  color: #176c5c;
+  font-size: 11px;
+}
+
+.maintenanceNotice p {
+  margin: 4px 0 0;
+  color: #64788d;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.progress {
+  width: min(900px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress article {
+  min-width: 0;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  border: 1px solid #dfe6ee;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.progress article > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9e3eb;
+  border-radius: 9px;
+  color: #738498;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.progress article > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.progress strong {
+  color: #52687e;
+  font-size: 10px;
+}
+
+.progress small {
+  color: #93a0ae;
+  font-size: 7px;
+}
+
+.progress article[data-current="true"] {
+  border-color: #b8e6db;
+  background: #eefaf7;
+}
+
+.progress article[data-current="true"] > span,
+.progress article[data-complete="true"] > span {
+  color: #08745f;
+  border-color: #b8e6db;
+  background: #e4f8f3;
+}
+
+.progress article[data-current="true"] strong,
+.progress article[data-complete="true"] strong {
+  color: #176c5c;
+}
+
+.stageCard {
+  width: min(900px, 100%);
   padding: 22px;
   border: 1px solid #dfe6ee;
   border-radius: 15px;
@@ -12,95 +98,188 @@
   box-shadow: 0 10px 30px rgba(15, 31, 52, 0.035);
 }
 
-.heading > span {
+.stageHeading > span,
+.successEyebrow {
   color: #28a98e;
   font-size: 8px;
   font-weight: 850;
   letter-spacing: 0.12em;
 }
 
-.heading h2 {
+.stageHeading h2,
+.successCard h2 {
   margin: 6px 0 0;
   color: #213a53;
   font-size: 18px;
 }
 
-.heading p {
-  max-width: 680px;
-  margin: 9px 0 0;
+.stageHeading p,
+.successCard p {
+  max-width: 700px;
+  margin: 8px 0 0;
   color: #708399;
   font-size: 9px;
   line-height: 1.65;
 }
 
-.warning {
+.generator {
   margin-top: 18px;
+}
+
+.pairingCodeBox {
+  margin-top: 18px;
+  padding: 14px 15px;
+  border: 1px solid #afe2d7;
+  border-radius: 11px;
+  background: #effbf8;
+}
+
+.pairingCodeBox > span {
+  color: #15917a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.pairingCodeRow {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pairingCodeRow strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #0d6959;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+}
+
+.pairingCodeRow button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #9bdccc;
+  border-radius: 8px;
+  color: #08745f;
+  background: #fff;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.pairingCodeBox p {
+  margin: 6px 0 0;
+  color: #6f8c84;
+  font-size: 8px;
+}
+
+.waitingBox {
+  margin-top: 12px;
   padding: 13px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  border: 1px solid #dfe6ee;
+  border-radius: 11px;
+  background: #fbfcfd;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d4e5e1;
+  border-top-color: #22b99c;
+  border-radius: 50%;
+  animation: repairSpin 0.85s linear infinite;
+}
+
+.waitingBox strong {
+  color: #324a62;
+  font-size: 10px;
+}
+
+.waitingBox p {
+  margin: 4px 0 0;
+  color: #71849a;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.waitingSlow {
+  color: #9a681c !important;
+}
+
+.expiredBox {
+  margin-top: 12px;
+  padding: 14px;
   border: 1px solid #edd8b3;
-  border-radius: 10px;
+  border-radius: 11px;
   background: #fff9ed;
 }
 
-.warning strong {
+.expiredBox strong {
   color: #765319;
   font-size: 10px;
 }
 
-.warning p {
-  margin: 5px 0 0;
+.expiredBox p {
+  margin: 4px 0 10px;
   color: #866a3c;
   font-size: 8px;
-  line-height: 1.6;
 }
 
-.steps {
-  margin: 20px 0 0;
-  padding: 0;
+.successCard {
   display: grid;
-  gap: 13px;
-  list-style: none;
-}
-
-.steps li {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 11px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 15px;
   align-items: start;
+  border-color: #b8e6db;
+  background: #f6fcfa;
 }
 
-.steps li > span {
-  width: 32px;
-  height: 32px;
+.successIcon {
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
+  border-radius: 50%;
   color: #08745f;
-  border: 1px solid #c5e8df;
-  border-radius: 9px;
-  background: #edf9f6;
-  font-size: 9px;
+  background: #dff7f1;
+  font-size: 20px;
   font-weight: 900;
 }
 
-.steps strong {
-  color: #2d435b;
-  font-size: 10px;
+.finishActions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.steps p {
-  margin: 4px 0 0;
-  color: #71849a;
-  font-size: 8px;
-  line-height: 1.6;
+@keyframes repairSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.generator {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid #e6ecf3;
-}
+@media (max-width: 700px) {
+  .progress {
+    grid-template-columns: 1fr;
+  }
 
-@media (max-width: 620px) {
-  .card {
+  .stageCard {
     padding: 16px;
+  }
+
+  .pairingCodeRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pairingCodeRow strong {
+    font-size: 17px;
   }
 }

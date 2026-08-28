@@ -81,27 +81,64 @@ test("dashboard explica as duas edições sem prometer ausência de análise de 
   assert.match(source, /não é necessário desativar a proteção/);
 });
 
-test("painel permite trocar ou reparar o computador com código por local", async () => {
+test("reparo não compete com as abas do onboarding e usa assistente próprio", async () => {
   const page = await readFile(
     new URL("../app/dashboard/installer/pair/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const flow = await readFile(
+    new URL("../app/dashboard/installer/pair/repair-connection-flow.tsx", import.meta.url),
+    "utf8",
+  );
+  const actions = await readFile(
+    new URL("../app/dashboard/installer/pair/actions.ts", import.meta.url),
+    "utf8",
+  );
+  const tabs = await readFile(
+    new URL("../app/dashboard/dashboard-section-tabs.tsx", import.meta.url),
     "utf8",
   );
   const navigation = await readFile(
     new URL("../app/dashboard/dashboard-navigation.ts", import.meta.url),
     "utf8",
   );
-  const action = await readFile(
-    new URL("../app/dashboard/site-pairing-actions.ts", import.meta.url),
+
+  assert.match(page, /Trocar ou reparar o computador/);
+  assert.match(page, /RepairConnectionFlow/);
+  assert.match(flow, /PASSO 1 DE 3/);
+  assert.match(flow, /PASSO 2 DE 3/);
+  assert.match(flow, /RepairDiscoveryPanel/);
+  assert.match(flow, /getRepairPairingStatusAction/);
+  assert.match(actions, /create_site_pairing_code/);
+  assert.match(actions, /last_heartbeat_at/);
+  assert.match(tabs, /Trocar ou reparar computador/);
+  assert.doesNotMatch(navigation, /id:\s*"pair-computer"/);
+});
+
+test("troca por local preserva IDs de câmera e move demonstração ativa", async () => {
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const discovered = await readFile(
+    new URL("../app/api/agent/cameras/discovered/route.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(page, /SitePairingCode/);
-  assert.match(page, /Conectar ou trocar o computador/);
-  assert.match(page, /computador anterior deste local é desativado/);
-  assert.match(page, /\["owner", "admin"\]/);
-  assert.match(navigation, /Parear computador/);
-  assert.match(navigation, /\/dashboard\/installer\/pair/);
-  assert.match(action, /create_site_pairing_code/);
+  assert.match(migration, /v_previous_agent_ids/);
+  assert.match(migration, /set enabled = false/);
+  assert.match(migration, /pairing_status = 'pairing'/);
+  assert.match(migration, /update public\.trial_runs/);
+  assert.match(migration, /agent_id = v_agent_id/);
+
+  // O endpoint já validado reutiliza primeiro câmeras em pairing/unpaired
+  // sem vínculo habilitado; a migration acima prepara exatamente esse estado.
+  assert.match(discovered, /\.in\("pairing_status", \["unpaired", "pairing"\]\)/);
+  assert.match(discovered, /\.eq\("enabled", true\)/);
+  assert.match(discovered, /reuseMappingError/);
 });
 
 test("Store pública só é habilitada com link oficial apps.microsoft.com", async () => {

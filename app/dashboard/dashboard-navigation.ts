@@ -106,13 +106,6 @@ export const dashboardNavigationGroups: Record<
         href: "/dashboard/installer",
         exactPaths: ["/dashboard/installer"],
         activePrefixes: ["/dashboard/installer/"],
-        excludePrefixes: ["/dashboard/installer/pair"],
-      },
-      {
-        id: "pair-computer",
-        label: "Parear computador",
-        href: "/dashboard/installer/pair",
-        exactPaths: ["/dashboard/installer/pair"],
       },
       {
         id: "connections",

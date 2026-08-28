@@ -239,6 +239,29 @@ export function DashboardSectionTabs({
         ) : null}
       </nav>
 
+      {group === "cameras" && pathname === "/dashboard/installer" ? (
+        <section
+          className={[styles.monitoringNotice, styles.neutralNotice].join(" ")}
+        >
+          <span className={styles.noticeIndicator} aria-hidden="true">
+            <i />
+          </span>
+          <div>
+            <strong>Já existe um computador instalado?</strong>
+            <p>
+              Para trocar de PC, reparar uma instalação ou mudar entre 24/7 e
+              Microsoft Store, use o assistente de manutenção.{" "}
+              <Link
+                href="/dashboard/installer/pair"
+                style={{ color: "#08745f", fontWeight: 800 }}
+              >
+                Trocar ou reparar computador →
+              </Link>
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       {notice ? (
         <section
           className={[
