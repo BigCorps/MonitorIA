@@ -15,6 +15,10 @@ import {
 } from "./v103/service-runtime.js";
 import { resolveAgentHostMode } from "./v103/host-mode.js";
 import { installV103ClipIntegrity } from "./v103/clip-integrity.js";
+import {
+  durablePinningRetentionContractV103,
+  installV103DurablePinningRetention,
+} from "./v103/durable-pinning-retention.js";
 import { installV103EarlyEvidencePinning } from "./v103/early-evidence-pinning.js";
 import { installV103PriorityQueue } from "./v103/priority-queue.js";
 import {
@@ -36,6 +40,10 @@ installV102Runtime();
 // Deve entrar antes do early-pinning: o pinning encapsula captureAt(), então
 // precisa enxergar a versão 1.0.3 que entende segmentos RTSP maiores que 3 s.
 installV103TimelineSegmentTiming();
+// O ciclo durável deve envolver Queue.complete e Buffer.start antes de o
+// early-pinning envolver o mesmo Buffer.start. Assim um reboot não deixa o
+// TTL antigo apagar vídeo ainda ligado à fila/ack do acontecimento.
+installV103DurablePinningRetention();
 installV103EarlyEvidencePinning();
 installV103PriorityQueue();
 installV103ClipIntegrity();
@@ -63,6 +71,8 @@ if (command === "self-test") {
     v103RuntimeContract();
   const timelineTiming =
     timelineSegmentTimingContractV103();
+  const durablePinning =
+    durablePinningRetentionContractV103();
 
   if (
     scheduler.eventTransport !==
@@ -118,6 +128,16 @@ if (command === "self-test") {
     );
   }
 
+  if (
+    durablePinning.queuePendingHasPriority !== true ||
+    durablePinning.acceptedPinGraceMs < 24 * 60 * 60_000 ||
+    durablePinning.acceptedMarker !== ".accepted.json"
+  ) {
+    throw new Error(
+      "A 1.0.3 perdeu a retenção durável do vídeo associado à fila.",
+    );
+  }
+
   console.log(
     `Autoteste MonitorIA Agent v${AGENT_V103_VERSION} aprovado.`,
   );
@@ -143,6 +163,13 @@ if (command === "self-test") {
       timelineTiming.closedSegmentGate &&
       timelineTiming.decodeBeforeSeek &&
       timelineTiming.jpegRetryAttempts >= 2
+        ? "sim"
+        : "não"
+    }`,
+  );
+  console.log(
+    `Vídeo pinado atravessa fila/reparo: ${
+      durablePinning.queuePendingHasPriority
         ? "sim"
         : "não"
     }`,

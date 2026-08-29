@@ -27,6 +27,16 @@ export function protectVideoFiles(paths: string[]) {
   };
 }
 
+export function isPersistentPinningDirectoryV103(
+  directory: string,
+  kind: "timeline" | "evidence",
+) {
+  return (
+    kind === "evidence" &&
+    path.basename(directory).toLowerCase().endsWith(".pinning")
+  );
+}
+
 export type VideoDiskFile = {
   path: string;
   bytes: number;
@@ -34,16 +44,26 @@ export type VideoDiskFile = {
   cameraId: string;
   kind: "timeline" | "evidence";
   protected: boolean;
+  persistentPinning: boolean;
 };
 
 async function scanVideoTree(root: string, kind: VideoDiskFile["kind"]) {
   const files: VideoDiskFile[] = [];
-  const walk = async (current: string, cameraId: string | null, inheritedProtected = false) => {
+  const walk = async (
+    current: string,
+    cameraId: string | null,
+    inheritedProtected = false,
+    inheritedPersistentPinning = false,
+  ) => {
     let entries;
     try { entries = await readdir(current, { withFileTypes: true }); }
     catch { return; }
 
     let protectedHere = inheritedProtected;
+    const persistentPinningHere =
+      inheritedPersistentPinning ||
+      isPersistentPinningDirectoryV103(current, kind);
+
     if (kind === "evidence" && current.endsWith(".sources")) {
       try {
         const lock = await stat(path.join(current, ".building"));
@@ -54,7 +74,12 @@ async function scanVideoTree(root: string, kind: VideoDiskFile["kind"]) {
     for (const entry of entries) {
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) {
-        await walk(full, cameraId ?? entry.name, protectedHere);
+        await walk(
+          full,
+          cameraId ?? entry.name,
+          protectedHere,
+          persistentPinningHere,
+        );
         continue;
       }
       if (!entry.isFile() || !(/\.(?:ts|mp4)$/i.test(entry.name))) continue;
@@ -66,7 +91,10 @@ async function scanVideoTree(root: string, kind: VideoDiskFile["kind"]) {
           mtimeMs: s.mtimeMs,
           cameraId: cameraId ?? "unknown",
           kind,
-          protected: protectedHere || runtimeProtectedPaths.has(path.resolve(full)),
+          protected:
+            protectedHere ||
+            runtimeProtectedPaths.has(path.resolve(full)),
+          persistentPinning: persistentPinningHere,
         });
       } catch { /* removido em paralelo */ }
     }
@@ -89,11 +117,17 @@ async function walkFiles(dataRoot: string) {
  * A fila de acontecimentos fica fora deste orçamento e tem prioridade. Em
  * pressão de disco removemos ring-buffer primeiro; só depois evidências de
  * vídeo, que continuam sendo menos importantes que o recibo/fotos do evento.
+ *
+ * 1.0.3: fontes em *.pinning são uma extensão durável da fila. Elas não podem
+ * ser podadas pelo relógio nem pelo orçamento normal depois de um reboot. Só
+ * cedem espaço no último estágio de ENOSPC, quando preservar a fila/fotos é
+ * mais importante que preservar vídeo ainda não enviado.
  */
 export class GlobalVideoDiskBudget {
   private pruning: Promise<void> | null = null;
   private timelineEvictionsTotal = 0;
   private evidenceEvictionsTotal = 0;
+  private persistentPinningEvictionsTotal = 0;
 
   constructor(private readonly dataRoot: string) {}
 
@@ -125,10 +159,15 @@ export class GlobalVideoDiskBudget {
     timelineKeepAfterMs: number,
     evidenceKeepAfterMs = Number.NEGATIVE_INFINITY,
     allowEvidencePressureEviction = true,
+    allowPersistentPinningEviction = false,
   ) {
     if (this.pruning) return this.pruning;
-    this.pruning = this.doPrune(timelineKeepAfterMs, evidenceKeepAfterMs, allowEvidencePressureEviction)
-      .finally(() => { this.pruning = null; });
+    this.pruning = this.doPrune(
+      timelineKeepAfterMs,
+      evidenceKeepAfterMs,
+      allowEvidencePressureEviction,
+      allowPersistentPinningEviction,
+    ).finally(() => { this.pruning = null; });
     return this.pruning;
   }
 
@@ -136,6 +175,7 @@ export class GlobalVideoDiskBudget {
     await rm(file.path, { force: true });
     if (file.kind === "evidence") this.evidenceEvictionsTotal += 1;
     else this.timelineEvictionsTotal += 1;
+    if (file.persistentPinning) this.persistentPinningEvictionsTotal += 1;
     if (file.kind === "evidence" && file.path.toLowerCase().endsWith(".mp4")) {
       await rm(`${file.path}.json`, { force: true });
     }
@@ -145,6 +185,7 @@ export class GlobalVideoDiskBudget {
     timelineKeepAfterMs: number,
     evidenceKeepAfterMs: number,
     allowEvidencePressureEviction: boolean,
+    allowPersistentPinningEviction: boolean,
   ) {
     const files = await walkFiles(this.dataRoot);
     const limits = await this.limits();
@@ -155,11 +196,15 @@ export class GlobalVideoDiskBudget {
     const expired = files
       .filter((file) => {
         if (file.protected) return false;
+        if (file.persistentPinning && !allowPersistentPinningEviction) return false;
         if (file.kind === "timeline") return file.mtimeMs < timelineKeepAfterMs;
         return Number.isFinite(evidenceKeepAfterMs) && file.mtimeMs < evidenceKeepAfterMs;
       })
       .sort((a, b) => {
         if (a.kind !== b.kind) return a.kind === "timeline" ? -1 : 1;
+        if (a.persistentPinning !== b.persistentPinning) {
+          return a.persistentPinning ? 1 : -1;
+        }
         return a.mtimeMs - b.mtimeMs;
       });
 
@@ -182,14 +227,20 @@ export class GlobalVideoDiskBudget {
     if (total <= targetVideoBytes) return;
 
     // Sob pressão, ring-buffer é descartado antes de uma prova já fixada.
+    // *.pinning só entra nesta lista quando o chamador marca explicitamente o
+    // último estágio de emergência.
     const remaining = files
       .filter((file) =>
         !file.protected &&
+        (!file.persistentPinning || allowPersistentPinningEviction) &&
         !expired.some((x) => x.path === file.path) &&
         (allowEvidencePressureEviction || file.kind === "timeline")
       )
       .sort((left, right) => {
         if (left.kind !== right.kind) return left.kind === "timeline" ? -1 : 1;
+        if (left.persistentPinning !== right.persistentPinning) {
+          return left.persistentPinning ? 1 : -1;
+        }
         return left.mtimeMs - right.mtimeMs;
       });
 
@@ -216,15 +267,40 @@ export class GlobalVideoDiskBudget {
 
   /**
    * Emergência usada somente quando a fila durável recebeu ENOSPC.
-   * Primeiro descarta todo ring-buffer não protegido; evidência de vídeo só
-   * entra na poda se ainda for necessário preservar a reserva do filesystem.
+   * Ordem de sacrifício:
+   *   1) ring-buffer;
+   *   2) evidência de vídeo não pinada;
+   *   3) *.pinning, somente se ainda faltar a reserva mínima para fila/fotos.
+   *
    * A fila/fotos de acontecimentos nunca fazem parte deste orçamento.
    */
   async releaseForEventPressure() {
-    await this.prune(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, false);
-    const afterTimeline = await this.stats();
-    if (afterTimeline.filesystemFreeBytes >= afterTimeline.reservedFreeBytes) return;
-    await this.prune(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+    await this.prune(
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      false,
+      false,
+    );
+    let after = await this.stats();
+    if (after.filesystemFreeBytes >= after.reservedFreeBytes) return;
+
+    await this.prune(
+      Number.POSITIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+      true,
+      false,
+    );
+    after = await this.stats();
+    if (after.filesystemFreeBytes >= after.reservedFreeBytes) return;
+
+    // Último recurso: se nem ring nem evidência comum devolveram espaço
+    // suficiente, a continuidade do recibo/fotos prevalece sobre vídeo.
+    await this.prune(
+      Number.POSITIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+      true,
+      true,
+    );
   }
 
   async stats() {
@@ -232,6 +308,7 @@ export class GlobalVideoDiskBudget {
     const limits = await this.limits();
     const timeline = files.filter((f) => f.kind === "timeline");
     const evidence = files.filter((f) => f.kind === "evidence");
+    const persistentPinning = files.filter((f) => f.persistentPinning);
     const totalBytes = files.reduce((sum, f) => sum + f.bytes, 0);
     const freePressureCap = Math.max(0, totalBytes + limits.filesystemFree - limits.freeReserve);
     const maxVideoBytes = Math.max(0, Math.min(limits.hardCap, limits.adaptiveCap, freePressureCap));
@@ -239,6 +316,8 @@ export class GlobalVideoDiskBudget {
       totalBytes,
       timelineBytes: timeline.reduce((sum, f) => sum + f.bytes, 0),
       evidenceBytes: evidence.reduce((sum, f) => sum + f.bytes, 0),
+      persistentPinningBytes: persistentPinning.reduce((sum, f) => sum + f.bytes, 0),
+      persistentPinningFiles: persistentPinning.length,
       files: files.length,
       evidenceFiles: evidence.length,
       evidenceClips: evidence.filter((file) => file.path.toLowerCase().endsWith(".mp4")).length,
@@ -250,6 +329,7 @@ export class GlobalVideoDiskBudget {
       reservedFreeBytes: limits.freeReserve,
       timelineEvictionsTotal: this.timelineEvictionsTotal,
       evidenceEvictionsTotal: this.evidenceEvictionsTotal,
+      persistentPinningEvictionsTotal: this.persistentPinningEvictionsTotal,
     };
   }
 }

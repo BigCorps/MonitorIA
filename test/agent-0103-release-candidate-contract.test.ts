@@ -20,6 +20,11 @@ const installer247Base = readFileSync("installer/monitoria.iss", "utf8");
 const storeInstaller = readFileSync("installer/monitoria-store-v103.iss", "utf8");
 const innoSigner = readFileSync("scripts/sign-inno-authenticode.ps1", "utf8");
 const apiV102 = readFileSync("agent/src/v102/api.ts", "utf8");
+const diskBudgetV102 = readFileSync("agent/src/v102/disk-budget.ts", "utf8");
+const durablePinningV103 = readFileSync(
+  "agent/src/v103/durable-pinning-retention.ts",
+  "utf8",
+);
 const indexV103 = readFileSync("agent/src/index-v103.ts", "utf8");
 const textGuardMigration = readFileSync(
   "supabase/migrations/20260829124500_generated_event_text_guard.sql",
@@ -200,4 +205,33 @@ test("guard SQL bloqueia escapes Latin-1 literais nos textos da IA", () => {
   assert.match(textGuardMigration, /exit when v_value = v_previous/i);
   assert.match(textGuardMigration, /before insert or update of headline, summary/i);
   assert.match(textGuardMigration, /human_reviewed_at is null/i);
+});
+
+test("vídeo pinado acompanha fila durável e só cede em ENOSPC extremo", () => {
+  assert.match(diskBudgetV102, /persistentPinning/);
+  assert.match(diskBudgetV102, /isPersistentPinningDirectoryV103/);
+  assert.match(diskBudgetV102, /allowPersistentPinningEviction/);
+  assert.match(diskBudgetV102, /persistentPinningEvictionsTotal/);
+
+  assert.match(durablePinningV103, /PersistentEventQueue/);
+  assert.match(durablePinningV103, /\.accepted\.json/);
+  assert.match(durablePinningV103, /queuePendingHasPriority:\s*true/);
+  assert.match(durablePinningV103, /7 \* 24 \* 60 \* 60_000/);
+
+  const retentionInstall = indexV103.indexOf(
+    "installV103DurablePinningRetention();",
+  );
+  const earlyPinningInstall = indexV103.indexOf(
+    "installV103EarlyEvidencePinning();",
+  );
+  assert.ok(retentionInstall >= 0);
+  assert.ok(earlyPinningInstall >= 0);
+  assert.ok(retentionInstall < earlyPinningInstall);
+
+  const emergency = diskBudgetV102.slice(
+    diskBudgetV102.indexOf("async releaseForEventPressure()"),
+  );
+  assert.match(emergency, /false,\s*false/);
+  assert.match(emergency, /true,\s*false/);
+  assert.match(emergency, /true,\s*true/);
 });
