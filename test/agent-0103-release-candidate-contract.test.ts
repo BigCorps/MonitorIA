@@ -18,6 +18,10 @@ const matrix = readFileSync("docs/MONITORIA-1.0.3-MATRIZ-RC.md", "utf8");
 const collector = readFileSync("scripts/collect-rc-v103-evidence.ps1", "utf8");
 const installer247Base = readFileSync("installer/monitoria.iss", "utf8");
 const storeInstaller = readFileSync("installer/monitoria-store-v103.iss", "utf8");
+const storeStartupConsent = readFileSync(
+  "agent/native/store-startup-consent.c",
+  "utf8",
+);
 const innoSigner = readFileSync("scripts/sign-inno-authenticode.ps1", "utf8");
 const apiV102 = readFileSync("agent/src/v102/api.ts", "utf8");
 const diskBudgetV102 = readFileSync("agent/src/v102/disk-budget.ts", "utf8");
@@ -67,9 +71,13 @@ test("Windows RC exige assinatura e timestamp", () => {
 test("hosts nativos Windows são compilados em UTF-8 e bloqueiam mojibake", () => {
   const nativeCompileLines = buildWorkflow
     .split("\n")
-    .filter((line) => /cl\.exe/.test(line) && /(?:dpapi|tray|desktop-host)\.c/.test(line));
+    .filter(
+      (line) =>
+        /cl\.exe/.test(line) &&
+        /(?:dpapi|tray|desktop-host|store-startup-consent)\.c/.test(line),
+    );
 
-  assert.equal(nativeCompileLines.length, 3);
+  assert.equal(nativeCompileLines.length, 4);
   for (const line of nativeCompileLines) {
     assert.match(line, /\/utf-8/);
   }
@@ -80,6 +88,9 @@ test("hosts nativos Windows são compilados em UTF-8 e bloqueiam mojibake", () =
   assert.match(buildWorkflow, /atenÃ§Ã£o: serviÃ§o parado/);
   assert.match(buildWorkflow, /Desktop Host contém mojibake UTF-8\/ANSI/);
   assert.match(buildWorkflow, /Tray 24\/7 contém mojibake UTF-8\/ANSI/);
+  assert.match(buildWorkflow, /Launcher Store contém mojibake UTF-8\/ANSI/);
+  assert.match(buildWorkflow, /inicialização automática/);
+  assert.match(buildWorkflow, /inicializaÃ§Ã£o automÃ¡tica/);
 });
 
 test("Inno assina Setup e uninstaller nos dois canais Windows", () => {
@@ -205,6 +216,36 @@ test("guard SQL bloqueia escapes Latin-1 literais nos textos da IA", () => {
   assert.match(textGuardMigration, /exit when v_value = v_previous/i);
   assert.match(textGuardMigration, /before insert or update of headline, summary/i);
   assert.match(textGuardMigration, /human_reviewed_at is null/i);
+});
+
+
+test("Store só habilita autostart depois de consentimento explícito", () => {
+  assert.match(storeInstaller, /monitoria-store-launcher\.exe/);
+  assert.match(storeInstaller, /--startup-settings/);
+  assert.match(storeInstaller, /--remove-startup/);
+  assert.match(storeInstaller, /deletevalue dontcreatekey noerror/);
+  assert.doesNotMatch(
+    storeInstaller,
+    /ValueType:\s*string;[\s\S]*ValueName:\s*"MonitorIA";[\s\S]*ValueData:/,
+  );
+
+  assert.match(storeStartupConsent, /MB_YESNO/);
+  assert.match(storeStartupConsent, /MB_DEFBUTTON2/);
+  assert.match(storeStartupConsent, /A opção começa desligada/);
+  assert.match(storeStartupConsent, /CurrentVersion\\\\Run/);
+  assert.match(storeStartupConsent, /WriteStartupChoice/);
+  assert.match(storeStartupConsent, /SetAutostartEnabled/);
+  assert.match(storeStartupConsent, /ReadStartupChoice\(&saved_choice\)/);
+  assert.match(storeStartupConsent, /SetAutostartEnabled\(saved_choice == 1\)/);
+  assert.match(storeStartupConsent, /--startup-settings/);
+  assert.match(storeStartupConsent, /--remove-startup/);
+
+  assert.match(buildWorkflow, /monitoria-store-launcher\.exe sign-stage/);
+  assert.match(buildWorkflow, /Silent install habilitou CurrentVersion\\Run sem consentimento/);
+  assert.match(buildWorkflow, /\/VERYSILENT/);
+  assert.match(buildWorkflow, /\/SUPPRESSMSGBOXES/);
+  assert.match(buildWorkflow, /\/NORESTART/);
+  assert.match(buildWorkflow, /\/SP-/);
 });
 
 test("vídeo pinado acompanha fila durável e só cede em ENOSPC extremo", () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("instalador Store é por usuário e possui método visível de abertura", async () => {
+test("instalador Store é por usuário e possui abertura visível com consentimento", async () => {
   const source = await readFile(
     new URL("../installer/monitoria-store-v103.iss", import.meta.url),
     "utf8",
@@ -12,9 +12,44 @@ test("instalador Store é por usuário e possui método visível de abertura", a
   assert.match(source, /DefaultDirName=\{localappdata\}\\Programs\\MonitorIA/);
   assert.match(source, /\[Icons\]/);
   assert.match(source, /\{autoprograms\}\\MonitorIA/);
-  assert.match(source, /monitoria-desktop\.exe/);
+  assert.match(source, /monitoria-store-launcher\.exe/);
+  assert.match(source, /MonitorIA — Inicialização automática/);
+  assert.match(source, /--startup-settings/);
   assert.match(source, /Root: HKCU/);
   assert.match(source, /CurrentVersion\\Run/);
+  assert.match(source, /ValueType: none/);
+  assert.match(source, /deletevalue dontcreatekey noerror/);
+  assert.doesNotMatch(
+    source,
+    /ValueType:\s*string;[\s\S]{0,300}ValueName:\s*"MonitorIA";[\s\S]{0,300}ValueData:/i,
+  );
+});
+
+
+
+test("Store só ativa início automático depois de escolha explícita do usuário", async () => {
+  const installer = await readFile(
+    new URL("../installer/monitoria-store-v103.iss", import.meta.url),
+    "utf8",
+  );
+  const launcher = await readFile(
+    new URL("../agent/native/store-startup-consent.c", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(installer, /monitoria-store-launcher\.exe/);
+  assert.match(installer, /skipifsilent/);
+  assert.match(installer, /--remove-startup/);
+  assert.match(launcher, /MB_YESNO/);
+  assert.match(launcher, /MB_DEFBUTTON2/);
+  assert.match(launcher, /A opção começa desligada/);
+  assert.match(launcher, /AutoStartChoice/);
+  assert.match(launcher, /SetAutostartEnabled/);
+  assert.match(launcher, /--startup-settings/);
+  assert.match(launcher, /--remove-startup/);
+  assert.match(launcher, /CurrentVersion\\\\Run/);
+  assert.match(launcher, /ReadStartupChoice\(&saved_choice\)/);
+  assert.match(launcher, /SetAutostartEnabled\(saved_choice == 1\)/);
 });
 
 test("instalação Store não depende de tela interativa para parear", async () => {

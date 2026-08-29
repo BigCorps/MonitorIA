@@ -4,6 +4,9 @@
 ; privilégio administrativo. O primeiro pareamento acontece no próprio
 ; monitoria-desktop.exe quando o usuário abre o MonitorIA.
 ;
+; A instalação silenciosa NÃO habilita início automático. Na primeira abertura
+; manual, monitoria-store-launcher.exe pede consentimento explícito do usuário.
+;
 ; Build de validação:
 ;   ISCC.exe /DAppVersion=1.0.3 installer\monitoria-store-v103.iss
 
@@ -57,6 +60,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 [Files]
 Source: "..\agent\dist\monitoria-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\monitoria-desktop.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\monitoria-store-launcher.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\monitoria-dpapi.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\build\ffmpeg\ffmpeg.exe"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 Source: "..\build\ffmpeg\ffprobe.exe"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
@@ -65,31 +69,49 @@ Source: "..\build\ffmpeg\LICENSE.txt"; DestDir: "{app}\ffmpeg"; Flags: ignorever
 Source: "..\build\ffmpeg\FFMPEG-ORIGEM.txt"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion
 
 [Icons]
-; Método de abertura acessível e visível no Menu Iniciar.
+; Abertura normal passa pelo consentimento de inicialização somente na primeira
+; vez. Depois disso o launcher apenas entrega o controle ao Desktop Host.
 Name: "{autoprograms}\MonitorIA"; \
-  Filename: "{app}\monitoria-desktop.exe"; \
+  Filename: "{app}\monitoria-store-launcher.exe"; \
   WorkingDir: "{app}"; \
   IconFilename: "{app}\monitoria-desktop.exe"; \
   Comment: "Abrir o MonitorIA"
 
+; O usuário pode mudar a escolha posteriormente sem reinstalar o produto.
+Name: "{autoprograms}\MonitorIA — Inicialização automática"; \
+  Filename: "{app}\monitoria-store-launcher.exe"; \
+  Parameters: "--startup-settings"; \
+  WorkingDir: "{app}"; \
+  IconFilename: "{app}\monitoria-desktop.exe"; \
+  Comment: "Ativar ou desativar o início automático do MonitorIA"
+
 [Registry]
-; A edição Store começa somente depois do login do usuário.
+; Upgrade de RCs antigos: remove somente a entrada legada criada pelo próprio
+; MonitorIA. A versão final só recria CurrentVersion\Run depois de consentimento
+; explícito no launcher. `dontcreatekey` evita criar a chave caso não exista.
 Root: HKCU; \
   Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
-  ValueType: string; \
+  ValueType: none; \
   ValueName: "MonitorIA"; \
-  ValueData: """{app}\monitoria-desktop.exe"" --autostart"; \
-  Flags: uninsdeletevalue
+  Flags: deletevalue dontcreatekey noerror
 
 [Run]
-; Em instalação interativa fora da Store, abrir o aplicativo ao terminar.
+; Em instalação interativa fora da Store, abrir o launcher ao terminar.
 ; A instalação silenciosa usada pelo canal Store não inicia processos extras;
-; o usuário abre pelo botão da Store/Menu Iniciar e recebe a tela de conexão.
-Filename: "{app}\monitoria-desktop.exe"; \
+; o usuário abre pelo botão da Store/Menu Iniciar e decide o autostart antes do
+; Desktop Host ser iniciado pela primeira vez.
+Filename: "{app}\monitoria-store-launcher.exe"; \
   WorkingDir: "{app}"; \
   Flags: nowait skipifsilent
 
 [UninstallRun]
+; Remove qualquer opt-in de autostart feito pelo usuário antes de apagar os
+; binários. É uma limpeza apenas de HKCU e não interfere na edição 24/7.
+Filename: "{app}\monitoria-store-launcher.exe"; \
+  Parameters: "--remove-startup"; \
+  Flags: runhidden waituntilterminated; \
+  RunOnceId: "RemoveMonitorIAStartup"
+
 ; Encerrar o Desktop Host fecha também o Core filho pelo Job Object.
 ; Não finalizamos monitoria-agent.exe por nome para não atingir uma eventual
 ; edição 24/7 instalada na mesma máquina.
