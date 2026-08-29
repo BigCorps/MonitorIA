@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/build-release-candidate-v103.yml"
       - ".github/workflows/validate-release-candidate-v103.yml"
+      - ".github/workflows/build-agent-rtsp-sampler-test.yml"
       - "agent/src/index-v103.ts"
       - "agent/native/store-startup-consent.c"
       - "agent/native/store-startup-consent.rc"
@@ -21,9 +22,15 @@ on:
       - "app/dashboard/dashboard-navigation.ts"
       - "app/dashboard/dashboard-section-tabs.tsx"
       - "app/dashboard/installer/pair/**"
+      - "app/privacidade/page.tsx"
+      - "app/seguranca-e-privacidade/page.tsx"
+      - "app/retencao/page.tsx"
+      - "app/subprocessadores/page.tsx"
+      - "app/excluir-conta/page.tsx"
       - "supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql"
       - "supabase/migrations/20260829124500_generated_event_text_guard.sql"
       - "test/agent-0103-release-candidate-contract.test.ts"
+      - "test/agent-0103-store-privacy-listing.test.ts"
       - "test/agent-0103-timeline-segment-timing.test.ts"
       - "test/agent-0103-early-pinning.test.ts"
       - "test/agent-0103-store-install-experience.test.ts"
@@ -32,7 +39,9 @@ on:
       - "docs/MONITORIA-1.0.3-ENTREGA-05B6.1-REPAIR-WIZARD.md"
       - "docs/MONITORIA-1.0.3-ENTREGA-05B6.2.md"
       - "docs/MONITORIA-1.0.3-ENTREGA-05B7-STORE-CERTIFICATION-UX.md"
+      - "docs/MONITORIA-1.0.3-ENTREGA-05B8-PRIVACY-LISTING.md"
       - "docs/MONITORIA-1.0.3-MICROSOFT-STORE-CERTIFICATION.md"
+      - "docs/MONITORIA-1.0.3-MICROSOFT-STORE-LISTING-PT-BR.md"
       - "docs/MONITORIA-1.0.3-HANDOFF-RC.md"
       - "scripts/collect-rc-v103-evidence.ps1"
       - "scripts/sign-inno-authenticode.ps1"
@@ -66,3 +75,5 @@ jobs:
         run: node --import tsx --test test/agent-0103-release-candidate-contract.test.ts
       - name: Contrato Store + reparo 1.0.3
         run: node --import tsx --test test/agent-0103-store-install-experience.test.ts
+      - name: Privacidade + listing Microsoft Store
+        run: node --import tsx --test test/agent-0103-store-privacy-listing.test.ts

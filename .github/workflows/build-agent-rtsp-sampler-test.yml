@@ -1,6 +1,17 @@
-# RETIRADO NA 1.0.2.
-#
-# Este arquivo-túmulo existe apenas para que um upload único pelo GitHub Web
-# substitua o workflow experimental que já está na main. Sem `name`, `on` ou
-# `jobs`, o GitHub Actions não o registra nem permite executá-lo.
-# O sampler corrigido faz parte do código oficial do Agent 1.0.2.
+name: Deprecated RTSP Sampler (manual only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retired:
+    name: Sampler retired in 1.0.2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain retired workflow
+        run: |
+          echo "The experimental RTSP sampler workflow was retired in MonitorIA 1.0.2."
+          echo "RTSP sampling is part of the official Agent Core. Nothing is built or published here."
