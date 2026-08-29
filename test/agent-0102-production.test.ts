@@ -148,15 +148,31 @@ test("migration 1.0.2 contém recibo durável, leases e timeline paginada única
   assert.match(retention, /"event-clips"/);
 });
 
-test("workflow experimental foi neutralizado no upload único", async () => {
+test("workflow experimental permanece aposentado e somente manual", async () => {
   const retired = await readFile(
     new URL("../.github/workflows/build-agent-rtsp-sampler-test.yml", import.meta.url),
     "utf8",
   );
-  assert.doesNotMatch(retired, /^name:/m);
-  assert.doesNotMatch(retired, /^on:/m);
-  assert.doesNotMatch(retired, /^jobs:/m);
-  assert.match(retired, /RETIRADO NA 1\.0\.2/);
+
+  // Desde a 05B8 o arquivo é um workflow YAML válido para não gerar um
+  // check vermelho de inicialização no GitHub. O contrato importante é:
+  // manual-only, sem checkout/build/upload/release e sem gatilho automático.
+  assert.match(retired, /^name:\s*Deprecated RTSP Sampler \(manual only\)\s*$/m);
+  assert.match(retired, /^on:\s*$/m);
+  assert.match(retired, /^\s+workflow_dispatch:\s*$/m);
+  assert.match(retired, /^jobs:\s*$/m);
+  assert.match(retired, /^\s+retired:\s*$/m);
+  assert.match(retired, /Sampler retired in 1\.0\.2/);
+  assert.match(retired, /experimental RTSP sampler workflow was retired in MonitorIA 1\.0\.2/i);
+
+  assert.doesNotMatch(retired, /^\s+push:\s*$/m);
+  assert.doesNotMatch(retired, /^\s+pull_request:\s*$/m);
+  assert.doesNotMatch(retired, /^\s+schedule:\s*$/m);
+  assert.doesNotMatch(retired, /actions\/checkout/i);
+  assert.doesNotMatch(retired, /actions\/upload-artifact/i);
+  assert.doesNotMatch(retired, /action-gh-release/i);
+  assert.doesNotMatch(retired, /\bbun\s+build\b/i);
+  assert.doesNotMatch(retired, /\bnpm\s+(?:ci|install|run)\b/i);
 });
 
 test("plano detalhado mantém consolidação atual", () => {
