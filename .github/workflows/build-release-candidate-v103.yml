@@ -129,7 +129,7 @@ jobs:
           & ./dist/monitoria-agent.exe self-test
           if ($LASTEXITCODE -ne 0) { throw "Autoteste do Core Windows 1.0.3 falhou." }
 
-      - name: Compilar DPAPI, tray 24/7 e Desktop Host Store
+      - name: Compilar DPAPI, tray 24/7, Desktop Host e consentimento Store
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build | Out-Null
@@ -161,6 +161,10 @@ jobs:
           if errorlevel 1 exit /b 1
           cl.exe /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE desktop-host.c ..\..\build\monitoria-desktop.res /Fe:..\..\build\monitoria-desktop.exe Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
           if errorlevel 1 exit /b 1
+          rc.exe /nologo /fo ..\..\build\monitoria-store-launcher.res store-startup-consent.rc
+          if errorlevel 1 exit /b 1
+          cl.exe /nologo /O2 /W4 /utf-8 /DUNICODE /D_UNICODE store-startup-consent.c ..\..\build\monitoria-store-launcher.res /Fe:..\..\build\monitoria-store-launcher.exe Advapi32.lib Shell32.lib User32.lib /link /SUBSYSTEM:WINDOWS
+          if errorlevel 1 exit /b 1
           "@ | Set-Content -Encoding ascii $script
 
           & cmd.exe /d /c $script
@@ -169,6 +173,7 @@ jobs:
           if ((Get-Item build\monitoria-dpapi.exe).Length -lt 10000) { throw "DPAPI incompleto." }
           if ((Get-Item build\monitoria-tray.exe).Length -lt 15000) { throw "Tray incompleto." }
           if ((Get-Item build\monitoria-desktop.exe).Length -lt 15000) { throw "Desktop Host incompleto." }
+          if ((Get-Item build\monitoria-store-launcher.exe).Length -lt 12000) { throw "Launcher de consentimento Store incompleto." }
 
 
           # Regressão real do bug de mojibake observado no RC Store.
@@ -214,6 +219,12 @@ jobs:
           if (Test-Utf16Literal "build\monitoria-desktop.exe" "cÃ³digo de conexÃ£o") {
             throw "Desktop Host contém mojibake UTF-8/ANSI."
           }
+          if (-not (Test-Utf16Literal "build\monitoria-store-launcher.exe" "inicialização automática")) {
+            throw "Launcher Store compilado sem os textos Unicode corretos."
+          }
+          if (Test-Utf16Literal "build\monitoria-store-launcher.exe" "inicializaÃ§Ã£o automÃ¡tica") {
+            throw "Launcher Store contém mojibake UTF-8/ANSI."
+          }
           if (-not (Test-Utf16Literal "build\monitoria-tray.exe" "atenção: serviço parado")) {
             throw "Tray 24/7 compilado sem os textos Unicode corretos."
           }
@@ -235,6 +246,14 @@ jobs:
             -Wait `
             -PassThru
           if ($desktop.ExitCode -ne 0) { throw "Self-test do Desktop Host falhou: $($desktop.ExitCode)" }
+
+          $storeLauncher = Start-Process `
+            -FilePath (Resolve-Path "build\monitoria-store-launcher.exe") `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory (Resolve-Path "build") `
+            -Wait `
+            -PassThru
+          if ($storeLauncher.ExitCode -ne 0) { throw "Self-test do launcher Store falhou: $($storeLauncher.ExitCode)" }
 
       - name: Baixar e conferir FFmpeg LGPL Windows
         shell: pwsh
@@ -302,6 +321,7 @@ jobs:
           Copy-Item build\monitoria-dpapi.exe sign-stage\ -Force
           Copy-Item build\monitoria-tray.exe sign-stage\ -Force
           Copy-Item build\monitoria-desktop.exe sign-stage\ -Force
+          Copy-Item build\monitoria-store-launcher.exe sign-stage\ -Force
           Copy-Item build\monitoria-service.exe sign-stage\ -Force
 
       - name: Assinar Core e hosts Windows
@@ -321,7 +341,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item sign-stage-signed\monitoria-agent.exe agent\dist\monitoria-agent.exe -Force
-          foreach ($name in @("monitoria-dpapi.exe", "monitoria-tray.exe", "monitoria-desktop.exe", "monitoria-service.exe")) {
+          foreach ($name in @("monitoria-dpapi.exe", "monitoria-tray.exe", "monitoria-desktop.exe", "monitoria-store-launcher.exe", "monitoria-service.exe")) {
             Copy-Item "sign-stage-signed\$name" "build\$name" -Force
           }
 
@@ -330,6 +350,7 @@ jobs:
             "build\monitoria-dpapi.exe",
             "build\monitoria-tray.exe",
             "build\monitoria-desktop.exe",
+            "build\monitoria-store-launcher.exe",
             "build\monitoria-service.exe"
           )) {
             $sig = Get-AuthenticodeSignature $target
@@ -355,6 +376,14 @@ jobs:
             -PassThru
           if ($desktop.ExitCode -ne 0) { throw "Desktop Host assinado falhou no self-test: $($desktop.ExitCode)" }
 
+          $storeLauncher = Start-Process `
+            -FilePath (Resolve-Path "build\monitoria-store-launcher.exe") `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory (Resolve-Path "build") `
+            -Wait `
+            -PassThru
+          if ($storeLauncher.ExitCode -ne 0) { throw "Launcher Store assinado falhou no self-test: $($storeLauncher.ExitCode)" }
+
       - name: Guardas de separação 24/7 x Store
         shell: pwsh
         run: |
@@ -368,6 +397,16 @@ jobs:
             }
           }
 
+          $startupSource = Get-Content agent\native\store-startup-consent.c -Raw
+          foreach ($forbidden in @(
+            "OpenSCManager", "OpenService", "CreateService", "SERVICE_CONTROL",
+            "monitoria-service.exe", "monitoria-service.xml", "WinSW", "sc.exe", "MonitorIAAgent"
+          )) {
+            if ($startupSource -match [regex]::Escape($forbidden)) {
+              throw "Launcher Store contém referência proibida do host 24/7: $forbidden"
+            }
+          }
+
           $storeIss = Get-Content installer\monitoria-store-v103.iss -Raw
           foreach ($forbidden in @("monitoria-service.exe", "monitoria-service.xml", "WinSW", "sc.exe", "MonitorIAAgent")) {
             if ($storeIss -match [regex]::Escape($forbidden)) {
@@ -376,6 +415,13 @@ jobs:
           }
           if ($storeIss -notmatch 'PrivilegesRequired=lowest') { throw "Store não está per-user/lowest." }
           if ($storeIss -notmatch 'monitoria-desktop.exe') { throw "Store sem Desktop Host." }
+          if ($storeIss -notmatch 'monitoria-store-launcher.exe') { throw "Store sem launcher de consentimento." }
+          if ($storeIss -match 'ValueType:\s*string;[\s\S]*ValueName:\s*"MonitorIA";[\s\S]*ValueData:') {
+            throw "Instalador Store voltou a habilitar autostart sem consentimento."
+          }
+          if ($storeIss -notmatch 'deletevalue dontcreatekey noerror') {
+            throw "Store não remove o autostart legado durante upgrade."
+          }
 
           $serviceIss = Get-Content installer\monitoria-service-v103.iss -Raw
           if ($serviceIss -notmatch 'monitoria-tray.exe') { throw "24/7 sem tray companion." }
@@ -477,6 +523,74 @@ jobs:
               }
             }
           }
+
+      - name: Validar instalação silenciosa Store e consentimento opt-in
+        shell: pwsh
+        run: |
+          $setup = Resolve-Path "dist-store-v103\MonitorIA-Store-Setup.exe"
+          $storeRoot = Join-Path $env:LOCALAPPDATA "Programs\MonitorIA"
+          $runPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+
+          # Garante um estado limpo no runner e reproduz exatamente os parâmetros
+          # planejados para o Partner Center.
+          Remove-ItemProperty -Path $runPath -Name "MonitorIA" -ErrorAction SilentlyContinue
+          if (Test-Path $storeRoot) { Remove-Item $storeRoot -Recurse -Force }
+
+          $install = Start-Process `
+            -FilePath $setup `
+            -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-") `
+            -Wait `
+            -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent install Store falhou: $($install.ExitCode)" }
+
+          foreach ($required in @(
+            "monitoria-store-launcher.exe",
+            "monitoria-desktop.exe",
+            "monitoria-agent.exe",
+            "monitoria-dpapi.exe",
+            "unins000.exe"
+          )) {
+            $target = Join-Path $storeRoot $required
+            if (-not (Test-Path $target)) { throw "Silent install não criou $required." }
+            $sig = Get-AuthenticodeSignature $target
+            if ($sig.Status -ne 'Valid') { throw "PE instalado sem Authenticode válido: $required ($($sig.Status))" }
+            if (-not $sig.TimeStamperCertificate) { throw "PE instalado sem timestamp: $required" }
+          }
+
+          $legacyRun = Get-ItemProperty -Path $runPath -Name "MonitorIA" -ErrorAction SilentlyContinue
+          if ($null -ne $legacyRun) {
+            throw "Silent install habilitou CurrentVersion\Run sem consentimento."
+          }
+
+          $unexpected = @(
+            Get-Process -Name "monitoria-desktop", "monitoria-agent", "monitoria-store-launcher" -ErrorAction SilentlyContinue
+          )
+          if ($unexpected.Count -gt 0) {
+            throw "Silent install abriu processos do MonitorIA automaticamente."
+          }
+
+          $launcher = Start-Process `
+            -FilePath (Join-Path $storeRoot "monitoria-store-launcher.exe") `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory $storeRoot `
+            -Wait `
+            -PassThru
+          if ($launcher.ExitCode -ne 0) { throw "Launcher instalado falhou no self-test: $($launcher.ExitCode)" }
+
+          $uninstaller = Join-Path $storeRoot "unins000.exe"
+          $uninstall = Start-Process `
+            -FilePath $uninstaller `
+            -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
+            -Wait `
+            -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall Store falhou: $($uninstall.ExitCode)" }
+          $deadline = (Get-Date).AddSeconds(15)
+          while ((Test-Path $storeRoot) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (Test-Path $storeRoot) { throw "Silent uninstall não removeu a instalação Store." }
+          $runAfterUninstall = Get-ItemProperty -Path $runPath -Name "MonitorIA" -ErrorAction SilentlyContinue
+          if ($null -ne $runAfterUninstall) { throw "Uninstall deixou autostart do MonitorIA em HKCU." }
 
       - name: Validar instaladores assinados e montar artifacts RC
         shell: pwsh
