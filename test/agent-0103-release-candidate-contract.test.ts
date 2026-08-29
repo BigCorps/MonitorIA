@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { ApiError } from "../agent/src/api.js";
+import { shouldRecoverInvalidCaptureSessionV102 } from "../agent/src/v102/api.js";
+import { unauthorizedPairingMessageV103 } from "../agent/src/v103/status-command.js";
 
 const buildWorkflow = readFileSync(
   ".github/workflows/build-release-candidate-v103.yml",
@@ -16,6 +19,12 @@ const collector = readFileSync("scripts/collect-rc-v103-evidence.ps1", "utf8");
 const installer247Base = readFileSync("installer/monitoria.iss", "utf8");
 const storeInstaller = readFileSync("installer/monitoria-store-v103.iss", "utf8");
 const innoSigner = readFileSync("scripts/sign-inno-authenticode.ps1", "utf8");
+const apiV102 = readFileSync("agent/src/v102/api.ts", "utf8");
+const indexV103 = readFileSync("agent/src/index-v103.ts", "utf8");
+const textGuardMigration = readFileSync(
+  "supabase/migrations/20260829124500_generated_event_text_guard.sql",
+  "utf8",
+);
 
 test("RC 1.0.3 é manual e não publica release/tag", () => {
   assert.match(buildWorkflow, /workflow_dispatch:/);
@@ -136,4 +145,56 @@ test("coletor de evidências é somente leitura sobre a instalação", () => {
   assert.doesNotMatch(collector, /Stop-Service/i);
   assert.doesNotMatch(collector, /Start-Service/i);
   assert.doesNotMatch(collector, /Set-ItemProperty/i);
+});
+
+test("fila durável recupera somente sessão antiga após troca de Agent", () => {
+  const staleSession = new ApiError(
+    "A API retornou HTTP 400 (invalid_capture_session).",
+    400,
+    "invalid_capture_session",
+  );
+  const another400 = new ApiError(
+    "A API retornou HTTP 400 (invalid_event_payload).",
+    400,
+    "invalid_event_payload",
+  );
+
+  assert.equal(
+    shouldRecoverInvalidCaptureSessionV102(staleSession, "session-antiga"),
+    true,
+  );
+  assert.equal(
+    shouldRecoverInvalidCaptureSessionV102(staleSession, null),
+    false,
+  );
+  assert.equal(
+    shouldRecoverInvalidCaptureSessionV102(another400, "session-antiga"),
+    false,
+  );
+  assert.match(apiV102, /captureSessionRecovery:\s*"agent_repair"/);
+  assert.match(apiV102, /return submit\(null, true\)/);
+});
+
+test("status 1.0.3 orienta reparo sem recomendar reset/unpair", () => {
+  const neverAuthenticated = unauthorizedPairingMessageV103(false);
+  const previouslyAuthenticated = unauthorizedPairingMessageV103(true);
+
+  for (const message of [neverAuthenticated, previouslyAuthenticated]) {
+    assert.match(message, /troca\/reparo|troca ou reparo/i);
+    assert.match(message, /novo código/i);
+    assert.match(message, /não use reset/i);
+  }
+
+  assert.doesNotMatch(neverAuthenticated, /não token revogado/i);
+  assert.match(indexV103, /runV103StatusCommand/);
+});
+
+test("guard SQL bloqueia escapes Latin-1 literais nos textos da IA", () => {
+  assert.match(textGuardMigration, /normalize_monitoria_generated_text/);
+  assert.match(textGuardMigration, /balce3o/);
+  assert.match(textGuardMigration, /balcão/);
+  assert.match(textGuardMigration, /interae7e3o/);
+  assert.match(textGuardMigration, /interação/);
+  assert.match(textGuardMigration, /before insert or update of headline, summary/i);
+  assert.match(textGuardMigration, /human_reviewed_at is null/i);
 });

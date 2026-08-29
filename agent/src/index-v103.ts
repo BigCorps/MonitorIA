@@ -22,6 +22,7 @@ import {
   timelineSegmentTimingContractV103,
 } from "./v103/timeline-segment-timing.js";
 import { AGENT_V103_VERSION } from "./v103/version.js";
+import { runV103StatusCommand } from "./v103/status-command.js";
 
 /**
  * Entrada oficial de desenvolvimento da 1.0.3.
@@ -153,6 +154,15 @@ if (command === "self-test") {
         : "não"
     }`,
   );
+} else if (command === "status") {
+  try {
+    await runV103StatusCommand();
+  } catch (error) {
+    console.error(
+      `Erro: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exitCode = 1;
+  }
 } else {
   await import("./index.js");
 }

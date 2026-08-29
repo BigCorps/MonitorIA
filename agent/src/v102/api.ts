@@ -128,6 +128,23 @@ export async function requestAgentJsonV102<T>(
 }
 
 /**
+ * Um evento da fila pode ter sobrevivido à troca/reparo do computador.
+ * Nesse caso o eventId, os frames e o vídeo continuam válidos, mas a sessão
+ * de captura pertence ao Agent anterior. O backend recusa apenas essa sessão
+ * com 400 invalid_capture_session; repetir sem sessionId preserva o evento e
+ * deixa o backend vinculá-lo à identidade atual sem enfraquecer autenticação.
+ */
+export function shouldRecoverInvalidCaptureSessionV102(
+  error: unknown,
+  sessionId: string | null | undefined,
+) {
+  return Boolean(sessionId) &&
+    error instanceof ApiError &&
+    error.status === 400 &&
+    error.code === "invalid_capture_session";
+}
+
+/**
  * Transporte oficial do Agent 1.0.2 para acontecimentos.
  *
  * O endpoint v2 responde após a persistência durável (202) e nunca espera a
@@ -142,7 +159,10 @@ export async function submitCameraEventV102(
 ): Promise<EventSubmissionResponse> {
   const prepared = await prepareEventFramesForUpload(ffmpegPath, event);
 
-  return requestAgentJsonV102<EventSubmissionResponse>(
+  const submit = (
+    sessionId: string | null,
+    recoveredAfterAgentRepair: boolean,
+  ) => requestAgentJsonV102<EventSubmissionResponse>(
     baseUrl,
     token,
     `/api/agent/v2/cameras/${encodeURIComponent(event.cameraId)}/events`,
@@ -153,16 +173,31 @@ export async function submitCameraEventV102(
       },
       body: JSON.stringify({
         eventId: event.eventId,
-        sessionId: event.sessionId,
+        sessionId,
         startedAt: event.startedAt,
         endedAt: event.endedAt,
         localMetrics: {
           ...event.localMetrics,
           ...prepared.diagnostics,
+          ...(recoveredAfterAgentRepair
+            ? { captureSessionRecovery: "agent_repair" }
+            : {}),
         },
         frames: prepared.frames,
       }),
     },
     90_000,
   );
+
+  try {
+    return await submit(event.sessionId ?? null, false);
+  } catch (error) {
+    if (!shouldRecoverInvalidCaptureSessionV102(error, event.sessionId)) {
+      throw error;
+    }
+
+    // Não altera o item durável: o mesmo eventId/evidência é reenviado apenas
+    // sem a referência de sessão que ficou obsoleta após o re-pareamento.
+    return submit(null, true);
+  }
 }
