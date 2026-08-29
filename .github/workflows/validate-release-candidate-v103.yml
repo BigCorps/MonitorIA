@@ -29,6 +29,7 @@ on:
       - "app/excluir-conta/page.tsx"
       - "supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql"
       - "supabase/migrations/20260829124500_generated_event_text_guard.sql"
+      - "test/agent-0102-production.test.ts"
       - "test/agent-0103-release-candidate-contract.test.ts"
       - "test/agent-0103-store-privacy-listing.test.ts"
       - "test/agent-0103-timeline-segment-timing.test.ts"
@@ -69,6 +70,8 @@ jobs:
         run: npx tsc --noEmit -p agent/tsconfig.json
       - name: TypeScript web
         run: npx tsc --noEmit
+      - name: Regressão de produção 1.0.2 preservada
+        run: node --import tsx --test test/agent-0102-production.test.ts
       - name: Regressão de timeline RTSP/GOP variável
         run: node --import tsx --test test/agent-0103-timeline-segment-timing.test.ts
       - name: Contrato da Fase 05A
