@@ -1,110 +1,120 @@
 # MonitorIA 1.0.3 — Auditoria para Microsoft Store (Win32 EXE)
 
-## Estado desta auditoria
+## Estado
 
-Documento de pré-certificação atualizado após a Fase 05B7. Não publicar, não criar `agent-v1.0.3`, não alterar o download público 1.0.2, não configurar `MONITORIA_STORE_PUBLIC_URL` e não enviar ao Partner Center enquanto os itens marcados como **PENDENTE** não forem fechados.
+Pré-certificação atualizada após a Fase 05B8. **Não publicar, não criar `agent-v1.0.3`, não alterar o download público 1.0.2, não configurar `MONITORIA_STORE_PUBLIC_URL` e não enviar ao Partner Center** até o RC final, teste limpo e URL imutável serem fechados.
 
-## Requisitos oficiais relevantes para MSI/EXE
+## FECHADO no código/CI
 
-A Microsoft Store aceita instaladores Win32 tradicionais `.exe`/`.msi`. Para EXE, o fluxo do Partner Center exige um link HTTPS direto e versionado, instalador autônomo/offline, instalação silenciosa e assinatura confiável do instalador e dos arquivos PE distribuídos. O arquivo hospedado no URL submetido deve permanecer imutável; uma atualização precisa usar um novo URL versionado.
-
-No cadastro do pacote EXE também são informados arquitetura, tipo do instalador e parâmetros de instalação silenciosa. A certificação inclui segurança, funcionamento e conformidade da listagem. Produtos Win32 que tratam informações pessoais devem disponibilizar política de privacidade pública coerente com o produto.
-
-## MonitorIA Store 1.0.3 — situação técnica
-
-### FECHADO no código/CI até a 05B7
-
-- Instalador: `MonitorIA-Store-Setup.exe`.
-- Instalação por usuário em `%LOCALAPPDATA%\\Programs\\MonitorIA`.
+- `MonitorIA-Store-Setup.exe` é a distribuição Store.
+- Instalação por usuário em `%LOCALAPPDATA%\Programs\MonitorIA`.
 - Sem Windows Service e sem privilégio administrativo no canal Store.
-- Core, Desktop Host, DPAPI e launcher Store passam pelo pipeline de assinatura.
-- Setup e uninstaller passam pelo SignTool do Inno e são validados com Authenticode + timestamp.
-- FFmpeg/ffprobe/DLLs são conferidos pelo pipeline antes do empacotamento.
-- Instalador offline: os binários necessários estão dentro do Setup.
-- Instalação silenciosa usa `skipifsilent` e não abre o MonitorIA.
-- CI executa o instalador Store real com os mesmos parâmetros previstos para o Partner Center.
-- CI confirma que instalação silenciosa não cria `HKCU\\...\\CurrentVersion\\Run\\MonitorIA`.
-- CI confirma que nenhum processo MonitorIA é iniciado automaticamente durante a instalação silenciosa.
-- O launcher Store pergunta, na primeira abertura manual, se o usuário deseja iniciar o MonitorIA automaticamente ao entrar no Windows.
-- A opção começa desligada e o diálogo usa **Não como botão padrão**.
-- Se o usuário disser Sim, a entrada HKCU Run é criada para aquele usuário; se disser Não, permanece ausente.
-- A escolha é persistida em `HKCU\\Software\\BIGCORPS\\MonitorIA\\Store\\AutoStartChoice`.
-- Um upgrade pode remover a entrada legada criada por RC antigo, mas o launcher reaplica silenciosamente a escolha já consentida pelo usuário; não transforma upgrade em novo consentimento implícito.
-- O Menu Iniciar oferece `MonitorIA — Inicialização automática` para mudar a preferência posteriormente.
-- A desinstalação remove a entrada Run e a preferência Store.
+- Core, Desktop Host, DPAPI e launcher de consentimento passam por assinatura no pipeline.
+- Setup e uninstaller passam pelo SignTool do Inno e são verificados com Authenticode + timestamp.
+- FFmpeg/ffprobe/DLLs distribuídos são validados no pipeline.
+- Instalador é autônomo/offline; não é downloader do aplicativo principal.
+- Silent install testado pelo workflow com `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`.
+- Silent install não abre processo MonitorIA e não cria autostart.
+- Autostart só é criado após consentimento explícito na primeira abertura; “Não” é padrão.
+- Preferência de autostart pode ser alterada depois e é removida no uninstall.
+- Upgrade preserva escolha previamente consentida sem transformar atualização em consentimento implícito.
 - Desinstalação Store não encerra o Agent 24/7 por nome.
-- Unicode/acentuação dos hosts nativos e do launcher é testada diretamente no PE.
+- Unicode/acentuação dos hosts nativos é verificada no PE.
 - Store e 24/7 usam o mesmo Core 1.0.3.
-- Retenção de evidência de vídeo vinculada à fila durável está endurecida desde a 05B6.3.
+- Retenção durável de vídeo associado à fila foi endurecida na 05B6.3.
+- Fila antiga após troca de Agent foi recuperada sem duplicação na 05B6.2.1.
+- Guard de texto gerado impede escapes Latin-1 conhecidos em headline/summary.
+- Wizard de troca/reparo preserva as câmeras existentes no cenário homologado.
 
-### Parâmetros previstos para Partner Center
+## PRIVACIDADE PÚBLICA — FECHADO
 
-Para o instalador Inno Setup:
+O repositório já possuía rotas públicas, e a 05B8 as atualiza para refletir o produto 1.0.3 atual:
 
-`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`
+- `/privacidade` — política de privacidade;
+- `/seguranca-e-privacidade` — desenho técnico, limites e continuidade não biométrica;
+- `/retencao` — política e valores padrão atuais;
+- `/subprocessadores` — Supabase, Vercel, OpenAI e Microsoft Clarity;
+- `/excluir-conta` — solicitação pública de exclusão;
+- `/termos` — termos de uso;
+- `/contato` — suporte/contato público.
 
-A Fase 05B7 adiciona ao workflow RC uma instalação e desinstalação silenciosas reais. O build final ainda deve ser repetido no commit congelado e depois validado em uma máquina Windows limpa antes da submissão.
+A política agora descreve memória curta e perfis operacionais probabilísticos sem alegar que o produto “não mantém continuidade entre eventos”. O texto deixa explícito que não há reconhecimento facial para identidade civil e que correlações de aparência/área/horário/atividade não confirmam identidade.
 
-## PENDENTE antes de submeter
+Prazos padrão atualmente refletidos na documentação pública: 3 dias para frame temporário, 365 dias para keyframe, 365 dias para metadados, 30 dias para clipe preservado; saúde bruta do Agent normalmente 7 dias, com rollup horário até 365 dias. A política efetiva pode variar conforme plano, snapshot de retenção, classe do dado e preservação válida.
 
-### 1. RC Store final em máquina limpa
+## LISTING — PREPARADO
 
-Depois de congelar o commit final:
+O arquivo `docs/MONITORIA-1.0.3-MICROSOFT-STORE-LISTING-PT-BR.md` contém:
 
-- gerar o RC assinado Store;
-- instalar com os parâmetros silenciosos acima e confirmar exit code 0;
-- confirmar que não existe autostart antes da primeira abertura manual;
-- abrir manualmente e validar os dois caminhos de consentimento (Não e Sim);
-- validar que Sim sobrevive a logout/login e que Não não inicia o app;
-- validar pareamento, duas câmeras, lock/unlock, fechamento/reabertura e uninstall;
-- confirmar Authenticode + timestamp dos PEs instalados e do uninstaller.
+- descrição breve e completa;
+- recursos;
+- requisitos adicionais;
+- palavras-chave;
+- URLs públicas;
+- categoria recomendada `Empresas > Dados + análises`;
+- recomendação de modelo de preço `Assinatura`, coerente com serviço recorrente;
+- parâmetros silenciosos;
+- notas para certificação;
+- roteiro de 5–8 screenshots.
 
-### 2. URL HTTPS imutável/versionada
+O preenchimento do Partner Center deve usar os dados reais exibidos no formulário e não converter recomendações deste documento em declarações não comprovadas.
 
-Somente depois do último binário Store aprovado:
+## Workflow RTSP legado — LIMPO
 
-- hospedar o `MonitorIA-Store-Setup.exe` em URL HTTPS exclusiva da 1.0.3;
-- conferir SHA-256 hospedado contra o manifesto do RC;
-- nunca substituir os bytes nesse mesmo URL;
-- preencher o URL no Partner Center;
-- configurar `MONITORIA_STORE_PUBLIC_URL` apenas no momento definido para publicação, não durante RC.
+O arquivo experimental `build-agent-rtsp-sampler-test.yml` estava reduzido a comentários e o GitHub Actions criava um run vermelho com zero jobs ao tocar o repositório. A 05B8 o transforma em workflow válido, somente manual, que explica que o sampler foi aposentado na 1.0.2. Ele não compila nem publica nada e não roda em `push`.
 
-### 3. Política de privacidade pública
+## PENDENTE antes da submissão
 
-A auditoria de código da 05B7 não encontrou rota/documento público de política de privacidade no repositório. Antes da submissão, criar e publicar uma política específica do MonitorIA que descreva de forma fiel, no mínimo:
+### 1. Gerar RC final do commit congelado
 
-- dados de conta e organização;
-- dados técnicos do Agent/computador e câmeras;
-- imagens, vídeos e acontecimentos capturados;
-- finalidade de monitoramento e análise por IA;
-- armazenamento/retenção e exclusão;
-- fornecedores/subprocessadores realmente utilizados;
-- segurança e controle de acesso;
-- direitos do titular e canal real de contato;
-- data de vigência/atualização.
+Depois do 05B8 verde:
 
-Não preencher informações legais ou contatos por suposição. A versão pública deve usar os dados reais da BIGCORPS e um canal de suporte confirmado.
+- confirmar commit final e deploy web READY;
+- disparar `Build MonitorIA 1.0.3 Release Candidate` manualmente;
+- exigir Contract + Windows + Linux x64 + Linux arm64 + Manifest verdes;
+- registrar run ID, commit, artifact IDs e SHA-256.
 
-### 4. Listing do Partner Center
+### 2. Prova Store em máquina/usuário limpo
 
-Conferir e congelar:
+Com o artifact final:
 
-- nome `MonitorIA` reservado/correto;
-- descrição sem promessas que não estejam demonstradas;
-- categoria e classificação etária;
-- mercados;
-- logo/ícones;
-- screenshots de PC representativas;
-- URL pública de privacidade;
-- site/canal real de suporte;
-- notas para certificação explicando: instalar → abrir → escolher autostart → conectar por código → procurar câmeras → dashboard web.
+- silent install retorna sucesso sem UI/processo/autostart;
+- primeira abertura manual exibe consentimento de autostart;
+- validar caminho “Não” e ausência de Run após novo login;
+- habilitar pelo atalho de configuração e validar “Sim” após logout/login;
+- validar conexão/pareamento, duas câmeras, lock/unlock, fechamento/reabertura;
+- validar uninstall e isolamento da edição 24/7;
+- conferir assinatura + timestamp dos PEs e uninstaller instalados.
 
-## Ordem restante para fechar a Store
+### 3. URL HTTPS versionada e imutável
 
-1. Fase 05B7 — consentimento de autostart + silent install automatizado.
-2. Fase final de privacidade/listing — criar a política pública com dados reais e preparar os textos/evidências do Partner Center.
-3. Gerar RC final do mesmo commit aprovado.
-4. Fazer a prova Store em máquina limpa.
-5. Congelar SHA-256 e hospedar URL HTTPS versionada imutável.
-6. Preencher Partner Center e notas de certificação.
-7. Somente após essas provas decidir a ordem de tag `agent-v1.0.3`, release, recomendação pública e submissão/atualização da Store.
+Somente depois do binário aprovado:
+
+- hospedar `MonitorIA-Store-Setup.exe` em URL HTTPS exclusiva da 1.0.3;
+- conferir SHA-256 baixado contra o manifesto RC;
+- nunca substituir bytes no mesmo URL;
+- preencher URL e parâmetros no Partner Center;
+- configurar `MONITORIA_STORE_PUBLIC_URL` somente no momento de publicação planejado.
+
+### 4. Partner Center
+
+Preencher e conferir:
+
+- disponibilidade, mercados, descobribilidade e preço;
+- categoria/subcategoria;
+- acesso a informações pessoais = Sim;
+- URL de privacidade;
+- contatos da conta empresarial;
+- age rating;
+- EXE x64 e parâmetros silenciosos;
+- descrição, features, logo 1:1, screenshots e termos;
+- notas de certificação.
+
+## Ordem final
+
+1. 05B8 verde e deploy web confirmado.
+2. RC final assinado do mesmo commit.
+3. Teste Store em ambiente limpo.
+4. Congelar SHA-256 e URL HTTPS imutável.
+5. Preencher Partner Center usando o listing preparado.
+6. Somente depois decidir tag `agent-v1.0.3`, release, recomendação pública e submissão/atualização na Store.

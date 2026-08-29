@@ -8,27 +8,11 @@ import {
 import { appConfig } from "@/src/lib/app-config";
 import { createPageMetadata } from "@/src/lib/seo";
 
-/**
- * Página pública de exclusão de conta e dados.
- *
- * Exigida pelo Google Play: o link informado no formulário de Segurança dos
- * Dados aparece na ficha do aplicativo e precisa ser acessível SEM login. O
- * revisor da Play não tem conta no MonitorIA — apontar para
- * /dashboard/profile faria a análise ser reprovada, porque ele cairia na
- * tela de entrada.
- *
- * A Play exige três coisas no texto, e as três estão aqui:
- *   1. o nome do aplicativo e do desenvolvedor
- *   2. as etapas que o usuário precisa seguir
- *   3. quais dados são excluídos, quais são mantidos e por quanto tempo
- *
- * Use este endereço nos DOIS campos do formulário: "URL para exclusão de
- * contas" e "URL para exclusão de dados".
- */
+/** Página pública e acessível sem login para solicitações de conta e dados. */
 export const metadata = createPageMetadata({
   title: "Excluir conta e dados",
   description:
-    "Como solicitar a exclusão da sua conta e dos seus dados no MonitorIA.cam, o que é apagado, o que é mantido por obrigação legal e em quanto tempo.",
+    "Como solicitar a exclusão da sua conta e dos seus dados no MonitorIA.cam, o que é apagado, o que pode ser mantido e como acompanhar o pedido.",
   path: "/excluir-conta",
 });
 
@@ -39,134 +23,102 @@ export default function ExcluirContaPage() {
       title="Como excluir sua conta e seus dados do MonitorIA."
       lead={`O ${appConfig.productName} é fornecido por ${appConfig.legal.legalName}. Você pode pedir a exclusão da sua conta e dos seus dados a qualquer momento, sem precisar justificar.`}
     >
-      <ContentSection
-        label="Pelo painel"
-        title="Como pedir, passo a passo."
-      >
+      <ContentSection label="Pelo painel" title="Como pedir, passo a passo.">
         <Prose>
-          <p>
-            Se você consegue entrar na sua conta, este é o caminho mais rápido:
-          </p>
-
+          <p>Se você consegue entrar na sua conta, este é o caminho mais rápido:</p>
           <ol>
             <li>
-              Entre em{" "}
-              <a href={`${appConfig.url}/login`}>{appConfig.domain}/login</a>
+              Entre em <a href={`${appConfig.url}/login`}>{appConfig.domain}/login</a>
             </li>
-            <li>
-              No menu lateral, abra <strong>Perfil e empresa</strong>
-            </li>
-            <li>
-              Desça até a seção <strong>Privacidade</strong>
-            </li>
-            <li>
-              Em tipo de solicitação, escolha <strong>Exclusão</strong>
-            </li>
+            <li>No menu lateral, abra <strong>Perfil e empresa</strong></li>
+            <li>Desça até a seção <strong>Privacidade</strong></li>
+            <li>Em tipo de solicitação, escolha <strong>Exclusão</strong></li>
             <li>
               Em abrangência, escolha o que deseja apagar:
               <ul>
-                <li>
-                  <strong>Conta</strong> — seus dados de cadastro e acesso
-                </li>
-                <li>
-                  <strong>Monitoramento</strong> — acontecimentos, imagens e
-                  vídeos das câmeras
-                </li>
-                <li>
-                  <strong>Tudo</strong> — conta e monitoramento
-                </li>
+                <li><strong>Conta</strong> — seus dados de cadastro e acesso</li>
+                <li><strong>Monitoramento</strong> — acontecimentos, imagens e vídeos das câmeras</li>
+                <li><strong>Tudo</strong> — conta e monitoramento</li>
               </ul>
             </li>
             <li>
-              Descreva o pedido em uma linha e envie. Você recebe um número de
-              protocolo e pode acompanhar o andamento na mesma tela
+              Descreva o pedido e envie. Você recebe um número de protocolo e
+              pode acompanhar o andamento na mesma tela.
             </li>
           </ol>
 
           <h2>Se você não consegue entrar</h2>
           <p>
-            Escreva para{" "}
-            <a href={`mailto:${appConfig.legal.privacyEmail}`}>
+            Escreva para <a href={`mailto:${appConfig.legal.privacyEmail}`}>
               {appConfig.legal.privacyEmail}
             </a>{" "}
-            ou chame no WhatsApp pelo{" "}
+            ou use o contato institucional {" "}
             <a href={appConfig.legal.institutionalPhoneHref}>
               {appConfig.legal.institutionalPhone}
-            </a>
-            , informando o e-mail cadastrado. Podemos pedir uma confirmação de
-            identidade antes de apagar qualquer coisa — é uma proteção para
-            você, para que ninguém apague a sua conta se passando por você.
+            </a>, informando o e-mail cadastrado. Podemos pedir confirmação de
+            identidade e legitimidade antes de executar a exclusão.
           </p>
         </Prose>
       </ContentSection>
 
-      <ContentSection
-        label="O que acontece"
-        title="O que é apagado e o que precisa ser mantido."
-      >
+      <ContentSection label="O que acontece" title="O que é apagado e o que pode precisar ser mantido.">
         <Prose>
-          <h2>Apagamos</h2>
+          <h2>Dados elegíveis à exclusão</h2>
           <ul>
-            <li>Seus dados de cadastro e acesso</li>
-            <li>Os acontecimentos registrados pelas suas câmeras</li>
-            <li>As imagens e os vídeos guardados desses acontecimentos</li>
-            <li>As configurações de locais, câmeras e equipe</li>
-            <li>As conversas com o Assistente</li>
+            <li>Dados de cadastro e acesso que não precisem ser preservados</li>
+            <li>Acontecimentos registrados pelas câmeras</li>
+            <li>Imagens e vídeos guardados desses acontecimentos</li>
+            <li>Configurações de locais, câmeras e perfis operacionais</li>
+            <li>Conversas com o Assistente</li>
           </ul>
 
-          <h2>Mantemos, por obrigação legal</h2>
+          <h2>Dados que podem ser mantidos</h2>
           <p>
-            A legislação brasileira obriga a guardar alguns registros mesmo
-            depois do encerramento da conta. Eles ficam separados, não são
-            usados para nenhuma outra finalidade, e são apagados quando o
-            prazo legal termina:
+            Alguns registros podem precisar ser preservados pelo período
+            necessário para obrigação legal, segurança, prevenção de fraude,
+            faturamento, auditoria ou defesa de direitos. Quando isso ocorrer, o
+            escopo é limitado à finalidade de preservação e deixa de ser usado na
+            operação normal da conta.
           </p>
           <ul>
-            <li>
-              <strong>Faturas e comprovantes de pagamento</strong>, pela
-              legislação fiscal
-            </li>
-            <li>
-              <strong>Registros de acesso ao sistema</strong>, pelo prazo
-              previsto no Marco Civil da Internet
-            </li>
+            <li>Faturas, comprovantes e registros necessários a obrigações fiscais</li>
+            <li>Registros de segurança e acesso sujeitos a prazo legal aplicável</li>
+            <li>Registros necessários a exercício regular de direitos ou disputa</li>
           </ul>
 
           <Note>
-            A gravação contínua das suas câmeras nunca esteve conosco. Ela fica
-            no seu DVR, no seu NVR ou no computador da loja, e continua lá
-            depois da exclusão. Se quiser apagá-la, faça pelo próprio
-            equipamento.
+            A gravação contínua das câmeras fica no DVR, NVR ou computador do
+            cliente. Ela não é apagada por uma solicitação ao MonitorIA porque não
+            está armazenada na nuvem do MonitorIA.
           </Note>
         </Prose>
       </ContentSection>
 
-      <ContentSection label="Prazo" title="Em quanto tempo.">
+      <ContentSection label="Prazo" title="Acompanhamento e resposta.">
         <Prose>
           <p>
-            Respondemos em até <strong>15 dias</strong> a partir do pedido, que
-            é o prazo previsto na Lei Geral de Proteção de Dados. Na maioria
-            dos casos é bem mais rápido.
+            Nosso compromisso operacional é responder às solicitações de
+            privacidade em até <strong>15 dias</strong>. Alguns pedidos podem
+            exigir confirmação de identidade, delimitação de escopo ou seguir um
+            prazo específico previsto na legislação aplicável.
           </p>
           <p>
-            Você recebe uma confirmação quando a exclusão for concluída. Se
-            precisarmos de alguma informação para confirmar sua identidade,
-            entramos em contato pelo e-mail cadastrado.
+            Você recebe confirmação quando a solicitação é concluída ou quando
+            precisamos de informações adicionais para tratá-la com segurança.
           </p>
 
           <h2>Quem procurar</h2>
           <p>
-            Encarregado pelo tratamento de dados:{" "}
-            {appConfig.legal.dataOfficer.name},{" "}
+            Encarregado pelo tratamento de dados: {appConfig.legal.dataOfficer.name},{" "}
             {appConfig.legal.dataOfficer.role}.
           </p>
           <p>
-            {appConfig.legal.legalName} — CNPJ {appConfig.legal.taxId} —{" "}
+            {appConfig.legal.legalName} — CNPJ {appConfig.legal.taxId} — {" "}
             {appConfig.legal.address}.
           </p>
           <p>
-            Veja também a{" "}
-            <Link href="/privacidade">política de privacidade</Link> e os{" "}
+            Veja também a <Link href="/privacidade">política de privacidade</Link>,
+            a <Link href="/retencao">política de retenção</Link> e os {" "}
             <Link href="/termos">termos de uso</Link>.
           </p>
         </Prose>
