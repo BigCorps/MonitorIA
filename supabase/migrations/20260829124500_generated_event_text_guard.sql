@@ -19,7 +19,14 @@ set search_path = ''
 as $$
 declare
   v_value text := p_value;
+  v_previous text;
 begin
+  -- Um escape convertido pode expor o contexto alfabético do próximo token.
+  -- Ex.: interae7e3o -> interaçe3o -> interação. Repetimos até convergir;
+  -- cada substituição reduz o texto, portanto o loop termina naturalmente.
+  loop
+    v_previous := v_value;
+
   -- minúsculas Latin-1 mais comuns em português
   v_value := regexp_replace(v_value, '([[:alpha:]À-ÖØ-öø-ÿ])e0([[:alpha:]À-ÖØ-öø-ÿ])', '\1à\2', 'gi');
   v_value := regexp_replace(v_value, '([[:alpha:]À-ÖØ-öø-ÿ])e1([[:alpha:]À-ÖØ-öø-ÿ])', '\1á\2', 'gi');
@@ -50,6 +57,9 @@ begin
   v_value := regexp_replace(v_value, '([[:alpha:]À-ÖØ-öø-ÿ])d4([[:alpha:]À-ÖØ-öø-ÿ])', '\1Ô\2', 'gi');
   v_value := regexp_replace(v_value, '([[:alpha:]À-ÖØ-öø-ÿ])d5([[:alpha:]À-ÖØ-öø-ÿ])', '\1Õ\2', 'gi');
   v_value := regexp_replace(v_value, '([[:alpha:]À-ÖØ-öø-ÿ])da([[:alpha:]À-ÖØ-öø-ÿ])', '\1Ú\2', 'gi');
+
+    exit when v_value = v_previous;
+  end loop;
 
   return v_value;
 end;

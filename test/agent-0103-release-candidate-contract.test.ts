@@ -195,6 +195,9 @@ test("guard SQL bloqueia escapes Latin-1 literais nos textos da IA", () => {
   assert.match(textGuardMigration, /balcão/);
   assert.match(textGuardMigration, /interae7e3o/);
   assert.match(textGuardMigration, /interação/);
+  assert.match(textGuardMigration, /v_previous text/);
+  assert.match(textGuardMigration, /loop/);
+  assert.match(textGuardMigration, /exit when v_value = v_previous/i);
   assert.match(textGuardMigration, /before insert or update of headline, summary/i);
   assert.match(textGuardMigration, /human_reviewed_at is null/i);
 });
