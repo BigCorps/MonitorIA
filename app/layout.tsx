@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Rubik } from "next/font/google";
 import { appConfig } from "@/src/lib/app-config";
+import { MonitoriaAnalytics } from "@/src/components/analytics/monitoria-analytics";
+import { CookieConsent } from "@/src/components/analytics/cookie-consent";
 import "./globals.css";
 
 /**
@@ -97,7 +99,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang={appConfig.language} className={`${rubik.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <MonitoriaAnalytics />
+        <CookieConsent />
+      </body>
     </html>
   );
 }
