@@ -29,12 +29,14 @@ on:
       - "app/excluir-conta/page.tsx"
       - "supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql"
       - "supabase/migrations/20260829124500_generated_event_text_guard.sql"
+      - "supabase/migrations/20260901153413_safe_temporal_replay_v103.sql"
       - "test/agent-0102-production.test.ts"
       - "test/agent-0103-release-candidate-contract.test.ts"
       - "test/agent-0103-store-privacy-listing.test.ts"
       - "test/agent-0103-timeline-segment-timing.test.ts"
       - "test/agent-0103-early-pinning.test.ts"
       - "test/agent-0103-store-install-experience.test.ts"
+      - "test/agent-0103-safe-temporal-replay.test.ts"
       - "docs/MONITORIA-1.0.3-ENTREGA-05A.md"
       - "docs/MONITORIA-1.0.3-MATRIZ-RC.md"
       - "docs/MONITORIA-1.0.3-ENTREGA-05B6.1-REPAIR-WIZARD.md"
@@ -78,5 +80,7 @@ jobs:
         run: node --import tsx --test test/agent-0103-release-candidate-contract.test.ts
       - name: Contrato Store + reparo 1.0.3
         run: node --import tsx --test test/agent-0103-store-install-experience.test.ts
+      - name: Replay temporal seguro 1.0.3
+        run: node --import tsx --test test/agent-0103-safe-temporal-replay.test.ts
       - name: Privacidade + listing Microsoft Store
         run: node --import tsx --test test/agent-0103-store-privacy-listing.test.ts
