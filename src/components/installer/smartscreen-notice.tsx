@@ -14,12 +14,12 @@ export function SmartScreenNotice({
   if (variant === "compact") {
     return (
       <aside className={`${styles.notice} ${styles.compact}`}>
-        <p className={styles.title}>O Windows pode pedir uma confirmação</p>
+        <p className={styles.title}>O Windows pode pedir confirmação</p>
         <p className={styles.text}>
-          A edição 24/7 é instalada diretamente pelo MonitorIA e trabalha em
-          segundo plano. O SmartScreen ou seu antivírus pode analisar o arquivo
-          ou pedir uma confirmação. Use somente o instalador baixado pelo site
-          ou painel oficial do MonitorIA e confira o editor antes de continuar.
+          O instalador oficial é assinado digitalmente. O SmartScreen ou seu
+          antivírus pode analisá-lo nas primeiras instalações. Baixe sempre pelo
+          site ou painel oficial do MonitorIA e confira o editor antes de
+          continuar.
         </p>
       </aside>
     );

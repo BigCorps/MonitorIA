@@ -18,9 +18,10 @@
 }
 
 .compact {
-  padding: 16px 18px;
-  gap: 8px;
-  border-radius: 12px;
+  margin: 0;
+  padding: 11px 13px;
+  gap: 4px;
+  border-radius: 10px;
 }
 
 .eyebrow {
@@ -41,7 +42,8 @@
 }
 
 .compact .title {
-  font-size: 0.95rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
 }
 
 .text {
@@ -49,6 +51,11 @@
   color: #64748b;
   font-size: 0.92rem;
   line-height: 1.6;
+}
+
+.compact .text {
+  font-size: 0.76rem;
+  line-height: 1.45;
 }
 
 .text strong,
@@ -105,5 +112,9 @@
 @media (max-width: 760px) {
   .notice {
     padding: 18px;
+  }
+
+  .compact {
+    padding: 11px 13px;
   }
 }
