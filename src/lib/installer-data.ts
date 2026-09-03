@@ -37,24 +37,16 @@ export type InstallerWorkspace = {
   recommendedVersion: string;
   downloads: InstallerDownload[];
   storeDistribution: StoreDistribution;
-  /** Verdadeiro quando ao menos uma plataforma tem download publicado. */
   downloadAvailable: boolean;
 };
 
 /**
- * Origem de cada instalador.
+ * Os instaladores diretos sempre seguem a release marcada como Latest no
+ * GitHub. Isso evita que uma variável antiga da Vercel mantenha clientes em
+ * uma versão anterior.
  *
- * Os binários ficam em GitHub Releases, não no Supabase Storage nem em rota
- * da Vercel: banda de release é gratuita e nenhum byte passa pela nossa
- * infraestrutura. A rota /api/installer/[platform] apenas redireciona.
+ * A Microsoft Store continua independente e usa a distribuição já certificada.
  */
-export const INSTALLER_ENV_VARS: Record<InstallerPlatform, string> = {
-  windows: "AGENT_WINDOWS_DOWNLOAD_URL",
-  "linux-x64": "AGENT_LINUX_X64_DOWNLOAD_URL",
-  "linux-arm64": "AGENT_LINUX_ARM64_DOWNLOAD_URL",
-};
-
-/** Endereços permanentes da edição direta e das edições Linux. */
 export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
   windows:
     "https://github.com/BigCorps/MonitorIA/releases/latest/download/MonitorIA-Setup.exe",
@@ -64,9 +56,6 @@ export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
     "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-arm64.tar.gz",
 };
 
-/**
- * URL imutável do instalador entregue à Microsoft durante a certificação.
- */
 export const STORE_INSTALLER_FILENAME = "MonitorIA-Store-Setup.exe";
 
 export function storeInstallerUrlFor(version: string): string {
@@ -92,26 +81,9 @@ const PLATFORM_LABELS: Record<InstallerPlatform, string> = {
 };
 
 export function installerUrlFor(platform: InstallerPlatform) {
-  const configured = process.env[INSTALLER_ENV_VARS[platform]]?.trim();
-
-  if (
-    !configured ||
-    configured.startsWith(
-      "https://github.com/BigCorps/MonitorIA/releases/",
-    )
-  ) {
-    return DEFAULT_INSTALLER_URLS[platform];
-  }
-
-  return configured;
+  return DEFAULT_INSTALLER_URLS[platform];
 }
 
-/**
- * O dashboard só anuncia a Store quando a listagem pública já existe.
- *
- * Antes da aprovação, o card continua visível como "em preparação". Isso
- * impede que um cliente seja enviado para uma submissão ainda indisponível.
- */
 export function publicStoreUrl() {
   const configured = process.env.MONITORIA_STORE_PUBLIC_URL?.trim();
 
@@ -230,8 +202,7 @@ export async function getInstallerWorkspace(
           ? null
           : Number(health.memory_bytes),
       diskFreeBytes:
-        health?.disk_free_bytes === null ||
-        health?.disk_free_bytes === undefined
+        health?.disk_free_bytes === null || health?.disk_free_bytes === undefined
           ? null
           : Number(health.disk_free_bytes),
       queuedEvents: Number(health?.queued_events ?? 0),
@@ -257,7 +228,7 @@ export async function getInstallerWorkspace(
       (camera: any) => camera.pairing_status === "paired",
     ).length,
     recommendedVersion:
-      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "1.0.1",
+      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "1.0.3",
     downloads,
     storeDistribution: {
       label: "Microsoft Store",

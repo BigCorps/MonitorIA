@@ -3,20 +3,32 @@
 import { useEffect, useState } from "react";
 import styles from "./installer-platform-actions.module.css";
 
-type DeviceKind = "loading" | "windows" | "linux-x64" | "linux-arm64" | "mobile" | "apple" | "other";
+type DeviceKind =
+  | "loading"
+  | "windows"
+  | "linux-x64"
+  | "linux-arm64"
+  | "mobile"
+  | "apple"
+  | "other";
+
 type Props = { compact?: boolean };
 
-const MICROSOFT_STORE_URL = "https://apps.microsoft.com/store/detail/XPDC2BLXQ99DTG";
+const MICROSOFT_STORE_URL =
+  "https://apps.microsoft.com/store/detail/XPDC2BLXQ99DTG";
 
 function detectDevice(): DeviceKind {
   if (typeof navigator === "undefined") return "loading";
   const ua = navigator.userAgent || "";
   const platform = navigator.platform || "";
   const touchMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+
   if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua) || touchMac) return "mobile";
   if (/Windows/i.test(ua) || /Win/i.test(platform)) return "windows";
   if (/Linux/i.test(ua) || /Linux/i.test(platform)) {
-    return /aarch64|arm64/i.test(`${ua} ${platform}`) ? "linux-arm64" : "linux-x64";
+    return /aarch64|arm64/i.test(`${ua} ${platform}`)
+      ? "linux-arm64"
+      : "linux-x64";
   }
   if (/Macintosh|Mac OS X|MacIntel/i.test(`${ua} ${platform}`)) return "apple";
   return "other";
@@ -29,21 +41,9 @@ function platformLabel(device: DeviceKind) {
   return "";
 }
 
-function downloadHref(device: DeviceKind) {
-  if (device === "windows") return "/api/installer/windows";
-  if (device === "linux-x64") return "/api/installer/linux-x64";
-  if (device === "linux-arm64") return "/api/installer/linux-arm64";
-  return null;
-}
-
-function downloadLabel(device: DeviceKind) {
-  if (device === "linux-x64") return "Baixar MonitorIA para Linux x64";
-  if (device === "linux-arm64") return "Baixar MonitorIA para Linux ARM64";
-  return "Baixar MonitorIA";
-}
-
 export function InstallerPlatformActions({ compact = false }: Props) {
   const [device, setDevice] = useState<DeviceKind>("loading");
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => setDevice(detectDevice()), []);
@@ -76,8 +76,66 @@ export function InstallerPlatformActions({ compact = false }: Props) {
     await copyInstallPage();
   }
 
+  function otherPlatformsButton() {
+    return (
+      <button
+        type="button"
+        className={styles.otherPlatforms}
+        onClick={() => setShowAllPlatforms(true)}
+      >
+        Precisa de outra plataforma?
+      </button>
+    );
+  }
+
   if (device === "loading") {
-    return <div className={styles.root}><div className={styles.status}>Identificando este dispositivo…</div></div>;
+    return (
+      <div className={styles.root}>
+        <div className={styles.status}>Identificando este dispositivo…</div>
+      </div>
+    );
+  }
+
+  if (showAllPlatforms) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.status}>Escolha a plataforma deste computador</div>
+
+        <div className={styles.platformOptions}>
+          <div className={styles.platformOption}>
+            <strong>Windows 10/11 · 64 bits</strong>
+            <p>Versão 24/7 para computador dedicado.</p>
+            <a className={styles.primary} href="/api/download-agent/windows">
+              Baixar MonitorIA 24/7
+            </a>
+          </div>
+
+          <div className={styles.platformOption}>
+            <strong>Linux · x86_64</strong>
+            <p>Para computadores Linux com processador Intel ou AMD 64 bits.</p>
+            <a className={styles.primary} href="/api/download-agent/linux-x64">
+              Baixar Linux x64
+            </a>
+          </div>
+
+          <div className={styles.platformOption}>
+            <strong>Linux · ARM64</strong>
+            <p>Para computadores e dispositivos Linux ARM64.</p>
+            <a className={styles.primary} href="/api/download-agent/linux-arm64">
+              Baixar Linux ARM64
+            </a>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className={styles.otherPlatforms}
+          onClick={() => setShowAllPlatforms(false)}
+        >
+          Voltar para a opção detectada
+        </button>
+      </div>
+    );
   }
 
   if (device === "mobile") {
@@ -85,13 +143,29 @@ export function InstallerPlatformActions({ compact = false }: Props) {
       <div className={styles.root}>
         <div className={styles.mobileCard}>
           <strong>Você está no celular</strong>
-          <p>O Agent deve ser instalado em um computador que fique ligado e esteja na mesma rede local das câmeras, DVR ou NVR. Envie o link abaixo para esse computador.</p>
+          <p>
+            O Agent deve ser instalado em um computador que fique ligado e
+            esteja na mesma rede local das câmeras, DVR ou NVR. Envie o link
+            abaixo para esse computador.
+          </p>
           <div className={styles.shareRow}>
-            <button type="button" className={styles.primary} onClick={() => void shareInstallPage()}>Compartilhar link</button>
-            <button type="button" className={styles.secondary} onClick={() => void copyInstallPage()}>{copied ? "Link copiado" : "Copiar link"}</button>
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={() => void shareInstallPage()}
+            >
+              Compartilhar link
+            </button>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => void copyInstallPage()}
+            >
+              {copied ? "Link copiado" : "Copiar link"}
+            </button>
           </div>
         </div>
-        {!compact ? <a className={styles.otherPlatforms} href="/instalar">Ver plataformas disponíveis</a> : null}
+        {otherPlatformsButton()}
       </div>
     );
   }
@@ -101,14 +175,12 @@ export function InstallerPlatformActions({ compact = false }: Props) {
       <div className={styles.root}>
         <div className={styles.unsupportedCard}>
           <strong>Esta plataforma ainda não é compatível</strong>
-          <p>O MonitorIA Agent precisa rodar continuamente no computador da loja. Hoje estão disponíveis:</p>
-          <ul className={styles.platformList}>
-            <li>Windows 10/11 · 64 bits</li>
-            <li>Linux · x86_64</li>
-            <li>Linux · ARM64</li>
-          </ul>
+          <p>
+            O MonitorIA Agent precisa rodar continuamente no computador da loja.
+            Hoje estão disponíveis Windows e Linux.
+          </p>
         </div>
-        <a className={styles.otherPlatforms} href="/instalar">Abrir página de instalação</a>
+        {otherPlatformsButton()}
       </div>
     );
   }
@@ -127,29 +199,60 @@ export function InstallerPlatformActions({ compact = false }: Props) {
               <strong>MonitorIA 24/7</strong>
               <span className={styles.recommended}>RECOMENDADO</span>
             </div>
-            <p>Para computador dedicado. Continua monitorando mesmo sem usuário conectado.</p>
-            <a className={styles.primary} href="/api/installer/windows">Baixar MonitorIA 24/7</a>
+            <p>
+              Para computador dedicado. Continua monitorando mesmo sem usuário
+              conectado.
+            </p>
+            <a className={styles.primary} href="/api/download-agent/windows">
+              Baixar MonitorIA 24/7
+            </a>
           </div>
 
           <div className={styles.windowsOption}>
-            <div className={styles.optionHeading}><strong>Microsoft Store</strong></div>
-            <p>Para computador de uso normal. O MonitorIA inicia após o login no Windows.</p>
-            <a className={styles.store} href={MICROSOFT_STORE_URL} target="_blank" rel="noreferrer">Abrir na Microsoft Store</a>
+            <div className={styles.optionHeading}>
+              <strong>Microsoft Store</strong>
+            </div>
+            <p>
+              Para computador de uso normal. O MonitorIA inicia após o login no
+              Windows.
+            </p>
+            <a
+              className={styles.store}
+              href={MICROSOFT_STORE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir na Microsoft Store
+            </a>
           </div>
         </div>
 
-        <div className={styles.samePairing}>O pareamento é igual nas duas opções.</div>
-        <a className={styles.otherPlatforms} href="/instalar">Precisa de outra plataforma?</a>
+        <div className={styles.samePairing}>
+          O pareamento é igual nas duas opções.
+        </div>
+        {otherPlatformsButton()}
       </div>
     );
   }
 
-  const href = downloadHref(device);
+  const linuxArm = device === "linux-arm64";
   return (
     <div className={styles.root}>
-      <div className={styles.status}><span className={styles.statusDot} aria-hidden="true" />{platformLabel(device)}</div>
-      {href ? <a className={styles.primary} href={href}>{downloadLabel(device)}</a> : null}
-      <a className={styles.otherPlatforms} href="/instalar">Precisa de outra plataforma?</a>
+      <div className={styles.status}>
+        <span className={styles.statusDot} aria-hidden="true" />
+        {platformLabel(device)}
+      </div>
+      <a
+        className={styles.primary}
+        href={
+          linuxArm
+            ? "/api/download-agent/linux-arm64"
+            : "/api/download-agent/linux-x64"
+        }
+      >
+        {linuxArm ? "Baixar MonitorIA para Linux ARM64" : "Baixar MonitorIA para Linux x64"}
+      </a>
+      {otherPlatformsButton()}
     </div>
   );
 }

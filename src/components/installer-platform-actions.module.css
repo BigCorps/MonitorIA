@@ -63,7 +63,8 @@
   gap: 8px;
 }
 
-.windowsOption {
+.windowsOption,
+.platformOption {
   min-width: 0;
   padding: 11px;
   display: grid;
@@ -82,7 +83,8 @@
   gap: 6px;
 }
 
-.optionHeading strong {
+.optionHeading strong,
+.platformOption strong {
   color: #29435d;
   font-size: 10px;
 }
@@ -97,12 +99,19 @@
   letter-spacing: 0.04em;
 }
 
-.windowsOption p {
+.windowsOption p,
+.platformOption p {
   margin: 0;
   min-height: 38px;
   color: #718197;
   font-size: 8.5px;
   line-height: 1.45;
+}
+
+.platformOptions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .samePairing {
@@ -144,29 +153,28 @@
   gap: 7px;
 }
 
-.platformList {
-  margin: 0;
-  padding-left: 17px;
-  color: #61768a;
-  font-size: 9.5px;
-  line-height: 1.65;
-}
-
 .otherPlatforms {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #238b75;
+  font: inherit;
   font-size: 9px;
   font-weight: 780;
   text-align: center;
   text-decoration: none;
+  cursor: pointer;
 }
 
 @media (max-width: 620px) {
   .windowsOptions,
-  .shareRow {
+  .shareRow,
+  .platformOptions {
     grid-template-columns: 1fr;
   }
 
-  .windowsOption p {
+  .windowsOption p,
+  .platformOption p {
     min-height: 0;
   }
 }
