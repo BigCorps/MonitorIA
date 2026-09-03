@@ -31,13 +31,8 @@
   transition: background 0.2s ease, opacity 0.2s ease;
 }
 
-.firstRunProgress article:first-child {
-  border-left: 0;
-}
-
-.firstRunProgress article[data-complete='true'] {
-  opacity: 0.78;
-}
+.firstRunProgress article:first-child { border-left: 0; }
+.firstRunProgress article[data-complete='true'] { opacity: 0.78; }
 
 .firstRunProgress article[data-current='true'] {
   position: relative;
@@ -77,11 +72,7 @@
   font-size: 10px;
 }
 
-.firstRunProgress article > div {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
+.firstRunProgress article > div { min-width: 0; display: grid; gap: 2px; }
 
 .firstRunProgress strong {
   overflow: hidden;
@@ -106,40 +97,13 @@
   white-space: nowrap;
 }
 
-.firstRunProgress article[data-current='true'] small {
-  color: #16866f;
-  font-weight: 800;
-}
+.firstRunProgress article[data-current='true'] small { color: #16866f; font-weight: 800; }
 
-.firstRunBody {
-  width: 100%;
-  padding: 26px 28px 28px;
-}
-
-.firstRunHeading {
-  max-width: 800px;
-}
-
-.firstRunHeading > span {
-  color: #2bb99d;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.16em;
-}
-
-.firstRunHeading h2 {
-  margin: 7px 0;
-  color: #17243a;
-  font-size: 24px;
-  letter-spacing: -0.035em;
-}
-
-.firstRunHeading p {
-  margin: 0;
-  color: #718197;
-  font-size: 11px;
-  line-height: 1.65;
-}
+.firstRunBody { width: 100%; padding: 26px 28px 28px; }
+.firstRunHeading { max-width: 800px; }
+.firstRunHeading > span { color: #2bb99d; font-size: 9px; font-weight: 850; letter-spacing: 0.16em; }
+.firstRunHeading h2 { margin: 7px 0; color: #17243a; font-size: 24px; letter-spacing: -0.035em; }
+.firstRunHeading p { margin: 0; color: #718197; font-size: 11px; line-height: 1.65; }
 
 .connectGrid {
   margin-top: 20px;
@@ -149,10 +113,14 @@
   align-items: start;
 }
 
-.connectMain,
-.connectAside {
-  min-width: 0;
+/* Alinha o card de instalação com o topo do conteúdo no desktop,
+   aproveitando o espaço ao lado do título sem criar altura vazia. */
+.firstRunBody:has(.connectGrid) .connectAside {
+  margin-top: -82px;
 }
+
+.connectMain,
+.connectAside { min-width: 0; }
 
 .connectAside {
   display: grid;
@@ -163,39 +131,13 @@
   background: #f8fbfc;
 }
 
-.asideTitle {
-  display: grid;
-  gap: 4px;
-}
+.asideTitle { display: grid; gap: 4px; }
+.asideTitle strong { color: #29435d; font-size: 11px; }
+.asideTitle span { color: #718197; font-size: 9.5px; line-height: 1.5; }
 
-.asideTitle strong {
-  color: #29435d;
-  font-size: 11px;
-}
-
-.asideTitle span {
-  color: #718197;
-  font-size: 9.5px;
-  line-height: 1.5;
-}
-
-.firstRunInstructions {
-  margin: 0;
-  padding: 0;
-  display: grid;
-  list-style: none;
-}
-
-.firstRunInstructions li {
-  display: flex;
-  gap: 13px;
-  padding: 13px 0;
-  border-top: 1px solid #e8eef3;
-}
-
-.firstRunInstructions li:first-child {
-  border-top: 0;
-}
+.firstRunInstructions { margin: 0; padding: 0; display: grid; list-style: none; }
+.firstRunInstructions li { display: flex; gap: 13px; padding: 13px 0; border-top: 1px solid #e8eef3; }
+.firstRunInstructions li:first-child { border-top: 0; }
 
 .firstRunInstructions li > span {
   width: 27px;
@@ -210,17 +152,8 @@
   font-weight: 850;
 }
 
-.firstRunInstructions strong {
-  color: #29435d;
-  font-size: 11px;
-}
-
-.firstRunInstructions p {
-  margin: 4px 0 0;
-  color: #7a899c;
-  font-size: 10px;
-  line-height: 1.55;
-}
+.firstRunInstructions strong { color: #29435d; font-size: 11px; }
+.firstRunInstructions p { margin: 4px 0 0; color: #7a899c; font-size: 10px; line-height: 1.55; }
 
 .networkNote {
   margin-top: 14px;
@@ -232,17 +165,9 @@
   font-size: 10px;
   line-height: 1.55;
 }
+.networkNote strong { color: #0b725f; }
 
-.networkNote strong {
-  color: #0b725f;
-}
-
-.firstRunActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-  margin: 20px 0;
-}
+.firstRunActions { display: flex; flex-wrap: wrap; gap: 9px; margin: 20px 0; }
 
 .pairingCodeBox {
   padding: 15px;
@@ -254,35 +179,10 @@
   justify-items: start;
 }
 
-.pairingCodeBox > span {
-  color: #2bb99d;
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: 0.16em;
-}
-
-.pairingCodeBox > p {
-  margin: 0;
-  color: #5d7f77;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.pairingCodeRow {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.pairingCodeRow strong {
-  color: #0d4f42;
-  font-size: 26px;
-  letter-spacing: 0.14em;
-  font-variant-numeric: tabular-nums;
-}
+.pairingCodeBox > span { color: #2bb99d; font-size: 8px; font-weight: 850; letter-spacing: 0.16em; }
+.pairingCodeBox > p { margin: 0; color: #5d7f77; font-size: 9px; line-height: 1.5; }
+.pairingCodeRow { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pairingCodeRow strong { color: #0d4f42; font-size: 26px; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; }
 
 .pairingCopy {
   height: 32px;
@@ -296,14 +196,8 @@
   font-weight: 800;
   cursor: pointer;
 }
-
-.pairingCopy:hover {
-  background: #eafaf5;
-}
-
-.pairingForm button {
-  width: 100%;
-}
+.pairingCopy:hover { background: #eafaf5; }
+.pairingForm button { width: 100%; }
 
 .waitingBox {
   margin-top: 12px;
@@ -327,39 +221,15 @@
   animation: waitingSpin 850ms linear infinite;
 }
 
-@keyframes waitingSpin {
-  to { transform: rotate(360deg); }
-}
-
-.waitingBox strong {
-  color: #29435d;
-  font-size: 10px;
-}
-
-.waitingBox p {
-  margin: 3px 0 0;
-  color: #7a899c;
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.waitingSlow {
-  color: #96603a !important;
-}
+@keyframes waitingSpin { to { transform: rotate(360deg); } }
+.waitingBox strong { color: #29435d; font-size: 10px; }
+.waitingBox p { margin: 3px 0 0; color: #7a899c; font-size: 9px; line-height: 1.5; }
+.waitingSlow { color: #96603a !important; }
 
 @media (max-width: 1040px) {
-  .connectGrid {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 18px;
-  }
-
-  .firstRunProgress article {
-    padding-inline: 9px;
-  }
-
-  .firstRunProgress strong {
-    font-size: 8.5px;
-  }
+  .connectGrid { grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+  .firstRunProgress article { padding-inline: 9px; }
+  .firstRunProgress strong { font-size: 8.5px; }
 }
 
 @media (max-width: 820px) {
@@ -370,11 +240,7 @@
     scrollbar-width: none;
     scroll-snap-type: x proximity;
   }
-
-  .firstRunProgress::-webkit-scrollbar {
-    display: none;
-  }
-
+  .firstRunProgress::-webkit-scrollbar { display: none; }
   .firstRunProgress article {
     flex: 0 0 108px;
     min-height: 60px;
@@ -382,69 +248,25 @@
     border-left: 1px solid #e2ecef;
     scroll-snap-align: start;
   }
-
-  .firstRunProgress article[data-current='true'] {
-    flex-basis: 150px;
-  }
-
-  .connectGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .connectAside {
-    order: -1;
-  }
+  .firstRunProgress article[data-current='true'] { flex-basis: 150px; }
+  .connectGrid { grid-template-columns: 1fr; }
+  .connectAside { order: -1; }
+  .firstRunBody:has(.connectGrid) .connectAside { margin-top: 0; }
 }
 
 @media (max-width: 520px) {
-  .firstRunCard {
-    border-radius: 15px;
-  }
-
-  .firstRunBody {
-    padding: 20px 16px 22px;
-  }
-
-  .firstRunHeading h2 {
-    font-size: 21px;
-  }
-
-  .firstRunProgress article {
-    flex-basis: 92px;
-    min-height: 56px;
-  }
-
-  .firstRunProgress article[data-current='true'] {
-    flex-basis: 142px;
-  }
-
-  .firstRunProgress article > span {
-    width: 22px;
-    height: 22px;
-    flex-basis: 22px;
-  }
-
-  .firstRunProgress article[data-current='true'] > span {
-    width: 27px;
-    height: 27px;
-    flex-basis: 27px;
-  }
-
-  .firstRunProgress small {
-    display: none;
-  }
-
-  .connectAside {
-    padding: 14px;
-  }
-
-  .firstRunActions {
-    display: grid;
-  }
+  .firstRunCard { border-radius: 15px; }
+  .firstRunBody { padding: 20px 16px 22px; }
+  .firstRunHeading h2 { font-size: 21px; }
+  .firstRunProgress article { flex-basis: 92px; min-height: 56px; }
+  .firstRunProgress article[data-current='true'] { flex-basis: 142px; }
+  .firstRunProgress article > span { width: 22px; height: 22px; flex-basis: 22px; }
+  .firstRunProgress article[data-current='true'] > span { width: 27px; height: 27px; flex-basis: 27px; }
+  .firstRunProgress small { display: none; }
+  .connectAside { padding: 14px; }
+  .firstRunActions { display: grid; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .waitingSpinner {
-    animation-duration: 2.5s;
-  }
+  .waitingSpinner { animation-duration: 2.5s; }
 }

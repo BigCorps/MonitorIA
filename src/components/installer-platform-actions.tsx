@@ -30,9 +30,9 @@ function platformLabel(device: DeviceKind) {
 }
 
 function downloadHref(device: DeviceKind) {
-  if (device === "windows") return "/api/download-agent/windows";
-  if (device === "linux-x64") return "/api/download-agent/linux-x64";
-  if (device === "linux-arm64") return "/api/download-agent/linux-arm64";
+  if (device === "windows") return "/api/installer/windows";
+  if (device === "linux-x64") return "/api/installer/linux-x64";
+  if (device === "linux-arm64") return "/api/installer/linux-arm64";
   return null;
 }
 
@@ -128,7 +128,7 @@ export function InstallerPlatformActions({ compact = false }: Props) {
               <span className={styles.recommended}>RECOMENDADO</span>
             </div>
             <p>Para computador dedicado. Continua monitorando mesmo sem usuário conectado.</p>
-            <a className={styles.primary} href="/api/download-agent/windows">Baixar MonitorIA 24/7</a>
+            <a className={styles.primary} href="/api/installer/windows">Baixar MonitorIA 24/7</a>
           </div>
 
           <div className={styles.windowsOption}>
