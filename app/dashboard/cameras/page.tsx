@@ -6,6 +6,7 @@ import {
   getOrganizationCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
+import { getRunningTrialCameraState } from "@/src/lib/trial-camera-state";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./cameras.module.css";
 
@@ -32,12 +33,16 @@ export default async function CamerasPage() {
 
   if (!organization) redirect("/onboarding");
 
-  const [sites, cameras] = await Promise.all([
+  const [sites, cameras, trialState] = await Promise.all([
     getOrganizationSites(organization.id),
     getOrganizationCameras(organization.id),
+    getRunningTrialCameraState(organization.id),
   ]);
 
   if (!sites.length) redirect("/onboarding");
+
+  const showSiteName = sites.length > 1;
+  const activeTrialCameraIds = new Set(trialState.cameraIds);
 
   return (
     <main className="dashboard-shell">
@@ -71,73 +76,128 @@ export default async function CamerasPage() {
 
         <DashboardSectionTabs group="cameras" />
 
+        {trialState.running ? (
+          <div className={styles.trialNotice}>
+            <strong>Período de teste em andamento</strong>
+            <span>
+              {activeTrialCameraIds.size === 1
+                ? "Uma câmera está ativa no teste. As demais permanecem conectadas e poderão ser ativadas após a contratação."
+                : `${activeTrialCameraIds.size} câmeras estão ativas no teste. As demais permanecem conectadas e aguardam ativação.`}
+            </span>
+          </div>
+        ) : null}
+
         {cameras.length ? (
           <div className="camera-list-grid">
-            {cameras.map((camera) => (
-              <Link
-                href={`/dashboard/cameras/${camera.id}`}
-                className="camera-list-card"
-                key={camera.id}
-              >
-                <div className={`camera-card-preview ${styles.preview}`}>
-                  {camera.thumbnailAssetId ? (
-                    <img
-                      className={styles.thumbnail}
-                      src={`/api/storage-assets/${camera.thumbnailAssetId}`}
-                      alt={`Imagem de referência da câmera ${camera.name}`}
-                    />
-                  ) : (
-                    <img className={styles.logo} src="/favicon.svg" alt="" />
-                  )}
+            {cameras.map((camera) => {
+              const activeInTrial =
+                trialState.running && activeTrialCameraIds.has(camera.id);
+              const awaitingTrialActivation =
+                trialState.running && !activeInTrial;
 
-                  <span
-                    className={
-                      camera.status === "online"
-                        ? styles.statusOnline
-                        : undefined
-                    }
-                  >
-                    {camera.status === "disabled"
-                      ? "DESATIVADA"
-                      : camera.status === "online"
-                        ? "ONLINE"
-                        : "AGUARDANDO CONEXÃO"}
-                  </span>
-                </div>
+              return (
+                <Link
+                  href={`/dashboard/cameras/${camera.id}`}
+                  className="camera-list-card"
+                  key={camera.id}
+                >
+                  <div className={`camera-card-preview ${styles.preview}`}>
+                    {camera.thumbnailAssetId ? (
+                      <img
+                        className={styles.thumbnail}
+                        src={`/api/storage-assets/${camera.thumbnailAssetId}`}
+                        alt={`Imagem de referência da câmera ${camera.name}`}
+                      />
+                    ) : (
+                      <img className={styles.logo} src="/favicon.svg" alt="" />
+                    )}
 
-                <div className="camera-card-body">
-                  <div>
-                    <span>{camera.siteName}</span>
-                    <h2>{camera.name}</h2>
+                    <span
+                      className={
+                        camera.status === "online"
+                          ? styles.statusOnline
+                          : undefined
+                      }
+                    >
+                      {camera.status === "disabled"
+                        ? "DESATIVADA"
+                        : camera.status === "online"
+                          ? "ONLINE"
+                          : "AGUARDANDO CONEXÃO"}
+                    </span>
                   </div>
 
-                  <p>
-                    {camera.description ||
-                      "Descrição do ambiente ainda não informada."}
-                  </p>
+                  <div className="camera-card-body">
+                    <div>
+                      {trialState.running ? (
+                        <span
+                          className={
+                            activeInTrial
+                              ? styles.trialActiveBadge
+                              : styles.trialWaitingBadge
+                          }
+                        >
+                          {activeInTrial
+                            ? "ATIVA NO TESTE"
+                            : "AGUARDANDO ATIVAÇÃO"}
+                        </span>
+                      ) : null}
 
-                  <dl>
-                    <div>
-                      <dt>Plano</dt>
-                      <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
+                      {showSiteName ? (
+                        <span className={styles.siteLabel}>
+                          LOCAL · {camera.siteName}
+                        </span>
+                      ) : null}
+
+                      <h2>{camera.name}</h2>
                     </div>
-                    <div>
-                      <dt>Intervalo de análise</dt>
-                      <dd>{camera.consolidationIntervalSeconds}s</dd>
-                    </div>
-                    <div>
-                      <dt>Conexão</dt>
-                      <dd>
-                        {camera.status === "disabled"
-                          ? "Desconectada"
-                          : pairingLabels[camera.pairingStatus] ??
-                            camera.pairingStatus}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </Link>
-            ))}
+
+                    <p>
+                      {camera.description ||
+                        "Descrição do ambiente ainda não informada."}
+                    </p>
+
+                    <dl>
+                      <div>
+                        <dt>Plano</dt>
+                        <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
+                      </div>
+                      <div>
+                        <dt>Intervalo de análise</dt>
+                        <dd>{camera.consolidationIntervalSeconds}s</dd>
+                      </div>
+                      <div>
+                        <dt>Conexão</dt>
+                        <dd>
+                          {camera.status === "disabled"
+                            ? "Desconectada"
+                            : pairingLabels[camera.pairingStatus] ??
+                              camera.pairingStatus}
+                        </dd>
+                      </div>
+                      {trialState.running ? (
+                        <div>
+                          <dt>Teste</dt>
+                          <dd
+                            className={
+                              activeInTrial
+                                ? styles.trialActiveText
+                                : styles.trialWaitingText
+                            }
+                          >
+                            {activeInTrial
+                              ? "Monitorando agora"
+                              : awaitingTrialActivation
+                                ? "Aguardando ativação"
+                                : "—"}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <section className="camera-empty-state">

@@ -21,10 +21,80 @@
   border-color: rgba(88, 224, 195, 0.28) !important;
 }
 
+.trialNotice {
+  margin: 14px 0 18px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  border: 1px solid rgba(69, 214, 184, 0.3);
+  border-radius: 12px;
+  background: rgba(230, 251, 246, 0.62);
+  color: #50667b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.trialNotice strong {
+  flex: 0 0 auto;
+  color: #17846e;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.trialActiveBadge,
+.trialWaitingBadge {
+  width: fit-content;
+  margin-bottom: 7px;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 8px !important;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  line-height: 1;
+}
+
+.trialActiveBadge {
+  color: #14745f !important;
+  border: 1px solid rgba(62, 204, 174, 0.26);
+  background: #e8faf5;
+}
+
+.trialWaitingBadge {
+  color: #6d7d8d !important;
+  border: 1px solid #dfe7ec;
+  background: #f4f7f9;
+}
+
+.siteLabel {
+  display: block;
+  margin-bottom: 5px;
+  color: #7d8da0 !important;
+  font-size: 8px !important;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+}
+
+.trialActiveText {
+  color: #17846e !important;
+}
+
+.trialWaitingText {
+  color: #77889a !important;
+}
+
 @media (max-width: 760px) {
   .preview,
   .thumbnail {
     min-height: 160px;
     height: 160px !important;
+  }
+
+  .trialNotice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }

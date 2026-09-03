@@ -15,6 +15,7 @@ import {
 import { searchEventTimeline } from "@/src/lib/event-timeline-data";
 import { EVENT_TYPE_OPTIONS } from "@/src/lib/event-labels";
 import { paginationWindow } from "@/src/lib/pagination";
+import { getRunningTrialCameraState } from "@/src/lib/trial-camera-state";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { CameraMultiSelect } from "../camera-multi-select";
 import {
@@ -59,9 +60,11 @@ function pageHref(current: Record<string, string>, page: number) {
 }
 
 type StarterFrame = {
+  cameraId: string;
   cameraName: string;
   siteName: string;
   url: string;
+  activeInTrial: boolean;
 };
 
 export default async function EventsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -69,9 +72,10 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
 
-  const [sites, cameras, rawParams] = await Promise.all([
+  const [sites, cameras, trialState, rawParams] = await Promise.all([
     getOrganizationSites(organization.id),
     getOrganizationCameras(organization.id),
+    getRunningTrialCameraState(organization.id),
     searchParams,
   ]);
 
@@ -81,10 +85,6 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
   const today = todayInZone(timeZone);
   const defaultFrom = addDaysToDateOnly(today, -6);
 
-  // `from`/`to` só são persistidos quando o usuário aplicou explicitamente
-  // um intervalo. Antes da 1.0.2, a própria navegação gravava as datas padrão
-  // na URL. Depois da virada do dia, refresh e Realtime continuavam buscando
-  // o dia anterior até o usuário sair da seção e voltar.
   const customDateRange = scalar(rawParams.range) === "custom";
   const requestedFrom = scalar(rawParams.from);
   const requestedTo = scalar(rawParams.to);
@@ -125,21 +125,27 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     review !== "all" ? review : "",
   ].filter(Boolean).length;
   const visiblePages = paginationWindow(page, totalPages, 5);
+  const activeTrialCameraIds = new Set(trialState.cameraIds);
 
   let starterFrame: StarterFrame | null = null;
   if (result.total === 0 && page === 1) {
     const starterCameras = cameraIds.length
       ? cameras.filter((camera) => cameraIds.includes(camera.id))
-      : cameras;
+      : trialState.running && activeTrialCameraIds.size
+        ? cameras.filter((camera) => activeTrialCameraIds.has(camera.id))
+        : cameras;
 
     for (const camera of starterCameras.slice(0, 6)) {
       try {
         const workspace = await getCameraProfileWorkspace(organization.id, camera.id);
         if (workspace.latestProfile && workspace.frame?.url) {
           starterFrame = {
+            cameraId: camera.id,
             cameraName: camera.name,
             siteName: camera.siteName,
             url: workspace.frame.url,
+            activeInTrial:
+              trialState.running && activeTrialCameraIds.has(camera.id),
           };
           break;
         }
@@ -302,20 +308,33 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
             <div className={styles.cardBody}>
               <div className={styles.cardHeading}>
                 <div>
-                  <span>CONFIGURAÇÃO CONCLUÍDA</span>
-                  <h2>Perfil da câmera salvo</h2>
+                  <span>
+                    {starterFrame.activeInTrial
+                      ? "CÂMERA ATIVA NO TESTE"
+                      : "CÂMERA CONFIGURADA"}
+                  </span>
+                  <h2>{starterFrame.cameraName} está pronta</h2>
                 </div>
               </div>
               <p>
-                Esta é a primeira imagem recebida de {starterFrame.cameraName}
-                {starterFrame.siteName ? ` · ${starterFrame.siteName}` : ""}. O MonitorIA
-                já conhece o ambiente e começou a acompanhar a câmera. Esta imagem não é
-                um acontecimento; os primeiros registros aparecerão aqui assim que um
-                movimento relevante terminar e for analisado.
+                Esta é a imagem de referência da câmera {starterFrame.cameraName}
+                {sites.length > 1 && starterFrame.siteName
+                  ? ` · Local: ${starterFrame.siteName}`
+                  : ""}. O MonitorIA já conhece este ambiente e
+                {starterFrame.activeInTrial
+                  ? " está acompanhando esta câmera durante o período de teste."
+                  : " está pronto para acompanhar esta câmera quando o monitoramento estiver ativo."}
+                {" "}Esta imagem é apenas a referência de configuração e não conta como
+                acontecimento. Os registros aparecerão aqui após um movimento relevante
+                terminar e ser analisado.
               </p>
               <div className={styles.meta}>
                 <span>Perfil salvo</span>
-                <span>Aguardando primeiro acontecimento</span>
+                {starterFrame.activeInTrial ? (
+                  <span>Monitorando no teste</span>
+                ) : (
+                  <span>Pronta para ativação</span>
+                )}
               </div>
             </div>
           </section>
