@@ -22,7 +22,8 @@
 }
 
 .primary,
-.secondary {
+.secondary,
+.store {
   min-height: 43px;
   padding: 0 14px;
   display: inline-flex;
@@ -48,6 +49,69 @@
   border: 1px solid #d7e3ea;
   color: #405b78;
   background: #fff;
+}
+
+.store {
+  border: 1px solid #cbd9e3;
+  color: #20384f;
+  background: #fff;
+}
+
+.windowsOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.windowsOption {
+  min-width: 0;
+  padding: 11px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid #dfe8ee;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.optionHeading {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.optionHeading strong {
+  color: #29435d;
+  font-size: 10px;
+}
+
+.recommended {
+  padding: 3px 5px;
+  border-radius: 999px;
+  color: #16735f;
+  background: #e9faf5;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.windowsOption p {
+  margin: 0;
+  min-height: 38px;
+  color: #718197;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.samePairing {
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #557086;
+  background: #f4f8fa;
+  font-size: 8.5px;
+  text-align: center;
 }
 
 .mobileCard,
@@ -96,8 +160,13 @@
   text-decoration: none;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 620px) {
+  .windowsOptions,
   .shareRow {
     grid-template-columns: 1fr;
+  }
+
+  .windowsOption p {
+    min-height: 0;
   }
 }
