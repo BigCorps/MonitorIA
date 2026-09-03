@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { withCredentials } from "../agent/src/discovery/onvif.js";
 import {
+  CURRENT_AGENT_VERSION,
   DEFAULT_INSTALLER_URLS,
   installerUrlFor,
 } from "../src/lib/installer-data.js";
@@ -14,16 +15,10 @@ test("onboarding salva o local e deixa a câmera para depois da descoberta", asy
     readFile(new URL("../app/dashboard/page.tsx", import.meta.url), "utf8"),
   ]);
 
-  // A câmera não é mais criada antes da descoberta. O onboarding inicial
-  // salva somente empresa/local; nome e objetivo da câmera entram depois que
-  // o Agent encontra uma câmera real na rede.
   assert.doesNotMatch(page, /name="camera_name"/);
   assert.doesNotMatch(page, /name="monitoring_goals"/);
   assert.doesNotMatch(actions, /pendingCameraValues/);
   assert.doesNotMatch(actions, /\.from\("cameras"\)\.insert/);
-  // O guia deixou de sair de cena na primeira imagem: ele acompanha até a
-  // primeira análise ser aprovada, que é a etapa que faz o produto servir
-  // para alguma coisa.
   assert.match(dashboard, /if \(firstRun\.stage < 5\)/);
   assert.match(dashboard, /FirstRunSetup/);
 });
@@ -35,24 +30,26 @@ test("primeiro acesso mostra download junto do código", async () => {
   ]);
 
   assert.match(guide, /Baixar MonitorIA para Windows/);
-  // O código de pareamento passou a nascer do local, não de uma câmera: sem
-  // isso o passo 1 exigiria cadastrar câmera antes de instalar.
   assert.match(guide, /SitePairingCode/);
   assert.match(pairing, /\/api\/installer\/windows/);
 });
 
-test("download oficial usa endereço permanente da release", () => {
-  const previous = process.env.AGENT_WINDOWS_DOWNLOAD_URL;
-
-  try {
-    process.env.AGENT_WINDOWS_DOWNLOAD_URL =
-      "https://github.com/BigCorps/MonitorIA/releases/download/agent-v0.10.6/MonitorIA-Setup.exe";
-    assert.equal(installerUrlFor("windows"), DEFAULT_INSTALLER_URLS.windows);
-    assert.match(installerUrlFor("windows") ?? "", /releases\/latest\/download/);
-  } finally {
-    if (previous === undefined) delete process.env.AGENT_WINDOWS_DOWNLOAD_URL;
-    else process.env.AGENT_WINDOWS_DOWNLOAD_URL = previous;
-  }
+test("download oficial usa release versionada atual", () => {
+  assert.equal(CURRENT_AGENT_VERSION, "1.0.3");
+  assert.equal(installerUrlFor("windows"), DEFAULT_INSTALLER_URLS.windows);
+  assert.match(
+    installerUrlFor("windows"),
+    new RegExp(`/releases/download/agent-v${CURRENT_AGENT_VERSION}/MonitorIA-Setup\\.exe$`),
+  );
+  assert.match(
+    installerUrlFor("linux-x64"),
+    new RegExp(`/releases/download/agent-v${CURRENT_AGENT_VERSION}/monitoria-agent-linux-x64\\.tar\\.gz$`),
+  );
+  assert.match(
+    installerUrlFor("linux-arm64"),
+    new RegExp(`/releases/download/agent-v${CURRENT_AGENT_VERSION}/monitoria-agent-linux-arm64\\.tar\\.gz$`),
+  );
+  assert.doesNotMatch(installerUrlFor("windows"), /\/releases\/latest\/download\//);
 });
 
 test("ONVIF codifica credenciais especiais uma única vez", () => {

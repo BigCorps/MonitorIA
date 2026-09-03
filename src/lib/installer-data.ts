@@ -41,19 +41,27 @@ export type InstallerWorkspace = {
 };
 
 /**
- * Os instaladores diretos sempre seguem a release marcada como Latest no
- * GitHub. Isso evita que uma variável antiga da Vercel mantenha clientes em
- * uma versão anterior.
+ * Versão oficial atual do Agent.
  *
- * A Microsoft Store continua independente e usa a distribuição já certificada.
+ * Atualize este único valor quando uma nova versão direta for publicada.
+ * Windows 24/7, Linux e o fallback de versão recomendada usam a mesma fonte.
+ */
+export const CURRENT_AGENT_VERSION = "1.0.3";
+
+/**
+ * Downloads diretos usam a URL versionada da release.
+ *
+ * Não usamos /releases/latest/download aqui porque o nome dos assets é
+ * reaproveitado entre versões e isso pode manter um download antigo em cache.
+ * A URL versionada é determinística e imutável para cada release.
  */
 export const DEFAULT_INSTALLER_URLS: Record<InstallerPlatform, string> = {
   windows:
-    "https://github.com/BigCorps/MonitorIA/releases/latest/download/MonitorIA-Setup.exe",
+    `https://github.com/BigCorps/MonitorIA/releases/download/agent-v${CURRENT_AGENT_VERSION}/MonitorIA-Setup.exe`,
   "linux-x64":
-    "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-x64.tar.gz",
+    `https://github.com/BigCorps/MonitorIA/releases/download/agent-v${CURRENT_AGENT_VERSION}/monitoria-agent-linux-x64.tar.gz`,
   "linux-arm64":
-    "https://github.com/BigCorps/MonitorIA/releases/latest/download/monitoria-agent-linux-arm64.tar.gz",
+    `https://github.com/BigCorps/MonitorIA/releases/download/agent-v${CURRENT_AGENT_VERSION}/monitoria-agent-linux-arm64.tar.gz`,
 };
 
 export const STORE_INSTALLER_FILENAME = "MonitorIA-Store-Setup.exe";
@@ -228,7 +236,7 @@ export async function getInstallerWorkspace(
       (camera: any) => camera.pairing_status === "paired",
     ).length,
     recommendedVersion:
-      process.env.AGENT_RECOMMENDED_VERSION?.trim() || "1.0.3",
+      process.env.AGENT_RECOMMENDED_VERSION?.trim() || CURRENT_AGENT_VERSION,
     downloads,
     storeDistribution: {
       label: "Microsoft Store",
