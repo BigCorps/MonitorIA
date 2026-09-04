@@ -16,6 +16,9 @@ const accountCta: Cta = {
 const playStoreUrl =
   "https://play.google.com/store/apps/details?id=cam.monitoria.twa";
 
+const microsoftStoreUrl =
+  "https://apps.microsoft.com/store/detail/XPDC2BLXQ99DTG";
+
 export function Brand() {
   return (
     <Link href="/" className={styles.brand} aria-label={`${appConfig.name} — página inicial`}>
@@ -54,6 +57,23 @@ export function LandingHeader() {
             height={150}
           />
         </a>
+
+        <a
+          className={`${playStoreStyles.storeBadgeLink} ${playStoreStyles.microsoftStoreLink}`}
+          href={microsoftStoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Baixar o MonitorIA na Microsoft Store"
+        >
+          <img
+            className={playStoreStyles.storeBadge}
+            src="/microsoft-store-badge.png"
+            alt="Disponível na Microsoft Store"
+            width={1760}
+            height={538}
+          />
+        </a>
+
         <Link className={`${styles.btn} ${styles.btnPrimary}`} href="/dashboard">
           Entrar
         </Link>
@@ -106,16 +126,11 @@ export function Hero() {
             <span>Loja aberta</span>
           </p>
 
-          {/* Lê de appConfig.sloganParts: o slogan não é mais escrito à mão
-              aqui. A primeira metade fica em .heroSlogan (bloco próprio, tom
-              mais apagado) e a segunda herda o branco do h1. */}
           <h1 className={styles.h1}>
             <span className={styles.heroSlogan}>{appConfig.sloganParts.first}</span>
             {appConfig.sloganParts.second}
           </h1>
 
-          {/* Enxugado: uma promessa, uma prova. O detalhe do DVR desceu para
-              a seção do problema — na primeira dobra ele só atrapalhava. */}
           <p className={styles.lede}>
             Pergunte o que aconteceu e receba informações em tempo real, com gráficos e análises.
           </p>
@@ -136,17 +151,15 @@ export function Hero() {
             <CtaLink cta={accountCta} variant="ghost" />
           </div>
 
-          {/* Compatibilidade na primeira dobra: é a primeira objeção de quem
-              chega. Reaproveita .trialNote e ganha respiro próprio abaixo dos CTAs. */}
           <p className={styles.trialNote} style={{ marginTop: "14px" }}>
             {compatibility.short}
           </p>
 
           <dl className={`${styles.proof} ${styles.stagger}`}>
-<div className={styles.proofItem}>
-  <strong className={styles.mono}>R$ 39,90</strong>
-  <span>por câmera, por mês. Sem mensalidade fixa. *a partir</span>
-</div>
+            <div className={styles.proofItem}>
+              <strong className={styles.mono}>R$ 39,90</strong>
+              <span>por câmera, por mês. Sem mensalidade fixa. *a partir</span>
+            </div>
             <div className={styles.proofItem}>
               <strong className={styles.mono}>365 dias</strong>
               <span>de histórico pesquisável e análises em todos os planos.</span>
