@@ -3,6 +3,7 @@ import { JetBrains_Mono, Rubik } from "next/font/google";
 import { appConfig } from "@/src/lib/app-config";
 import { MonitoriaAnalytics } from "@/src/components/analytics/monitoria-analytics";
 import { CookieConsent } from "@/src/components/analytics/cookie-consent";
+import { OpenAiAdsBootstrap } from "@/src/components/analytics/openai-ads-bootstrap";
 import "./globals.css";
 
 /**
@@ -99,6 +100,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang={appConfig.language} className={`${rubik.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <OpenAiAdsBootstrap />
+      </head>
       <body>
         {children}
         <MonitoriaAnalytics />

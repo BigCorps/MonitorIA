@@ -23,7 +23,7 @@ const retiredSampler = readFileSync(
 );
 
 test("rotas públicas de privacidade cobrem o produto 1.0.3 atual", () => {
-  assert.match(privacy, /Última atualização: 29 de agosto de 2026/);
+  assert.match(privacy, /Última atualização: 7 de setembro de 2026/);
   assert.match(privacy, /reconhecimento facial/i);
   assert.match(privacy, /probabilístic/i);
   assert.match(privacy, /OpenAI/);
@@ -34,6 +34,9 @@ test("rotas públicas de privacidade cobrem o produto 1.0.3 atual", () => {
   assert.match(privacy, /7 dias/);
   assert.match(privacy, /MCP/);
   assert.match(privacy, /15 dias/);
+  assert.match(privacy, /Google Analytics/);
+  assert.match(privacy, /OpenAI Ads/);
+  assert.match(privacy, /trial_started/);
 
   assert.match(security, /Sem reconhecimento facial ou identificação civil/);
   assert.match(security, /Continuidade operacional não biométrica/);
@@ -52,6 +55,7 @@ test("rotas públicas de privacidade cobrem o produto 1.0.3 atual", () => {
   assert.match(subprocessors, /Supabase/);
   assert.match(subprocessors, /Vercel/);
   assert.match(subprocessors, /OpenAI/);
+  assert.match(subprocessors, /Google Tag Manager e Google Analytics/);
   assert.match(subprocessors, /Microsoft Clarity/);
   assert.match(subprocessors, /store: false/);
 

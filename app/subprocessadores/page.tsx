@@ -20,7 +20,7 @@ export default function SubprocessadoresPage() {
     <MarketingPage
       eyebrow="Subprocessadores"
       title="Fornecedores usados para operar o MonitorIA.cam."
-      lead="Lista atualizada em 29 de agosto de 2026. O uso efetivo varia conforme o recurso contratado e a configuração do serviço."
+      lead="Lista atualizada em 7 de setembro de 2026. O uso efetivo varia conforme o recurso contratado e a configuração do serviço."
     >
       <ContentSection label="Infraestrutura" title="Serviços essenciais e finalidade.">
         <CardGrid>
@@ -39,7 +39,16 @@ export default function SubprocessadoresPage() {
             Recebe somente os quadros selecionados e o contexto necessário ao
             recurso executado. Nas chamadas de visão, o aplicativo solicita por
             padrão <code>store: false</code>; o tratamento pelo fornecedor segue
-            as condições e políticas aplicáveis ao serviço contratado.
+            as condições e políticas aplicáveis ao serviço contratado. Quando a
+            pessoa aceita cookies de medição, a OpenAI também pode processar dados
+            técnicos e o evento de início do teste para atribuição de campanhas da
+            OpenAI Ads, sem receber conteúdo das câmeras por essa integração.
+          </InfoCard>
+          <InfoCard label="MEDIÇÃO" title="Google Tag Manager e Google Analytics">
+            Organização das tags e medição de navegação e eventos comerciais,
+            condicionadas à escolha de cookies não essenciais. O código da
+            aplicação não encaminha imagens de câmeras, credenciais ou conteúdo de
+            acontecimentos a essas ferramentas.
           </InfoCard>
           <InfoCard label="SITE PÚBLICO" title="Microsoft Clarity">
             Medição de navegação apenas nas páginas públicas. Não recebe imagens

@@ -200,12 +200,16 @@ export async function startTrialAction() {
   }
 
   refreshTrialPaths();
-  redirect(
-    "/dashboard?message=" +
-      encodeURIComponent(
-        result.duplicate === true
-          ? "Seu teste gratuito já estava em andamento."
-          : "Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.",
-      ),
-  );
+  const duplicate = result.duplicate === true;
+  const destination = new URLSearchParams({
+    message: duplicate
+      ? "Seu teste gratuito já estava em andamento."
+      : "Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.",
+  });
+
+  // O marcador só existe quando a RPC realmente iniciou um novo trial. Uma
+  // repetição idempotente não deve gerar outra conversão de mídia.
+  if (!duplicate) destination.set("conversion", "trial_started");
+
+  redirect(`/dashboard?${destination.toString()}`);
 }

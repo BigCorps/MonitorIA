@@ -8,6 +8,10 @@ import {
   trackEvent,
   trackEventOnce,
 } from '@/src/lib/analytics';
+import {
+  initializeOpenAiAdsPixel,
+  measureOpenAiAdsTrialStartedOnce,
+} from '@/src/lib/openai-ads';
 
 const GTM_ID = 'GTM-MXQX5Z8X';
 const PRODUCTION_HOSTS = new Set(['monitoria.cam', 'www.monitoria.cam']);
@@ -41,11 +45,16 @@ function inspectState() {
   const text = normalize(document.body?.innerText);
   const url = new URL(window.location.href);
 
-  if (text.includes('Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.')) {
+  const trialStarted =
+    url.searchParams.get('conversion') === 'trial_started' ||
+    text.includes('Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.');
+
+  if (trialStarted) {
     trackEventOnce('trial:start', 'trial_start', {
       product: 'monitoria',
       trial_type: 'self_service_24h',
     });
+    measureOpenAiAdsTrialStartedOnce();
   }
 
   const invoiceId = url.searchParams.get('invoice');
@@ -80,6 +89,7 @@ export function MonitoriaAnalytics() {
     if (!PRODUCTION_HOSTS.has(window.location.hostname.toLowerCase())) return;
 
     loadGtm();
+    initializeOpenAiAdsPixel();
 
     const clickHandler = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;

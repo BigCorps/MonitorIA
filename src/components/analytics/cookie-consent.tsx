@@ -5,6 +5,7 @@ import {
   ANALYTICS_CONSENT_STORAGE_KEY,
   applyGoogleConsent,
 } from '@/src/lib/analytics';
+import { applyOpenAiAdsConsent } from '@/src/lib/openai-ads';
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
@@ -13,10 +14,12 @@ export function CookieConsent() {
     const stored = localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY);
     if (stored === 'granted') {
       applyGoogleConsent(true);
+      applyOpenAiAdsConsent(true);
       return;
     }
     if (stored === 'denied') {
       applyGoogleConsent(false);
+      applyOpenAiAdsConsent(false);
       return;
     }
     setVisible(true);
@@ -25,6 +28,7 @@ export function CookieConsent() {
   function choose(granted: boolean) {
     localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, granted ? 'granted' : 'denied');
     applyGoogleConsent(granted);
+    applyOpenAiAdsConsent(granted);
     setVisible(false);
   }
 
@@ -51,7 +55,13 @@ export function CookieConsent() {
       }}
     >
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.55, color: '#cbd5e1' }}>
-        Usamos cookies de medição para entender a navegação e melhorar o MonitorIA. Você pode aceitar ou recusar os cookies não essenciais.
+        Usamos cookies de medição para entender a navegação, atribuir resultados de
+        campanhas e melhorar o MonitorIA. Você pode aceitar ou recusar os cookies não
+        essenciais. Veja a nossa{' '}
+        <a href="/privacidade" style={{ color: '#58e2c7' }}>
+          política de privacidade
+        </a>
+        .
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button

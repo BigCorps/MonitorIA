@@ -20,7 +20,7 @@ export default function PrivacidadePage() {
     <MarketingPage
       eyebrow="Política de privacidade"
       title="Como o MonitorIA.cam trata dados pessoais e eventos visuais."
-      lead="Última atualização: 29 de agosto de 2026. Esta política descreve o tratamento realizado pela BigCorps no fornecimento do MonitorIA.cam."
+      lead="Última atualização: 7 de setembro de 2026. Esta política descreve o tratamento realizado pela BigCorps no fornecimento do MonitorIA.cam."
     >
       <ContentSection label="Política" title="Informações essenciais sobre o tratamento.">
         <Prose>
@@ -122,14 +122,26 @@ export default function PrivacidadePage() {
             lista vigente em <Link href="/subprocessadores">Subprocessadores</Link>.
           </p>
 
-          <h2>7. Medição de uso do site público</h2>
+          <h2>7. Medição de uso e atribuição de campanhas</h2>
           <p>
-            Nas páginas públicas utilizamos o Microsoft Clarity para entender
-            navegação, cliques e sinais de dificuldade. Essa medição não é
-            aplicada ao painel autenticado e não recebe imagens de câmeras,
-            eventos, credenciais ou dados da organização. Bloqueadores de
-            rastreamento podem impedir essa coleta sem prejudicar o uso do
-            serviço autenticado.
+            Mediante consentimento para cookies não essenciais, utilizamos Google
+            Tag Manager e Google Analytics para entender a navegação e medir ações
+            comerciais, e o pixel de medição da OpenAI Ads para atribuir campanhas.
+            O pixel pode registrar identificadores de atribuição, URL de origem,
+            dados técnicos do navegador e o evento <code>trial_started</code> quando
+            as 24 horas gratuitas são efetivamente iniciadas. Na configuração
+            adotada, o advanced matching permanece desativado e o código de medição
+            não envia à OpenAI Ads nomes, e-mails, IDs de usuário ou organização,
+            imagens de câmeras, acontecimentos visuais, credenciais ou mensagens
+            do assistente.
+          </p>
+          <p>
+            Nas páginas públicas também utilizamos o Microsoft Clarity para
+            entender navegação, cliques e sinais de dificuldade. A gravação de
+            sessão do Clarity não é aplicada ao painel autenticado. A pessoa pode
+            aceitar ou recusar a medição não essencial no aviso de cookies, sem
+            prejudicar o uso do serviço autenticado; bloqueadores de rastreamento
+            também podem impedir a coleta.
           </p>
 
           <h2>8. Transferência internacional e compartilhamento</h2>
