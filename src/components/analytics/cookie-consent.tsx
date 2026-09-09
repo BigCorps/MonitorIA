@@ -6,6 +6,7 @@ import {
   applyGoogleConsent,
 } from '@/src/lib/analytics';
 import { applyOpenAiAdsConsent } from '@/src/lib/openai-ads';
+import { applyMetaAdsConsent } from '@/src/lib/meta-ads';
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
@@ -15,11 +16,13 @@ export function CookieConsent() {
     if (stored === 'granted') {
       applyGoogleConsent(true);
       applyOpenAiAdsConsent(true);
+      applyMetaAdsConsent(true);
       return;
     }
     if (stored === 'denied') {
       applyGoogleConsent(false);
       applyOpenAiAdsConsent(false);
+      applyMetaAdsConsent(false);
       return;
     }
     setVisible(true);
@@ -29,6 +32,7 @@ export function CookieConsent() {
     localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, granted ? 'granted' : 'denied');
     applyGoogleConsent(granted);
     applyOpenAiAdsConsent(granted);
+    applyMetaAdsConsent(granted);
     setVisible(false);
   }
 

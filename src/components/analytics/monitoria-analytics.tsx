@@ -12,6 +12,12 @@ import {
   initializeOpenAiAdsPixel,
   measureOpenAiAdsTrialStartedOnce,
 } from '@/src/lib/openai-ads';
+import {
+  initializeMetaAdsPixel,
+  measureMetaAdsBeginCheckoutOnce,
+  measureMetaAdsPurchaseOnce,
+  measureMetaAdsTrialStartedOnce,
+} from '@/src/lib/meta-ads';
 
 const GTM_ID = 'GTM-MXQX5Z8X';
 const PRODUCTION_HOSTS = new Set(['monitoria.cam', 'www.monitoria.cam']);
@@ -55,6 +61,7 @@ function inspectState() {
       trial_type: 'self_service_24h',
     });
     measureOpenAiAdsTrialStartedOnce();
+    measureMetaAdsTrialStartedOnce();
   }
 
   const invoiceId = url.searchParams.get('invoice');
@@ -72,6 +79,7 @@ function inspectState() {
       value: value ?? undefined,
       transaction_id: invoiceId,
     });
+    measureMetaAdsBeginCheckoutOnce(invoiceId, value);
 
     if (sectionText.includes('Pagamento confirmado')) {
       trackEventOnce(`purchase:${invoiceId}`, 'purchase', {
@@ -80,6 +88,7 @@ function inspectState() {
         value: value ?? undefined,
         transaction_id: invoiceId,
       });
+      measureMetaAdsPurchaseOnce(invoiceId, value);
     }
   }
 }
@@ -90,6 +99,7 @@ export function MonitoriaAnalytics() {
 
     loadGtm();
     initializeOpenAiAdsPixel();
+    initializeMetaAdsPixel();
 
     const clickHandler = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;
