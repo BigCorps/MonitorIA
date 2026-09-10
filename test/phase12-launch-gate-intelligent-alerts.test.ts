@@ -40,12 +40,12 @@ test("cron atualiza inteligência e registra o gate da release", () => {
   assert.match(cron, /additionalModelCalls/);
 });
 
-test("cadastro geral exige flag no servidor e gate possui tela interna", () => {
-  const actions = read("app/login/actions.ts");
+test("cadastro geral está aberto no lançamento público e gate possui tela interna", () => {
   const release = read("src/lib/release.ts");
   const page = read("app/dashboard/admin/launch/page.tsx");
-  assert.match(actions, /if \(!generalSignupEnabled\(\)\)/);
-  assert.match(release, /GENERAL_SIGNUP_ENABLED/);
+  assert.match(release, /MonitorIA 1\.0\.3 é a versão final atualmente publicada/);
+  assert.match(release, /generalSignupEnabled/);
+  assert.match(release, /return true/);
   assert.match(page, /requireInternalOperator/);
 });
 

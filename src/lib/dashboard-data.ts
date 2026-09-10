@@ -24,6 +24,7 @@ export type CameraSummary = {
   planCode: string;
   pairingStatus: string;
   pairedAt: string | null;
+  lastSeenAt: string | null;
   monitoringGoals: string[];
   captureIntervalSeconds: number;
   consolidationIntervalSeconds: number;
@@ -505,6 +506,7 @@ export async function getOrganizationCameras(
         analysis_plan_code,
         pairing_status,
         paired_at,
+        last_seen_at,
         monitoring_goals,
         capture_interval_seconds,
         consolidation_interval_seconds,
@@ -785,6 +787,10 @@ export async function getOrganizationCameras(
 
       pairedAt: row.paired_at
         ? String(row.paired_at)
+        : null,
+
+      lastSeenAt: row.last_seen_at
+        ? String(row.last_seen_at)
         : null,
 
       monitoringGoals:

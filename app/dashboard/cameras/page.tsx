@@ -7,6 +7,7 @@ import {
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { getRunningTrialCameraState } from "@/src/lib/trial-camera-state";
+import { cameraHasRecentSignal } from "@/src/lib/camera-connection";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import styles from "./cameras.module.css";
 
@@ -94,6 +95,10 @@ export default async function CamerasPage() {
                 trialState.running && activeTrialCameraIds.has(camera.id);
               const awaitingTrialActivation =
                 trialState.running && !activeInTrial;
+              const hasRecentSignal = cameraHasRecentSignal(
+                camera.status,
+                camera.lastSeenAt,
+              );
 
               return (
                 <Link
@@ -114,16 +119,20 @@ export default async function CamerasPage() {
 
                     <span
                       className={
-                        camera.status === "online"
+                        hasRecentSignal
                           ? styles.statusOnline
-                          : undefined
+                          : camera.status === "online"
+                            ? styles.statusStale
+                            : undefined
                       }
                     >
                       {camera.status === "disabled"
                         ? "DESATIVADA"
-                        : camera.status === "online"
+                        : hasRecentSignal
                           ? "ONLINE"
-                          : "AGUARDANDO CONEXÃO"}
+                          : camera.status === "online"
+                            ? "SEM SINAL RECENTE"
+                            : "AGUARDANDO CONEXÃO"}
                     </span>
                   </div>
 
@@ -171,8 +180,13 @@ export default async function CamerasPage() {
                         <dd>
                           {camera.status === "disabled"
                             ? "Desconectada"
-                            : pairingLabels[camera.pairingStatus] ??
-                              camera.pairingStatus}
+                            : hasRecentSignal
+                              ? pairingLabels[camera.pairingStatus] ??
+                                camera.pairingStatus
+                              : camera.status === "online"
+                                ? "Sem sinal recente"
+                                : pairingLabels[camera.pairingStatus] ??
+                                  camera.pairingStatus}
                         </dd>
                       </div>
                       {trialState.running ? (

@@ -1,12 +1,12 @@
 export const releaseManifest = {
   code: "phase12-production",
-  version: "1.0.0",
+  version: "1.0.3",
   automatedTestsApproved: true,
   additionalAlertModelCalls: 0,
 } as const;
 
 /**
- * O MonitorIA 1.0.0 já está em lançamento público.
+ * O MonitorIA 1.0.3 é a versão final atualmente publicada.
  * O bloqueio de "liberação gradual" foi removido do produto.
  */
 export function generalSignupEnabled() {

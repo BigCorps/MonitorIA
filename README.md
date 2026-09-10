@@ -4,9 +4,10 @@
 
 O MonitorIA.cam transforma câmeras de segurança comuns em uma memória visual pesquisável. O vídeo contínuo permanece no equipamento do cliente; somente quadros selecionados de acontecimentos são enviados para análise.
 
-> **Versão atual do repositório:** 0.8.2  
-> **Próximo marco:** v1.0.0 comercial  
-> **Status:** núcleo funcional em preparação estruturada para produção.
+> **Versão atual:** 1.0.3  
+> **Agent:** 1.0.3  
+> **Status:** versão final publicada e em lançamento comercial.  
+> Documentos e migrations que citam versões anteriores permanecem no repositório como histórico técnico e não definem a versão atual.
 
 ---
 ## O que o MonitorIA faz

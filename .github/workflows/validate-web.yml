@@ -1,45 +1,40 @@
 name: Validate Web App
-
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: validate-web-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   validate-web:
     name: check + test + build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
+    env:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
+      - name: Confirm Node version
+        run: node --version
       - name: Install dependencies
         run: npm ci
-
       - name: TypeScript check
         run: npm run check
-
       - name: Tests
         run: npm test
-
       - name: Production build
         run: npm run build

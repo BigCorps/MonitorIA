@@ -688,7 +688,7 @@ export function CameraProfilePanel({
     <section className={styles.shell}>
       <div className={styles.heading}>
         <div>
-          <span>PERFIL INTELIGENTE · V0.8.2</span>
+          <span>PERFIL INTELIGENTE</span>
           <h2>Contexto editável da câmera</h2>
           <p>
             A IA sugere o perfil e as zonas. Quando precisar

@@ -21,6 +21,11 @@
   border-color: rgba(88, 224, 195, 0.28) !important;
 }
 
+.statusStale {
+  color: #ffd48a !important;
+  border-color: rgba(255, 190, 92, 0.35) !important;
+}
+
 .trialNotice {
   margin: 14px 0 18px;
   padding: 13px 15px;
