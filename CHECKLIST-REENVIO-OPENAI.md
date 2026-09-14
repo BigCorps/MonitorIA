@@ -1,0 +1,21 @@
+# Checklist de reenvio OpenAI — MonitorIA
+
+- [ ] `python3 VERIFICAR-MCP-OPENAI-REVIEW.py`
+- [ ] `npm run check`
+- [ ] `npm test`
+- [ ] `npm run build`
+- [ ] Vercel: `MCP_PUBLIC_BASE_URL=https://monitoria.cam`
+- [ ] Vercel: `MCP_RESOURCE_URI=https://monitoria.cam/mcp`
+- [ ] remover `MCP_TOOLSET_VERSION` antigo
+- [ ] remover variáveis `MCP_STATIC_TEST_*`
+- [ ] novo deploy concluído
+- [ ] verificar ferramentas novamente no rascunho do app
+- [ ] OAuth normal concluído
+- [ ] capabilities lista todas as tools
+- [ ] capabilities funciona com uma ou várias organizações
+- [ ] perguntas naturais usam `ask_monitoria`
+- [ ] repetir exatamente todos os casos submetidos
+- [ ] testar em conversas novas
+- [ ] registrar tool escolhida + saída real de cada caso
+- [ ] alinhar o “resultado esperado” do formulário ao comportamento real
+- [ ] repetir nas superfícies exigidas pelo e-mail de revisão

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { McpAuthContext } from "./auth";
 import { createEnvelope } from "./envelope";
 import { resolveOrganizationId } from "./grants";
+import { MCP_PUBLIC_TOOL_NAMES } from "./constants";
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -203,40 +204,41 @@ export async function getMonitoriaCapabilities(
   context: McpAuthContext,
   args: { organization_id?: string },
 ) {
-  const organizationId = resolveOrganizationId(
-    context,
-    args.organization_id,
-  );
-  const timezone = await timezoneForScope(context, organizationId);
-  const capabilityData = await capabilities(context, organizationId);
+  const organizationId = args.organization_id
+    ? resolveOrganizationId(context, args.organization_id)
+    : context.organizationIds.length === 1
+      ? (context.organizationIds[0] as string)
+      : null;
+
+  const timezone = organizationId
+    ? await timezoneForScope(context, organizationId)
+    : null;
+
+  const capabilityData = organizationId
+    ? await capabilities(context, organizationId)
+    : {
+        scope_selection_required: true,
+        authorized_organizations: context.organizations.length,
+      };
 
   return createEnvelope({
     organizationId,
     timezone,
     data: {
       organizations: context.organizations,
-      public_tools: [
-        "get_monitoria_capabilities",
-        "list_sites",
-        "list_cameras",
-        "get_camera_overview",
-        "search_events",
-        "get_event_details",
-        "search_operational_sessions",
-        "get_session_details",
-        "get_visual_state",
-        "get_operational_summary",
-        "compare_periods",
-        "get_evidence",
-        "search_insights",
-        "ask_monitoria",
-      ],
+      public_tools: [...MCP_PUBLIC_TOOL_NAMES],
+      scope_selection_required: organizationId === null,
     },
     capabilities: capabilityData,
     limitations: [
       "As correspondências de pessoas e veículos são probabilísticas, não identidade.",
-      "O MCP público v1 é somente leitura.",
+      "O MCP público é somente leitura.",
       "Imagens só são liberadas por get_evidence e usam URLs temporárias.",
+      ...(organizationId === null
+        ? [
+            "Há mais de uma organização autorizada. Use o id retornado em organizations nas próximas ferramentas.",
+          ]
+        : []),
     ],
   });
 }

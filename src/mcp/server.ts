@@ -98,7 +98,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     },
     {
       instructions:
-        "Use list_sites e list_cameras para resolver escopo. As ferramentas não alteram dados operacionais, mas cada chamada registra uma auditoria interna privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Em rotinas, diferencie horário informado, padrão aprendido e comportamento observado. Em processos, diferencie modelos padrão observacionais de processos personalizados pelo cliente; somente regras personalizadas devem ser tratadas como expectativa operacional. Em padrões da operação, trate horários, áreas e atividades como recorrências contextuais não biométricas e considere as revisões humanas. Só solicite get_evidence quando imagens forem realmente necessárias.",
+        "Para perguntas em linguagem natural sobre o que aconteceu, horários, abertura/fechamento, movimento, clientes, entregas, rotina, processos ou comparação de períodos, prefira ask_monitoria como ponto de entrada. Use get_monitoria_capabilities primeiro quando o escopo ou a organização não estiverem claros; ele pode listar as organizações autorizadas sem exigir organization_id. Use list_sites/list_cameras para resolver nomes e IDs apenas quando necessário. Use ferramentas específicas quando o usuário pedir uma listagem estruturada, um registro por ID ou um detalhe explícito. Todas as ferramentas são somente leitura e registram auditoria privada. Trate pessoas e veículos como correspondências prováveis, nunca identidades. Diferencie horário informado, padrão aprendido e comportamento observado. Só solicite get_evidence quando imagens forem realmente necessárias ou quando o usuário pedir evidência visual.",
     },
   );
 
@@ -329,7 +329,7 @@ export function createMonitoriaMcpServer(context: McpAuthContext) {
     {
       title: "Perguntar ao MonitorIA",
       description:
-        "Roteia deterministicamente uma pergunta operacional para dados estruturados do MonitorIA. A IA cliente redige a resposta final sem uma nova chamada de LLM no servidor.",
+        "Ferramenta padrão para perguntas operacionais em linguagem natural. Use para perguntas como o que aconteceu, que horas abriu/fechou, quando houve movimento, quantos atendimentos/entregas ocorreram, o que mudou ou como dois períodos se comparam. Roteia deterministicamente a pergunta para dados estruturados do MonitorIA; a IA cliente redige a resposta final sem nova chamada de LLM no servidor.",
       inputSchema: AskMonitoriaInputSchema.shape,
       annotations: MCP_AUDITED_QUERY_ANNOTATIONS,
     },

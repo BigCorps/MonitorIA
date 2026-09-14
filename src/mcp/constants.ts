@@ -1,7 +1,6 @@
 export const MCP_SERVER_NAME = "MonitorIA";
 export const MCP_SERVER_VERSION = "1.3.0";
-export const MCP_TOOLSET_VERSION =
-  process.env.MCP_TOOLSET_VERSION ?? "1.3.0";
+export const MCP_TOOLSET_VERSION = MCP_SERVER_VERSION;
 export const MCP_RESPONSE_SCHEMA_VERSION = "1.0";
 
 export const MCP_AUDITED_QUERY_ANNOTATIONS = {
