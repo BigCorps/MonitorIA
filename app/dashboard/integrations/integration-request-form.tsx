@@ -8,10 +8,15 @@ import {
   integrationUseCases,
 } from "@/src/lib/integration-catalog";
 import {
-  initialIntegrationRequestState,
   submitIntegrationRequest,
+  type IntegrationRequestActionState,
 } from "./integration-request-actions";
 import integrationStyles from "./integration-request.module.css";
+
+const initialIntegrationRequestState: IntegrationRequestActionState = {
+  status: "idle",
+  message: "",
+};
 
 export function IntegrationRequestForm() {
   const formRef = useRef<HTMLFormElement>(null);

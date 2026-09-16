@@ -19,11 +19,6 @@ export type IntegrationRequestActionState = {
   requestId?: string;
 };
 
-export const initialIntegrationRequestState: IntegrationRequestActionState = {
-  status: "idle",
-  message: "",
-};
-
 const allowedSystems = new Set<string>(integrationSystemKeys);
 const allowedUseCases = new Set<string>(integrationUseCaseKeys);
 const allowedBusinessTypes = new Set<string>(
