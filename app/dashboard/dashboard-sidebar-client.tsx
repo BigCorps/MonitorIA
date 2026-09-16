@@ -14,6 +14,7 @@ export type DashboardSection =
   | "processes"
   | "operational-profiles"
   | "camera-health"
+  | "integrations"
   | "search"
   | "trial"
   | "plans"
@@ -27,7 +28,13 @@ export type DashboardSection =
   | "admin";
 
 type NavId =
-  "overview" | "monitoring" | "cameras" | "search" | "settings" | "admin";
+  | "overview"
+  | "monitoring"
+  | "cameras"
+  | "integrations"
+  | "search"
+  | "settings"
+  | "admin";
 
 type Props = {
   organizationName: string;
@@ -99,6 +106,18 @@ const baseItems: NavigationItem[] = [
     ),
   },
   {
+    id: "integrations",
+    href: "/dashboard/integrations",
+    label: "Integrações",
+    icon: (
+      <Icon>
+        <path d="M9 7H7a4 4 0 0 0 0 8h2" />
+        <path d="M15 7h2a4 4 0 0 1 0 8h-2" />
+        <path d="M8.5 12h7" />
+      </Icon>
+    ),
+  },
+  {
     id: "search",
     href: "/dashboard/search",
     label: "Pesquisa IA",
@@ -155,6 +174,10 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
     return "monitoring";
   }
 
+  if (pathname.startsWith("/dashboard/integrations")) {
+    return "integrations";
+  }
+
   if (pathname.startsWith("/dashboard/search")) {
     return "search";
   }
@@ -184,6 +207,7 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
     "camera-health": "monitoring",
     activity: "monitoring",
     intelligence: "monitoring",
+    integrations: "integrations",
     search: "search",
     trial: "settings",
     plans: "settings",

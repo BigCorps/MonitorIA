@@ -1,0 +1,400 @@
+.lossPreview {
+  margin-top: 24px;
+  padding: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, .8fr);
+  gap: 22px;
+  border: 1px solid #b8e9dd;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #effcf9 0%, #f9fffd 52%, #f4f8fb 100%);
+}
+
+.lossPreview > div > span,
+.sectionHeading > div > span {
+  color: #159278;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.lossPreview h2,
+.sectionHeading h2 {
+  margin: 6px 0 0;
+  color: #142d45;
+  font-size: 21px;
+}
+
+.lossPreview p,
+.sectionHeading p {
+  margin: 8px 0 0;
+  color: #60778c;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.lossFlow {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+}
+
+.lossFlow span {
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #28445a;
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid #dce8ee;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.requestSection {
+  margin-top: 32px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.sectionHeading p {
+  max-width: 760px;
+}
+
+.pilotBadge {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: #147b68;
+  background: #e8faf5;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.commercialNotice {
+  padding: 15px 16px;
+  border: 1px solid #f0ddb0;
+  border-radius: 13px;
+  color: #66592c;
+  background: #fffaf0;
+}
+
+.commercialNotice strong {
+  display: block;
+  color: #5e4e1f;
+  font-size: 11px;
+}
+
+.commercialNotice p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.form {
+  margin-top: 14px;
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(35, 65, 91, 0.04);
+}
+
+.systemGroups {
+  display: grid;
+  gap: 14px;
+}
+
+.systemGroup,
+.useCaseFieldset {
+  margin: 0;
+  padding: 15px;
+  border: 1px solid #e1e8ee;
+  border-radius: 13px;
+  background: #fbfdfe;
+}
+
+.systemGroup legend,
+.useCaseFieldset legend {
+  padding: 0 6px;
+  color: #233d54;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.systemGroup > p {
+  margin: 0 0 10px;
+  color: #7a8ea1;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.optionGrid,
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.optionCard,
+.useCaseCard {
+  min-width: 0;
+  padding: 10px 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e1e8ee;
+  border-radius: 10px;
+  color: #3a5368;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.optionCard:hover,
+.useCaseCard:hover {
+  border-color: #9edfd2;
+  background: #f6fdfa;
+}
+
+.optionCard input,
+.useCaseCard input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  accent-color: #159278;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field > span {
+  color: #455e73;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d9e3ea;
+  border-radius: 10px;
+  color: #21394e;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.field input,
+.field select {
+  min-height: 42px;
+  padding: 0 11px;
+}
+
+.field textarea {
+  padding: 11px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #72cdbc;
+  box-shadow: 0 0 0 3px rgba(87, 223, 200, .12);
+}
+
+.submitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.submitRow p {
+  max-width: 620px;
+  margin: 0;
+  color: #778a9b;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.submitRow button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  color: #092a24;
+  background: #57dfc8;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.submitRow button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.successMessage,
+.errorMessage {
+  padding: 13px 14px;
+  border-radius: 11px;
+}
+
+.successMessage {
+  color: #146954;
+  border: 1px solid #b9e9dc;
+  background: #f3fcf9;
+}
+
+.errorMessage {
+  color: #914354;
+  border: 1px solid #efc9d0;
+  background: #fff5f7;
+}
+
+.successMessage strong,
+.errorMessage strong {
+  display: block;
+  font-size: 10px;
+}
+
+.successMessage p,
+.errorMessage p {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.successMessage small,
+.errorMessage small {
+  display: block;
+  margin-top: 5px;
+  font-size: 8px;
+  opacity: .8;
+}
+
+@media (max-width: 980px) {
+  .lossPreview {
+    grid-template-columns: 1fr;
+  }
+
+  .optionGrid,
+  .useCaseGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .sectionHeading,
+  .submitRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .formGrid,
+  .optionGrid,
+  .useCaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .submitRow button {
+    width: 100%;
+  }
+
+  .form {
+    padding: 14px;
+  }
+}
+
+.integrationHub {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hubCard {
+  min-width: 0;
+  padding: 19px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px 14px;
+  align-items: start;
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(35, 65, 91, 0.05);
+}
+
+.hubIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #147b68;
+  background: #e8faf5;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.hubCard > div:nth-child(2) > span {
+  color: #159278;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.hubCard h2 {
+  margin: 5px 0 0;
+  color: #1d3046;
+  font-size: 16px;
+}
+
+.hubCard p {
+  margin: 7px 0 0;
+  color: #71849a;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.hubCard > a {
+  grid-column: 1 / -1;
+  min-height: 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: #203c55;
+  font-size: 9px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .integrationHub {
+    grid-template-columns: 1fr;
+  }
+}

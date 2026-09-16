@@ -154,9 +154,15 @@ export const dashboardNavigationGroups: Record<
       {
         id: "integrations",
         label: "Integrações",
-        href: "/dashboard/profile/mcp-connections",
-        exactPaths: ["/dashboard/profile/mcp-connections"],
-        activePrefixes: ["/dashboard/profile/mcp-connections/"],
+        href: "/dashboard/integrations",
+        exactPaths: [
+          "/dashboard/integrations",
+          "/dashboard/profile/mcp-connections",
+        ],
+        activePrefixes: [
+          "/dashboard/integrations/",
+          "/dashboard/profile/mcp-connections/",
+        ],
       },
       {
         id: "support",
