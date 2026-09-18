@@ -290,56 +290,6 @@ function unknownErrorText(value: unknown) {
   }
 }
 
-type FfmpegLogEvent = {
-  message: string;
-};
-
-type FfmpegProgressEvent = {
-  progress: number;
-};
-
-type BrowserFfmpegInstance = {
-  on: {
-    (event: "log", listener: (event: FfmpegLogEvent) => void): void;
-    (event: "progress", listener: (event: FfmpegProgressEvent) => void): void;
-  };
-  load(options: {
-    coreURL: string;
-    wasmURL: string;
-  }): Promise<boolean>;
-  createDir(path: string): Promise<boolean>;
-  mount(
-    fsType: string,
-    options: { files: File[] },
-    mountPoint: string,
-  ): Promise<boolean>;
-  writeFile(path: string, data: Uint8Array): Promise<boolean>;
-  readFile(path: string, encoding?: string): Promise<string | Uint8Array>;
-  ffprobe(args: string[]): Promise<number>;
-  exec(args: string[]): Promise<number>;
-  terminate(): void;
-};
-
-type BrowserFfmpegModule = {
-  FFmpeg: new () => BrowserFfmpegInstance;
-  FFFSType: {
-    WORKERFS: string;
-  };
-};
-
-const FFMPEG_BROWSER_MODULE_URL = "/vendor/ffmpeg/index.js";
-
-async function loadFfmpegBrowserModule(): Promise<BrowserFfmpegModule> {
-  // Usa o import ESM nativo do navegador, sem o Turbopack reescrever
-  // classes.js/worker.js e seus URLs dinâmicos internos.
-  const nativeImport = new Function(
-    "url",
-    "return import(url)",
-  ) as (url: string) => Promise<BrowserFfmpegModule>;
-
-  return nativeImport(FFMPEG_BROWSER_MODULE_URL);
-}
-
 async function createLocalFfmpegRuntime(
   sourceFile: File,
   onStage: (message: string) => void,
@@ -347,8 +297,7 @@ async function createLocalFfmpegRuntime(
 ) {
   onStage("Carregando decodificador local de vídeo...");
 
-  const { FFmpeg, FFFSType } =
-    await loadFfmpegBrowserModule();
+  const { FFmpeg, FFFSType } = await import("@ffmpeg/ffmpeg");
   const ffmpeg = new FFmpeg();
   const temporaryUrls: string[] = [];
   const logs: string[] = [];

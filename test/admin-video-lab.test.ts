@@ -38,7 +38,9 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
   const packageJson = JSON.parse(read("package.json"));
 
   assert.equal(packageJson.dependencies?.["@ffmpeg/ffmpeg"], "^0.12.15");
-  assert.match(client, /import\("@ffmpeg\/ffmpeg"\)/);
+  assert.match(client, /loadFfmpegBrowserModule/);
+  assert.match(client, /FFMPEG_BROWSER_MODULE_URL/);
+  assert.doesNotMatch(client, /await import\("@ffmpeg\/ffmpeg"\)/);
   assert.match(client, /FFFSType\.WORKERFS/);
   assert.match(client, /scanCompatibilityVideo/);
   assert.match(client, /extractCompatibilityFrames/);
@@ -59,4 +61,29 @@ test("Vídeo Lab tem fallback de WORKERFS para memória local e expõe diagnóst
   assert.match(client, /ffmpeg\.writeFile\(inputPath, bytes\)/);
   assert.match(client, /unknownErrorText/);
   assert.match(client, /Falha ao inspecionar a gravação/);
+});
+
+test("Vídeo Lab carrega ffmpeg.wasm fora do bundle do Turbopack", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+  const vendor = read("scripts/vendor-ffmpeg.mjs");
+  const packageJson = JSON.parse(read("package.json"));
+
+  assert.equal(
+    packageJson.scripts?.prebuild,
+    "node scripts/vendor-ffmpeg.mjs",
+  );
+  assert.equal(
+    packageJson.scripts?.predev,
+    "node scripts/vendor-ffmpeg.mjs",
+  );
+  assert.match(client, /new Function\(/);
+  assert.match(client, /return import\(url\)/);
+  assert.match(client, /\/vendor\/ffmpeg\/index\.js/);
+  assert.doesNotMatch(client, /await import\("@ffmpeg\/ffmpeg"\)/);
+  assert.match(vendor, /node_modules/);
+  assert.match(vendor, /dist/);
+  assert.match(vendor, /esm/);
+  assert.match(vendor, /public/);
+  assert.match(vendor, /vendor/);
+  assert.match(vendor, /ffmpeg/);
 });

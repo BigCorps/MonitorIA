@@ -29,3 +29,6 @@ twa/gradlew
 twa/gradlew.bat
 twa/store_icon.png
 twa/*.keystore.md5
+
+# ffmpeg.wasm ESM copiado automaticamente antes de dev/build
+/public/vendor/ffmpeg/
