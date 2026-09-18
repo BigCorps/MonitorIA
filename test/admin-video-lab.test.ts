@@ -50,3 +50,13 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
   assert.match(client, /\.h265/);
   assert.doesNotMatch(client, /fetch\([^)]*selectedFile/);
 });
+
+test("Vídeo Lab tem fallback de WORKERFS para memória local e expõe diagnóstico", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+
+  assert.match(client, /WORKERFS indisponível neste navegador/);
+  assert.match(client, /sourceFile\.arrayBuffer\(\)/);
+  assert.match(client, /ffmpeg\.writeFile\(inputPath, bytes\)/);
+  assert.match(client, /unknownErrorText/);
+  assert.match(client, /Falha ao inspecionar a gravação/);
+});

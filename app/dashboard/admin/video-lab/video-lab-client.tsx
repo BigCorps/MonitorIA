@@ -280,6 +280,16 @@ function fileDataText(value: string | Uint8Array) {
   return typeof value === "string" ? value : new TextDecoder().decode(value);
 }
 
+function unknownErrorText(value: unknown) {
+  if (value instanceof Error) return value.message;
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 async function createLocalFfmpegRuntime(
   sourceFile: File,
   onStage: (message: string) => void,
@@ -290,6 +300,12 @@ async function createLocalFfmpegRuntime(
   const { FFmpeg, FFFSType } = await import("@ffmpeg/ffmpeg");
   const ffmpeg = new FFmpeg();
   const temporaryUrls: string[] = [];
+  const logs: string[] = [];
+
+  ffmpeg.on("log", ({ message }) => {
+    logs.push(message);
+    if (logs.length > 30) logs.shift();
+  });
 
   if (onProgress) {
     ffmpeg.on("progress", ({ progress }) => {
@@ -309,23 +325,58 @@ async function createLocalFfmpegRuntime(
   temporaryUrls.push(coreURL, wasmURL);
 
   try {
-    await ffmpeg.load({ coreURL, wasmURL });
-    await ffmpeg.createDir("/monitoria-input").catch(() => undefined);
-    const mounted = await ffmpeg.mount(
-      FFFSType.WORKERFS,
-      { files: [sourceFile] },
-      "/monitoria-input",
-    );
-
-    if (!mounted) {
+    try {
+      await ffmpeg.load({ coreURL, wasmURL });
+    } catch (error) {
       throw new Error(
-        "O navegador não conseguiu montar o arquivo para leitura local.",
+        `Falha ao iniciar FFmpeg/WASM: ${unknownErrorText(error)}`,
       );
+    }
+
+    await ffmpeg.createDir("/monitoria-input").catch(() => undefined);
+    const inputPath = `/monitoria-input/${sourceFile.name}`;
+    let inputMode: "workerfs" | "memory" = "workerfs";
+
+    try {
+      const mounted = await ffmpeg.mount(
+        FFFSType.WORKERFS,
+        { files: [sourceFile] },
+        "/monitoria-input",
+      );
+      if (!mounted) {
+        throw new Error("WORKERFS retornou false.");
+      }
+      onStage("Arquivo montado localmente sem copiar o vídeo para a memória.");
+    } catch (mountError) {
+      const MEMORY_FALLBACK_LIMIT = 350 * 1024 * 1024;
+      if (sourceFile.size > MEMORY_FALLBACK_LIMIT) {
+        throw new Error(
+          `Falha ao montar o arquivo local com WORKERFS (${unknownErrorText(mountError)}). ` +
+          `Como o arquivo possui ${formatBytes(sourceFile.size)}, ele excede o limite de ` +
+          `${formatBytes(MEMORY_FALLBACK_LIMIT)} do fallback em memória deste POC.`,
+        );
+      }
+
+      inputMode = "memory";
+      onStage(
+        `WORKERFS indisponível neste navegador. Copiando ${formatBytes(sourceFile.size)} somente para a memória local do decodificador...`,
+      );
+
+      try {
+        const bytes = new Uint8Array(await sourceFile.arrayBuffer());
+        await ffmpeg.writeFile(inputPath, bytes);
+      } catch (writeError) {
+        throw new Error(
+          `Falha também no fallback local em memória: ${unknownErrorText(writeError)}`,
+        );
+      }
     }
 
     return {
       ffmpeg,
-      inputPath: `/monitoria-input/${sourceFile.name}`,
+      inputPath,
+      inputMode,
+      logs,
       temporaryUrls,
     };
   } catch (error) {
@@ -350,68 +401,126 @@ async function inspectCompatibilityVideo(
   const runtime = await createLocalFfmpegRuntime(sourceFile, onStage);
 
   try {
-    onStage("Identificando codec, duração e resolução localmente...");
-    const probePath = "/monitoria-probe.json";
-    const probeCode = await runtime.ffmpeg.ffprobe([
-      "-v",
-      "error",
-      "-select_streams",
-      "v:0",
-      "-show_entries",
-      "stream=codec_name,width,height,duration:format=duration",
-      "-of",
-      "json",
-      "-o",
-      probePath,
-      runtime.inputPath,
-    ]);
+    onStage(
+      `Identificando codec, duração e resolução localmente (${runtime.inputMode === "workerfs" ? "arquivo montado" : "memória local"})...`,
+    );
 
-    if (probeCode !== 0) {
-      throw new Error(
-        "O arquivo não pôde ser identificado pelo decodificador local.",
-      );
+    const probePath = "/monitoria-probe.json";
+    let probe:
+      | {
+          streams?: Array<{
+            codec_name?: string;
+            width?: number;
+            height?: number;
+            duration?: string;
+          }>;
+          format?: { duration?: string };
+        }
+      | null = null;
+
+    try {
+      const probeCode = await runtime.ffmpeg.ffprobe([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,width,height,duration:format=duration",
+        "-of",
+        "json",
+        "-o",
+        probePath,
+        runtime.inputPath,
+      ]);
+
+      if (probeCode === 0) {
+        const rawProbe = await runtime.ffmpeg.readFile(probePath, "utf8");
+        probe = JSON.parse(fileDataText(rawProbe));
+      }
+    } catch {
+      probe = null;
     }
 
-    const rawProbe = await runtime.ffmpeg.readFile(probePath, "utf8");
-    const probe = JSON.parse(fileDataText(rawProbe)) as {
-      streams?: Array<{
-        codec_name?: string;
-        width?: number;
-        height?: number;
-        duration?: string;
-      }>;
-      format?: { duration?: string };
-    };
-
-    const stream = probe.streams?.[0];
-    const duration = Number(
-      probe.format?.duration ?? stream?.duration ?? 0,
+    let stream = probe?.streams?.[0];
+    let duration = Number(
+      probe?.format?.duration ?? stream?.duration ?? 0,
     );
-    const width = Number(stream?.width ?? 0);
-    const height = Number(stream?.height ?? 0);
+    let width = Number(stream?.width ?? 0);
+    let height = Number(stream?.height ?? 0);
+    let codec = stream?.codec_name ?? null;
+
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0 ||
+      !Number.isFinite(width) ||
+      width <= 0 ||
+      !Number.isFinite(height) ||
+      height <= 0
+    ) {
+      runtime.logs.length = 0;
+      await runtime.ffmpeg.exec([
+        "-hide_banner",
+        "-i",
+        runtime.inputPath,
+      ]).catch(() => undefined);
+
+      const text = runtime.logs.join("\n");
+      const durationMatch = text.match(
+        /Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/i,
+      );
+      if (durationMatch) {
+        duration =
+          Number(durationMatch[1]) * 3600 +
+          Number(durationMatch[2]) * 60 +
+          Number(durationMatch[3]);
+      }
+
+      const videoLine =
+        text
+          .split("\n")
+          .find((line) => /Video:/i.test(line)) ?? "";
+
+      const sizeMatch = videoLine.match(/(\d{2,5})x(\d{2,5})/);
+      if (sizeMatch) {
+        width = Number(sizeMatch[1]);
+        height = Number(sizeMatch[2]);
+      }
+
+      const codecMatch = videoLine.match(/Video:\s*([^,\s]+)/i);
+      if (codecMatch) codec = codecMatch[1].toLowerCase();
+    }
 
     if (!Number.isFinite(duration) || duration <= 0) {
+      const tail = runtime.logs.slice(-8).join(" | ");
       throw new Error(
-        "O decodificador local não conseguiu determinar a duração da gravação.",
+        `FFmpeg abriu o arquivo, mas não determinou a duração.` +
+        (tail ? ` Log: ${tail}` : ""),
       );
     }
+
     if (
       !Number.isFinite(width) ||
       width <= 0 ||
       !Number.isFinite(height) ||
       height <= 0
     ) {
+      const tail = runtime.logs.slice(-8).join(" | ");
       throw new Error(
-        "O decodificador local não conseguiu determinar a resolução da gravação.",
+        `FFmpeg abriu o arquivo, mas não determinou a resolução.` +
+        (tail ? ` Log: ${tail}` : ""),
       );
     }
 
     return {
-      codec: stream?.codec_name ?? null,
+      codec,
       duration,
       width,
       height,
     };
+  } catch (error) {
+    throw new Error(
+      `Falha ao inspecionar a gravação: ${unknownErrorText(error)}`,
+    );
   } finally {
     closeLocalFfmpegRuntime(runtime);
   }
@@ -886,9 +995,7 @@ export function VideoLabClient() {
     } catch (compatibilityError) {
       compatibilityAttemptRef.current = false;
       setError(
-        compatibilityError instanceof Error
-          ? compatibilityError.message
-          : "Não foi possível ler esta gravação com o modo compatibilidade.",
+        `Não foi possível ler esta gravação com o modo compatibilidade. ${unknownErrorText(compatibilityError)}`,
       );
       setStatus(
         "Formato não reconhecido automaticamente. O arquivo original não foi enviado.",
