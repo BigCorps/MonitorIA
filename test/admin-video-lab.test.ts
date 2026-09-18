@@ -39,8 +39,12 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
 
   assert.equal(packageJson.dependencies?.["@ffmpeg/ffmpeg"], "^0.12.15");
   assert.match(client, /import\("@ffmpeg\/ffmpeg"\)/);
-  assert.match(client, /WORKERFS/);
-  assert.match(client, /libx264/);
+  assert.match(client, /FFFSType\.WORKERFS/);
+  assert.match(client, /scanCompatibilityVideo/);
+  assert.match(client, /extractCompatibilityFrames/);
+  assert.match(client, /rawvideo/);
+  assert.match(client, /format=gray/);
+  assert.doesNotMatch(client, /monitoria-proxy\.mp4/);
   assert.match(client, /compatibilidade local/i);
   assert.match(client, /\.mkv/);
   assert.match(client, /\.h265/);
