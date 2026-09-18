@@ -23,7 +23,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^3.25.76",
-    "zod-v4": "npm:zod@4.4.3"
+    "zod-v4": "npm:zod@4.4.3",
+    "@ffmpeg/ffmpeg": "^0.12.15"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

@@ -12,7 +12,9 @@ test("Vídeo Lab fica restrito ao operador interno e não envia o vídeo inteiro
 
   assert.match(page, /requireInternalOperator\(\)/);
   assert.match(route, /requireInternalOperator\(\)/);
-  assert.match(client, /URL\.createObjectURL\(file\)/);
+  assert.match(client, /URL\.createObjectURL\(/);
+  assert.match(client, /FFFSType\.WORKERFS/);
+  assert.match(client, /files:\s*\[sourceFile\]/);
   assert.match(client, /canvas\.toDataURL\("image\/jpeg"/);
   assert.doesNotMatch(route, /storage\./);
   assert.doesNotMatch(route, /formData\(\)/);
@@ -28,4 +30,19 @@ test("Vídeo Lab limita o POC a uma hora e reaproveita a visão do MonitorIA", (
   assert.match(route, /analyzeEvent/);
   assert.match(shell, /video-lab/);
   assert.match(shell, /Vídeo Lab/);
+});
+
+
+test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+  const packageJson = JSON.parse(read("package.json"));
+
+  assert.equal(packageJson.dependencies?.["@ffmpeg/ffmpeg"], "^0.12.15");
+  assert.match(client, /import\("@ffmpeg\/ffmpeg"\)/);
+  assert.match(client, /WORKERFS/);
+  assert.match(client, /libx264/);
+  assert.match(client, /compatibilidade local/i);
+  assert.match(client, /\.mkv/);
+  assert.match(client, /\.h265/);
+  assert.doesNotMatch(client, /fetch\([^)]*selectedFile/);
 });

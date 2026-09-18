@@ -7,8 +7,13 @@ const MAX_VIDEO_SECONDS = 60 * 60;
 const DETECTION_WIDTH = 160;
 const JPEG_MAX_WIDTH = 640;
 const MAX_CANDIDATES_SHOWN = 60;
+const FFMPEG_CORE_BASE_URL =
+  "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+const COMPATIBILITY_PREVIEW_FPS = 1;
+const COMPATIBILITY_MAX_WIDTH = 640;
 
 type ScanMode = "fast" | "balanced" | "detailed";
+type DecoderMode = "native" | "compatibility";
 
 type Candidate = {
   id: string;
@@ -247,6 +252,176 @@ async function captureJpeg(
   return canvas.toDataURL("image/jpeg", 0.68);
 }
 
+
+
+type CompatibilityProxy = {
+  url: string;
+  codec: string | null;
+  duration: number | null;
+};
+
+function fileExtension(name: string) {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+async function remoteAssetAsBlobUrl(url: string, mimeType: string) {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) {
+    throw new Error(`Não foi possível carregar o decodificador local (HTTP ${response.status}).`);
+  }
+  const bytes = await response.arrayBuffer();
+  return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+}
+
+function fileDataText(value: string | Uint8Array) {
+  return typeof value === "string" ? value : new TextDecoder().decode(value);
+}
+
+async function createCompatibilityProxy(
+  sourceFile: File,
+  onStage: (message: string) => void,
+  onProgress: (percent: number) => void,
+): Promise<CompatibilityProxy> {
+  onStage("Carregando compatibilidade local de vídeo...");
+
+  const { FFmpeg, FFFSType } = await import("@ffmpeg/ffmpeg");
+  const ffmpeg = new FFmpeg();
+  const temporaryUrls: string[] = [];
+
+  ffmpeg.on("progress", ({ progress }) => {
+    if (!Number.isFinite(progress)) return;
+    onProgress(clamp(Math.round(progress * 100), 0, 99));
+  });
+
+  try {
+    const coreURL = await remoteAssetAsBlobUrl(
+      `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.js`,
+      "text/javascript",
+    );
+    const wasmURL = await remoteAssetAsBlobUrl(
+      `${FFMPEG_CORE_BASE_URL}/ffmpeg-core.wasm`,
+      "application/wasm",
+    );
+    temporaryUrls.push(coreURL, wasmURL);
+
+    await ffmpeg.load({ coreURL, wasmURL });
+    onStage("Identificando codec e duração sem enviar o arquivo...");
+
+    await ffmpeg.createDir("/monitoria-input").catch(() => undefined);
+    const mounted = await ffmpeg.mount(
+      FFFSType.WORKERFS,
+      { files: [sourceFile] },
+      "/monitoria-input",
+    );
+    if (!mounted) {
+      throw new Error("O navegador não conseguiu montar o arquivo para leitura local.");
+    }
+
+    const inputPath = `/monitoria-input/${sourceFile.name}`;
+    const probePath = "/monitoria-probe.json";
+    let duration: number | null = null;
+    let codec: string | null = null;
+
+    try {
+      const probeCode = await ffmpeg.ffprobe([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,width,height,duration:format=duration",
+        "-of",
+        "json",
+        "-o",
+        probePath,
+        inputPath,
+      ]);
+
+      if (probeCode === 0) {
+        const rawProbe = await ffmpeg.readFile(probePath, "utf8");
+        const probe = JSON.parse(fileDataText(rawProbe)) as {
+          streams?: Array<{ codec_name?: string; duration?: string }>;
+          format?: { duration?: string };
+        };
+        codec = probe.streams?.[0]?.codec_name ?? null;
+        const parsedDuration = Number(
+          probe.format?.duration ?? probe.streams?.[0]?.duration ?? 0,
+        );
+        duration = Number.isFinite(parsedDuration) && parsedDuration > 0
+          ? parsedDuration
+          : null;
+      }
+    } catch {
+      // Alguns formatos brutos/proprietários não oferecem metadados completos.
+      // Ainda tentamos decodificar; o limite de 1h é conferido de novo no proxy.
+    }
+
+    if (duration && duration > MAX_VIDEO_SECONDS + 0.5) {
+      throw new Error(
+        `Este POC aceita até 1 hora. O arquivo possui ${formatDuration(duration)}.`,
+      );
+    }
+
+    const ext = fileExtension(sourceFile.name);
+    onStage(
+      `Formato ${ext ? ext.toUpperCase() : "de vídeo"}${codec ? ` / ${codec.toUpperCase()}` : ""} detectado. Criando uma prévia leve e compatível localmente...`,
+    );
+    onProgress(1);
+
+    const outputPath = "/monitoria-proxy.mp4";
+    const transcodeCode = await ffmpeg.exec([
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      inputPath,
+      "-map",
+      "0:v:0",
+      "-vf",
+      `fps=${COMPATIBILITY_PREVIEW_FPS},scale=w='min(${COMPATIBILITY_MAX_WIDTH},iw)':h=-2:flags=fast_bilinear`,
+      "-an",
+      "-sn",
+      "-dn",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "30",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      outputPath,
+    ]);
+
+    if (transcodeCode !== 0) {
+      throw new Error(
+        "O arquivo foi reconhecido, mas este codec não pôde ser convertido localmente.",
+      );
+    }
+
+    const output = await ffmpeg.readFile(outputPath);
+    if (typeof output === "string" || !output.byteLength) {
+      throw new Error("A conversão local terminou sem gerar uma prévia válida.");
+    }
+
+    // Faz uma cópia em ArrayBuffer próprio antes de encerrar o worker WASM.
+    const copy = new Uint8Array(output.byteLength);
+    copy.set(output);
+    const proxyUrl = URL.createObjectURL(
+      new Blob([copy.buffer], { type: "video/mp4" }),
+    );
+    onProgress(100);
+
+    return { url: proxyUrl, codec, duration };
+  } finally {
+    ffmpeg.terminate();
+    for (const url of temporaryUrls) URL.revokeObjectURL(url);
+  }
+}
+
 function resultTitle(response: AnalysisResponse) {
   return String(
     response.event?.headline ||
@@ -261,8 +436,14 @@ export function VideoLabClient() {
   const detectionCanvasRef = useRef<HTMLCanvasElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const proxyUrlRef = useRef<string | null>(null);
+  const fileRef = useRef<File | null>(null);
+  const compatibilityAttemptRef = useRef(false);
 
   const [file, setFile] = useState<File | null>(null);
+  const [decoderMode, setDecoderMode] = useState<DecoderMode | null>(null);
+  const [sourceCodec, setSourceCodec] = useState<string | null>(null);
+  const [preparingCompatibility, setPreparingCompatibility] = useState(false);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [startLocal, setStartLocal] = useState("");
   const [mode, setMode] = useState<ScanMode>("balanced");
@@ -290,6 +471,7 @@ export function VideoLabClient() {
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      if (proxyUrlRef.current) URL.revokeObjectURL(proxyUrlRef.current);
     };
   }, []);
 
@@ -302,12 +484,21 @@ export function VideoLabClient() {
 
   function onSelectFile(nextFile: File | null) {
     clearRunState();
+    fileRef.current = nextFile;
+    compatibilityAttemptRef.current = false;
     setFile(nextFile);
     setVideoInfo(null);
+    setDecoderMode(null);
+    setSourceCodec(null);
+    setPreparingCompatibility(false);
 
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
+    }
+    if (proxyUrlRef.current) {
+      URL.revokeObjectURL(proxyUrlRef.current);
+      proxyUrlRef.current = null;
     }
 
     const video = videoRef.current;
@@ -320,16 +511,11 @@ export function VideoLabClient() {
       return;
     }
 
-    if (!nextFile.type.startsWith("video/")) {
-      setError("Selecione um arquivo de vídeo reconhecido pelo navegador.");
-      return;
-    }
-
     const objectUrl = URL.createObjectURL(nextFile);
     objectUrlRef.current = objectUrl;
     video.src = objectUrl;
     video.load();
-    setStatus("Lendo informações do arquivo local...");
+    setStatus("Identificando formato e codec localmente...");
   }
 
   function onMetadataLoaded() {
@@ -349,7 +535,9 @@ export function VideoLabClient() {
       return;
     }
 
+    const compatibility = compatibilityAttemptRef.current;
     setError(null);
+    setDecoderMode(compatibility ? "compatibility" : "native");
     setVideoInfo({
       duration: video.duration,
       width: video.videoWidth,
@@ -358,14 +546,73 @@ export function VideoLabClient() {
       name: file.name,
     });
     setStartLocal(defaultStartLocal(video.duration));
-    setStatus("Arquivo pronto. O vídeo ainda não saiu deste dispositivo.");
+    setProgress(compatibility ? 100 : 0);
+    setStatus(
+      compatibility
+        ? `Arquivo preparado em modo compatibilidade local${sourceCodec ? ` (${sourceCodec.toUpperCase()})` : ""}. O original não saiu deste dispositivo.`
+        : "Arquivo pronto. O vídeo ainda não saiu deste dispositivo.",
+    );
   }
 
-  function onVideoError() {
-    setError(
-      "O navegador não conseguiu abrir esta gravação. Para o POC, prefira MP4/H.264 ou WebM.",
+  async function onVideoError() {
+    const selectedFile = fileRef.current;
+    const video = videoRef.current;
+    if (!selectedFile || !video) return;
+
+    if (compatibilityAttemptRef.current) {
+      setError(
+        "A prévia compatível foi gerada, mas este navegador ainda não conseguiu abri-la.",
+      );
+      setStatus("Não foi possível preparar esta gravação neste navegador.");
+      return;
+    }
+
+    compatibilityAttemptRef.current = true;
+    setPreparingCompatibility(true);
+    setError(null);
+    setVideoInfo(null);
+    setProgress(0);
+    setStatus(
+      "O navegador não abriu o codec original. Ativando compatibilidade local automaticamente...",
     );
-    setStatus("Formato ou codec não suportado pelo navegador.");
+
+    try {
+      const proxy = await createCompatibilityProxy(
+        selectedFile,
+        (message) => setStatus(message),
+        (percent) => setProgress(percent),
+      );
+
+      if (fileRef.current !== selectedFile) {
+        URL.revokeObjectURL(proxy.url);
+        return;
+      }
+
+      setSourceCodec(proxy.codec);
+      setDecoderMode("compatibility");
+
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+      if (proxyUrlRef.current) URL.revokeObjectURL(proxyUrlRef.current);
+      proxyUrlRef.current = proxy.url;
+      video.src = proxy.url;
+      video.load();
+      setStatus("Prévia compatível pronta. Finalizando leitura local...");
+    } catch (compatibilityError) {
+      compatibilityAttemptRef.current = false;
+      setError(
+        compatibilityError instanceof Error
+          ? compatibilityError.message
+          : "Não foi possível abrir esta gravação nem com o modo compatibilidade.",
+      );
+      setStatus(
+        "Formato não reconhecido automaticamente. O arquivo original não foi enviado.",
+      );
+    } finally {
+      setPreparingCompatibility(false);
+    }
   }
 
   async function scanVideo() {
@@ -708,12 +955,12 @@ export function VideoLabClient() {
         <label className={styles.dropzone}>
           <input
             type="file"
-            accept="video/mp4,video/webm,video/quicktime,video/*"
-            disabled={scanning || analyzing}
+            accept="video/*,.mp4,.mov,.mkv,.avi,.webm,.m4v,.ts,.mts,.m2ts,.mpg,.mpeg,.3gp,.3g2,.ogv,.dav,.264,.h264,.265,.h265"
+            disabled={scanning || analyzing || preparingCompatibility}
             onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
           />
           <strong>{file ? file.name : "Selecionar vídeo"}</strong>
-          <span>MP4/H.264 ou WebM são os formatos mais seguros para este POC.</span>
+          <span>MP4, MOV, MKV, AVI, WebM, MTS/M2TS, MPEG, 3GP e outros. Se o navegador não abrir, o MonitorIA tenta compatibilidade local automaticamente.</span>
         </label>
 
         <video
@@ -733,6 +980,7 @@ export function VideoLabClient() {
             <div><span>Resolução</span><strong>{videoInfo.width}×{videoInfo.height}</strong></div>
             <div><span>Arquivo original</span><strong>{formatBytes(videoInfo.size)}</strong></div>
             <div><span>Upload original</span><strong className={styles.good}>0 B</strong></div>
+            <div><span>Leitura</span><strong>{decoderMode === "compatibility" ? "Compatibilidade local" : "Nativa"}</strong></div>
           </div>
         ) : null}
       </section>
@@ -826,7 +1074,7 @@ export function VideoLabClient() {
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={!videoInfo || scanning || analyzing || Boolean(error)}
+            disabled={!videoInfo || scanning || analyzing || preparingCompatibility || Boolean(error)}
             onClick={scanVideo}
           >
             {scanning ? "Mapeando..." : "Mapear acontecimentos localmente"}
