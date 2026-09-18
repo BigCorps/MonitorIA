@@ -7,7 +7,6 @@ export type AdminSectionKey =
   | "customers"
   | "finance"
   | "ai"
-  | "video-lab"
   | "operations"
   | "infrastructure"
   | "attention"
@@ -28,7 +27,6 @@ const NAV: Array<{
   { key: "customers", label: "Clientes", href: "/dashboard/admin/customers", icon: "◎" },
   { key: "finance", label: "Financeiro", href: "/dashboard/admin/finance", icon: "R$" },
   { key: "ai", label: "IA & custos", href: "/dashboard/admin/ai", icon: "✦" },
-  { key: "video-lab", label: "Vídeo Lab", href: "/dashboard/admin/video-lab", icon: "▶" },
   { key: "operations", label: "Operação", href: "/dashboard/admin/operations", icon: "◉" },
   { key: "infrastructure", label: "Infraestrutura", href: "/dashboard/admin/infrastructure", icon: "⌘" },
   { key: "attention", label: "Atenção", href: "/dashboard/admin/attention", icon: "!" },
