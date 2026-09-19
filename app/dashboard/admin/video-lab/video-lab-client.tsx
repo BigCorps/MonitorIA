@@ -63,6 +63,7 @@ type AnalysisItem = {
 
 type VideoInfo = {
   duration: number;
+  durationKnown: boolean;
   width: number;
   height: number;
   size: number;
@@ -255,9 +256,14 @@ async function captureJpeg(
 
 type CompatibilityInfo = {
   codec: string | null;
-  duration: number;
-  width: number;
-  height: number;
+  duration: number | null;
+  width: number | null;
+  height: number | null;
+};
+
+type CompatibilityScanResult = {
+  candidates: Candidate[];
+  inferredDuration: number;
 };
 
 function fileExtension(name: string) {
@@ -453,7 +459,7 @@ async function inspectCompatibilityVideo(
 
   try {
     onStage(
-      `Identificando codec, duração e resolução localmente (${runtime.inputMode === "workerfs" ? "arquivo montado" : "memória local"})...`,
+      `Identificando codec e metadados localmente (${runtime.inputMode === "workerfs" ? "arquivo montado" : "memória local"})...`,
     );
 
     const probePath = "/monitoria-probe.json";
@@ -473,6 +479,10 @@ async function inspectCompatibilityVideo(
       const probeCode = await runtime.ffmpeg.ffprobe([
         "-v",
         "error",
+        "-probesize",
+        "100M",
+        "-analyzeduration",
+        "100M",
         "-select_streams",
         "v:0",
         "-show_entries",
@@ -492,25 +502,31 @@ async function inspectCompatibilityVideo(
       probe = null;
     }
 
-    let stream = probe?.streams?.[0];
-    let duration = Number(
+    const stream = probe?.streams?.[0];
+    let durationValue = Number(
       probe?.format?.duration ?? stream?.duration ?? 0,
     );
-    let width = Number(stream?.width ?? 0);
-    let height = Number(stream?.height ?? 0);
+    let widthValue = Number(stream?.width ?? 0);
+    let heightValue = Number(stream?.height ?? 0);
     let codec = stream?.codec_name ?? null;
 
     if (
-      !Number.isFinite(duration) ||
-      duration <= 0 ||
-      !Number.isFinite(width) ||
-      width <= 0 ||
-      !Number.isFinite(height) ||
-      height <= 0
+      !Number.isFinite(durationValue) ||
+      durationValue <= 0 ||
+      !Number.isFinite(widthValue) ||
+      widthValue <= 0 ||
+      !Number.isFinite(heightValue) ||
+      heightValue <= 0
     ) {
       runtime.logs.length = 0;
       await runtime.ffmpeg.exec([
         "-hide_banner",
+        "-probesize",
+        "100M",
+        "-analyzeduration",
+        "100M",
+        "-err_detect",
+        "ignore_err",
         "-i",
         runtime.inputPath,
       ]).catch(() => undefined);
@@ -520,54 +536,43 @@ async function inspectCompatibilityVideo(
         /Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/i,
       );
       if (durationMatch) {
-        duration =
+        durationValue =
           Number(durationMatch[1]) * 3600 +
           Number(durationMatch[2]) * 60 +
           Number(durationMatch[3]);
       }
 
       const videoLine =
-        text
-          .split("\n")
-          .find((line) => /Video:/i.test(line)) ?? "";
+        text.split("\n").find((line) => /Video:/i.test(line)) ?? "";
 
       const sizeMatch = videoLine.match(/(\d{2,5})x(\d{2,5})/);
       if (sizeMatch) {
-        width = Number(sizeMatch[1]);
-        height = Number(sizeMatch[2]);
+        widthValue = Number(sizeMatch[1]);
+        heightValue = Number(sizeMatch[2]);
       }
 
       const codecMatch = videoLine.match(/Video:\s*([^,\s]+)/i);
       if (codecMatch) codec = codecMatch[1].toLowerCase();
+
+      if (!codec && /\[hevc\s*@|Video:\s*hevc/i.test(text)) {
+        codec = "hevc";
+      }
     }
 
-    if (!Number.isFinite(duration) || duration <= 0) {
-      const tail = runtime.logs.slice(-8).join(" | ");
-      throw new Error(
-        `FFmpeg abriu o arquivo, mas não determinou a duração.` +
-        (tail ? ` Log: ${tail}` : ""),
-      );
-    }
+    const duration =
+      Number.isFinite(durationValue) && durationValue > 0
+        ? durationValue
+        : null;
+    const width =
+      Number.isFinite(widthValue) && widthValue > 0
+        ? widthValue
+        : null;
+    const height =
+      Number.isFinite(heightValue) && heightValue > 0
+        ? heightValue
+        : null;
 
-    if (
-      !Number.isFinite(width) ||
-      width <= 0 ||
-      !Number.isFinite(height) ||
-      height <= 0
-    ) {
-      const tail = runtime.logs.slice(-8).join(" | ");
-      throw new Error(
-        `FFmpeg abriu o arquivo, mas não determinou a resolução.` +
-        (tail ? ` Log: ${tail}` : ""),
-      );
-    }
-
-    return {
-      codec,
-      duration,
-      width,
-      height,
-    };
+    return { codec, duration, width, height };
   } catch (error) {
     throw new Error(
       `Falha ao inspecionar a gravação: ${unknownErrorText(error)}`,
@@ -611,7 +616,7 @@ async function scanCompatibilityVideo(
   threshold: number,
   onStage: (message: string) => void,
   onProgress: (percent: number) => void,
-): Promise<Candidate[]> {
+): Promise<CompatibilityScanResult> {
   const runtime = await createLocalFfmpegRuntime(
     sourceFile,
     onStage,
@@ -619,22 +624,30 @@ async function scanCompatibilityVideo(
   );
 
   try {
-    const scanHeight = Math.max(
-      COMPATIBILITY_SCAN_MIN_HEIGHT,
-      Math.round(DETECTION_WIDTH * (videoInfo.height / videoInfo.width)),
-    );
+    const scanHeight = 90;
     const outputPath = "/monitoria-scan.raw";
 
     onStage(
-      `Decodificando somente miniaturas locais a cada ${interval}s. Nenhum vídeo será reenviado.`,
+      `Decodificando miniaturas locais a cada ${interval}s. Frames HEVC inválidos no início serão ignorados.`,
     );
 
+    runtime.logs.length = 0;
     const code = await runtime.ffmpeg.exec([
       "-hide_banner",
       "-loglevel",
-      "error",
+      "warning",
+      "-probesize",
+      "100M",
+      "-analyzeduration",
+      "100M",
+      "-fflags",
+      "+genpts+discardcorrupt",
+      "-err_detect",
+      "ignore_err",
       "-i",
       runtime.inputPath,
+      "-t",
+      String(MAX_VIDEO_SECONDS),
       "-map",
       "0:v:0",
       "-vf",
@@ -649,16 +662,18 @@ async function scanCompatibilityVideo(
       outputPath,
     ]);
 
-    if (code !== 0) {
-      throw new Error(
-        `O codec ${fileExtension(sourceFile.name).toUpperCase() || "do arquivo"} foi identificado, mas não pôde ser decodificado localmente.`,
-      );
+    let raw: string | Uint8Array | null = null;
+    try {
+      raw = await runtime.ffmpeg.readFile(outputPath);
+    } catch {
+      raw = null;
     }
 
-    const raw = await runtime.ffmpeg.readFile(outputPath);
-    if (typeof raw === "string" || !raw.byteLength) {
+    if (!raw || typeof raw === "string" || raw.byteLength === 0) {
+      const tail = runtime.logs.slice(-12).join(" | ");
       throw new Error(
-        "A leitura local terminou sem gerar miniaturas para análise.",
+        `O arquivo não gerou miniaturas decodificáveis.` +
+        (tail ? ` Log: ${tail}` : ` Código FFmpeg: ${code}`),
       );
     }
 
@@ -666,9 +681,14 @@ async function scanCompatibilityVideo(
     const frameCount = Math.floor(raw.byteLength / frameSize);
     if (frameCount < 2) {
       throw new Error(
-        "Foram obtidos poucos quadros para mapear acontecimentos.",
+        "Foram obtidos poucos quadros válidos para mapear acontecimentos.",
       );
     }
+
+    const inferredDuration = Math.min(
+      MAX_VIDEO_SECONDS,
+      Math.max(interval, frameCount * interval),
+    );
 
     let previous: Uint8Array | null = null;
     let open:
@@ -687,7 +707,7 @@ async function scanCompatibilityVideo(
     for (let index = 0; index < frameCount; index += 1) {
       const offset = index * frameSize;
       const current = raw.subarray(offset, offset + frameSize);
-      const time = Math.min(videoInfo.duration, index * interval);
+      const time = Math.min(inferredDuration, index * interval);
 
       if (previous) {
         const score = changeScore(previous, current);
@@ -725,7 +745,7 @@ async function scanCompatibilityVideo(
                   open,
                   found.length,
                   interval,
-                  videoInfo.duration,
+                  inferredDuration,
                 ),
               );
             }
@@ -737,6 +757,7 @@ async function scanCompatibilityVideo(
       previous = new Uint8Array(current);
       if (index % 24 === 0) {
         const percent = Math.round(((index + 1) / frameCount) * 100);
+        onProgress(percent);
         onStage(
           `Mapeando miniaturas locais · ${percent}% · ${found.length}${open ? "+" : ""} candidatos`,
         );
@@ -752,19 +773,22 @@ async function scanCompatibilityVideo(
           open,
           found.length,
           interval,
-          videoInfo.duration,
+          inferredDuration,
         ),
       );
     }
 
-    return found
-      .filter(
-        (item) =>
-          item.endedAtSeconds > item.startedAtSeconds &&
-          Number.isFinite(item.peakScore),
-      )
-      .sort((left, right) => left.startedAtSeconds - right.startedAtSeconds)
-      .slice(0, MAX_CANDIDATES_SHOWN);
+    return {
+      inferredDuration,
+      candidates: found
+        .filter(
+          (item) =>
+            item.endedAtSeconds > item.startedAtSeconds &&
+            Number.isFinite(item.peakScore),
+        )
+        .sort((left, right) => left.startedAtSeconds - right.startedAtSeconds)
+        .slice(0, MAX_CANDIDATES_SHOWN),
+    };
   } finally {
     closeLocalFfmpegRuntime(runtime);
   }
@@ -820,11 +844,19 @@ async function extractCompatibilityFrames(
       const code = await runtime.ffmpeg.exec([
         "-hide_banner",
         "-loglevel",
-        "error",
-        "-ss",
-        Math.max(0, point.seconds).toFixed(3),
+        "warning",
+        "-probesize",
+        "100M",
+        "-analyzeduration",
+        "100M",
+        "-fflags",
+        "+genpts+discardcorrupt",
+        "-err_detect",
+        "ignore_err",
         "-i",
         runtime.inputPath,
+        "-ss",
+        Math.max(0, point.seconds).toFixed(3),
         "-map",
         "0:v:0",
         "-frames:v",
@@ -977,6 +1009,7 @@ export function VideoLabClient() {
     setDecoderMode(compatibility ? "compatibility" : "native");
     setVideoInfo({
       duration: video.duration,
+      durationKnown: true,
       width: video.videoWidth,
       height: video.videoHeight,
       size: file.size,
@@ -1015,7 +1048,7 @@ export function VideoLabClient() {
 
       if (fileRef.current !== selectedFile) return;
 
-      if (info.duration > MAX_VIDEO_SECONDS + 0.5) {
+      if (info.duration && info.duration > MAX_VIDEO_SECONDS + 0.5) {
         throw new Error(
           `Este POC aceita até 1 hora. O arquivo possui ${formatDuration(info.duration)}.`,
         );
@@ -1024,13 +1057,16 @@ export function VideoLabClient() {
       setSourceCodec(info.codec);
       setDecoderMode("compatibility");
       setVideoInfo({
-        duration: info.duration,
-        width: info.width,
-        height: info.height,
+        duration: info.duration ?? MAX_VIDEO_SECONDS,
+        durationKnown: Boolean(info.duration),
+        width: info.width ?? 0,
+        height: info.height ?? 0,
         size: selectedFile.size,
         name: selectedFile.name,
       });
-      setStartLocal(defaultStartLocal(info.duration));
+      setStartLocal(
+        info.duration ? defaultStartLocal(info.duration) : "",
+      );
       setProgress(0);
 
       if (objectUrlRef.current) {
@@ -1041,7 +1077,9 @@ export function VideoLabClient() {
       video.load();
 
       setStatus(
-        `${info.codec ? info.codec.toUpperCase() : "Codec"} detectado. O navegador não precisa reproduzir o vídeo: o MonitorIA vai extrair miniaturas diretamente do arquivo local.`,
+        info.duration
+          ? `${info.codec ? info.codec.toUpperCase() : "Codec"} detectado. O navegador não precisa reproduzir o vídeo: o MonitorIA vai extrair miniaturas diretamente do arquivo local.`
+          : `${info.codec ? info.codec.toUpperCase() : "Stream de câmera"} detectado sem duração de container. Isso é comum em alguns exports de DVR; a duração será inferida durante o mapeamento e o POC limitará a leitura à primeira hora.`,
       );
     } catch (compatibilityError) {
       compatibilityAttemptRef.current = false;
@@ -1072,7 +1110,7 @@ export function VideoLabClient() {
 
       try {
         const interval = modeConfig[mode].interval;
-        const found = await scanCompatibilityVideo(
+        const result = await scanCompatibilityVideo(
           selectedFile,
           videoInfo,
           interval,
@@ -1081,12 +1119,24 @@ export function VideoLabClient() {
           (percent) => setProgress(percent),
         );
 
-        setCandidates(found);
+        setVideoInfo((current) =>
+          current
+            ? {
+                ...current,
+                duration: result.inferredDuration,
+                durationKnown: true,
+              }
+            : current,
+        );
+        setStartLocal((current) =>
+          current || defaultStartLocal(result.inferredDuration),
+        );
+        setCandidates(result.candidates);
         setProgress(100);
         setStatus(
-          found.length
-            ? `${found.length} possíveis acontecimentos encontrados diretamente no arquivo ${sourceCodec ? sourceCodec.toUpperCase() : "compatível"}. O vídeo original continua local.`
-            : "Nenhuma mudança acima do limiar foi encontrada. Tente aumentar a sensibilidade.",
+          result.candidates.length
+            ? `${result.candidates.length} possíveis acontecimentos encontrados diretamente no arquivo ${sourceCodec ? sourceCodec.toUpperCase() : "compatível"} · duração inferida ${formatDuration(result.inferredDuration)} · vídeo original continua local.`
+            : `Nenhuma mudança acima do limiar foi encontrada em ${formatDuration(result.inferredDuration)} de vídeo decodificado. Tente aumentar a sensibilidade.`,
         );
       } catch (scanError) {
         setError(
@@ -1472,8 +1522,22 @@ export function VideoLabClient() {
 
         {videoInfo ? (
           <div className={styles.fileMetrics}>
-            <div><span>Duração</span><strong>{formatDuration(videoInfo.duration)}</strong></div>
-            <div><span>Resolução</span><strong>{videoInfo.width}×{videoInfo.height}</strong></div>
+            <div>
+              <span>Duração</span>
+              <strong>
+                {videoInfo.durationKnown
+                  ? formatDuration(videoInfo.duration)
+                  : "a inferir no mapeamento"}
+              </strong>
+            </div>
+            <div>
+              <span>Resolução</span>
+              <strong>
+                {videoInfo.width > 0 && videoInfo.height > 0
+                  ? `${videoInfo.width}×${videoInfo.height}`
+                  : "não informada pelo arquivo"}
+              </strong>
+            </div>
             <div><span>Arquivo original</span><strong>{formatBytes(videoInfo.size)}</strong></div>
             <div><span>Upload original</span><strong className={styles.good}>0 B</strong></div>
             <div><span>Leitura</span><strong>{decoderMode === "compatibility" ? "Compatibilidade local" : "Nativa"}</strong></div>

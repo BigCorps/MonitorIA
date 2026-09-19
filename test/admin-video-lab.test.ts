@@ -87,3 +87,19 @@ test("Vídeo Lab carrega ffmpeg.wasm fora do bundle do Turbopack", () => {
   assert.match(vendor, /vendor/);
   assert.match(vendor, /ffmpeg/);
 });
+
+test("Vídeo Lab tolera HEVC de câmera sem duração/VPS/SPS inicial", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+
+  assert.match(client, /durationKnown/);
+  assert.match(client, /duração será inferida durante o mapeamento/);
+  assert.match(client, /\+genpts\+discardcorrupt/);
+  assert.match(client, /ignore_err/);
+  assert.match(client, /String\(MAX_VIDEO_SECONDS\)/);
+  assert.match(client, /const scanHeight = 90/);
+  assert.match(client, /inferredDuration/);
+  assert.doesNotMatch(
+    client,
+    /FFmpeg abriu o arquivo, mas não determinou a duração/,
+  );
+});
