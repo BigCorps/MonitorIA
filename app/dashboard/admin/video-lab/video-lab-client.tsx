@@ -5,6 +5,8 @@ import styles from "./video-lab.module.css";
 
 const MAX_VIDEO_SECONDS = 60 * 60;
 const DETECTION_WIDTH = 160;
+const COMPATIBILITY_EVIDENCE_WIDTH = 320;
+const COMPATIBILITY_EVIDENCE_HEIGHT = 180;
 const JPEG_MAX_WIDTH = 640;
 const MAX_CANDIDATES_SHOWN = 60;
 const FFMPEG_CORE_BASE_URL =
@@ -270,9 +272,17 @@ type CompatibilityInfo = {
   height: number | null;
 };
 
+type CompatibilityEvidenceFrame = {
+  label: FrameLabel;
+  seconds: number;
+  imageUrl: string;
+};
+
 type CompatibilityScanResult = {
   candidates: Candidate[];
   inferredDuration: number;
+  evidenceByCandidate: Map<string, CompatibilityEvidenceFrame[]>;
+  evidencePreparationMs: number;
 };
 
 function fileExtension(name: string) {
@@ -591,6 +601,59 @@ async function inspectCompatibilityVideo(
   }
 }
 
+function downsampleGrayFrame(
+  source: Uint8Array,
+  sourceWidth: number,
+  sourceHeight: number,
+) {
+  const targetHeight = Math.max(
+    COMPATIBILITY_SCAN_MIN_HEIGHT,
+    Math.round(DETECTION_WIDTH * (sourceHeight / sourceWidth)),
+  );
+  const result = new Uint8Array(DETECTION_WIDTH * targetHeight);
+
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sourceY = Math.min(
+      sourceHeight - 1,
+      Math.floor((y / targetHeight) * sourceHeight),
+    );
+    for (let x = 0; x < DETECTION_WIDTH; x += 1) {
+      const sourceX = Math.min(
+        sourceWidth - 1,
+        Math.floor((x / DETECTION_WIDTH) * sourceWidth),
+      );
+      result[y * DETECTION_WIDTH + x] =
+        source[sourceY * sourceWidth + sourceX]!;
+    }
+  }
+
+  return result;
+}
+
+function grayFrameToJpeg(
+  frame: Uint8Array,
+  width: number,
+  height: number,
+  canvas: HTMLCanvasElement,
+) {
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) throw new Error("Canvas indisponível neste navegador.");
+
+  const image = context.createImageData(width, height);
+  for (let index = 0; index < frame.length; index += 1) {
+    const value = frame[index]!;
+    const target = index * 4;
+    image.data[target] = value;
+    image.data[target + 1] = value;
+    image.data[target + 2] = value;
+    image.data[target + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
+
 function candidateFromOpen(
   open: {
     startedAtSeconds: number;
@@ -633,11 +696,12 @@ async function scanCompatibilityVideo(
   );
 
   try {
-    const scanHeight = 90;
-    const outputPath = "/monitoria-scan.raw";
+    const scanWidth = COMPATIBILITY_EVIDENCE_WIDTH;
+    const scanHeight = COMPATIBILITY_EVIDENCE_HEIGHT;
+    const outputPath = "/monitoria-scan-evidence.raw";
 
     onStage(
-      `Decodificando miniaturas locais a cada ${interval}s. Frames HEVC inválidos no início serão ignorados.`,
+      `Decodificando amostras locais de ${scanWidth}×${scanHeight} a cada ${interval}s. A mesma passagem será usada para movimento e evidência da IA.`,
     );
 
     runtime.logs.length = 0;
@@ -660,7 +724,7 @@ async function scanCompatibilityVideo(
       "-map",
       "0:v:0",
       "-vf",
-      `fps=1/${interval},scale=${DETECTION_WIDTH}:${scanHeight}:flags=fast_bilinear,format=gray`,
+      `fps=1/${interval},scale=${scanWidth}:${scanHeight}:flags=fast_bilinear,format=gray`,
       "-an",
       "-sn",
       "-dn",
@@ -681,12 +745,12 @@ async function scanCompatibilityVideo(
     if (!raw || typeof raw === "string" || raw.byteLength === 0) {
       const tail = runtime.logs.slice(-12).join(" | ");
       throw new Error(
-        `O arquivo não gerou miniaturas decodificáveis.` +
+        `O arquivo não gerou amostras decodificáveis.` +
         (tail ? ` Log: ${tail}` : ` Código FFmpeg: ${code}`),
       );
     }
 
-    const frameSize = DETECTION_WIDTH * scanHeight;
+    const frameSize = scanWidth * scanHeight;
     const frameCount = Math.floor(raw.byteLength / frameSize);
     if (frameCount < 2) {
       throw new Error(
@@ -715,7 +779,12 @@ async function scanCompatibilityVideo(
 
     for (let index = 0; index < frameCount; index += 1) {
       const offset = index * frameSize;
-      const current = raw.subarray(offset, offset + frameSize);
+      const fullFrame = raw.subarray(offset, offset + frameSize);
+      const current = downsampleGrayFrame(
+        fullFrame,
+        scanWidth,
+        scanHeight,
+      );
       const time = Math.min(inferredDuration, index * interval);
 
       if (previous) {
@@ -746,8 +815,7 @@ async function scanCompatibilityVideo(
         } else if (open) {
           open.quietSamples += 1;
           if (open.quietSamples >= 2) {
-            const duration =
-              open.endedAtSeconds - open.startedAtSeconds;
+            const duration = open.endedAtSeconds - open.startedAtSeconds;
             if (duration >= interval * 0.5) {
               found.push(
                 candidateFromOpen(
@@ -763,16 +831,14 @@ async function scanCompatibilityVideo(
         }
       }
 
-      previous = new Uint8Array(current);
+      previous = current;
       if (index % 24 === 0) {
-        const percent = Math.round(((index + 1) / frameCount) * 100);
+        const percent = Math.round(((index + 1) / frameCount) * 92);
         onProgress(percent);
         onStage(
-          `Mapeando miniaturas locais · ${percent}% · ${found.length}${open ? "+" : ""} candidatos`,
+          `Mapeando amostras locais · ${percent}% · ${found.length}${open ? "+" : ""} candidatos`,
         );
-        await new Promise<void>((resolve) =>
-          window.setTimeout(resolve, 0),
-        );
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       }
     }
 
@@ -787,208 +853,86 @@ async function scanCompatibilityVideo(
       );
     }
 
-    return {
-      inferredDuration,
-      candidates: found
-        .filter(
-          (item) =>
-            item.endedAtSeconds > item.startedAtSeconds &&
-            Number.isFinite(item.peakScore),
-        )
-        .sort((left, right) => left.startedAtSeconds - right.startedAtSeconds)
-        .slice(0, MAX_CANDIDATES_SHOWN),
-    };
-  } finally {
-    closeLocalFfmpegRuntime(runtime);
-  }
-}
+    const candidates = found
+      .filter(
+        (item) =>
+          item.endedAtSeconds > item.startedAtSeconds &&
+          Number.isFinite(item.peakScore),
+      )
+      .sort((left, right) => left.startedAtSeconds - right.startedAtSeconds)
+      .slice(0, MAX_CANDIDATES_SHOWN);
 
-function bytesToDataUrl(bytes: Uint8Array, mimeType: string) {
-  return new Promise<string>((resolve, reject) => {
-    const copy = new Uint8Array(bytes.byteLength);
-    copy.set(bytes);
-    const reader = new FileReader();
-    reader.onerror = () =>
-      reject(new Error("Não foi possível preparar a imagem extraída."));
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.readAsDataURL(new Blob([copy.buffer], { type: mimeType }));
-  });
-}
+    const evidenceStartedAt = performance.now();
+    const evidenceByCandidate = new Map<
+      string,
+      CompatibilityEvidenceFrame[]
+    >();
+    const canvas = document.createElement("canvas");
 
-async function extractCompatibilityFramesBatch(
-  sourceFile: File,
-  candidates: Candidate[],
-  interval: number,
-  videoDuration: number,
-  isoAt: (seconds: number) => string,
-  onStage: (message: string) => void,
-  onProgress: (percent: number) => void,
-): Promise<Map<string, CapturedFrame[]>> {
-  const runtime = await createLocalFfmpegRuntime(
-    sourceFile,
-    onStage,
-    onProgress,
-  );
-
-  try {
-    const maxSampleIndex = Math.max(
-      0,
-      Math.ceil(videoDuration / interval) - 1,
+    onStage(
+      `Preparando evidências dos ${candidates.length} candidatos a partir das amostras já decodificadas...`,
     );
 
-    type EvidencePoint = {
-      candidateId: string;
-      label: FrameLabel;
-      seconds: number;
-      sampleIndex: number;
-    };
-
-    const points: EvidencePoint[] = [];
-
-    for (const candidate of candidates) {
+    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+      const candidate = candidates[candidateIndex]!;
       const desired: Array<{ label: FrameLabel; seconds: number }> = [
         { label: "start", seconds: candidate.startedAtSeconds },
         { label: "peak", seconds: candidate.peakAtSeconds },
         { label: "end", seconds: candidate.endedAtSeconds },
       ];
-
-      const bySample = new Map<number, EvidencePoint>();
+      const bySample = new Map<
+        number,
+        { label: FrameLabel; seconds: number }
+      >();
 
       for (const point of desired) {
         const sampleIndex = clamp(
           Math.round(point.seconds / interval),
           0,
-          maxSampleIndex,
+          frameCount - 1,
         );
-        const actualSeconds = sampleIndex * interval;
-        const previous = bySample.get(sampleIndex);
-
-        if (!previous || point.label === "peak") {
+        const previousPoint = bySample.get(sampleIndex);
+        if (!previousPoint || point.label === "peak") {
           bySample.set(sampleIndex, {
-            candidateId: candidate.id,
             label: point.label,
-            seconds: actualSeconds,
-            sampleIndex,
+            seconds: sampleIndex * interval,
           });
         }
       }
 
-      points.push(...bySample.values());
-    }
-
-    const sampleIndexes = [...new Set(
-      points.map((point) => point.sampleIndex),
-    )].sort((left, right) => left - right);
-
-    if (!sampleIndexes.length) {
-      throw new Error("Nenhum quadro de evidência foi selecionado.");
-    }
-
-    const selectExpression = sampleIndexes
-      .map((index) => `eq(n\\,${index})`)
-      .join("+");
-
-    const outputPattern = "/monitoria-evidence-%03d.jpg";
-
-    onStage(
-      `Preparando ${sampleIndexes.length} evidências em uma única passagem sequencial pelo HEVC...`,
-    );
-    runtime.logs.length = 0;
-
-    const code = await runtime.ffmpeg.exec([
-      "-hide_banner",
-      "-loglevel",
-      "warning",
-      "-probesize",
-      "100M",
-      "-analyzeduration",
-      "100M",
-      "-fflags",
-      "+genpts+discardcorrupt",
-      "-err_detect",
-      "ignore_err",
-      "-i",
-      runtime.inputPath,
-      "-t",
-      String(MAX_VIDEO_SECONDS),
-      "-map",
-      "0:v:0",
-      "-vf",
-      `fps=1/${interval},select=${selectExpression},scale=w='min(${JPEG_MAX_WIDTH},iw)':h=-2:flags=fast_bilinear`,
-      "-fps_mode",
-      "vfr",
-      "-q:v",
-      "4",
-      "-an",
-      "-sn",
-      "-dn",
-      "-start_number",
-      "0",
-      outputPattern,
-    ]);
-
-    const imageBySample = new Map<number, string>();
-
-    for (let index = 0; index < sampleIndexes.length; index += 1) {
-      const sampleIndex = sampleIndexes[index]!;
-      const outputPath =
-        `/monitoria-evidence-${String(index).padStart(3, "0")}.jpg`;
-
-      let raw: string | Uint8Array | null = null;
-      try {
-        raw = await runtime.ffmpeg.readFile(outputPath);
-      } catch {
-        raw = null;
+      const frames: CompatibilityEvidenceFrame[] = [];
+      for (const [sampleIndex, point] of bySample.entries()) {
+        const offset = sampleIndex * frameSize;
+        const frame = raw.subarray(offset, offset + frameSize);
+        frames.push({
+          label: point.label,
+          seconds: point.seconds,
+          imageUrl: grayFrameToJpeg(
+            frame,
+            scanWidth,
+            scanHeight,
+            canvas,
+          ),
+        });
       }
 
-      if (!raw || typeof raw === "string" || !raw.byteLength) {
-        const tail = runtime.logs.slice(-12).join(" | ");
-        throw new Error(
-          `A passagem sequencial não gerou a evidência da amostra ${sampleIndex}` +
-          ` (${formatDuration(sampleIndex * interval)}).` +
-          (tail ? ` Log: ${tail}` : ` Código FFmpeg: ${code}`),
-        );
-      }
-
-      imageBySample.set(
-        sampleIndex,
-        await bytesToDataUrl(raw, "image/jpeg"),
-      );
-
+      evidenceByCandidate.set(candidate.id, frames);
       onProgress(
-        Math.round(((index + 1) / sampleIndexes.length) * 100),
+        92 + Math.round(((candidateIndex + 1) / Math.max(1, candidates.length)) * 8),
       );
     }
 
-    const framesByCandidate = new Map<string, CapturedFrame[]>();
-
-    for (const point of points) {
-      const imageUrl = imageBySample.get(point.sampleIndex);
-      if (!imageUrl) continue;
-
-      const frames = framesByCandidate.get(point.candidateId) ?? [];
-      frames.push({
-        label: point.label,
-        capturedAt: isoAt(point.seconds),
-        imageUrl,
-      });
-      framesByCandidate.set(point.candidateId, frames);
-    }
-
-    for (const candidate of candidates) {
-      const frames = framesByCandidate.get(candidate.id) ?? [];
-      if (!frames.length) {
-        throw new Error(
-          `Nenhuma evidência foi preparada para o candidato ${candidate.id}.`,
-        );
-      }
-    }
-
-    return framesByCandidate;
+    return {
+      inferredDuration,
+      candidates,
+      evidenceByCandidate,
+      evidencePreparationMs: performance.now() - evidenceStartedAt,
+    };
   } finally {
     closeLocalFfmpegRuntime(runtime);
   }
 }
+
 
 function resultTitle(response: AnalysisResponse) {
   return String(
@@ -1006,6 +950,9 @@ export function VideoLabClient() {
   const objectUrlRef = useRef<string | null>(null);
   const fileRef = useRef<File | null>(null);
   const compatibilityAttemptRef = useRef(false);
+  const compatibilityEvidenceRef = useRef<
+    Map<string, CompatibilityEvidenceFrame[]>
+  >(new Map());
 
   const [file, setFile] = useState<File | null>(null);
   const [decoderMode, setDecoderMode] = useState<DecoderMode | null>(null);
@@ -1054,6 +1001,7 @@ export function VideoLabClient() {
     setEvidenceMs(null);
     setAiMs(null);
     setAnalysisTotalMs(null);
+    compatibilityEvidenceRef.current.clear();
   }
 
   function onSelectFile(nextFile: File | null) {
@@ -1236,11 +1184,13 @@ export function VideoLabClient() {
         setStartLocal((current) =>
           current || defaultStartLocal(result.inferredDuration),
         );
+        compatibilityEvidenceRef.current = result.evidenceByCandidate;
+        setEvidenceMs(result.evidencePreparationMs);
         setCandidates(result.candidates);
         setProgress(100);
         setStatus(
           result.candidates.length
-            ? `${result.candidates.length} possíveis acontecimentos encontrados diretamente no arquivo ${sourceCodec ? sourceCodec.toUpperCase() : "compatível"} · duração inferida ${formatDuration(result.inferredDuration)} · vídeo original continua local.`
+            ? `${result.candidates.length} possíveis acontecimentos encontrados diretamente no arquivo ${sourceCodec ? sourceCodec.toUpperCase() : "compatível"} · duração inferida ${formatDuration(result.inferredDuration)} · evidências da IA já preparadas · vídeo original continua local.`
             : `Nenhuma mudança acima do limiar foi encontrada em ${formatDuration(result.inferredDuration)} de vídeo decodificado. Tente aumentar a sensibilidade.`,
         );
       } catch (scanError) {
@@ -1457,7 +1407,6 @@ export function VideoLabClient() {
     setAnalyzing(true);
     setError(null);
     setAnalysis([]);
-    setEvidenceMs(null);
     setAiMs(null);
     setAnalysisTotalMs(null);
     setProgress(0);
@@ -1477,30 +1426,30 @@ export function VideoLabClient() {
       let preparedFrames: Map<string, CapturedFrame[]> | null = null;
 
       if (decoderMode === "compatibility") {
-        const selectedFile = fileRef.current;
-        if (!selectedFile) {
-          throw new Error("Arquivo local indisponível.");
+        const cachedEvidence = compatibilityEvidenceRef.current;
+        preparedFrames = new Map<string, CapturedFrame[]>();
+
+        for (const candidate of selected) {
+          const cached = cachedEvidence.get(candidate.id);
+          if (!cached?.length) {
+            throw new Error(
+              "As evidências locais desta varredura não estão mais na memória. Execute o mapeamento novamente antes de chamar a IA.",
+            );
+          }
+
+          preparedFrames.set(
+            candidate.id,
+            cached.map((frame) => ({
+              label: frame.label,
+              capturedAt: isoAt(frame.seconds),
+              imageUrl: frame.imageUrl,
+            })),
+          );
         }
 
-        const evidenceStartedAt = performance.now();
+        evidenceElapsedForRun = evidenceMs ?? 0;
         setStatus(
-          `Evidências · preparando quadros de ${selected.length} acontecimentos em uma única passagem sequencial...`,
-        );
-
-        preparedFrames = await extractCompatibilityFramesBatch(
-          selectedFile,
-          selected,
-          modeConfig[mode].interval,
-          videoInfo.duration,
-          isoAt,
-          (message) => setStatus(message),
-          (percent) => setProgress(percent),
-        );
-
-        evidenceElapsedForRun = performance.now() - evidenceStartedAt;
-        setEvidenceMs(evidenceElapsedForRun);
-        setStatus(
-          `Evidências prontas em ${formatElapsed(evidenceElapsedForRun)}. Iniciando IA...`,
+          `Evidências já preparadas no mapeamento (${formatElapsed(evidenceElapsedForRun)}). Iniciando IA sem decodificar o HEVC novamente...`,
         );
       }
 

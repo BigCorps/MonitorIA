@@ -43,7 +43,7 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
   assert.doesNotMatch(client, /await import\("@ffmpeg\/ffmpeg"\)/);
   assert.match(client, /FFFSType\.WORKERFS/);
   assert.match(client, /scanCompatibilityVideo/);
-  assert.match(client, /extractCompatibilityFramesBatch/);
+  assert.match(client, /evidenceByCandidate/);
   assert.match(client, /rawvideo/);
   assert.match(client, /format=gray/);
   assert.doesNotMatch(client, /monitoria-proxy\.mp4/);
@@ -104,29 +104,17 @@ test("Vídeo Lab tolera HEVC de câmera sem duração/VPS/SPS inicial", () => {
   );
 });
 
-test("Vídeo Lab extrai evidências HEVC em uma única passagem antes da IA", () => {
+test("Vídeo Lab prepara evidências HEVC durante o próprio mapeamento", () => {
   const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
 
-  assert.match(client, /extractCompatibilityFramesBatch/);
-  assert.match(client, /uma única passagem sequencial/);
-  assert.match(client, /selectExpression/);
-  assert.match(client, /select=\$\{selectExpression\}/);
-  assert.match(client, /monitoria-evidence-%03d\.jpg/);
-  assert.match(client, /preparedFrames/);
-  assert.match(client, /preparedFrames\?\.get\(candidate\.id\)/);
-  assert.match(client, /unknownErrorText\(analysisError\)/);
-  assert.match(client, /mappingMs/);
-  assert.match(client, /evidenceMs/);
-  assert.match(client, /analysisTotalMs/);
-
-  const batchStart = client.indexOf(
-    "async function extractCompatibilityFramesBatch",
-  );
-  const batchEnd = client.indexOf(
-    "function resultTitle",
-    batchStart,
-  );
-  const batch = client.slice(batchStart, batchEnd);
-
-  assert.doesNotMatch(batch, /"-ss"/);
+  assert.match(client, /COMPATIBILITY_EVIDENCE_WIDTH = 320/);
+  assert.match(client, /COMPATIBILITY_EVIDENCE_HEIGHT = 180/);
+  assert.match(client, /downsampleGrayFrame/);
+  assert.match(client, /grayFrameToJpeg/);
+  assert.match(client, /evidenceByCandidate/);
+  assert.match(client, /compatibilityEvidenceRef/);
+  assert.match(client, /evidências da IA já preparadas/i);
+  assert.match(client, /sem decodificar o HEVC novamente/i);
+  assert.doesNotMatch(client, /extractCompatibilityFramesBatch/);
+  assert.doesNotMatch(client, /monitoria-evidence-%03d\.jpg/);
 });
