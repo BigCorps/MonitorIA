@@ -44,8 +44,10 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
   assert.match(client, /FFFSType\.WORKERFS/);
   assert.match(client, /scanCompatibilityVideo/);
   assert.match(client, /evidenceByCandidate/);
-  assert.match(client, /rawvideo/);
-  assert.match(client, /format=gray/);
+  assert.match(client, /monitoria-sample-%05d\\.jpg/);
+  assert.match(client, /force_original_aspect_ratio=decrease/);
+  assert.match(client, /listDir/);
+  assert.match(client, /deleteFile/);
   assert.doesNotMatch(client, /monitoria-proxy\.mp4/);
   assert.match(client, /compatibilidade local/i);
   assert.match(client, /\.mkv/);
@@ -96,7 +98,8 @@ test("Vídeo Lab tolera HEVC de câmera sem duração/VPS/SPS inicial", () => {
   assert.match(client, /\+genpts\+discardcorrupt/);
   assert.match(client, /ignore_err/);
   assert.match(client, /String\(MAX_VIDEO_SECONDS\)/);
-  assert.match(client, /const scanHeight = 90/);
+  assert.match(client, /monitoria-sample-%05d\\.jpg/);
+  assert.match(client, /force_original_aspect_ratio=decrease/);
   assert.match(client, /inferredDuration/);
   assert.doesNotMatch(
     client,
@@ -104,17 +107,54 @@ test("Vídeo Lab tolera HEVC de câmera sem duração/VPS/SPS inicial", () => {
   );
 });
 
-test("Vídeo Lab prepara evidências HEVC durante o próprio mapeamento", () => {
+test("Vídeo Lab prepara evidências HEVC compactas durante o próprio mapeamento", () => {
   const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
 
   assert.match(client, /COMPATIBILITY_EVIDENCE_WIDTH = 320/);
   assert.match(client, /COMPATIBILITY_EVIDENCE_HEIGHT = 180/);
-  assert.match(client, /downsampleGrayFrame/);
-  assert.match(client, /grayFrameToJpeg/);
+  assert.match(client, /jpegBytesToGrayFrame/);
+  assert.match(client, /monitoria-sample-%05d\.jpg/);
+  assert.match(client, /force_original_aspect_ratio=decrease/);
+  assert.match(client, /pad=\$\{COMPATIBILITY_EVIDENCE_WIDTH\}/);
   assert.match(client, /evidenceByCandidate/);
   assert.match(client, /compatibilityEvidenceRef/);
+  assert.match(client, /deleteFile/);
   assert.match(client, /evidências da IA já preparadas/i);
   assert.match(client, /sem decodificar o HEVC novamente/i);
   assert.doesNotMatch(client, /extractCompatibilityFramesBatch/);
-  assert.doesNotMatch(client, /monitoria-evidence-%03d\.jpg/);
+  assert.doesNotMatch(client, /rawvideo/);
+});
+
+test("Vídeo Lab limita candidatos longos a uma janela curta para IA", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+  const route = read("app/api/admin/video-lab/analyze/route.ts");
+
+  assert.match(client, /AI_EVENT_CONTEXT_SECONDS = 120/);
+  assert.match(client, /analysisWindowForCandidate/);
+  assert.match(
+    client,
+    /startedAt: isoAt\(analysisWindow\.startedAtSeconds\)/,
+  );
+  assert.match(
+    client,
+    /endedAt: isoAt\(analysisWindow\.endedAtSeconds\)/,
+  );
+  assert.match(client, /bloco contínuo/);
+
+  assert.match(route, /durationSeconds > 600/);
+  assert.match(route, /excedeu 10 minutos/);
+});
+
+test("Vídeo Lab mostra os quadros realmente enviados à IA sem embutir base64 no JSON", () => {
+  const client = read("app/dashboard/admin/video-lab/video-lab-client.tsx");
+  const css = read("app/dashboard/admin/video-lab/video-lab.module.css");
+
+  assert.match(client, /previewFrames: CapturedFrame\[\]/);
+  assert.match(client, /previewFrames: frames/);
+  assert.match(client, /styles\.evidenceStrip/);
+  assert.match(client, /src=\{frame\.imageUrl\}/);
+  assert.match(client, /frameLabelText/);
+  assert.match(client, /analysis\.map\(\(\{ previewFrames, \.\.\.item \}\)/);
+  assert.match(css, /\.evidenceStrip/);
+  assert.match(css, /\.evidenceFigure/);
 });
