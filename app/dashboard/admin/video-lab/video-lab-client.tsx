@@ -119,6 +119,15 @@ function formatBytes(bytes: number) {
   })} ${units[index]}`;
 }
 
+function formatElapsed(milliseconds: number | null) {
+  if (milliseconds === null || !Number.isFinite(milliseconds)) return "—";
+  const seconds = milliseconds / 1000;
+  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.round(seconds % 60);
+  return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+}
+
 function defaultStartLocal(duration: number) {
   const date = new Date(Date.now() - Math.max(0, duration) * 1000);
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -806,92 +815,176 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string) {
   });
 }
 
-async function extractCompatibilityFrames(
+async function extractCompatibilityFramesBatch(
   sourceFile: File,
-  candidate: Candidate,
+  candidates: Candidate[],
+  interval: number,
+  videoDuration: number,
   isoAt: (seconds: number) => string,
   onStage: (message: string) => void,
-): Promise<CapturedFrame[]> {
-  const points: Array<{ label: FrameLabel; seconds: number }> = [
-    { label: "start", seconds: candidate.startedAtSeconds },
-    { label: "peak", seconds: candidate.peakAtSeconds },
-    { label: "end", seconds: candidate.endedAtSeconds },
-  ];
-
-  const unique: Array<{ label: FrameLabel; seconds: number }> = [];
-  for (const point of points) {
-    if (
-      !unique.some(
-        (existing) => Math.abs(existing.seconds - point.seconds) < 0.35,
-      )
-    ) {
-      unique.push(point);
-    }
-  }
-
-  const runtime = await createLocalFfmpegRuntime(sourceFile, onStage);
-  const frames: CapturedFrame[] = [];
+  onProgress: (percent: number) => void,
+): Promise<Map<string, CapturedFrame[]>> {
+  const runtime = await createLocalFfmpegRuntime(
+    sourceFile,
+    onStage,
+    onProgress,
+  );
 
   try {
-    for (let index = 0; index < unique.length; index += 1) {
-      const point = unique[index]!;
-      const outputPath = `/monitoria-evidence-${index}.jpg`;
+    const maxSampleIndex = Math.max(
+      0,
+      Math.ceil(videoDuration / interval) - 1,
+    );
 
-      onStage(
-        `Extraindo evidência local de ${formatDuration(point.seconds)}...`,
+    type EvidencePoint = {
+      candidateId: string;
+      label: FrameLabel;
+      seconds: number;
+      sampleIndex: number;
+    };
+
+    const points: EvidencePoint[] = [];
+
+    for (const candidate of candidates) {
+      const desired: Array<{ label: FrameLabel; seconds: number }> = [
+        { label: "start", seconds: candidate.startedAtSeconds },
+        { label: "peak", seconds: candidate.peakAtSeconds },
+        { label: "end", seconds: candidate.endedAtSeconds },
+      ];
+
+      const bySample = new Map<number, EvidencePoint>();
+
+      for (const point of desired) {
+        const sampleIndex = clamp(
+          Math.round(point.seconds / interval),
+          0,
+          maxSampleIndex,
+        );
+        const actualSeconds = sampleIndex * interval;
+        const previous = bySample.get(sampleIndex);
+
+        if (!previous || point.label === "peak") {
+          bySample.set(sampleIndex, {
+            candidateId: candidate.id,
+            label: point.label,
+            seconds: actualSeconds,
+            sampleIndex,
+          });
+        }
+      }
+
+      points.push(...bySample.values());
+    }
+
+    const sampleIndexes = [...new Set(
+      points.map((point) => point.sampleIndex),
+    )].sort((left, right) => left - right);
+
+    if (!sampleIndexes.length) {
+      throw new Error("Nenhum quadro de evidência foi selecionado.");
+    }
+
+    const selectExpression = sampleIndexes
+      .map((index) => `eq(n\\,${index})`)
+      .join("+");
+
+    const outputPattern = "/monitoria-evidence-%03d.jpg";
+
+    onStage(
+      `Preparando ${sampleIndexes.length} evidências em uma única passagem sequencial pelo HEVC...`,
+    );
+    runtime.logs.length = 0;
+
+    const code = await runtime.ffmpeg.exec([
+      "-hide_banner",
+      "-loglevel",
+      "warning",
+      "-probesize",
+      "100M",
+      "-analyzeduration",
+      "100M",
+      "-fflags",
+      "+genpts+discardcorrupt",
+      "-err_detect",
+      "ignore_err",
+      "-i",
+      runtime.inputPath,
+      "-t",
+      String(MAX_VIDEO_SECONDS),
+      "-map",
+      "0:v:0",
+      "-vf",
+      `fps=1/${interval},select=${selectExpression},scale=w='min(${JPEG_MAX_WIDTH},iw)':h=-2:flags=fast_bilinear`,
+      "-fps_mode",
+      "vfr",
+      "-q:v",
+      "4",
+      "-an",
+      "-sn",
+      "-dn",
+      "-start_number",
+      "0",
+      outputPattern,
+    ]);
+
+    const imageBySample = new Map<number, string>();
+
+    for (let index = 0; index < sampleIndexes.length; index += 1) {
+      const sampleIndex = sampleIndexes[index]!;
+      const outputPath =
+        `/monitoria-evidence-${String(index).padStart(3, "0")}.jpg`;
+
+      let raw: string | Uint8Array | null = null;
+      try {
+        raw = await runtime.ffmpeg.readFile(outputPath);
+      } catch {
+        raw = null;
+      }
+
+      if (!raw || typeof raw === "string" || !raw.byteLength) {
+        const tail = runtime.logs.slice(-12).join(" | ");
+        throw new Error(
+          `A passagem sequencial não gerou a evidência da amostra ${sampleIndex}` +
+          ` (${formatDuration(sampleIndex * interval)}).` +
+          (tail ? ` Log: ${tail}` : ` Código FFmpeg: ${code}`),
+        );
+      }
+
+      imageBySample.set(
+        sampleIndex,
+        await bytesToDataUrl(raw, "image/jpeg"),
       );
 
-      const code = await runtime.ffmpeg.exec([
-        "-hide_banner",
-        "-loglevel",
-        "warning",
-        "-probesize",
-        "100M",
-        "-analyzeduration",
-        "100M",
-        "-fflags",
-        "+genpts+discardcorrupt",
-        "-err_detect",
-        "ignore_err",
-        "-i",
-        runtime.inputPath,
-        "-ss",
-        Math.max(0, point.seconds).toFixed(3),
-        "-map",
-        "0:v:0",
-        "-frames:v",
-        "1",
-        "-vf",
-        `scale=w='min(${JPEG_MAX_WIDTH},iw)':h=-2:flags=fast_bilinear`,
-        "-q:v",
-        "4",
-        "-an",
-        "-sn",
-        "-dn",
-        outputPath,
-      ]);
+      onProgress(
+        Math.round(((index + 1) / sampleIndexes.length) * 100),
+      );
+    }
 
-      if (code !== 0) {
-        throw new Error(
-          `Não foi possível extrair o quadro em ${formatDuration(point.seconds)}.`,
-        );
-      }
+    const framesByCandidate = new Map<string, CapturedFrame[]>();
 
-      const raw = await runtime.ffmpeg.readFile(outputPath);
-      if (typeof raw === "string" || !raw.byteLength) {
-        throw new Error(
-          `A evidência de ${formatDuration(point.seconds)} ficou vazia.`,
-        );
-      }
+    for (const point of points) {
+      const imageUrl = imageBySample.get(point.sampleIndex);
+      if (!imageUrl) continue;
 
+      const frames = framesByCandidate.get(point.candidateId) ?? [];
       frames.push({
         label: point.label,
         capturedAt: isoAt(point.seconds),
-        imageUrl: await bytesToDataUrl(raw, "image/jpeg"),
+        imageUrl,
       });
+      framesByCandidate.set(point.candidateId, frames);
     }
 
-    return frames;
+    for (const candidate of candidates) {
+      const frames = framesByCandidate.get(candidate.id) ?? [];
+      if (!frames.length) {
+        throw new Error(
+          `Nenhuma evidência foi preparada para o candidato ${candidate.id}.`,
+        );
+      }
+    }
+
+    return framesByCandidate;
   } finally {
     closeLocalFfmpegRuntime(runtime);
   }
@@ -936,6 +1029,10 @@ export function VideoLabClient() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [mappingMs, setMappingMs] = useState<number | null>(null);
+  const [evidenceMs, setEvidenceMs] = useState<number | null>(null);
+  const [aiMs, setAiMs] = useState<number | null>(null);
+  const [analysisTotalMs, setAnalysisTotalMs] = useState<number | null>(null);
 
   const threshold = useMemo(
     () => sensitivityThreshold(sensitivity),
@@ -953,6 +1050,10 @@ export function VideoLabClient() {
     setAnalysis([]);
     setProgress(0);
     setError(null);
+    setMappingMs(null);
+    setEvidenceMs(null);
+    setAiMs(null);
+    setAnalysisTotalMs(null);
   }
 
   function onSelectFile(nextFile: File | null) {
@@ -1107,6 +1208,10 @@ export function VideoLabClient() {
       setAnalysis([]);
       setCandidates([]);
       setProgress(0);
+      setEvidenceMs(null);
+      setAiMs(null);
+      setAnalysisTotalMs(null);
+      const mappingStartedAt = performance.now();
 
       try {
         const interval = modeConfig[mode].interval;
@@ -1146,6 +1251,7 @@ export function VideoLabClient() {
         );
         setStatus("A leitura local foi interrompida.");
       } finally {
+        setMappingMs(performance.now() - mappingStartedAt);
         setScanning(false);
       }
       return;
@@ -1159,6 +1265,10 @@ export function VideoLabClient() {
     setAnalysis([]);
     setCandidates([]);
     setProgress(0);
+    setEvidenceMs(null);
+    setAiMs(null);
+    setAnalysisTotalMs(null);
+    const mappingStartedAt = performance.now();
 
     const interval = modeConfig[mode].interval;
     const sampleTimes: number[] = [];
@@ -1291,6 +1401,7 @@ export function VideoLabClient() {
       );
       setStatus("A leitura local foi interrompida.");
     } finally {
+      setMappingMs(performance.now() - mappingStartedAt);
       setScanning(false);
     }
   }
@@ -1307,18 +1418,6 @@ export function VideoLabClient() {
   }
 
   async function framesForCandidate(candidate: Candidate) {
-    if (decoderMode === "compatibility") {
-      const selectedFile = fileRef.current;
-      if (!selectedFile) throw new Error("Arquivo local indisponível.");
-
-      return extractCompatibilityFrames(
-        selectedFile,
-        candidate,
-        isoAt,
-        (message) => setStatus(message),
-      );
-    }
-
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
     if (!video || !canvas) throw new Error("Prévia do vídeo indisponível.");
@@ -1358,6 +1457,14 @@ export function VideoLabClient() {
     setAnalyzing(true);
     setError(null);
     setAnalysis([]);
+    setEvidenceMs(null);
+    setAiMs(null);
+    setAnalysisTotalMs(null);
+    setProgress(0);
+
+    const analysisStartedAt = performance.now();
+    let aiStartedAt: number | null = null;
+    let evidenceElapsedForRun = 0;
 
     const selected = [...candidates]
       .sort((left, right) => right.peakScore - left.peakScore)
@@ -1367,13 +1474,55 @@ export function VideoLabClient() {
     const collected: AnalysisItem[] = [];
 
     try {
+      let preparedFrames: Map<string, CapturedFrame[]> | null = null;
+
+      if (decoderMode === "compatibility") {
+        const selectedFile = fileRef.current;
+        if (!selectedFile) {
+          throw new Error("Arquivo local indisponível.");
+        }
+
+        const evidenceStartedAt = performance.now();
+        setStatus(
+          `Evidências · preparando quadros de ${selected.length} acontecimentos em uma única passagem sequencial...`,
+        );
+
+        preparedFrames = await extractCompatibilityFramesBatch(
+          selectedFile,
+          selected,
+          modeConfig[mode].interval,
+          videoInfo.duration,
+          isoAt,
+          (message) => setStatus(message),
+          (percent) => setProgress(percent),
+        );
+
+        evidenceElapsedForRun = performance.now() - evidenceStartedAt;
+        setEvidenceMs(evidenceElapsedForRun);
+        setStatus(
+          `Evidências prontas em ${formatElapsed(evidenceElapsedForRun)}. Iniciando IA...`,
+        );
+      }
+
+      aiStartedAt = performance.now();
+      setProgress(0);
+
       for (let index = 0; index < selected.length; index += 1) {
         const candidate = selected[index]!;
         setStatus(
           `IA · analisando ${index + 1} de ${selected.length} · ${formatDuration(candidate.peakAtSeconds)}`,
         );
 
-        const frames = await framesForCandidate(candidate);
+        const frames =
+          preparedFrames?.get(candidate.id) ??
+          await framesForCandidate(candidate);
+
+        if (!frames.length) {
+          throw new Error(
+            `Nenhuma evidência disponível para ${formatDuration(candidate.peakAtSeconds)}.`,
+          );
+        }
+
         const sentBytes = frames.reduce(
           (total, frame) => total + dataUrlBytes(frame.imageUrl),
           0,
@@ -1405,23 +1554,45 @@ export function VideoLabClient() {
           sentBytes,
         });
         setAnalysis([...collected]);
+        setProgress(
+          Math.round(((index + 1) / selected.length) * 100),
+        );
 
         if (!response.ok) {
-          throw new Error(payload.error || `A IA respondeu HTTP ${response.status}.`);
+          throw new Error(
+            payload.error || `A IA respondeu HTTP ${response.status}.`,
+          );
         }
       }
 
-      const totalSent = collected.reduce((sum, item) => sum + item.sentBytes, 0);
+      const aiElapsed = performance.now() - aiStartedAt;
+      setAiMs(aiElapsed);
+
+      const totalElapsed = performance.now() - analysisStartedAt;
+      setAnalysisTotalMs(totalElapsed);
+
+      const totalSent = collected.reduce(
+        (sum, item) => sum + item.sentBytes,
+        0,
+      );
+
       setStatus(
-        `${collected.length} acontecimentos analisados · ${formatBytes(totalSent)} de imagens enviados · 0 B de vídeo enviados.`,
+        `${collected.length} acontecimentos analisados · ${formatBytes(totalSent)} de imagens enviados · 0 B de vídeo · evidências ${formatElapsed(evidenceElapsedForRun)} · IA ${formatElapsed(aiElapsed)}.`,
       );
     } catch (analysisError) {
+      if (aiStartedAt !== null) {
+        setAiMs(performance.now() - aiStartedAt);
+      }
+      setAnalysisTotalMs(performance.now() - analysisStartedAt);
+
       setError(
-        analysisError instanceof Error
-          ? analysisError.message
-          : "Falha desconhecida durante a análise com IA.",
+        `Análise interrompida: ${unknownErrorText(analysisError)}`,
       );
-      setStatus("A análise foi interrompida; os resultados já concluídos foram mantidos na tela.");
+      setStatus(
+        collected.length
+          ? `${collected.length} resultado(s) concluído(s) foram mantidos.`
+          : "Nenhuma chamada de IA foi concluída nesta tentativa.",
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -1448,6 +1619,12 @@ export function VideoLabClient() {
         thresholdPercent: threshold,
         environment,
         goal,
+      },
+      timing: {
+        mappingMs,
+        evidenceMs,
+        aiMs,
+        analysisTotalMs,
       },
       candidates,
       analysis,
@@ -1654,6 +1831,30 @@ export function VideoLabClient() {
         </div>
         <p className={styles.status}>{status}</p>
         {error ? <div className={styles.errorBox}>{error}</div> : null}
+
+        {mappingMs !== null ||
+        evidenceMs !== null ||
+        aiMs !== null ||
+        analysisTotalMs !== null ? (
+          <div className={styles.fileMetrics}>
+            <div>
+              <span>Mapeamento</span>
+              <strong>{formatElapsed(mappingMs)}</strong>
+            </div>
+            <div>
+              <span>Evidências</span>
+              <strong>{formatElapsed(evidenceMs)}</strong>
+            </div>
+            <div>
+              <span>IA</span>
+              <strong>{formatElapsed(aiMs)}</strong>
+            </div>
+            <div>
+              <span>Análise total</span>
+              <strong>{formatElapsed(analysisTotalMs)}</strong>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {candidates.length ? (
