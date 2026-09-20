@@ -44,7 +44,7 @@ test("Vídeo Lab ativa compatibilidade local para codecs não nativos", () => {
   assert.match(client, /FFFSType\.WORKERFS/);
   assert.match(client, /scanCompatibilityVideo/);
   assert.match(client, /evidenceByCandidate/);
-  assert.match(client, /monitoria-sample-%05d\\.jpg/);
+  assert.match(client, /monitoria-sample-%05d\.jpg/);
   assert.match(client, /force_original_aspect_ratio=decrease/);
   assert.match(client, /listDir/);
   assert.match(client, /deleteFile/);
@@ -98,7 +98,7 @@ test("Vídeo Lab tolera HEVC de câmera sem duração/VPS/SPS inicial", () => {
   assert.match(client, /\+genpts\+discardcorrupt/);
   assert.match(client, /ignore_err/);
   assert.match(client, /String\(MAX_VIDEO_SECONDS\)/);
-  assert.match(client, /monitoria-sample-%05d\\.jpg/);
+  assert.match(client, /monitoria-sample-%05d\.jpg/);
   assert.match(client, /force_original_aspect_ratio=decrease/);
   assert.match(client, /inferredDuration/);
   assert.doesNotMatch(

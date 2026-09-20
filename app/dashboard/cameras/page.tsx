@@ -43,7 +43,13 @@ export default async function CamerasPage() {
   if (!sites.length) redirect("/onboarding");
 
   const showSiteName = sites.length > 1;
-  const activeTrialCameraIds = new Set(trialState.cameraIds);
+  const liveCameras = cameras.filter(
+    (camera) => camera.sourceKind !== "local_recording",
+  );
+  const liveCameraIds = new Set(liveCameras.map((camera) => camera.id));
+  const activeTrialCameraIds = new Set(
+    trialState.cameraIds.filter((cameraId) => liveCameraIds.has(cameraId)),
+  );
 
   return (
     <main className="dashboard-shell">

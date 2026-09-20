@@ -8,6 +8,7 @@ import styles from "./dashboard-sidebar.module.css";
 export type DashboardSection =
   | "overview"
   | "cameras"
+  | "recordings"
   | "events"
   | "sessions"
   | "routines"
@@ -31,6 +32,7 @@ type NavId =
   | "overview"
   | "monitoring"
   | "cameras"
+  | "recordings"
   | "integrations"
   | "search"
   | "settings"
@@ -106,6 +108,17 @@ const baseItems: NavigationItem[] = [
     ),
   },
   {
+    id: "recordings",
+    href: "/dashboard/recordings",
+    label: "Gravações",
+    icon: (
+      <Icon>
+        <rect x="3" y="5" width="18" height="14" rx="3" />
+        <path d="m10 9 5 3-5 3V9Z" />
+      </Icon>
+    ),
+  },
+  {
     id: "integrations",
     href: "/dashboard/integrations",
     label: "Integrações",
@@ -160,6 +173,10 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
     return "cameras";
   }
 
+  if (pathname.startsWith("/dashboard/recordings")) {
+    return "recordings";
+  }
+
   if (
     pathname.startsWith("/dashboard/activity") ||
     pathname.startsWith("/dashboard/events") ||
@@ -198,6 +215,7 @@ function resolvedActive(pathname: string, fallback: DashboardSection): NavId {
   const map: Record<DashboardSection, NavId> = {
     overview: "overview",
     cameras: "cameras",
+    recordings: "recordings",
     installer: "cameras",
     events: "monitoring",
     sessions: "monitoring",

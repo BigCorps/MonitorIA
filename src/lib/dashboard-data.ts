@@ -21,6 +21,7 @@ export type CameraSummary = {
   name: string;
   description: string;
   status: string;
+  sourceKind: "live_camera" | "local_recording";
   planCode: string;
   pairingStatus: string;
   pairedAt: string | null;
@@ -37,7 +38,7 @@ export type CameraSummary = {
 
 export type SetupCameraSummary = Pick<
   CameraSummary,
-  "id" | "siteId" | "siteName" | "name" | "status" | "pairingStatus"
+  "id" | "siteId" | "siteName" | "name" | "status" | "sourceKind" | "pairingStatus"
 >;
 
 export type EventSummary = {
@@ -503,6 +504,7 @@ export async function getOrganizationCameras(
         name,
         description,
         status,
+        source_kind,
         analysis_plan_code,
         pairing_status,
         paired_at,
@@ -777,6 +779,11 @@ export async function getOrganizationCameras(
 
       status: String(row.status),
 
+      sourceKind:
+        row.source_kind === "local_recording"
+          ? "local_recording"
+          : "live_camera",
+
       planCode: String(
         row.analysis_plan_code,
       ),
@@ -846,7 +853,7 @@ export async function getOrganizationSetupCameras(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cameras")
-    .select("id,site_id,name,status,pairing_status,site:sites(name)")
+    .select("id,site_id,name,status,source_kind,pairing_status,site:sites(name)")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: true });
 
@@ -863,6 +870,10 @@ export async function getOrganizationSetupCameras(
       siteName: String(relation?.name ?? "Local"),
       name: String(row.name),
       status: String(row.status),
+      sourceKind:
+        row.source_kind === "local_recording"
+          ? "local_recording"
+          : "live_camera",
       pairingStatus: String(row.pairing_status),
     };
   });

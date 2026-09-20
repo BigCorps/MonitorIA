@@ -67,6 +67,7 @@ export async function FirstRunSetup({
       status: string;
       createdAt: string;
       setupNamedAt: string | null;
+      sourceKind: "live_camera" | "local_recording";
     };
     workspace: Awaited<ReturnType<typeof getCameraProfileWorkspace>>;
     canManage: boolean;
@@ -89,7 +90,7 @@ export async function FirstRunSetup({
       const [cameraResult, workspace] = await Promise.all([
         admin
           .from("cameras")
-          .select("id,name,status,created_at,setup_named_at")
+          .select("id,name,status,source_kind,created_at,setup_named_at")
           .eq("id", cameraId)
           .eq("organization_id", organization.id)
           .maybeSingle(),
@@ -101,6 +102,7 @@ export async function FirstRunSetup({
           id: string;
           name: string;
           status: string | null;
+          source_kind: string | null;
           created_at: string;
           setup_named_at: string | null;
         };
@@ -112,6 +114,10 @@ export async function FirstRunSetup({
             status: String(row.status ?? "pending"),
             createdAt: String(row.created_at),
             setupNamedAt: row.setup_named_at ? String(row.setup_named_at) : null,
+            sourceKind:
+              row.source_kind === "local_recording"
+                ? "local_recording"
+                : "live_camera",
           },
           workspace,
           canManage: ["owner", "admin"].includes(organization.role),
@@ -251,6 +257,15 @@ export async function FirstRunSetup({
                     pelo celular, compartilhe o link de instalação com o computador
                     que ficará ligado na loja.
                   </div>
+
+                  <div className={styles.firstRunActions}>
+                    <Link
+                      href="/dashboard/recordings"
+                      className="back-link"
+                    >
+                      Não tenho câmera conectada · usar uma gravação →
+                    </Link>
+                  </div>
                 </div>
 
                 <aside className={styles.connectAside}>
@@ -302,15 +317,35 @@ export async function FirstRunSetup({
               </div>
 
               {context ? (
-                <OnboardingCameraContext
-                  camera={context.camera}
-                  workspace={context.workspace}
-                  canManage={context.canManage}
-                  cameraIndex={context.cameraIndex}
-                  cameraTotal={cameras.length}
-                  hasAgent={agentPaired}
-                  defaultCameraCount={defaultCameraCount}
-                />
+                context.camera.sourceKind === "local_recording" ? (
+                  <div className={styles.waitingBox}>
+                    <div>
+                      <strong>Continue pela origem de gravações</strong>
+                      <p>
+                        O arquivo permanece neste dispositivo. Abra Gravações para
+                        extrair a primeira imagem, configurar o contexto e iniciar o teste.
+                      </p>
+                      <div className={styles.firstRunActions}>
+                        <Link
+                          href={`/dashboard/recordings?source=${context.camera.id}`}
+                          className="panel-primary-action"
+                        >
+                          Continuar em Gravações
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <OnboardingCameraContext
+                    camera={context.camera}
+                    workspace={context.workspace}
+                    canManage={context.canManage}
+                    cameraIndex={context.cameraIndex}
+                    cameraTotal={cameras.length}
+                    hasAgent={agentPaired}
+                    defaultCameraCount={defaultCameraCount}
+                  />
+                )
               ) : (
                 <div className={styles.waitingBox}>
                   <span className={styles.waitingSpinner} aria-hidden="true" />

@@ -1,0 +1,271 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  RecordingEventDetector,
+} from "../src/recordings/browser-detector";
+import type {
+  RecordingCameraConfig,
+  RecordingCandidate,
+} from "../src/recordings/types";
+
+const WIDTH = 160;
+const HEIGHT = 90;
+
+function frame(fill = 0) {
+  return new Uint8Array(WIDTH * HEIGHT).fill(fill);
+}
+
+function localized(value: number) {
+  const result = frame(0);
+  for (let y = 30; y < 60; y += 1) {
+    for (let x = 60; x < 100; x += 1) {
+      result[y * WIDTH + x] = value;
+    }
+  }
+  return result;
+}
+
+const config: RecordingCameraConfig = {
+  cameraId: "00000000-0000-4000-8000-000000000001",
+  cameraName: "Gravação teste",
+  siteName: "Loja",
+  sourceKind: "local_recording",
+  planCode: "standard",
+  timezone: "America/Sao_Paulo",
+  captureIntervalSeconds: 1,
+  consolidationIntervalSeconds: 10,
+  motionStartThreshold: 1.25,
+  motionContinueThreshold: 0.6,
+  eventCloseAfterSeconds: 20,
+  motionAdaptiveEnabled: false,
+  motionOverlayMask: "none",
+  motionStartConsecutiveFrames: 3,
+  motionEndConsecutiveFrames: 6,
+  motionCooldownSeconds: 10,
+  monitoringSchedule: { mode: "always" },
+  motionIgnorePolygons: [],
+  maximumAnalysisFrames: 3,
+  clipEnabled: false,
+  clipDurationSeconds: null,
+  clipRetentionDays: null,
+  entitlement: {
+    accessSource: "subscription",
+    monitoringAllowed: true,
+    periodStartsAt: null,
+    periodEndsAt: null,
+    reason: "active_subscription",
+  },
+};
+
+function at(base: Date, seconds: number) {
+  return new Date(base.getTime() + seconds * 1000).toISOString();
+}
+
+test("gravações usam a mesma segmentação determinística de movimento", () => {
+  const base = new Date("2026-09-19T12:00:00.000Z");
+  const detector = new RecordingEventDetector(config, base);
+  const closed: RecordingCandidate[] = [];
+
+  detector.observe({ luma: frame(0), offsetSeconds: 0, capturedAt: at(base, 0) });
+  detector.observe({ luma: localized(255), offsetSeconds: 1, capturedAt: at(base, 1) });
+  detector.observe({ luma: localized(0), offsetSeconds: 2, capturedAt: at(base, 2) });
+  detector.observe({ luma: localized(255), offsetSeconds: 3, capturedAt: at(base, 3) });
+  detector.observe({ luma: localized(0), offsetSeconds: 4, capturedAt: at(base, 4) });
+
+  for (let second = 5; second <= 30; second += 1) {
+    const step = detector.observe({
+      luma: localized(0),
+      offsetSeconds: second,
+      capturedAt: at(base, second),
+    });
+    closed.push(...step.closed);
+  }
+
+  assert.equal(closed.length, 1);
+  assert.equal(closed[0]?.localMetrics.sourceKind, "local_recording");
+  assert.equal(closed[0]?.localMetrics.planCode, "standard");
+  assert.ok(Number(closed[0]?.localMetrics.framesObserved ?? 0) >= 1);
+  assert.ok((closed[0]?.evidence.length ?? 0) >= 1);
+});
+
+test("mudança global uniforme de iluminação não vira acontecimento", () => {
+  const base = new Date("2026-09-19T12:00:00.000Z");
+  const detector = new RecordingEventDetector(config, base);
+
+  detector.observe({ luma: frame(20), offsetSeconds: 0, capturedAt: at(base, 0) });
+
+  let events = 0;
+  for (let second = 1; second <= 12; second += 1) {
+    const value = second % 2 ? 90 : 20;
+    const step = detector.observe({
+      luma: frame(value),
+      offsetSeconds: second,
+      capturedAt: at(base, second),
+    });
+    events += step.closed.length;
+  }
+
+  events += detector.finish().closed.length;
+  assert.equal(events, 0);
+});
+
+test("plano Essencial mantém no máximo uma evidência por acontecimento", () => {
+  const base = new Date("2026-09-19T12:00:00.000Z");
+  const detector = new RecordingEventDetector(
+    { ...config, planCode: "basic", maximumAnalysisFrames: 1 },
+    base,
+  );
+
+  detector.observe({ luma: frame(0), offsetSeconds: 0, capturedAt: at(base, 0) });
+  detector.observe({ luma: localized(255), offsetSeconds: 1, capturedAt: at(base, 1) });
+  detector.observe({ luma: localized(0), offsetSeconds: 2, capturedAt: at(base, 2) });
+  detector.observe({ luma: localized(255), offsetSeconds: 3, capturedAt: at(base, 3) });
+  detector.observe({ luma: localized(0), offsetSeconds: 4, capturedAt: at(base, 4) });
+
+  const final = detector.finish();
+  assert.equal(final.closed.length, 1);
+  assert.equal(final.closed[0]?.evidence.length, 1);
+});
+
+
+// RC3 SQL invariants — Gravações
+import rc3Test from "node:test";
+import rc3Assert from "node:assert/strict";
+import { readFileSync as rc3ReadFileSync } from "node:fs";
+
+const rc3RecordingMigration = rc3ReadFileSync(
+  "supabase/migrations/20260920234205_recordings_v1.sql",
+  "utf8",
+);
+
+rc3Test(
+  "gravação local valida recording_session antes do early return legado",
+  () => {
+    const functionStart = rc3RecordingMigration.indexOf(
+      "create or replace function private.enforce_monitoria_analysis_entitlement()",
+    );
+
+    const recordingGate = rc3RecordingMigration.indexOf(
+      "if new.recording_session_id is not null then",
+      functionStart,
+    );
+
+    const legacyEarlyReturn = rc3RecordingMigration.indexOf(
+      "if new.source_agent_id is null and new.agent_event_id is null then",
+      functionStart,
+    );
+
+    rc3Assert.ok(functionStart >= 0);
+    rc3Assert.ok(recordingGate >= 0);
+    rc3Assert.ok(legacyEarlyReturn >= 0);
+    rc3Assert.ok(recordingGate < legacyEarlyReturn);
+  },
+);
+
+rc3Test(
+  "quota usa reserva enquanto ativa e duração processada depois",
+  () => {
+    rc3Assert.doesNotMatch(
+      rc3RecordingMigration,
+      /sum\(session\.reserved_seconds\)/,
+    );
+
+    rc3Assert.match(
+      rc3RecordingMigration,
+      /when session\.status in \('reserved', 'processing'\)[\s\S]*?then session\.reserved_seconds[\s\S]*?else session\.processed_seconds/,
+    );
+
+    rc3Assert.match(
+      rc3RecordingMigration,
+      /processed_seconds integer not null default 0 check \(processed_seconds between 0 and reserved_seconds\)/,
+    );
+  },
+);
+
+
+// RC4 quota invariants — Gravações
+const rc4SessionRoute = rc3ReadFileSync(
+  "app/api/recordings/sessions/[sessionId]/route.ts",
+  "utf8",
+);
+
+const rc4RecordingSource = rc3ReadFileSync(
+  "src/lib/recording-source.ts",
+  "utf8",
+);
+
+rc3Test(
+  "reserva grava a duração já mapeada como processed_seconds",
+  () => {
+    rc3Assert.match(
+      rc3RecordingMigration,
+      /quota_limit_seconds,\s+reserved_seconds,\s+processed_seconds,\s+browser_metadata/,
+    );
+
+    rc3Assert.match(
+      rc3RecordingMigration,
+      /v_limit,\s+p_duration_seconds,\s+p_duration_seconds,\s+coalesce\(p_browser_metadata/,
+    );
+  },
+);
+
+rc3Test(
+  "finalização da sessão não sobrescreve processed_seconds com a reserva",
+  () => {
+    rc3Assert.doesNotMatch(
+      rc4SessionRoute,
+      /processed_seconds[\s\S]{0,80}authorized\.session\.reserved_seconds/,
+    );
+
+    rc3Assert.doesNotMatch(
+      rc4SessionRoute,
+      /Number\(authorized\.session\.reserved_seconds\)/,
+    );
+  },
+);
+
+rc3Test(
+  "dashboard usa reserva para sessões ativas e processado para terminais",
+  () => {
+    rc3Assert.match(
+      rc4RecordingSource,
+      /\.select\("status,reserved_seconds,processed_seconds"\)/,
+    );
+
+    rc3Assert.match(
+      rc4RecordingSource,
+      /\["reserved", "processing"\]\.includes/,
+    );
+
+    rc3Assert.match(
+      rc4RecordingSource,
+      /active[\s\S]*?session\.reserved_seconds[\s\S]*?session\.processed_seconds/,
+    );
+  },
+);
+
+
+// RC5 concurrent retry invariant — Gravações
+rc3Test(
+  "request_key é serializado antes da consulta de duplicata",
+  () => {
+    const functionStart = rc3RecordingMigration.indexOf(
+      "create or replace function public.reserve_monitoria_recording_session(",
+    );
+
+    const requestLock = rc3RecordingMigration.indexOf(
+      ":recording-request:",
+      functionStart,
+    );
+
+    const duplicateLookup = rc3RecordingMigration.indexOf(
+      "into v_existing",
+      functionStart,
+    );
+
+    rc3Assert.ok(functionStart >= 0);
+    rc3Assert.ok(requestLock >= 0);
+    rc3Assert.ok(duplicateLookup >= 0);
+    rc3Assert.ok(requestLock < duplicateLookup);
+  },
+);

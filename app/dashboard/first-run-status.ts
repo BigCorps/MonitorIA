@@ -59,7 +59,7 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
         .neq("status", "disabled"),
       supabase
         .from("cameras")
-        .select("id,status,setup_named_at,created_at")
+        .select("id,status,source_kind,setup_named_at,created_at")
         .eq("organization_id", organization.id)
         .order("created_at", { ascending: true }),
       supabase
@@ -80,15 +80,21 @@ export async function getFirstRunStatusAction(): Promise<FirstRunStatus> {
   const list = (camerasResult.data ?? []) as Array<{
     id: string;
     status: string | null;
+    source_kind: string | null;
     setup_named_at: string | null;
     created_at: string;
   }>;
 
   const online = list.filter(
-    (row) => String(row.status ?? "") === "online",
+    (row) =>
+      row.source_kind !== "local_recording" &&
+      String(row.status ?? "") === "online",
+  );
+  const hasRecordingSource = list.some(
+    (row) => row.source_kind === "local_recording",
   );
 
-  if ((agentsResult.count ?? 0) === 0) {
+  if ((agentsResult.count ?? 0) === 0 && !hasRecordingSource) {
     return { ...empty, stage: 1, phase: "connect" };
   }
 
