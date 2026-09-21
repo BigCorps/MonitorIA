@@ -74,7 +74,12 @@ export async function POST(request: Request) {
     String(existing.camera_id) === body.cameraId
   ) {
     return NextResponse.json(
-      { ok: true, duplicate: true, trial: existing },
+      {
+        ok: true,
+        duplicate: true,
+        trial: existing,
+        recordingLimitSeconds: 86_400,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -144,7 +149,7 @@ export async function POST(request: Request) {
       ok: true,
       duplicate: false,
       trial,
-      recordingLimitSeconds: 600,
+      recordingLimitSeconds: 86_400,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

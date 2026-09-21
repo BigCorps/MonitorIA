@@ -67,6 +67,7 @@ type ProfileDraft = {
 type SessionResult = {
   session: {
     id: string;
+    cameraId: string;
     status: string;
     durationSeconds: number;
     sourceStartedAt: string;
@@ -103,6 +104,7 @@ type Props = {
   sites: SiteSummary[];
   initialSources: SourceSummary[];
   initialSourceId?: string;
+  initialSessionId?: string;
   canManage: boolean;
 };
 
@@ -117,6 +119,8 @@ const PLAN_DESCRIPTIONS: Record<RecordingPlanCode, string> = {
   standard: "Mais contexto para entender o que aconteceu",
   intensive: "Análise mais completa, com detalhes extras quando necessário",
 };
+
+const TRIAL_RECORDING_LIMIT_SECONDS = 86_400;
 
 const RECORDING_ERROR_MESSAGES: Record<string, string> = {
   authentication_required:
@@ -196,6 +200,14 @@ function recordingErrorMessage(value: unknown, status?: number) {
 
   if (status === 403) {
     return "Sua conta não tem permissão para fazer esta alteração.";
+  }
+
+  if (
+    /codec|canvas|jpeg|ffmpeg|compatibilidade|workerfs|webassembly/i.test(
+      raw,
+    )
+  ) {
+    return "Não conseguimos ler este vídeo neste dispositivo. Tente outro arquivo MP4 ou MOV.";
   }
 
   const looksInternal =
@@ -338,12 +350,14 @@ export function RecordingsClient({
   sites,
   initialSources,
   initialSourceId,
+  initialSessionId,
   canManage,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const requestKeyRef = useRef<string | null>(null);
+  const restoredSessionRef = useRef<string | null>(null);
 
   const [sources, setSources] = useState(initialSources);
   const [selectedSourceId, setSelectedSourceId] = useState(
@@ -432,6 +446,20 @@ export function RecordingsClient({
     }
   }, [selectedSourceId]);
 
+  function rememberSession(sessionId: string) {
+    if (typeof window === "undefined" || !selectedSource) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("source", selectedSource.id);
+    url.searchParams.set("session", sessionId);
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
+
   function patchSource(
     sourceId: string,
     patch: Partial<SourceSummary>,
@@ -485,7 +513,9 @@ export function RecordingsClient({
       );
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
     } finally {
       setSourceBusy(false);
@@ -562,7 +592,9 @@ export function RecordingsClient({
       }
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
       setStatus("Não foi possível preparar esta gravação.");
     }
@@ -620,7 +652,9 @@ export function RecordingsClient({
       );
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
     } finally {
       setProfileBusy(false);
@@ -647,7 +681,9 @@ export function RecordingsClient({
       );
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
     } finally {
       setProfileBusy(false);
@@ -694,19 +730,21 @@ export function RecordingsClient({
           clipEnabled: trialPlan === "intensive",
         },
         quota: {
-          limitSeconds: response.recordingLimitSeconds ?? 600,
+          limitSeconds: response.recordingLimitSeconds ?? TRIAL_RECORDING_LIMIT_SECONDS,
           usedSeconds: 0,
-          remainingSeconds: response.recordingLimitSeconds ?? 600,
+          remainingSeconds: response.recordingLimitSeconds ?? TRIAL_RECORDING_LIMIT_SECONDS,
         },
       });
 
       await loadConfig();
       setStatus(
-        "Teste iniciado. Você pode analisar até 10 minutos de vídeo gratuitamente.",
+        "Teste iniciado. Durante as próximas 24 horas, você pode analisar até 24 horas de gravações.",
       );
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
     } finally {
       setSourceBusy(false);
@@ -731,11 +769,7 @@ export function RecordingsClient({
 
       if (!payload.pending) return payload;
 
-      setStatus(
-        `IA analisando os acontecimentos · ${payload.jobs.filter(
-          (job) => job.status === "completed",
-        ).length}/${payload.jobs.length}`,
-      );
+      setStatus("Analisando seus acontecimentos…");
       await new Promise<void>((resolve) =>
         window.setTimeout(resolve, 3000),
       );
@@ -745,6 +779,93 @@ export function RecordingsClient({
       "A análise continua em segundo plano. Abra novamente esta origem em alguns minutos para consultar os resultados.",
     );
   }
+
+
+  useEffect(() => {
+    const selectedSourceIdToRestore = selectedSource?.id;
+
+    if (!initialSessionId || !selectedSourceIdToRestore) return;
+
+    const sessionIdToRestore: string = initialSessionId;
+    const sourceIdToRestore: string = selectedSourceIdToRestore;
+
+    if (restoredSessionRef.current === sessionIdToRestore) return;
+
+    restoredSessionRef.current = sessionIdToRestore;
+    let cancelled = false;
+
+    async function restoreSession() {
+      setError(null);
+      setStatus("Recuperando sua análise…");
+
+      try {
+        const response = await fetch(
+          `/api/recordings/sessions/${sessionIdToRestore}`,
+          { cache: "no-store" },
+        );
+
+        const payload = (await response.json()) as SessionResult & {
+          error?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(
+            recordingErrorMessage(payload.error, response.status),
+          );
+        }
+
+        if (cancelled) return;
+
+        if (payload.session.cameraId !== sourceIdToRestore) {
+          throw new Error(
+            "Esta análise pertence a outro ambiente.",
+          );
+        }
+
+        setActiveSessionId(sessionIdToRestore);
+        setSessionResult(payload);
+
+        if (payload.pending) {
+          setProcessing(true);
+          setProgress(96);
+          setStatus("Analisando seus acontecimentos…");
+
+          const finalResult = await waitForSession(sessionIdToRestore);
+
+          if (cancelled) return;
+
+          setSessionResult(finalResult);
+          setProgress(100);
+          setStatus(
+            finalResult.events.length
+              ? "Análise concluída. Seus acontecimentos estão prontos."
+              : "Análise concluída. Não encontramos acontecimentos relevantes.",
+          );
+        } else {
+          setProgress(100);
+          setStatus(
+            payload.events.length
+              ? "Análise concluída. Seus acontecimentos estão prontos."
+              : "Análise concluída. Não encontramos acontecimentos relevantes.",
+          );
+        }
+      } catch (caught) {
+        if (cancelled) return;
+        restoredSessionRef.current = null;
+        const message =
+          caught instanceof Error ? caught.message : String(caught);
+        setError(recordingErrorMessage(message));
+      } finally {
+        if (!cancelled) setProcessing(false);
+      }
+    }
+
+    void restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialSessionId, selectedSource?.id]);
 
   async function analyzeRecording() {
     if (!selectedSource || !file || !videoInfo || !recordingStart) {
@@ -776,13 +897,13 @@ export function RecordingsClient({
         selectedSource.entitlement.accessSource === config.entitlement.accessSource
           ? selectedSource.quota.remainingSeconds
           : trial
-            ? 600
+            ? TRIAL_RECORDING_LIMIT_SECONDS
             : 2_592_000;
 
       if (remainingFromSource <= 0) {
         throw new Error(
           trial
-            ? "Os 10 minutos disponíveis no teste grátis já foram utilizados."
+            ? "O tempo de gravações disponível no teste de 24 horas já foi utilizado."
             : "O tempo disponível para analisar vídeos neste período já foi utilizado.",
         );
       }
@@ -793,8 +914,11 @@ export function RecordingsClient({
       );
 
       setStatus(
-        trial && (!videoInfo.durationKnown || videoInfo.durationSeconds > 600)
-          ? "Analisando os primeiros 10 minutos do vídeo…"
+        videoInfo.durationKnown &&
+          videoInfo.durationSeconds > maxProcessSeconds
+          ? `Analisando até ${formatDuration(
+              maxProcessSeconds,
+            )}, que é o tempo disponível neste momento…`
           : "Analisando o vídeo…",
       );
 
@@ -806,9 +930,9 @@ export function RecordingsClient({
         config,
         maxDurationSeconds: maxProcessSeconds,
         signal: controller.signal,
-        onProgress: (value, message) => {
+        onProgress: (value, _message) => {
           setProgress(Math.min(70, Math.round(value * 0.7)));
-          setStatus(message);
+          setStatus("Analisando o vídeo…");
         },
       });
 
@@ -853,6 +977,7 @@ export function RecordingsClient({
 
       sessionId = reserved.sessionId;
       setActiveSessionId(sessionId);
+      rememberSession(sessionId);
 
       await jsonRequest(`/api/recordings/sessions/${sessionId}`, {
         method: "PATCH",
@@ -963,7 +1088,7 @@ export function RecordingsClient({
         setStatus(
           result.events.length
             ? "Análise concluída."
-            : "Processamento concluído. Nenhum acontecimento relevante foi encontrado.",
+            : "Análise concluída. Não encontramos acontecimentos relevantes.",
         );
       } else {
         const result = await waitForSession(sessionId);
@@ -997,10 +1122,10 @@ export function RecordingsClient({
       }
 
       if (message !== "analysis_cancelled") {
-        setError(message);
-        setStatus("A análise foi interrompida.");
+        setError(recordingErrorMessage(message));
+        setStatus("Não foi possível concluir a análise.");
       } else {
-        setStatus("Processamento cancelado.");
+        setStatus("Análise cancelada.");
       }
     } finally {
       setProcessing(false);
@@ -1062,7 +1187,7 @@ export function RecordingsClient({
 
       if (!upload.ok) {
         throw new Error(
-          `O upload do vídeo de evidência falhou com HTTP ${upload.status}.`,
+          "Não foi possível preparar o trecho do vídeo. Tente novamente.",
         );
       }
 
@@ -1081,7 +1206,9 @@ export function RecordingsClient({
       setProgress(100);
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : String(caught),
+        recordingErrorMessage(
+          caught instanceof Error ? caught.message : String(caught),
+        ),
       );
     } finally {
       setClipBusyId(null);
@@ -1202,7 +1329,11 @@ export function RecordingsClient({
                 </p>
               </div>
               <div className={styles.quotaBox}>
-                <span>Tempo disponível</span>
+                <span>
+                  {selectedSource.entitlement.accessSource === "trial"
+                    ? "Tempo de vídeos no teste"
+                    : "Tempo disponível"}
+                </span>
                 <strong>
                   {selectedSource.entitlement.monitoringAllowed
                     ? formatQuota(selectedSource.quota.remainingSeconds)
@@ -1348,23 +1479,13 @@ export function RecordingsClient({
                   <div className={styles.profileReview}>
                     <div>
                       <span>AMBIENTE IDENTIFICADO</span>
-                      <h4>
-                        {profileDraft.environmentDescription ??
-                          "Ambiente identificado"}
-                      </h4>
+                      <h4>Ambiente reconhecido</h4>
                       <p>
-                        {(profileDraft.monitoringGoals ?? []).join(" · ")}
+                        O MonitorIA reconheceu o local desta gravação.
+                        Se a imagem acima representa o ambiente corretamente,
+                        confirme para continuar.
                       </p>
                     </div>
-                    {(profileDraft.zones ?? []).length ? (
-                      <div className={styles.zoneChips}>
-                        {profileDraft.zones?.map((zone) => (
-                          <span key={`${zone.name}-${zone.type}`}>
-                            {zone.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
                     <button
                       type="button"
                       className={styles.primaryButton}
@@ -1386,8 +1507,9 @@ export function RecordingsClient({
                 </div>
 
                 <p className={styles.muted}>
-                  Use até 10 minutos de vídeo no teste grátis. Se a gravação
-                  for maior, analisaremos somente os primeiros 10 minutos.
+                  O teste grátis fica disponível por 24 horas. Durante esse
+                  período, você pode analisar até 24 horas de gravações,
+                  em arquivos de até 1 hora cada.
                 </p>
 
                 <div className={styles.planChoice}>
@@ -1415,7 +1537,7 @@ export function RecordingsClient({
                   >
                     {sourceBusy
                       ? "Ativando…"
-                      : "Iniciar teste de até 10 minutos"}
+                      : "Iniciar teste grátis por 24 horas"}
                   </button>
                   <Link
                     href="/dashboard/plans"
@@ -1493,84 +1615,110 @@ export function RecordingsClient({
 
             {sessionResult ? (
               <section className={styles.results}>
-                <div className={styles.sectionTitle}>
-                  <div>
-                    <span>RESULTADOS</span>
-                    <h3>
-                      {sessionResult.events.length
-                        ? `${sessionResult.events.length} acontecimento(s) relevante(s)`
-                        : "Nenhum acontecimento relevante"}
-                    </h3>
-                  </div>
-                  <small>Análise concluída</small>
-                </div>
-
-                {sessionResult.events.length ? (
-                  <div className={styles.eventGrid}>
-                    {sessionResult.events.map((event) => (
-                      <article className={styles.eventCard} key={event.id}>
-                        {event.thumbnailAssetId ? (
-                          <img
-                            src={`/api/storage-assets/${event.thumbnailAssetId}`}
-                            alt=""
-                          />
-                        ) : (
-                          <div className={styles.noPreview}>MonitorIA</div>
-                        )}
-
-                        <div className={styles.eventBody}>
-                          <div>
-                            <span>
-                              {new Intl.DateTimeFormat("pt-BR", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              }).format(new Date(event.startedAt))}
-                            </span>
-                            <strong>
-                              {event.headline || event.summary}
-                            </strong>
-                            <p>{event.summary}</p>
-                          </div>
-
-                          <div className={styles.eventActions}>
-                            <Link href={`/dashboard/events/${event.id}`}>
-                              Abrir acontecimento
-                            </Link>
-
-                            {event.clipAssetId ? (
-                              <a
-                                href={`/api/storage-assets/${event.clipAssetId}?download=1`}
-                              >
-                                Baixar vídeo
-                              </a>
-                            ) : (
-                              (recordingConfig?.planCode ??
-                                selectedSource.planCode) === "intensive" &&
-                              file?.name ===
-                                sessionResult.session.sourceFilename ? (
-                                <button
-                                  type="button"
-                                  disabled={clipBusyId === event.id}
-                                  onClick={() => generateClip(event.id)}
-                                >
-                                  {clipBusyId === event.id
-                                    ? "Preparando vídeo…"
-                                    : "Gerar vídeo do acontecimento"}
-                                </button>
-                              ) : null
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={styles.emptyResult}>
-                    <strong>Análise concluída</strong>
+                {sessionResult.pending ? (
+                  <div className={styles.pendingResult}>
+                    <span
+                      className={styles.resultSpinner}
+                      aria-hidden="true"
+                    />
+                    <strong>Analisando seus acontecimentos…</strong>
                     <p>
-                      Não encontramos acontecimentos relevantes nesse trecho.
+                      Estamos finalizando a análise. Os resultados aparecerão
+                      juntos assim que estiverem prontos.
                     </p>
                   </div>
+                ) : (
+                  <>
+                    <div className={styles.sectionTitle}>
+                      <div>
+                        <span>RESULTADOS</span>
+                        <h3>
+                          {sessionResult.events.length
+                            ? `${sessionResult.events.length} acontecimento(s) relevante(s)`
+                            : "Nenhum acontecimento relevante"}
+                        </h3>
+                      </div>
+                      <small>Análise concluída</small>
+                    </div>
+
+                    {sessionResult.events.length ? (
+                      <div className={styles.eventGrid}>
+                        {sessionResult.events.map((event) => (
+                          <article className={styles.eventCard} key={event.id}>
+                            {event.thumbnailAssetId ? (
+                              <img
+                                src={`/api/storage-assets/${event.thumbnailAssetId}`}
+                                alt=""
+                              />
+                            ) : (
+                              <div className={styles.noPreview}>MonitorIA</div>
+                            )}
+
+                            <div className={styles.eventBody}>
+                              <div>
+                                <span>
+                                  {new Intl.DateTimeFormat("pt-BR", {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  }).format(new Date(event.startedAt))}
+                                </span>
+                                <strong>
+                                  {event.headline || event.summary}
+                                </strong>
+                                <p>{event.summary}</p>
+                              </div>
+
+                              <div className={styles.eventActions}>
+                                <Link
+                                  href={
+                                    activeSessionId
+                                      ? `/dashboard/events/${event.id}?recordingSource=${encodeURIComponent(
+                                          selectedSource.id,
+                                        )}&recordingSession=${encodeURIComponent(
+                                          activeSessionId,
+                                        )}`
+                                      : `/dashboard/events/${event.id}`
+                                  }
+                                >
+                                  Abrir acontecimento
+                                </Link>
+
+                                {event.clipAssetId ? (
+                                  <a
+                                    href={`/api/storage-assets/${event.clipAssetId}?download=1`}
+                                  >
+                                    Baixar vídeo
+                                  </a>
+                                ) : (
+                                  (recordingConfig?.planCode ??
+                                    selectedSource.planCode) === "intensive" &&
+                                  file?.name ===
+                                    sessionResult.session.sourceFilename ? (
+                                    <button
+                                      type="button"
+                                      disabled={clipBusyId === event.id}
+                                      onClick={() => generateClip(event.id)}
+                                    >
+                                      {clipBusyId === event.id
+                                        ? "Preparando vídeo…"
+                                        : "Gerar vídeo do acontecimento"}
+                                    </button>
+                                  ) : null
+                                )}
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={styles.emptyResult}>
+                        <strong>Análise concluída</strong>
+                        <p>
+                          Não encontramos acontecimentos relevantes nesse trecho.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </section>
             ) : null}

@@ -60,6 +60,8 @@ const DETAIL_QUERY_KEYS = [
   "type",
   "review",
   "page",
+  "recordingSource",
+  "recordingSession",
 ] as const;
 
 function detailContext(
@@ -255,9 +257,18 @@ export default async function EventDetailPage({
 
   const contextParams = detailContext(rawSearchParams);
   const detailQuery = contextParams.toString();
-  const listHref = `/dashboard/events${
-    detailQuery ? `?${detailQuery}` : ""
-  }`;
+  const recordingSource = contextParams.get("recordingSource");
+  const recordingSession = contextParams.get("recordingSession");
+  const returnToRecording = Boolean(
+    recordingSource && recordingSession,
+  );
+
+  const listHref =
+    recordingSource && recordingSession
+      ? `/dashboard/recordings?source=${encodeURIComponent(
+          recordingSource,
+        )}&session=${encodeURIComponent(recordingSession)}`
+      : `/dashboard/events${detailQuery ? `?${detailQuery}` : ""}`;
   const contextPage = Math.max(
     1,
     Number.parseInt(contextParams.get("page") ?? "1", 10) || 1,
@@ -336,18 +347,22 @@ export default async function EventDetailPage({
           </div>
 
           <Link href={listHref} className="back-link">
-            ← Voltar aos acontecimentos
+            ← {returnToRecording
+              ? "Voltar à gravação"
+              : "Voltar aos acontecimentos"}
           </Link>
         </header>
 
         <DashboardSectionTabs group="monitoring" />
 
-        <EventNavigationBar
-          navigation={navigation}
-          detailQuery={detailQuery}
-          listHref={listHref}
-          page={contextPage}
-        />
+        {!returnToRecording ? (
+          <EventNavigationBar
+            navigation={navigation}
+            detailQuery={detailQuery}
+            listHref={listHref}
+            page={contextPage}
+          />
+        ) : null}
 
         {scalar(rawSearchParams.saved) === "1" ? (
           <div className={styles.success}>
@@ -677,12 +692,14 @@ export default async function EventDetailPage({
           </small>
         </section>
 
-        <EventNavigationBar
-          navigation={navigation}
-          detailQuery={detailQuery}
-          listHref={listHref}
-          page={contextPage}
-        />
+        {!returnToRecording ? (
+          <EventNavigationBar
+            navigation={navigation}
+            detailQuery={detailQuery}
+            listHref={listHref}
+            page={contextPage}
+          />
+        ) : null}
 
         <section className={styles.analysisDetailsWrap}>
           <MonitoringAnalysisDetails

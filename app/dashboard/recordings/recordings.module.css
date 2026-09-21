@@ -542,6 +542,44 @@
   overflow-wrap: anywhere;
 }
 
+
+.pendingResult {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  text-align: center;
+}
+
+.pendingResult strong {
+  color: #293a52;
+  font-size: 14px;
+}
+
+.pendingResult p {
+  max-width: 440px;
+  margin: 0;
+  color: #748397;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.resultSpinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #d7eee7;
+  border-top-color: #2bb99d;
+  border-radius: 50%;
+  animation: recordingResultSpin 850ms linear infinite;
+}
+
+@keyframes recordingResultSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .eventGrid {
   display: grid;
   gap: 12px;

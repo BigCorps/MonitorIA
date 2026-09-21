@@ -63,6 +63,7 @@ export default async function RecordingsPage({ searchParams }: Props) {
           sites={sites}
           initialSources={sources}
           initialSourceId={first(params.source)}
+          initialSessionId={first(params.session)}
           canManage={["owner", "admin"].includes(organization.role)}
         />
       </section>

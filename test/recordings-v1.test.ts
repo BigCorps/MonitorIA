@@ -380,3 +380,152 @@ rc3Test(
     );
   },
 );
+
+
+// RC7 trial 24h + result persistence regressions — Gravações
+const trial24Migration = rc3ReadFileSync(
+  "supabase/migrations/20260921004311_recordings_trial_24h.sql",
+  "utf8",
+);
+
+const recordingPageRc7 = rc3ReadFileSync(
+  "app/dashboard/recordings/page.tsx",
+  "utf8",
+);
+
+const eventPageRc7 = rc3ReadFileSync(
+  "app/dashboard/events/[eventId]/page.tsx",
+  "utf8",
+);
+
+rc3Test(
+  "trial por gravação usa 24 horas em todas as camadas",
+  () => {
+    rc3Assert.match(
+      recordingTrialRoute,
+      /recordingLimitSeconds: 86_400/,
+    );
+
+    rc3Assert.match(
+      rc4RecordingSource,
+      /accessSource === "trial"[\s\S]*?\? 86_400/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /TRIAL_RECORDING_LIMIT_SECONDS = 86_400/,
+    );
+
+    rc3Assert.match(
+      trial24Migration,
+      /v_limit := 86400/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /10 minutos/,
+    );
+  },
+);
+
+rc3Test(
+  "confirmação do ambiente não exibe campos técnicos gerados",
+  () => {
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /profileDraft\.monitoringGoals/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /profileDraft\.zones\?\.map/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /O MonitorIA reconheceu o local desta gravação/,
+    );
+  },
+);
+
+rc3Test(
+  "resultados parciais ficam em carregamento até a análise terminar",
+  () => {
+    const pending = recordingsClientUi.indexOf(
+      "sessionResult.pending",
+    );
+
+    const empty = recordingsClientUi.indexOf(
+      "Não encontramos acontecimentos relevantes nesse trecho.",
+    );
+
+    rc3Assert.ok(pending >= 0);
+    rc3Assert.ok(empty >= 0);
+    rc3Assert.ok(pending < empty);
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Analisando seus acontecimentos/,
+    );
+  },
+);
+
+rc3Test(
+  "análise fica persistida na URL e pode ser restaurada",
+  () => {
+    rc3Assert.match(
+      recordingsClientUi,
+      /searchParams\.set\("session", sessionId\)/,
+    );
+
+    rc3Assert.match(
+      recordingPageRc7,
+      /initialSessionId=\{first\(params\.session\)\}/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Recuperando sua análise/,
+    );
+  },
+);
+
+rc3Test(
+  "acontecimento aberto por gravação volta para a mesma análise",
+  () => {
+    rc3Assert.match(
+      recordingsClientUi,
+      /recordingSession=/,
+    );
+
+    rc3Assert.match(
+      eventPageRc7,
+      /recordingSource/,
+    );
+
+    rc3Assert.match(
+      eventPageRc7,
+      /recordingSession/,
+    );
+
+    rc3Assert.match(
+      eventPageRc7,
+      /Voltar à gravação/,
+    );
+  },
+);
+
+rc3Test(
+  "progresso do motor não é mostrado diretamente ao cliente",
+  () => {
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /setStatus\(message\)/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /onProgress: \(value, _message\)/,
+    );
+  },
+);

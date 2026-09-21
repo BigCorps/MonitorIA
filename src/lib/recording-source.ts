@@ -236,7 +236,7 @@ export async function getRecordingSourceSummaries(
     const accessSource = String(entitlement?.access_source ?? "blocked");
     const quotaLimitSeconds =
       accessSource === "trial"
-        ? 600
+        ? 86_400
         : ["subscription", "grace_period", "legacy"].includes(accessSource)
           ? 2_592_000
           : 0;

@@ -213,6 +213,7 @@ export async function GET(_request: Request, context: RouteContext) {
       ok: true,
       session: {
         id: sessionId,
+        cameraId: String(authorized.session.camera_id),
         status: sessionStatus,
         durationSeconds: Number(authorized.session.duration_seconds),
         sourceStartedAt: String(authorized.session.source_started_at),
