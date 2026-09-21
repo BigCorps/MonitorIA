@@ -74,7 +74,7 @@ test("Pesquisa IA recebe hora local e termos amigáveis", () => {
   ) as Record<string, string>;
 
   assert.match(localized.at, /08\/08\/2026, 10:03/);
-  assert.match(localized.at, /horário da câmera/);
+  assert.match(localized.at, /horário do registro/);
   assert.doesNotMatch(localized.at, /Z|UTC|T13/);
   assert.equal(
     localized.status,
@@ -86,7 +86,7 @@ test("Pesquisa IA recebe hora local e termos amigáveis", () => {
       "2026-08-08",
       "America/Sao_Paulo",
     ),
-    /horário da câmera/,
+    /horário do registro/,
   );
 });
 

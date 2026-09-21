@@ -9,6 +9,8 @@ import {
   type DashboardNavigationItem,
 } from "./dashboard-navigation";
 import styles from "./dashboard-section-tabs.module.css";
+import { useDashboardSourceContext } from "./dashboard-source-context";
+import type { OrganizationSourceMode } from "@/src/lib/source-mode";
 
 type Props = {
   group: DashboardNavigationGroupId;
@@ -41,80 +43,136 @@ type MonitoringNotice = {
   tone?: "active" | "learning" | "neutral";
 };
 
-function monitoringNotice(pathname: string): MonitoringNotice | null {
+function monitoringNotice(
+  pathname: string,
+  mode: OrganizationSourceMode,
+): MonitoringNotice | null {
+  const recordingOnly = mode === "recordings_only";
+  const hybrid = mode === "hybrid";
+
   if (
     pathname === "/dashboard/events" ||
     pathname.startsWith("/dashboard/events?")
   ) {
+    if (recordingOnly) {
+      return {
+        title: "Resultados das gravações analisadas",
+        text:
+          "Os acontecimentos desta tela vêm dos arquivos enviados aos seus ambientes. " +
+          "Novos registros aparecem quando outra gravação é analisada.",
+        tone: "neutral",
+      };
+    }
+
+    if (hybrid) {
+      return {
+        title: "Câmeras conectadas e gravações no mesmo histórico",
+        text:
+          "Acontecimentos das câmeras conectadas e dos arquivos analisados aparecem juntos. " +
+          "Use os filtros para consultar uma fonte específica.",
+        tone: "active",
+      };
+    }
+
     return {
       title: "Monitoramento ativo · analisando novos acontecimentos",
       text:
-        "Os acontecimentos não aparecem instantaneamente. O MonitorIA acompanha o movimento até ele terminar e depois faz a análise com IA. Normalmente um novo registro aparece em 1 a 3 minutos após o fim do acontecimento; movimentos longos podem levar um pouco mais.",
+        "Os acontecimentos não aparecem instantaneamente. O MonitorIA acompanha o movimento " +
+        "até ele terminar e depois faz a análise com IA.",
       tone: "active",
     };
   }
 
   if (pathname.startsWith("/dashboard/sessions")) {
     return {
-      title: "Períodos são formados automaticamente",
-      text:
-        "O MonitorIA agrupa acontecimentos relacionados em períodos operacionais. No começo pode aparecer zero mesmo com acontecimentos já registrados; os primeiros períodos surgem conforme eventos relacionados começam a formar uma sequência.",
+      title: recordingOnly
+        ? "Períodos são formados a partir das gravações analisadas"
+        : "Períodos são formados automaticamente",
+      text: recordingOnly
+        ? "O MonitorIA agrupa acontecimentos relacionados dentro do histórico dos arquivos enviados."
+        : "O MonitorIA agrupa acontecimentos relacionados em períodos operacionais conforme novos registros chegam.",
       tone: "learning",
     };
   }
 
   if (pathname.startsWith("/dashboard/routines")) {
     return {
-      title: "Aprendendo a rotina da operação",
-      text:
-        "Rotinas não são inferidas a partir de poucas horas. O sistema compara dias e horários recorrentes e, por segurança, precisa de pelo menos 5 dias observados antes de considerar um padrão confiável.",
+      title: recordingOnly
+        ? "Padrões históricos podem ser aprendidos com suas gravações"
+        : "Aprendendo a rotina da operação",
+      text: recordingOnly
+        ? "Quanto mais dias e horários diferentes você enviar, melhor o MonitorIA consegue reconhecer padrões históricos. Gravações não geram alertas sobre o que está acontecendo agora."
+        : "O sistema compara dias e horários recorrentes e precisa de observações suficientes antes de considerar um padrão confiável.",
       tone: "learning",
     };
   }
 
   if (pathname.startsWith("/dashboard/processes")) {
     return {
-      title: "Processos são reconstruídos a partir dos períodos",
+      title: recordingOnly
+        ? "Processos são reconstruídos a partir dos arquivos analisados"
+        : "Processos são reconstruídos a partir dos períodos",
       text:
-        "Atendimentos, entregas, abertura, fechamento e outras sequências são montados a partir dos acontecimentos e períodos já observados. Zero no início significa que ainda não houve uma sequência suficiente para fechar um processo.",
+        "Atendimentos, entregas, abertura, fechamento e outras sequências são montados a partir dos acontecimentos já analisados.",
       tone: "learning",
     };
   }
 
   if (pathname.startsWith("/dashboard/operational-profiles")) {
     return {
-      title: "Padrões da operação estão em aprendizado",
+      title: "Padrões da operação são aprendidos a partir do histórico",
       text:
-        "O MonitorIA usa acontecimentos já analisados para aprender padrões recorrentes sem reconhecimento facial. Uma sugestão só começa a ganhar forma depois de múltiplas observações em dias diferentes e continua sujeita à revisão humana.",
+        "O MonitorIA usa acontecimentos analisados para reconhecer padrões recorrentes sem reconhecimento facial.",
       tone: "learning",
     };
   }
 
   if (pathname.startsWith("/dashboard/camera-health")) {
-    return {
-      title: "Funcionamento é verificado em segundo plano",
-      text:
-        "A imagem é medida periodicamente para observar luz, nitidez, obstrução, congelamento e mudança de enquadramento. As primeiras medições aparecem após o Agent enviar amostras e o sistema começar a formar uma referência.",
-      tone: "active",
-    };
+    return recordingOnly
+      ? {
+          title: "Funcionamento contínuo é para câmeras conectadas",
+          text:
+            "Ambientes de gravação não ficam online ou offline. Esta área será usada quando você conectar uma câmera ao MonitorIA.",
+          tone: "neutral",
+        }
+      : {
+          title: "Funcionamento das câmeras é verificado continuamente",
+          text:
+            "O MonitorIA acompanha comunicação, qualidade da imagem e mudanças importantes das câmeras conectadas.",
+          tone: "active",
+        };
   }
 
   if (pathname.startsWith("/dashboard/operations")) {
-    return {
-      title: "Zero alertas é um resultado normal",
-      text:
-        "Esta seção mostra situações que realmente pedem atenção. Se câmera, Agent e operação estiverem normais, o esperado é permanecer em zero; as verificações continuam rodando em segundo plano.",
-      tone: "active",
-    };
+    return recordingOnly
+      ? {
+          title: "Alertas de conexão só se aplicam a câmeras conectadas",
+          text:
+            "Acontecimentos encontrados nas gravações ficam no histórico. Esta área também pode mostrar avisos gerais da conta quando necessário.",
+          tone: "neutral",
+        }
+      : {
+          title: "Zero alertas é um resultado normal",
+          text:
+            "Esta seção mostra situações que realmente pedem atenção no monitoramento contínuo e na conta.",
+          tone: "active",
+        };
   }
 
   if (pathname.startsWith("/dashboard/intelligence/cross-camera")) {
-    return {
-      title: "Entre câmeras precisa de pelo menos duas câmeras",
-      text:
-        "As passagens aparecem somente quando o mesmo local possui observações compatíveis em câmeras diferentes. Com uma única câmera, zero é o comportamento correto. As hipóteses usam tempo e características visuais, sem reconhecimento facial.",
-      tone: "neutral",
-    };
+    return recordingOnly
+      ? {
+          title: "Entre câmeras é um recurso do monitoramento contínuo",
+          text:
+            "Arquivos enviados permanecem independentes. Para acompanhar passagens entre câmeras em sequência, conecte as câmeras ao MonitorIA.",
+          tone: "neutral",
+        }
+      : {
+          title: "Entre câmeras precisa de pelo menos duas câmeras conectadas",
+          text:
+            "As passagens aparecem quando o mesmo local possui observações compatíveis em câmeras diferentes.",
+          tone: "neutral",
+        };
   }
 
   return null;
@@ -147,8 +205,12 @@ export function DashboardSectionTabs({
   className = "",
 }: Props) {
   const pathname = usePathname();
+  const { mode } = useDashboardSourceContext();
   const navigation = dashboardNavigationGroups[group];
-  const notice = group === "monitoring" ? monitoringNotice(pathname) : null;
+  const notice =
+    group === "monitoring"
+      ? monitoringNotice(pathname, mode)
+      : null;
 
   const { primaryItems, advancedItems } = useMemo(() => {
     if (group !== "monitoring") {
@@ -162,11 +224,17 @@ export function DashboardSectionTabs({
       primaryItems: navigation.items.filter((item) =>
         ["events", "sessions"].includes(item.id),
       ),
-      advancedItems: navigation.items.filter(
-        (item) => !["events", "sessions"].includes(item.id),
-      ),
+      advancedItems: navigation.items
+        .filter(
+          (item) => !["events", "sessions"].includes(item.id),
+        )
+        .filter(
+          (item) =>
+            mode !== "recordings_only" ||
+            !["health", "cross-camera"].includes(item.id),
+        ),
     };
-  }, [group, navigation.items]);
+  }, [group, mode, navigation.items]);
 
   const advancedRouteActive = advancedItems.some((item) =>
     itemIsActive(pathname, item),

@@ -317,6 +317,8 @@ export default async function EventDetailPage({
     expectedLongTermEvidenceCount(event.analysisPlanCode);
   const currentReview = event.reviews[0] ?? null;
   const visibleReviewState = reviewStateLabel(event.humanVerdict);
+  const recordingEvent =
+    event.sourceKind === "local_recording";
 
   return (
     <main className="dashboard-shell">
@@ -392,6 +394,11 @@ export default async function EventDetailPage({
               <span>{eventTypeLabel(event.eventType)}</span>
               <span>{event.siteName}</span>
               <span>{event.cameraName}</span>
+              <span>
+                {recordingEvent
+                  ? "Gravação"
+                  : "Câmera conectada"}
+              </span>
               {visibleReviewState ? (
                 <span data-review={event.humanVerdict}>
                   {visibleReviewState}
@@ -418,10 +425,12 @@ export default async function EventDetailPage({
                 <dt>Imagens</dt>
                 <dd>{imageAssets.length}</dd>
               </div>
-              <div>
-                <dt>Vídeo</dt>
-                <dd>{clipAsset ? "Sim" : "—"}</dd>
-              </div>
+              {!recordingEvent ? (
+                <div>
+                  <dt>Vídeo</dt>
+                  <dd>{clipAsset ? "Sim" : "—"}</dd>
+                </div>
+              ) : null}
             </dl>
           </aside>
         </section>
@@ -430,12 +439,18 @@ export default async function EventDetailPage({
           <div className={styles.sectionHeading}>
             <div>
               <span>REGISTROS VISUAIS</span>
-              <h2>Imagens e vídeo</h2>
+              <h2>
+                {recordingEvent
+                  ? "Imagens do acontecimento"
+                  : "Imagens e vídeo"}
+              </h2>
             </div>
             <small>
               {imageAssets.length} imagem
               {imageAssets.length === 1 ? "" : "s"}
-              {clipAsset ? " · vídeo disponível" : ""}
+              {!recordingEvent && clipAsset
+                ? " · vídeo disponível"
+                : ""}
             </small>
           </div>
 
@@ -447,7 +462,7 @@ export default async function EventDetailPage({
               capturedAt: asset.capturedAt,
             }))}
             clip={
-              clipAsset
+              !recordingEvent && clipAsset
                 ? {
                     id: clipAsset.id,
                     byteSize: clipAsset.byteSize,

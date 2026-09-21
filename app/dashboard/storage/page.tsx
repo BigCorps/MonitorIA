@@ -69,7 +69,7 @@ export default async function StoragePage() {
             <h1>Dados armazenados</h1>
             <p>
               Veja o que fica disponível no histórico e por quanto tempo as
-              imagens e vídeos de cada câmera são mantidos.
+              imagens e registros de cada fonte visual são mantidos.
             </p>
           </div>
 
@@ -121,8 +121,8 @@ export default async function StoragePage() {
         <section className={styles.cameraSection}>
           <div className={styles.sectionHeading}>
             <div>
-              <span>POR CÂMERA</span>
-              <h2>Histórico, imagens e vídeos</h2>
+              <span>POR FONTE</span>
+              <h2>Histórico e arquivos relacionados</h2>
             </div>
             <strong>{cameras.length}</strong>
           </div>
@@ -133,7 +133,12 @@ export default async function StoragePage() {
                 <article className={styles.cameraCard} key={camera.cameraId}>
                   <div className={styles.cameraHeader}>
                     <div>
-                      <span>Plano {retentionPlanLabel(camera.planCode)}</span>
+                      <span>
+                        {camera.sourceKind === "local_recording"
+                          ? "Gravações"
+                          : "Câmera conectada"}
+                        {" · "}Plano {retentionPlanLabel(camera.planCode)}
+                      </span>
                       <h3>{camera.cameraName}</h3>
                     </div>
                     <strong>{formatStorageBytes(camera.totalBytes)}</strong>
@@ -158,9 +163,11 @@ export default async function StoragePage() {
                     <div>
                       <dt>Vídeos</dt>
                       <dd>
-                        {camera.clipEnabled
-                          ? `Guardados por ${camera.clipRetentionDays ?? 30} dias`
-                          : "Não incluídos neste plano"}
+                        {camera.sourceKind === "local_recording"
+                          ? "Arquivo original permanece com você"
+                          : camera.clipEnabled
+                            ? `Guardados por ${camera.clipRetentionDays ?? 30} dias`
+                            : "Não incluídos neste plano"}
                       </dd>
                     </div>
                   </dl>
@@ -209,9 +216,9 @@ export default async function StoragePage() {
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <strong>Nenhuma câmera disponível</strong>
+              <strong>Nenhuma fonte disponível</strong>
               <p>
-                Cadastre uma câmera para acompanhar o histórico e os arquivos
+                Cadastre uma câmera ou crie um ambiente de gravações para acompanhar o histórico e os arquivos
                 armazenados.
               </p>
               <Link href="/dashboard/cameras">Abrir câmeras</Link>

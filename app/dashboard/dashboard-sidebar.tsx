@@ -34,7 +34,7 @@ async function redirectOverviewAfterTrial(input: {
   const [trialResult, entitlementResult] = await Promise.all([
     admin
       .from("trial_runs")
-      .select("status,capture_ends_at")
+      .select("status,capture_ends_at,camera:cameras(source_kind)")
       .eq("organization_id", input.organizationId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -53,6 +53,10 @@ async function redirectOverviewAfterTrial(input: {
   const trial = trialResult.data as {
     status?: string | null;
     capture_ends_at?: string | null;
+    camera?:
+      | { source_kind?: string | null }
+      | Array<{ source_kind?: string | null }>
+      | null;
   } | null;
 
   if (!trial) return;
@@ -72,6 +76,14 @@ async function redirectOverviewAfterTrial(input: {
     captureEndedByClock;
 
   if (postCapture && (entitlementResult.count ?? 0) === 0) {
+    const relation = Array.isArray(trial.camera)
+      ? trial.camera[0]
+      : trial.camera;
+
+    if (relation?.source_kind === "local_recording") {
+      redirect("/dashboard/recordings");
+    }
+
     redirect("/dashboard/trial");
   }
 }

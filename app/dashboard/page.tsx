@@ -18,6 +18,7 @@ import {
 } from "@/src/lib/event-labels";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import styles from "./overview.module.css";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { FirstRunSetup } from "./first-run-setup";
 import {
   getFirstRunStatusAction,
@@ -75,10 +76,11 @@ export default async function DashboardPage({ searchParams }: Props) {
   if (!sites.length) redirect("/onboarding");
 
   const site = sites[0];
-  const [data, cameras, agent] = await Promise.all([
+  const [data, cameras, agent, sourceContext] = await Promise.all([
     getDashboardData(organization, site),
     getOrganizationSetupCameras(organization.id),
     getSiteAgentStatus(organization.id),
+    getOrganizationSourceContext(organization.id),
   ]);
 
   const params = await searchParams;
@@ -106,23 +108,74 @@ export default async function DashboardPage({ searchParams }: Props) {
     );
   }
 
-  const progress = [true, data.cameras > 0, data.agentsOnline > 0];
+  const recordingOnly =
+    sourceContext.mode === "recordings_only";
+  const hybrid = sourceContext.mode === "hybrid";
+
+  const progress = recordingOnly
+    ? [
+        true,
+        sourceContext.recordingEnvironmentCount > 0,
+      ]
+    : hybrid
+      ? [
+          true,
+          sourceContext.liveCameraCount > 0,
+          sourceContext.recordingEnvironmentCount > 0,
+          sourceContext.agentCount > 0,
+        ]
+      : [
+          true,
+          sourceContext.liveCameraCount > 0,
+          sourceContext.agentCount > 0,
+        ];
+
   const completed = progress.filter(Boolean).length;
   const setupComplete = completed === progress.length;
 
   const metrics = [
-    {
-      label: "Câmeras",
-      value: String(data.cameras),
-      helper: data.cameras ? "fontes cadastradas" : "aguardando configuração",
-    },
-    {
-      label: "Computadores online",
-      value: String(data.agentsOnline),
-      helper: data.agentsOnline
-        ? "monitoramento local ativo"
-        : "nenhum computador conectado",
-    },
+    ...(recordingOnly
+      ? [
+          {
+            label: "Ambientes",
+            value: String(
+              sourceContext.recordingEnvironmentCount,
+            ),
+            helper: "para envio de arquivos",
+          },
+          {
+            label: "Modo de uso",
+            value: "Gravações",
+            helper: "arquivos avulsos, sem câmera online",
+          },
+        ]
+      : [
+          {
+            label: "Câmeras conectadas",
+            value: String(sourceContext.liveCameraCount),
+            helper: sourceContext.liveCameraCount
+              ? "monitoramento contínuo"
+              : "aguardando configuração",
+          },
+          {
+            label: "Computadores online",
+            value: String(sourceContext.agentOnlineCount),
+            helper: sourceContext.agentOnlineCount
+              ? "monitoramento contínuo ativo"
+              : "nenhum computador online",
+          },
+        ]),
+    ...(hybrid
+      ? [
+          {
+            label: "Ambientes de gravação",
+            value: String(
+              sourceContext.recordingEnvironmentCount,
+            ),
+            helper: "arquivos enviados separadamente",
+          },
+        ]
+      : []),
     {
       label: "Hoje",
       value: String(data.eventsToday),
@@ -132,25 +185,57 @@ export default async function DashboardPage({ searchParams }: Props) {
     },
     {
       label: "Plano atual",
-      value: planLabels[organization.planCode] ?? organization.planCode,
+      value:
+        planLabels[organization.planCode] ??
+        organization.planCode,
       helper: "configuração da organização",
     },
   ];
 
-  const steps = [
-    {
-      title: "Local cadastrado",
-      text: `${site.name} · ${site.timezone}`,
-    },
-    {
-      title: "Câmera cadastrada",
-      text: "Nome, local e perfil de monitoramento definidos.",
-    },
-    {
-      title: "Computador conectado",
-      text: "Monitoramento e envio de acontecimentos funcionando.",
-    },
-  ];
+  const steps = recordingOnly
+    ? [
+        {
+          title: "Local cadastrado",
+          text: `${site.name} · ${site.timezone}`,
+        },
+        {
+          title: "Ambientes de gravação",
+          text: `${sourceContext.recordingEnvironmentCount} ambiente(s) para arquivos avulsos.`,
+        },
+      ]
+    : hybrid
+      ? [
+          {
+            title: "Local cadastrado",
+            text: `${site.name} · ${site.timezone}`,
+          },
+          {
+            title: "Câmeras conectadas",
+            text: `${sourceContext.liveCameraCount} fonte(s) de monitoramento contínuo.`,
+          },
+          {
+            title: "Ambientes de gravação",
+            text: `${sourceContext.recordingEnvironmentCount} ambiente(s) para arquivos avulsos.`,
+          },
+          {
+            title: "Computador configurado",
+            text: "Monitoramento contínuo disponível para as câmeras conectadas.",
+          },
+        ]
+      : [
+          {
+            title: "Local cadastrado",
+            text: `${site.name} · ${site.timezone}`,
+          },
+          {
+            title: "Câmera cadastrada",
+            text: "Nome, local e perfil de monitoramento definidos.",
+          },
+          {
+            title: "Computador conectado",
+            text: "Monitoramento e envio de acontecimentos funcionando.",
+          },
+        ];
 
   return (
     <main className="dashboard-shell">
@@ -169,15 +254,30 @@ export default async function DashboardPage({ searchParams }: Props) {
             <span className="dashboard-eyebrow">
               VISÃO GERAL · {site.name.toUpperCase()}
             </span>
-            <h1>{greeting(site.timezone)}. Veja o que importa agora.</h1>
+            <h1>
+              {greeting(site.timezone)}.{" "}
+              {recordingOnly
+                ? "Veja o que suas gravações já mostraram."
+                : hybrid
+                  ? "Veja câmeras conectadas e gravações em um só lugar."
+                  : "Veja o que importa agora."}
+            </h1>
             <p>
-              Monitoramento visual da organização {organization.name}, sem
-              misturar configurações técnicas com a rotina diária.
+              {recordingOnly
+                ? `Analise arquivos avulsos da organização ${organization.name} sem precisar manter uma câmera conectada.`
+                : hybrid
+                  ? `Acompanhe o monitoramento contínuo e consulte também os arquivos enviados pela organização ${organization.name}.`
+                  : `Monitoramento visual da organização ${organization.name}, sem misturar configurações técnicas com a rotina diária.`}
             </p>
           </div>
 
-          <Link href="/dashboard/events" className="back-link">
-            Abrir monitoramento →
+          <Link
+            href={recordingOnly ? "/dashboard/recordings" : "/dashboard/events"}
+            className="back-link"
+          >
+            {recordingOnly
+              ? "Analisar gravação →"
+              : "Abrir monitoramento →"}
           </Link>
         </header>
 
@@ -283,11 +383,29 @@ export default async function DashboardPage({ searchParams }: Props) {
           <section className={styles.statusCard}>
             <div className={styles.sectionHeading}>
               <div>
-                <span>CÂMERAS E INSTALAÇÃO</span>
-                <h2>{setupComplete ? "Tudo conectado" : "Conclua a configuração"}</h2>
+                <span>
+                  {recordingOnly
+                    ? "GRAVAÇÕES"
+                    : hybrid
+                      ? "CÂMERAS E GRAVAÇÕES"
+                      : "CÂMERAS E INSTALAÇÃO"}
+                </span>
+                <h2>
+                  {setupComplete
+                    ? recordingOnly
+                      ? "Pronto para analisar arquivos"
+                      : "Tudo conectado"
+                    : "Conclua a configuração"}
+                </h2>
               </div>
-              <span className={setupComplete ? styles.okBadge : styles.pendingBadge}>
-                {completed} de 3
+              <span
+                className={
+                  setupComplete
+                    ? styles.okBadge
+                    : styles.pendingBadge
+                }
+              >
+                {completed} de {progress.length}
               </span>
             </div>
 
@@ -304,9 +422,31 @@ export default async function DashboardPage({ searchParams }: Props) {
             </div>
 
             <div className={styles.cardActions}>
-              <Link href="/dashboard/cameras">Gerenciar câmeras</Link>
-              <Link href="/dashboard/installer">Instalação</Link>
-              <Link href="/dashboard/cameras/connections">Como conectar</Link>
+              {recordingOnly ? (
+                <>
+                  <Link href="/dashboard/recordings">
+                    Abrir gravações
+                  </Link>
+                  <Link href="/dashboard/cameras">
+                    Conectar câmeras
+                  </Link>
+                  <Link href="/dashboard/cameras/connections">
+                    Como conectar
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/dashboard/cameras">
+                    Gerenciar câmeras
+                  </Link>
+                  <Link href="/dashboard/recordings">
+                    Gravações avulsas
+                  </Link>
+                  <Link href="/dashboard/installer">
+                    Instalação
+                  </Link>
+                </>
+              )}
             </div>
           </section>
         </div>
@@ -327,14 +467,24 @@ export default async function DashboardPage({ searchParams }: Props) {
                   : "Verificação necessária"}
               </strong>
               <p>
-                Banco {data.databaseReady ? "conectado" : "indisponível"} ·{" "}
-                {data.agentsOnline} computador(es) online · dados guardados por{" "}
-                {data.retention.metadata_days} dias
+                {recordingOnly
+                  ? `Histórico disponível · ${sourceContext.recordingEnvironmentCount} ambiente(s) de gravação · dados guardados por ${data.retention.metadata_days} dias`
+                  : `Banco ${data.databaseReady ? "conectado" : "indisponível"} · ${sourceContext.agentOnlineCount} computador(es) online · dados guardados por ${data.retention.metadata_days} dias`}
               </p>
             </div>
           </div>
 
-          <Link href="/dashboard/camera-health">Ver saúde das câmeras →</Link>
+          <Link
+            href={
+              recordingOnly
+                ? "/dashboard/recordings"
+                : "/dashboard/camera-health"
+            }
+          >
+            {recordingOnly
+              ? "Analisar outra gravação →"
+              : "Ver funcionamento das câmeras →"}
+          </Link>
         </section>
       </section>
     </main>

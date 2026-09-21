@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDashboardSourceContext } from "./dashboard-source-context";
+import {
+  allSourcesLabel,
+  sourceCollectionLabel,
+} from "@/src/lib/source-mode";
 import styles from "./camera-multi-select.module.css";
 
 type CameraOption = {
   id: string;
   name: string;
+  sourceKind?: "live_camera" | "local_recording";
 };
 
 type Props = {
@@ -19,9 +25,14 @@ export function CameraMultiSelect({
   cameras,
   selectedIds,
   name = "cameras",
-  label = "Câmeras",
+  label,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { mode } = useDashboardSourceContext();
+  const collectionLabel = sourceCollectionLabel(mode);
+  const allLabel = allSourcesLabel(mode);
+  const effectiveLabel = label ?? collectionLabel;
+
   const [selected, setSelected] = useState<string[]>(
     selectedIds.length === cameras.length ? [] : selectedIds,
   );
@@ -32,9 +43,6 @@ export function CameraMultiSelect({
     const syncOuterDisclosure = () => {
       const disclosure = rootRef.current?.closest("details");
       if (!disclosure) return;
-
-      // No desktop os filtros ficam sempre disponíveis. No mobile o primeiro
-      // estado é recolhido e o usuário abre quando precisar.
       disclosure.open = media.matches;
     };
 
@@ -48,7 +56,7 @@ export function CameraMultiSelect({
 
   const summary = useMemo(() => {
     if (!selected.length || selected.length === cameras.length) {
-      return "Todas as câmeras";
+      return allLabel;
     }
 
     const names = cameras
@@ -56,8 +64,8 @@ export function CameraMultiSelect({
       .map((camera) => camera.name);
 
     if (names.length <= 2) return names.join(" + ");
-    return `${names.length} câmeras`;
-  }, [cameras, selected]);
+    return `${names.length} ${collectionLabel.toLowerCase()}`;
+  }, [allLabel, cameras, collectionLabel, selected]);
 
   function toggle(cameraId: string) {
     setSelected((current) => {
@@ -74,13 +82,14 @@ export function CameraMultiSelect({
 
   return (
     <div ref={rootRef} className={styles.field}>
-      <span>{label}</span>
+      <span>{effectiveLabel}</span>
       <input type="hidden" name={name} value={selected.join(",")} />
       <details className={styles.picker}>
         <summary>
           <strong>{summary}</strong>
           <span aria-hidden="true">⌄</span>
         </summary>
+
         <div className={styles.menu}>
           <button
             type="button"
@@ -88,7 +97,7 @@ export function CameraMultiSelect({
             onClick={() => setSelected([])}
             data-active={selected.length === 0}
           >
-            Todas as câmeras
+            {allLabel}
           </button>
 
           <div className={styles.options}>
@@ -103,14 +112,28 @@ export function CameraMultiSelect({
                     checked={checked}
                     onChange={() => toggle(camera.id)}
                   />
-                  <span>{camera.name}</span>
+                  <span>
+                    {camera.name}
+                    {mode === "hybrid" && camera.sourceKind ? (
+                      <small>
+                        {" · "}
+                        {camera.sourceKind === "local_recording"
+                          ? "Gravações"
+                          : "Câmera conectada"}
+                      </small>
+                    ) : null}
+                  </span>
                 </label>
               );
             })}
           </div>
 
           <small>
-            Selecione uma ou mais câmeras. “Todas” mantém a visão consolidada.
+            {mode === "recordings_only"
+              ? "Selecione um ou mais ambientes. “Todos” mantém a visão consolidada."
+              : mode === "hybrid"
+                ? "Selecione uma ou mais fontes. “Todas” reúne câmeras conectadas e gravações."
+                : "Selecione uma ou mais câmeras. “Todas” mantém a visão consolidada."}
           </small>
         </div>
       </details>

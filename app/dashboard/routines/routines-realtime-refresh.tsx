@@ -79,7 +79,7 @@ export function RoutinesRealtimeRefresh({
 
   const label = {
     connecting: "Conectando",
-    live: "Ao vivo",
+    live: "Sincronizado",
     updating: "Atualizando",
     offline: "Atualizar",
   }[state];

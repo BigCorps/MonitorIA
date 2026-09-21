@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./event-export.module.css";
 import disclosureStyles from "./mobile-disclosure.module.css";
+import { useDashboardSourceContext } from "../dashboard-source-context";
+import { allSourcesLabel, sourceCollectionLabel } from "@/src/lib/source-mode";
 
 type Props = {
   filters: {
@@ -36,6 +38,15 @@ export function EventExportButtons({
   multiCameraSelection = false,
 }: Props) {
   const disclosureRef = useRef<HTMLDetailsElement>(null);
+  const { mode } = useDashboardSourceContext();
+  const allLabel = allSourcesLabel(mode);
+  const singularLabel =
+    sourceCollectionLabel(mode) === "Ambientes"
+      ? "um ambiente"
+      : sourceCollectionLabel(mode) === "Fontes"
+        ? "uma fonte"
+        : "uma câmera";
+  const pluralLabel = sourceCollectionLabel(mode).toLowerCase();
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -61,7 +72,7 @@ export function EventExportButtons({
 
   async function copy(format: "md" | "json") {
     if (multiCameraSelection) {
-      setStatus("Para exportar, use Todas as câmeras ou selecione apenas uma câmera.");
+      setStatus(`Para exportar, use ${allLabel} ou selecione apenas ${singularLabel}.`);
       return;
     }
 
@@ -86,7 +97,7 @@ export function EventExportButtons({
 
   function download(format: "md" | "json") {
     if (multiCameraSelection) {
-      setStatus("Para exportar, use Todas as câmeras ou selecione apenas uma câmera.");
+      setStatus(`Para exportar, use ${allLabel} ou selecione apenas ${singularLabel}.`);
       return;
     }
     window.location.href = exportUrl(filters, format, true);
@@ -102,7 +113,7 @@ export function EventExportButtons({
           </strong>
           <small>
             {multiCameraSelection
-              ? "Seleções com várias câmeras podem ser consultadas na tela; exporte Todas ou uma câmera por vez"
+              ? `${pluralLabel.charAt(0).toUpperCase() + pluralLabel.slice(1)} podem ser consultadas em conjunto na tela; para exportar, use ${allLabel} ou selecione apenas ${singularLabel}`
               : "Toque para ver as opções de copiar e baixar"}
           </small>
         </span>

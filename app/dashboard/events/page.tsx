@@ -174,8 +174,8 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
             </span>
             <h1>O que aconteceu</h1>
             <p>
-              Consulte os registros das câmeras, veja imagens e vídeos e
-              corrija uma análise quando necessário.
+              Consulte os acontecimentos analisados, veja as imagens
+              relacionadas e corrija uma análise quando necessário.
             </p>
           </div>
 
@@ -203,7 +203,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
               <small>
                 {optionalFilterCount
                   ? `${optionalFilterCount} filtro${optionalFilterCount === 1 ? "" : "s"} adicional${optionalFilterCount === 1 ? "" : "is"} ativo${optionalFilterCount === 1 ? "" : "s"}`
-                  : "Período automático · todos os locais, câmeras e tipos"}
+                  : "Período automático · todos os locais, fontes e tipos"}
               </small>
             </span>
             <span className={disclosureStyles.chevron} aria-hidden="true">⌄</span>

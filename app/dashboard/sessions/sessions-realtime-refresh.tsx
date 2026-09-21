@@ -79,11 +79,11 @@ export function SessionsRealtimeRefresh({ organizationId }: Props) {
 
   const label =
     state === "live"
-      ? "Ao vivo"
+      ? "Sincronizado"
       : state === "updating"
         ? "Atualizando"
         : state === "offline"
-          ? "Reconectar"
+          ? "Atualizar"
           : "Conectando";
 
   return (

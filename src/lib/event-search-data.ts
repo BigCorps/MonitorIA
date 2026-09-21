@@ -152,6 +152,7 @@ export type EventDetail = {
   timezone: string;
   cameraId: string;
   cameraName: string;
+  sourceKind: "live_camera" | "local_recording";
   startedAt: string;
   endedAt: string;
   headline: string;
@@ -505,7 +506,7 @@ export async function getEventDetail(
       human_verdict,
       review_notes,
       human_reviewed_at,
-      camera:cameras(id,name),
+      camera:cameras(id,name,source_kind),
       site:sites(id,name,timezone),
       analysis_job:analysis_jobs(
         id,
@@ -630,8 +631,12 @@ export async function getEventDetail(
     ),
     cameraId: String(eventRow.camera_id),
     cameraName: String(
-      (camera as any)?.name ?? "Câmera",
+      (camera as any)?.name ?? "Fonte",
     ),
+    sourceKind:
+      (camera as any)?.source_kind === "local_recording"
+        ? "local_recording"
+        : "live_camera",
     startedAt: String(eventRow.started_at),
     endedAt: String(eventRow.ended_at),
     headline: String(eventRow.headline ?? eventRow.summary),

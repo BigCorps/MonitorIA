@@ -129,11 +129,11 @@ export function EventsRealtimeRefresh({
   }, [organizationId, router]);
 
   const label = state === "live"
-    ? "Ao vivo"
+    ? "Sincronizado"
     : state === "updating"
       ? "Atualizando"
       : state === "offline"
-        ? "Reconectar"
+        ? "Atualizar"
         : "Conectando";
 
   return (

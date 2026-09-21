@@ -75,6 +75,7 @@ export async function getCameraHealthOverview(
     .from("cameras")
     .select("id,name,site_id,health_intelligence_enabled,health_observation_interval_seconds,health_status,health_last_observed_at,site:sites(name)")
     .eq("organization_id", organizationId)
+    .eq("source_kind", "live_camera")
     .order("name");
   if (input.cameraId) cameraQuery = cameraQuery.eq("id", input.cameraId);
 

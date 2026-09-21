@@ -134,8 +134,8 @@ export default async function ProcessesPage({
             </span>
             <h1>Processos da operação</h1>
             <p>
-              Acompanhe etapas que a câmera conseguiu confirmar e configure o
-              que realmente importa para a sua operação.
+              Acompanhe etapas que o MonitorIA conseguiu confirmar e configure
+              o que realmente importa para a sua operação.
             </p>
           </div>
 
@@ -207,7 +207,7 @@ export default async function ProcessesPage({
               </select>
             </label>
             <label>
-              <span>Câmera</span>
+              <span>Fonte</span>
               <select name="camera" defaultValue={cameraId}>
                 <option value="">Todas</option>
                 {cameras.map((camera) => (

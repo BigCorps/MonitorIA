@@ -64,7 +64,7 @@ export function ProcessesRealtimeRefresh({ organizationId }: Props) {
 
   const labels: Record<LiveState, string> = {
     connecting: "Conectando…",
-    live: "Ao vivo",
+    live: "Sincronizado",
     updating: "Atualizando…",
     offline: "Atualizar",
   };

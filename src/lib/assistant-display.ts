@@ -41,7 +41,7 @@ function formatTimestamp(value: string, timeZone: string) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(date)} (horário da câmera)`;
+  }).format(date)} (horário do registro)`;
 }
 
 function localizeString(value: string, timeZone: string) {
@@ -101,5 +101,5 @@ export function assistantPeriodLabel(
           timeZone,
         )}`;
 
-  return `${period} · horário da câmera`;
+  return `${period} · horário do registro`;
 }

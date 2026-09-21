@@ -90,6 +90,7 @@ export default async function SearchPage({
             id: camera.id,
             name: camera.name,
             siteId: camera.siteId,
+            sourceKind: camera.sourceKind,
           }))}
           timeZone={sites[0]?.timezone ?? "America/Sao_Paulo"}
         />

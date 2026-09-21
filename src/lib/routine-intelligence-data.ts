@@ -35,6 +35,7 @@ export type RoutineDeclaredSchedule = {
 export type RoutineCameraDashboard = {
   id: string;
   name: string;
+  sourceKind: "live_camera" | "local_recording";
   siteId: string;
   siteName: string;
   timezone: string;
@@ -265,6 +266,7 @@ export async function getRoutineOverview(
       id,
       site_id,
       name,
+      source_kind,
       routine_deviation_sensitivity,
       routine_grace_minutes,
       site:sites(name,timezone)
@@ -500,6 +502,10 @@ export async function getRoutineOverview(
     return {
       id: String(row.id),
       name: String(row.name),
+      sourceKind:
+        row.source_kind === "local_recording"
+          ? "local_recording"
+          : "live_camera",
       siteId: String(row.site_id),
       siteName: String(site?.name ?? "Local"),
       timezone,

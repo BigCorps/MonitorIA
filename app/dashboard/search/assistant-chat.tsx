@@ -17,6 +17,8 @@ import type {
   AssistantWorkspace,
 } from "@/src/lib/assistant-data";
 import styles from "./search.module.css";
+import { useDashboardSourceContext } from "../dashboard-source-context";
+import { allSourcesLabel } from "@/src/lib/source-mode";
 
 type SiteOption = {
   id: string;
@@ -28,6 +30,7 @@ type CameraOption = {
   id: string;
   name: string;
   siteId: string;
+  sourceKind: "live_camera" | "local_recording";
 };
 
 type Props = {
@@ -367,6 +370,8 @@ export function AssistantChat({
   timeZone,
 }: Props) {
   const router = useRouter();
+  const { mode } = useDashboardSourceContext();
+  const sourceAllLabel = allSourcesLabel(mode);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [threadId, setThreadId] = useState(initialWorkspace.selectedThreadId);
   const [messages, setMessages] = useState(initialWorkspace.messages);
@@ -637,10 +642,17 @@ export function AssistantChat({
                 value={cameraId}
                 onChange={(event) => setCameraId(event.target.value)}
               >
-                <option value="">Todas as câmeras</option>
+                <option value="">{sourceAllLabel}</option>
                 {filteredCameras.map((camera) => (
                   <option key={camera.id} value={camera.id}>
                     {camera.name}
+                    {mode === "hybrid"
+                      ? ` · ${
+                          camera.sourceKind === "local_recording"
+                            ? "Gravações"
+                            : "Câmera conectada"
+                        }`
+                      : ""}
                   </option>
                 ))}
               </select>

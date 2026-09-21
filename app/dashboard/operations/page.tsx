@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { getOperationalAlertOverview } from "@/src/lib/operations-data";
 import {
   operationalAlertContext,
@@ -62,7 +63,11 @@ export default async function OperationsPage({
   const selectedView = viewFilter(param(params.view));
   const selectedPriority = priorityFilter(param(params.priority));
 
-  const overview = await getOperationalAlertOverview(organization.id);
+  const [overview, sourceContext] = await Promise.all([
+    getOperationalAlertOverview(organization.id),
+    getOrganizationSourceContext(organization.id),
+  ]);
+  const recordingOnly = sourceContext.mode === "recordings_only";
   const canManage = ["owner", "admin"].includes(organization.role);
 
   const filterPriority = <T extends { severity: string }>(alerts: T[]) =>
@@ -91,8 +96,9 @@ export default async function OperationsPage({
             </span>
             <h1>Alertas</h1>
             <p>
-              Uma caixa única para situações que podem precisar da sua atenção,
-              desde conexão de câmeras até desvios de rotina e processos.
+              {recordingOnly
+                ? "Veja avisos da conta que realmente precisam de atenção. Ambientes de gravação não geram alertas de câmera offline ou falta de sinal."
+                : "Uma caixa única para situações que podem precisar da sua atenção, desde conexão de câmeras até desvios de rotina e processos."}
             </p>
           </div>
           <AlertsRealtimeRefresh organizationId={organization.id} />
@@ -104,10 +110,9 @@ export default async function OperationsPage({
           <div>
             <strong>O que aparece aqui?</strong>
             <p>
-              Funcionamento continua mostrando a saúde de cada câmera. Alertas
-              reúne somente situações que podem pedir alguma ação. Ao começar a
-              tratar uma delas, marque “Estou verificando”; quando a situação
-              estiver resolvida, marque “Resolvido”.
+              {recordingOnly
+                ? "Acontecimentos encontrados em arquivos ficam no histórico e na Pesquisa IA. Esta caixa é reservada para avisos atuais da conta que realmente pedem alguma ação."
+                : "Funcionamento continua mostrando a saúde de cada câmera. Alertas reúne somente situações que podem pedir alguma ação. Ao começar a tratar uma delas, marque “Estou verificando”; quando a situação estiver resolvida, marque “Resolvido”."}
             </p>
           </div>
           <span>Caixa de entrada da operação</span>

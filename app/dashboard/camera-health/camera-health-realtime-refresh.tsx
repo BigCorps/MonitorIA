@@ -24,5 +24,5 @@ export default function CameraHealthRealtimeRefresh({ organizationId }: { organi
     return () => { if (timer.current) clearTimeout(timer.current); void supabase.removeChannel(channel); };
   }, [organizationId, router]);
 
-  return <span className={`${styles.realtime} ${styles[status]}`}>{status === "live" ? "Ao vivo" : status === "updating" ? "Atualizando" : status === "offline" ? "Offline" : "Conectando"}</span>;
+  return <span className={`${styles.realtime} ${styles[status]}`}>{status === "live" ? "Sincronizado" : status === "updating" ? "Atualizando" : status === "offline" ? "Offline" : "Conectando"}</span>;
 }

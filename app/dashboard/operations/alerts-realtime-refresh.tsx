@@ -64,7 +64,7 @@ export function AlertsRealtimeRefresh({
 
   const label =
     status === "live"
-      ? "Ao vivo"
+      ? "Sincronizado"
       : status === "updating"
         ? "Atualizando"
         : status === "offline"

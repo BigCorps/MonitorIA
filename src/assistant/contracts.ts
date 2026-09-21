@@ -123,6 +123,7 @@ export type AssistantDirectory = {
     id: string;
     name: string;
     siteId: string;
+    sourceKind: "live_camera" | "local_recording";
   }>;
 };
 

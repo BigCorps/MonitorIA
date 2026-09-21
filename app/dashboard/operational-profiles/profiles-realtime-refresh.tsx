@@ -56,7 +56,7 @@ export function ProfilesRealtimeRefresh({ organizationId }: { organizationId: st
     <div className={`${styles.realtime} ${styles[status]}`}>
       <span aria-hidden="true" />
       {status === "connecting" ? "Conectando" : null}
-      {status === "live" ? "Ao vivo" : null}
+      {status === "live" ? "Sincronizado" : null}
       {status === "updating" ? "Atualizando" : null}
       {status === "offline" ? "Atualização manual" : null}
     </div>

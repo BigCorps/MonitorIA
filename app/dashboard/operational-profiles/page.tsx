@@ -149,7 +149,7 @@ export default async function OperationalProfilesPage({
           <summary>Filtrar padrões</summary>
           <form>
             <label>
-              Câmera
+              Fonte
               <select name="camera" defaultValue={cameraId}>
                 <option value="">Todas</option>
                 {cameras.map((camera) => (
@@ -202,7 +202,7 @@ export default async function OperationalProfilesPage({
 
                   <p>
                     {profile.description ||
-                      "Padrão recorrente aprovado para esta câmera."}
+                      "Padrão recorrente aprovado para esta fonte."}
                   </p>
 
                   <div className={styles.patternSummary}>

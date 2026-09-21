@@ -46,7 +46,7 @@ function SubmitButton({
       {pending
         ? "Preparando fatura..."
         : disabled
-          ? "Escolha pelo menos uma câmera"
+          ? "Escolha pelo menos uma fonte"
           : "Salvar configuração e preparar fatura"}
     </button>
   );
@@ -89,11 +89,11 @@ function planFeatures(plan: CommercialPlan) {
   if (plan.clipEnabled) {
     features.push(
       <Feature key="clip">
-        Vídeo completo do acontecimento por{" "}
+        Em câmeras conectadas: vídeo completo do acontecimento por{" "}
         {plan.clipRetentionDays} dias
       </Feature>,
       <Feature key="clip-download">
-        Assistir e baixar o vídeo preservado
+        Em câmeras conectadas: assistir e baixar o vídeo preservado
       </Feature>,
     );
   }
@@ -204,8 +204,8 @@ export function PlanSelector({
   if (!cameras.length) {
     return (
       <section className={styles.emptyState}>
-        <span>PLANOS POR CÂMERA</span>
-        <h2>Cadastre a primeira câmera</h2>
+        <span>PLANOS POR FONTE</span>
+        <h2>Cadastre a primeira fonte</h2>
         <p>
           Depois do cadastro, esta página calculará
           automaticamente os planos e o desconto progressivo.
@@ -246,7 +246,7 @@ export function PlanSelector({
             <p>{plan.shortDescription}</p>
             <strong className={styles.planPrice}>
               {formatBrl(plan.amountCents)}
-              <small>/câmera a cada 30 dias</small>
+              <small>/fonte a cada 30 dias</small>
             </strong>
             <ul>{planFeatures(plan)}</ul>
           </article>
@@ -267,13 +267,13 @@ export function PlanSelector({
           <div className={styles.sectionHeading}>
             <div>
               <span>CONFIGURAÇÃO REAL</span>
-              <h2>Escolha o plano de cada câmera</h2>
+              <h2>Escolha o plano de cada fonte</h2>
             </div>
             <small>
               {includedCameras.length} de {cameras.length}{" "}
               {cameras.length === 1
-                ? "câmera incluída"
-                : "câmeras incluídas"}
+                ? "fonte incluída"
+                : "fontes incluídas"}
             </small>
           </div>
 
@@ -290,9 +290,9 @@ export function PlanSelector({
                 lineHeight: 1.55,
               }}
             >
-              Pré-selecionamos as {trialCameraIds.length} câmera(s) que
+              Pré-selecionamos as {trialCameraIds.length} fonte(s) que
               participaram da demonstração no plano Detalhada. Você pode
-              trocar o plano ou incluir outras câmeras antes de gerar a cobrança.
+              trocar o plano ou incluir outras fontes antes de gerar a cobrança.
             </div>
           ) : (
             <p
@@ -303,7 +303,7 @@ export function PlanSelector({
                 lineHeight: 1.55,
               }}
             >
-              Você não precisa contratar todas as câmeras cadastradas.
+              Você não precisa contratar todas as fontes cadastradas.
               Marque “Não utilizar” nas que não entrarão nesta cobrança.
             </p>
           )}
@@ -331,18 +331,24 @@ export function PlanSelector({
                   }
                 >
                   <div className={styles.cameraIdentity}>
-                    <span
-                      className={
-                        camera.status === "online"
-                          ? styles.onlineDot
-                          : styles.offlineDot
-                      }
-                      aria-hidden="true"
-                    />
+                    {camera.sourceKind !== "local_recording" ? (
+                      <span
+                        className={
+                          camera.status === "online"
+                            ? styles.onlineDot
+                            : styles.offlineDot
+                        }
+                        aria-hidden="true"
+                      />
+                    ) : null}
                     <div>
                       <strong>{camera.name}</strong>
                       <small>
                         {camera.siteName}
+                        {" · "}
+                        {camera.sourceKind === "local_recording"
+                          ? "Gravações"
+                          : "Câmera conectada"}
                         {excluded
                           ? " · não será incluída na cobrança"
                           : subscription
@@ -416,8 +422,8 @@ export function PlanSelector({
                         }}
                       >
                         {excluded
-                          ? "✓ Não utilizar esta câmera"
-                          : "Não utilizar esta câmera"}
+                          ? "✓ Não utilizar esta fonte"
+                          : "Não utilizar esta fonte"}
                       </button>
                     ) : (
                       <small
@@ -428,7 +434,7 @@ export function PlanSelector({
                           lineHeight: 1.45,
                         }}
                       >
-                        Esta câmera já possui assinatura em andamento.
+                        Esta fonte já possui assinatura em andamento.
                         A retirada dela da cobrança deve respeitar o ciclo atual.
                       </small>
                     )}
@@ -481,7 +487,7 @@ export function PlanSelector({
                   lineHeight: 1.55,
                 }}
               >
-                Nenhuma câmera incluída. Escolha ao menos uma para
+                Nenhuma fonte incluída. Escolha ao menos uma para
                 preparar a cobrança.
               </div>
             )}

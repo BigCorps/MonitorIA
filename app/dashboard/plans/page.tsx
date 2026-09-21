@@ -112,7 +112,7 @@ export default async function PlansPage({
             <span className="dashboard-eyebrow">
               PLANOS · {organization.name.toUpperCase()}
             </span>
-            <h1>Inteligência sob medida para cada câmera</h1>
+            <h1>Inteligência sob medida para cada fonte visual</h1>
             <p>
               Combine planos diferentes, mantenha 365 dias de
               histórico e receba uma única cobrança por Pix.
@@ -229,7 +229,7 @@ export default async function PlansPage({
           </div>
           <div>
             <span>DESCONTO</span>
-            <strong>Até 20% nas câmeras adicionais</strong>
+            <strong>Até 20% nas fontes adicionais</strong>
           </div>
           <div>
             <span>TOLERÂNCIA</span>

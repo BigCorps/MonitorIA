@@ -3,6 +3,7 @@ import { createClient } from "@/src/lib/supabase/server";
 export type CameraRetentionUsage = {
   cameraId: string;
   cameraName: string;
+  sourceKind: "live_camera" | "local_recording";
   timezone: string;
   accessSource: string;
   planCode: string;
@@ -47,7 +48,7 @@ export async function getOrganizationRetentionUsage(
       .order("camera_name", { ascending: true }),
     supabase
       .from("cameras")
-      .select("id,site:sites(timezone)")
+      .select("id,source_kind,site:sites(timezone)")
       .eq("organization_id", organizationId),
   ]);
 
@@ -64,18 +65,32 @@ export async function getOrganizationRetentionUsage(
   }
 
   const timezoneByCamera = new Map<string, string>();
+  const sourceKindByCamera = new Map<
+    string,
+    "live_camera" | "local_recording"
+  >();
 
   for (const row of cameraResult.data ?? []) {
     const site = relationOne<{ timezone?: string }>((row as any).site);
+    const cameraId = String((row as any).id);
     timezoneByCamera.set(
-      String((row as any).id),
+      cameraId,
       String(site?.timezone ?? "America/Sao_Paulo"),
+    );
+    sourceKindByCamera.set(
+      cameraId,
+      (row as any).source_kind === "local_recording"
+        ? "local_recording"
+        : "live_camera",
     );
   }
 
   return (usageResult.data ?? []).map((row: any) => ({
     cameraId: String(row.camera_id),
     cameraName: String(row.camera_name),
+    sourceKind:
+      sourceKindByCamera.get(String(row.camera_id)) ??
+      "live_camera",
     timezone:
       timezoneByCamera.get(String(row.camera_id)) ?? "America/Sao_Paulo",
     accessSource: String(row.access_source ?? "blocked"),

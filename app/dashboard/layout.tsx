@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
+import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
+import { EMPTY_SOURCE_CONTEXT } from "@/src/lib/source-mode";
+import { DashboardSourceProvider } from "./dashboard-source-context";
 import {
   passkeyLoginReady,
 } from "@/src/lib/passkey-login-hint";
@@ -43,9 +47,34 @@ export default async function PrivateAreaLayout({
   const passkeyReady = settingsError
     ? null
     : passkeyLoginReady(settings);
+  const claims = objectValue(claimsData?.claims);
+
+  let sourceContext = EMPTY_SOURCE_CONTEXT;
+  const userId =
+    typeof claims.sub === "string" ? claims.sub : null;
+
+  if (userId) {
+    try {
+      const organization =
+        await getCurrentOrganization(userId);
+
+      if (organization) {
+        sourceContext =
+          await getOrganizationSourceContext(
+            organization.id,
+          );
+      }
+    } catch (error) {
+      console.error(
+        "Falha ao carregar contexto das fontes:",
+        error instanceof Error
+          ? error.message
+          : String(error),
+      );
+    }
+  }
 
   if (!settingsError) {
-    const claims = objectValue(claimsData?.claims);
     const mfaRequired =
       settings.effective_mfa_required === true;
     const aal =
@@ -63,9 +92,9 @@ export default async function PrivateAreaLayout({
   }
 
   return (
-    <>
+    <DashboardSourceProvider value={sourceContext}>
       <PasskeyLoginHint enabled={passkeyReady} />
       {children}
-    </>
+    </DashboardSourceProvider>
   );
 }

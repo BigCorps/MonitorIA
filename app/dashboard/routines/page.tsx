@@ -317,6 +317,9 @@ export default async function RoutinesPage({
   const declaredCount = overview.cameras.filter(
     (camera) => camera.declaredSchedule.configured,
   ).length;
+  const liveRoutineCameras = overview.cameras.filter(
+    (camera) => camera.sourceKind === "live_camera",
+  );
 
   return (
     <main className="dashboard-shell">
@@ -334,8 +337,8 @@ export default async function RoutinesPage({
             </span>
             <h1>Rotinas da operação</h1>
             <p>
-              Compare o horário que você informou, o padrão que o MonitorIA
-              aprendeu e o que realmente foi observado hoje.
+              Compare períodos e padrões aprendidos no histórico. Para câmeras
+              conectadas, o MonitorIA também acompanha o que foi observado hoje.
             </p>
           </div>
 
@@ -384,9 +387,9 @@ export default async function RoutinesPage({
               </select>
             </label>
             <label>
-              <span>Câmera</span>
+              <span>Fonte</span>
               <select name="camera" defaultValue={cameraId}>
-                <option value="">Todas as câmeras</option>
+                <option value="">Todas as fontes</option>
                 {cameras.map((camera) => (
                   <option key={camera.id} value={camera.id}>
                     {camera.name}
@@ -430,7 +433,7 @@ export default async function RoutinesPage({
           <article>
             <span>HORÁRIOS INFORMADOS</span>
             <strong>{declaredCount}</strong>
-            <small>câmeras com referência definida por você</small>
+            <small>fontes com referência definida por você</small>
           </article>
           <article>
             <span>PADRÕES APRENDIDOS</span>
@@ -449,17 +452,18 @@ export default async function RoutinesPage({
           </article>
         </section>
 
-        <section className={styles.sectionHeading}>
-          <div>
-            <span>HOJE</span>
-            <h2>Esperado, habitual e observado</h2>
-          </div>
-          <small>{overview.cameras.length} câmera(s)</small>
-        </section>
+        {liveRoutineCameras.length ? (
+          <>
+            <section className={styles.sectionHeading}>
+              <div>
+                <span>HOJE · CÂMERAS CONECTADAS</span>
+                <h2>Esperado, habitual e observado</h2>
+              </div>
+              <small>{liveRoutineCameras.length} câmera(s)</small>
+            </section>
 
-        {overview.cameras.length ? (
-          <div className={styles.todayGrid}>
-            {overview.cameras.map((camera) => {
+            <div className={styles.todayGrid}>
+              {liveRoutineCameras.map((camera) => {
               const state = todayStatus(camera);
 
               return (
@@ -526,7 +530,8 @@ export default async function RoutinesPage({
                 </article>
               );
             })}
-          </div>
+            </div>
+          </>
         ) : (
           <div className={styles.emptyState}>
             <strong>Nenhuma câmera encontrada para estes filtros.</strong>

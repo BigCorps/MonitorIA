@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import styles from "./dashboard-sidebar.module.css";
+import { useDashboardSourceContext } from "./dashboard-source-context";
 
 export type DashboardSection =
   | "overview"
@@ -369,13 +370,27 @@ export function DashboardSidebarClient({
   isInternalOperator,
 }: Props) {
   const pathname = usePathname();
+  const { mode } = useDashboardSourceContext();
   const [open, setOpen] = useState(false);
   const drawerId = useId();
   const current = resolvedActive(pathname, active);
 
   const items = useMemo(
-    () => [...baseItems, ...(isInternalOperator ? [adminItem] : [])],
-    [isInternalOperator],
+    () => [
+      ...baseItems.map((item) =>
+        item.id === "monitoring"
+          ? {
+              ...item,
+              label:
+                mode === "recordings_only"
+                  ? "Análises"
+                  : "Monitoramento",
+            }
+          : item,
+      ),
+      ...(isInternalOperator ? [adminItem] : []),
+    ],
+    [isInternalOperator, mode],
   );
 
   useEffect(() => setOpen(false), [pathname]);

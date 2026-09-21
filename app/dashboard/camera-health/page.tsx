@@ -5,6 +5,7 @@ import {
   getOrganizationCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { getCameraHealthOverview } from "@/src/lib/camera-health-data";
 import {
   cameraHealthCanUseAsReference,
@@ -61,6 +62,46 @@ export default async function CameraHealthPage({ searchParams }: Props) {
     );
   }
 
+  const sourceContext =
+    await getOrganizationSourceContext(organization.id);
+
+  if (sourceContext.liveCameraCount === 0) {
+    return (
+      <div className="dashboard-shell">
+        <DashboardSidebar
+          organizationName={organization.name}
+          userEmail={user.email}
+          active="camera-health"
+        />
+        <main className="dashboard-content">
+          <header className="dashboard-header">
+            <div>
+              <span className="dashboard-eyebrow">
+                FUNCIONAMENTO · {organization.name.toUpperCase()}
+              </span>
+              <h1>Funcionamento das câmeras</h1>
+              <p>
+                Esta área acompanha câmeras conectadas continuamente.
+                Ambientes de gravação não ficam online ou offline.
+              </p>
+            </div>
+          </header>
+          <DashboardSectionTabs group="monitoring" />
+          <section className={styles.introCard}>
+            <div>
+              <strong>Seus ambientes de gravação não precisam ficar online</strong>
+              <p>
+                Para arquivos avulsos, basta abrir Gravações e escolher um vídeo.
+                Se quiser acompanhamento contínuo, conecte uma câmera ao MonitorIA.
+              </p>
+            </div>
+            <Link href="/dashboard/recordings">Abrir gravações</Link>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   const params = await searchParams;
   const cameraId = first(params.camera);
   const incidentStatus = first(params.status);
@@ -70,7 +111,9 @@ export default async function CameraHealthPage({ searchParams }: Props) {
       cameraId,
       incidentStatus,
     }),
-    getOrganizationCameras(organization.id),
+    getOrganizationCameras(organization.id).then((items) =>
+      items.filter((camera) => camera.sourceKind === "live_camera"),
+    ),
     getOrganizationSites(organization.id),
   ]);
 

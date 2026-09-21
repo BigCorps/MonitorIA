@@ -407,6 +407,7 @@ export async function POST(request: Request) {
         id: camera.id,
         name: camera.name,
         siteId: camera.siteId,
+        sourceKind: camera.sourceKind,
       })),
     };
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { appConfig } from "@/src/lib/app-config";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
 import styles from "./support.module.css";
@@ -10,7 +11,7 @@ import styles from "./support.module.css";
 export const metadata = { title: "Ajuda e suporte | MonitorIA" };
 export const dynamic = "force-dynamic";
 
-const helpItems = [
+const liveHelpItems = [
   {
     title: "Uma câmera parou de enviar imagens",
     description:
@@ -49,9 +50,33 @@ const helpItems = [
   {
     title: "Preciso conferir plano ou pagamento",
     description:
-      "Veja as câmeras ativas, o plano atual e as informações de cobrança da sua conta.",
+      "Veja as fontes ativas, o plano atual e as informações de cobrança da sua conta.",
     href: "/dashboard/plans",
     action: "Ver plano e cobrança",
+  },
+] as const;
+
+const recordingHelpItems = [
+  {
+    title: "Não consigo analisar um arquivo",
+    description:
+      "Confira o formato e a duração do vídeo ou tente selecionar o arquivo novamente.",
+    href: "/dashboard/recordings",
+    action: "Abrir gravações",
+  },
+  {
+    title: "Quero analisar vídeos de outro lugar",
+    description:
+      "Crie outro ambiente de gravação para separar câmeras veiculares, equipamentos sem Wi-Fi ou outros arquivos avulsos.",
+    href: "/dashboard/recordings",
+    action: "Gerenciar ambientes",
+  },
+  {
+    title: "Quero acompanhar uma câmera continuamente",
+    description:
+      "Ambientes de gravação são para arquivos avulsos. Para acompanhamento contínuo, conecte uma câmera ao MonitorIA.",
+    href: "/dashboard/cameras",
+    action: "Conectar câmera",
   },
 ] as const;
 
@@ -59,6 +84,15 @@ export default async function SupportPage() {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
+
+  const sourceContext =
+    await getOrganizationSourceContext(organization.id);
+  const helpItems =
+    sourceContext.mode === "recordings_only"
+      ? recordingHelpItems
+      : sourceContext.mode === "hybrid"
+        ? [...recordingHelpItems, ...liveHelpItems]
+        : liveHelpItems;
 
   return (
     <main className="dashboard-shell">

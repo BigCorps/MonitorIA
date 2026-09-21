@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
+import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { getCrossCameraJourneys } from "@/src/lib/operations-data";
 import { formatMonitoringDateTime } from "@/src/lib/monitoring-display";
 import { IntelligencePageFrame } from "../intelligence-page-frame";
@@ -82,7 +83,11 @@ export default async function CrossCameraPage() {
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
 
-  const journeys = await getCrossCameraJourneys(organization.id);
+  const [journeys, sourceContext] = await Promise.all([
+    getCrossCameraJourneys(organization.id),
+    getOrganizationSourceContext(organization.id),
+  ]);
+  const enoughLiveCameras = sourceContext.liveCameraCount >= 2;
 
   return (
     <IntelligencePageFrame
@@ -90,7 +95,11 @@ export default async function CrossCameraPage() {
       userEmail={user.email}
       eyebrow={`ENTRE CÂMERAS · ${organization.name.toUpperCase()}`}
       title="Entre câmeras"
-      description="Veja quando registros recentes parecem mostrar uma passagem da mesma pessoa ou veículo entre câmeras diferentes do mesmo local."
+      description={
+        enoughLiveCameras
+          ? "Veja quando registros recentes parecem mostrar uma passagem da mesma pessoa ou veículo entre câmeras conectadas do mesmo local."
+          : "Este recurso usa duas ou mais câmeras conectadas continuamente. Ambientes de gravação permanecem independentes."
+      }
       actions={
         <Link className="panel-primary-action" href="/dashboard/search">
           Perguntar à Pesquisa IA
@@ -111,7 +120,7 @@ export default async function CrossCameraPage() {
         </div>
       </section>
 
-      {journeys.length ? (
+      {enoughLiveCameras && journeys.length ? (
         <section className={styles.cards} aria-label="Passagens recentes entre câmeras">
           {journeys.map((journey) => (
             <article className={styles.card} key={journey.id}>
@@ -172,10 +181,11 @@ export default async function CrossCameraPage() {
             ↔
           </div>
           <div>
-            <h2>Nenhuma passagem recente entre câmeras</h2>
+            <h2>Ainda não há passagens entre câmeras conectadas</h2>
             <p>
-              Quando dois registros de câmeras diferentes do mesmo local tiverem
-              características e horários compatíveis, a comparação aparecerá aqui.
+              {enoughLiveCameras
+                ? "Quando dois registros de câmeras conectadas do mesmo local tiverem características e horários compatíveis, a comparação aparecerá aqui."
+                : "Conecte pelo menos duas câmeras do mesmo local para usar esta análise. Os ambientes de gravação continuam disponíveis para arquivos avulsos."}
             </p>
           </div>
         </section>
