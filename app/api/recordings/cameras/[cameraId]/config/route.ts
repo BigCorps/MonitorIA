@@ -121,15 +121,9 @@ export async function GET(_request: Request, context: RouteContext) {
           1,
           Math.min(4, Number(entitlement.maximum_analysis_frames ?? 3)),
         ),
-        clipEnabled: Boolean(entitlement.clip_enabled),
-        clipDurationSeconds:
-          entitlement.clip_duration_seconds === null
-            ? null
-            : Number(entitlement.clip_duration_seconds),
-        clipRetentionDays:
-          entitlement.clip_retention_days === null
-            ? null
-            : Number(entitlement.clip_retention_days),
+        clipEnabled: false,
+        clipDurationSeconds: null,
+        clipRetentionDays: null,
         entitlement: {
           accessSource: String(entitlement.access_source ?? "blocked"),
           monitoringAllowed: Boolean(entitlement.monitoring_allowed),

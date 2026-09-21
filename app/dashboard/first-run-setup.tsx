@@ -227,7 +227,8 @@ export async function FirstRunSetup({
                   <p>
                     Escolha um vídeo do celular ou computador e veja o MonitorIA
                     organizar os acontecimentos importantes. Você não precisa
-                    configurar suas câmeras agora.
+                    configurar suas câmeras agora e pode testar até 6 ambientes
+                    durante as 24 horas grátis.
                   </p>
                 </div>
 

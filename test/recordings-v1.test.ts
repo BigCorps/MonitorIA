@@ -403,7 +403,12 @@ rc3Test(
   () => {
     rc3Assert.match(
       recordingTrialRoute,
-      /recordingLimitSeconds: 86_400/,
+      /TRIAL_RECORDING_LIMIT_SECONDS = 86_400/,
+    );
+
+    rc3Assert.match(
+      recordingTrialRoute,
+      /recordingLimitSeconds:[\s\S]*?TRIAL_RECORDING_LIMIT_SECONDS/,
     );
 
     rc3Assert.match(
@@ -526,6 +531,198 @@ rc3Test(
     rc3Assert.match(
       recordingsClientUi,
       /onProgress: \(value, _message\)/,
+    );
+  },
+);
+
+
+// RC8 multi-environment onboarding regressions — Gravações
+const rc8Migration = rc3ReadFileSync(
+  "supabase/migrations/20260921012654_recordings_multi_environment_trial.sql",
+  "utf8",
+);
+
+const rc8SourcesRoute = rc3ReadFileSync(
+  "app/api/recordings/sources/route.ts",
+  "utf8",
+);
+
+const rc8ConfigRoute = rc3ReadFileSync(
+  "app/api/recordings/cameras/[cameraId]/config/route.ts",
+  "utf8",
+);
+
+const rc8ClipPrepare = rc3ReadFileSync(
+  "app/api/recordings/clips/prepare/route.ts",
+  "utf8",
+);
+
+rc3Test(
+  "trial por gravação permite no máximo seis ambientes",
+  () => {
+    rc3Assert.match(
+      rc8Migration,
+      /recording_environment_limit_reached/,
+    );
+
+    rc3Assert.match(
+      rc8SourcesRoute,
+      /MAX_RECORDING_ENVIRONMENTS = 6/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /MAX_RECORDING_ENVIRONMENTS = 6/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /6 ambientes/,
+    );
+  },
+);
+
+rc3Test(
+  "trial multiambiente só se estende a origens de gravação",
+  () => {
+    rc3Assert.match(
+      rc8Migration,
+      /v_camera\.source_kind = 'local_recording'/,
+    );
+
+    rc3Assert.match(
+      rc8Migration,
+      /trial_origin\.source_kind = 'local_recording'/,
+    );
+  },
+);
+
+rc3Test(
+  "quota de 24 horas é compartilhada pelo trial e não por ambiente",
+  () => {
+    rc3Assert.match(
+      rc8Migration,
+      /session\.trial_run_id = v_trial_run_id/,
+    );
+
+    rc3Assert.match(
+      rc8Migration,
+      /recording-trial-quota/,
+    );
+
+    rc3Assert.match(
+      rc4RecordingSource,
+      /trial_run_id/,
+    );
+
+    rc3Assert.match(
+      rc4RecordingSource,
+      /sessionQuery\.eq\([\s\S]*?"trial_run_id"/,
+    );
+  },
+);
+
+rc3Test(
+  "novo ambiente herda trial ativo de gravações",
+  () => {
+    rc3Assert.match(
+      rc8SourcesRoute,
+      /activeRecordingTrial/,
+    );
+
+    rc3Assert.match(
+      rc8SourcesRoute,
+      /accessSource: "trial"/,
+    );
+
+    rc3Assert.match(
+      recordingTrialRoute,
+      /origin\?\.source_kind === "local_recording"/,
+    );
+  },
+);
+
+rc3Test(
+  "gravações não oferecem geração ou download de clipe",
+  () => {
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /Gerar vídeo do acontecimento/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /extractRecordingClipWithFfmpeg/,
+    );
+
+    rc3Assert.match(
+      rc8ConfigRoute,
+      /clipEnabled: false/,
+    );
+
+    rc3Assert.match(
+      rc8ClipPrepare,
+      /recording_clip_not_available/,
+    );
+  },
+);
+
+rc3Test(
+  "cards mostram o período do acontecimento",
+  () => {
+    rc3Assert.match(
+      recordingsClientUi,
+      /formatEventPeriod/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Período ·/,
+    );
+  },
+);
+
+rc3Test(
+  "gravações reutilizam o visual de etapas do onboarding",
+  () => {
+    rc3Assert.match(
+      recordingsClientUi,
+      /onboardingStyles\.firstRunProgress/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /"Gravação"[\s\S]*?"Ambiente"[\s\S]*?"Analisar"[\s\S]*?"Continuar"/,
+    );
+  },
+);
+
+rc3Test(
+  "final da análise oferece todos os próximos caminhos",
+  () => {
+    rc3Assert.match(
+      recordingsClientUi,
+      /Testar outro vídeo/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Adicionar outro ambiente/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Ver planos e contratar/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Conectar minhas câmeras/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /searchParams\.delete\("session"\)/,
     );
   },
 );

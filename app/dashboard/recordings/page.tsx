@@ -54,7 +54,9 @@ export default async function RecordingsPage({ searchParams }: Props) {
             <h1>Teste o MonitorIA com uma gravação</h1>
             <p>
               Escolha um vídeo que você já tem e veja os acontecimentos
-              importantes organizados em poucos minutos.
+              importantes organizados em poucos minutos. No teste grátis,
+              você pode usar até 6 ambientes compartilhando as mesmas
+              24 horas de vídeos.
             </p>
           </div>
         </header>

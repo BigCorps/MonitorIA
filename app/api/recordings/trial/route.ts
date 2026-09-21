@@ -8,13 +8,39 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const TRIAL_RECORDING_LIMIT_SECONDS = 86_400;
+
 const BodySchema = z.object({
   cameraId: z.string().uuid(),
   planCode: z.enum(["basic", "standard", "intensive"]),
 }).strict();
 
+function usedSeconds(
+  rows: Array<{
+    status?: string | null;
+    reserved_seconds?: number | null;
+    processed_seconds?: number | null;
+  }>,
+) {
+  return rows.reduce((total, row) => {
+    const active = ["reserved", "processing"].includes(
+      String(row.status ?? ""),
+    );
+
+    return (
+      total +
+      Number(
+        active
+          ? row.reserved_seconds ?? 0
+          : row.processed_seconds ?? 0,
+      )
+    );
+  }, 0);
+}
+
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
+
   if (!user) {
     return NextResponse.json(
       { ok: false, error: "authentication_required" },
@@ -23,6 +49,7 @@ export async function POST(request: Request) {
   }
 
   const organization = await getCurrentOrganization(user.id);
+
   if (
     !organization ||
     !["owner", "admin"].includes(organization.role)
@@ -34,6 +61,7 @@ export async function POST(request: Request) {
   }
 
   let body: z.infer<typeof BodySchema>;
+
   try {
     body = BodySchema.parse(await request.json());
   } catch {
@@ -44,6 +72,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+
   const { data: camera } = await admin
     .from("cameras")
     .select("id,source_kind")
@@ -69,41 +98,80 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (
-    existing?.status === "running" &&
-    String(existing.camera_id) === body.cameraId
-  ) {
-    return NextResponse.json(
-      {
-        ok: true,
-        duplicate: true,
-        trial: existing,
-        recordingLimitSeconds: 86_400,
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+  if (existing?.status === "running" && existing.camera_id) {
+    const { data: origin } = await admin
+      .from("cameras")
+      .select("id,source_kind")
+      .eq("id", existing.camera_id)
+      .eq("organization_id", organization.id)
+      .maybeSingle();
+
+    if (origin?.source_kind === "local_recording") {
+      const { data: sessions } = await admin
+        .from("recording_sessions")
+        .select(
+          "status,reserved_seconds,processed_seconds",
+        )
+        .eq("trial_run_id", existing.id);
+
+      const recordingUsedSeconds =
+        usedSeconds(sessions ?? []);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          duplicate: true,
+          trial: existing,
+          planCode: String(
+            existing.selected_plan_code ?? body.planCode,
+          ),
+          recordingLimitSeconds:
+            TRIAL_RECORDING_LIMIT_SECONDS,
+          recordingUsedSeconds,
+          recordingRemainingSeconds: Math.max(
+            TRIAL_RECORDING_LIMIT_SECONDS -
+              recordingUsedSeconds,
+            0,
+          ),
+        },
+        {
+          headers: { "Cache-Control": "no-store" },
+        },
+      );
+    }
   }
 
   const supabase = await createClient();
-  const { data: prepared, error: prepareError } = await supabase.rpc(
-    "prepare_monitoria_trial",
-    {
-      p_organization_id: organization.id,
-      p_camera_id: body.cameraId,
-      p_plan_code: body.planCode,
-    },
-  );
+
+  const { data: prepared, error: prepareError } =
+    await supabase.rpc(
+      "prepare_monitoria_trial",
+      {
+        p_organization_id: organization.id,
+        p_camera_id: body.cameraId,
+        p_plan_code: body.planCode,
+      },
+    );
 
   if (prepareError) {
     const message = prepareError.message ?? "";
-    const status = message.includes("trial_already_used") ? 409 : 400;
+    const status = message.includes("trial_already_used")
+      ? 409
+      : 400;
+
     return NextResponse.json(
-      { ok: false, error: message || "trial_prepare_failed" },
+      {
+        ok: false,
+        error: message || "trial_prepare_failed",
+      },
       { status },
     );
   }
 
-  const preparedValue = Array.isArray(prepared) ? prepared[0] : prepared;
+  const preparedValue = Array.isArray(prepared)
+    ? prepared[0]
+    : prepared;
+
   const preparedReady =
     preparedValue?.status === "ready" ||
     preparedValue?.readiness?.ready === true;
@@ -128,29 +196,43 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: started, error: startError } = await supabase.rpc(
-    "start_monitoria_trial",
-    {
-      p_organization_id: organization.id,
-    },
-  );
+  const { data: started, error: startError } =
+    await supabase.rpc(
+      "start_monitoria_trial",
+      {
+        p_organization_id: organization.id,
+      },
+    );
 
   if (startError) {
     return NextResponse.json(
-      { ok: false, error: startError.message || "trial_start_failed" },
+      {
+        ok: false,
+        error:
+          startError.message || "trial_start_failed",
+      },
       { status: 400 },
     );
   }
 
-  const trial = Array.isArray(started) ? started[0] : started;
+  const trial = Array.isArray(started)
+    ? started[0]
+    : started;
 
   return NextResponse.json(
     {
       ok: true,
       duplicate: false,
       trial,
-      recordingLimitSeconds: 86_400,
+      planCode: body.planCode,
+      recordingLimitSeconds:
+        TRIAL_RECORDING_LIMIT_SECONDS,
+      recordingUsedSeconds: 0,
+      recordingRemainingSeconds:
+        TRIAL_RECORDING_LIMIT_SECONDS,
     },
-    { headers: { "Cache-Control": "no-store" } },
+    {
+      headers: { "Cache-Control": "no-store" },
+    },
   );
 }

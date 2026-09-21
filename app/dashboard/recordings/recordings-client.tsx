@@ -17,7 +17,6 @@ import {
   scanRecording,
 } from "@/src/recordings/browser-engine";
 import {
-  extractRecordingClipWithFfmpeg,
   recordingBrowserMetadata,
 } from "@/src/recordings/browser-ffmpeg";
 import type {
@@ -26,6 +25,7 @@ import type {
   RecordingVideoInfo,
 } from "@/src/recordings/types";
 import styles from "./recordings.module.css";
+import onboardingStyles from "../first-run.module.css";
 
 type SourceSummary = {
   id: string;
@@ -121,6 +121,7 @@ const PLAN_DESCRIPTIONS: Record<RecordingPlanCode, string> = {
 };
 
 const TRIAL_RECORDING_LIMIT_SECONDS = 86_400;
+const MAX_RECORDING_ENVIRONMENTS = 6;
 
 const RECORDING_ERROR_MESSAGES: Record<string, string> = {
   authentication_required:
@@ -137,6 +138,8 @@ const RECORDING_ERROR_MESSAGES: Record<string, string> = {
     "Não encontramos o local selecionado.",
   recording_source_create_failed:
     "Não foi possível preparar este ambiente agora. Tente novamente.",
+  recording_environment_limit_reached:
+    "Você pode criar até 6 ambientes para testar gravações.",
   recording_entitlement_unavailable:
     "Não foi possível verificar seu acesso agora. Tente novamente.",
   recording_entitlement_required:
@@ -241,6 +244,36 @@ function formatQuota(seconds: number) {
   return formatDuration(seconds);
 }
 
+function formatEventPeriod(
+  startedAt: string,
+  endedAt: string,
+) {
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+
+  const date = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+  }).format(start);
+
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    timeStyle: "medium",
+  });
+
+  return `${date} · ${formatter.format(start)}–${formatter.format(end)}`;
+}
+
+function formatTrialEnd(value: string | null) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -330,16 +363,6 @@ async function jsonRequest<T>(
   return payload as T;
 }
 
-async function sha256Hex(blob: Blob) {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    await blob.arrayBuffer(),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 function sourceTone(source: SourceSummary) {
   if (!source.profileReady) return "setup";
   if (source.entitlement.monitoringAllowed) return "ready";
@@ -358,6 +381,9 @@ export function RecordingsClient({
   const abortRef = useRef<AbortController | null>(null);
   const requestKeyRef = useRef<string | null>(null);
   const restoredSessionRef = useRef<string | null>(null);
+  const previousSourceIdRef = useRef<string | null>(
+    initialSourceId ?? initialSources[0]?.id ?? null,
+  );
 
   const [sources, setSources] = useState(initialSources);
   const [selectedSourceId, setSelectedSourceId] = useState(
@@ -409,7 +435,6 @@ export function RecordingsClient({
   const [activeSessionId, setActiveSessionId] = useState<
     string | null
   >(null);
-  const [clipBusyId, setClipBusyId] = useState<string | null>(null);
 
   const selectedSource = useMemo(
     () =>
@@ -428,6 +453,13 @@ export function RecordingsClient({
   }, []);
 
   useEffect(() => {
+    const previousSourceId = previousSourceIdRef.current;
+    const sourceChanged =
+      previousSourceId !== null &&
+      previousSourceId !== selectedSourceId;
+
+    previousSourceIdRef.current = selectedSourceId || null;
+
     setFile(null);
     setVideoInfo(null);
     setRecordingStart("");
@@ -440,9 +472,30 @@ export function RecordingsClient({
     setProgress(0);
     setError(null);
     requestKeyRef.current = null;
+    restoredSessionRef.current = null;
+
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
+    }
+
+    if (
+      sourceChanged &&
+      typeof window !== "undefined"
+    ) {
+      const url = new URL(window.location.href);
+
+      if (selectedSourceId) {
+        url.searchParams.set("source", selectedSourceId);
+      }
+
+      url.searchParams.delete("session");
+
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
     }
   }, [selectedSourceId]);
 
@@ -458,6 +511,56 @@ export function RecordingsClient({
       "",
       `${url.pathname}${url.search}${url.hash}`,
     );
+  }
+
+  function clearSessionFromUrl() {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("session");
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
+
+  function testAnotherVideo() {
+    clearSessionFromUrl();
+    restoredSessionRef.current = null;
+    void prepareFile(null);
+    setStatus("Escolha outro vídeo para continuar testando.");
+
+    window.setTimeout(() => {
+      document
+        .getElementById("recording-file")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 0);
+  }
+
+  function addAnotherEnvironment() {
+    if (sources.length >= MAX_RECORDING_ENVIRONMENTS) {
+      setError(
+        "Você pode criar até 6 ambientes para testar gravações.",
+      );
+      return;
+    }
+
+    clearSessionFromUrl();
+    setNewSourceOpen(true);
+
+    window.setTimeout(() => {
+      document
+        .getElementById("recording-environments")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 0);
   }
 
   function patchSource(
@@ -484,6 +587,14 @@ export function RecordingsClient({
 
   async function createSource() {
     if (!newSourceName.trim() || !newSourceSiteId) return;
+
+    if (sources.length >= MAX_RECORDING_ENVIRONMENTS) {
+      setError(
+        "Você pode criar até 6 ambientes para testar gravações.",
+      );
+      return;
+    }
+
     setSourceBusy(true);
     setError(null);
 
@@ -705,13 +816,17 @@ export function RecordingsClient({
 
   async function startTrial() {
     if (!selectedSource) return;
+
     setSourceBusy(true);
     setError(null);
 
     try {
       const response = await jsonRequest<{
         trial: Record<string, unknown>;
+        planCode?: RecordingPlanCode;
         recordingLimitSeconds: number;
+        recordingUsedSeconds?: number;
+        recordingRemainingSeconds?: number;
       }>("/api/recordings/trial", {
         method: "POST",
         body: JSON.stringify({
@@ -720,30 +835,62 @@ export function RecordingsClient({
         }),
       });
 
-      patchSource(selectedSource.id, {
-        planCode: trialPlan,
-        entitlement: {
-          ...selectedSource.entitlement,
-          accessSource: "trial",
-          monitoringAllowed: true,
-          reason: "trial_running",
-          clipEnabled: trialPlan === "intensive",
-        },
-        quota: {
-          limitSeconds: response.recordingLimitSeconds ?? TRIAL_RECORDING_LIMIT_SECONDS,
-          usedSeconds: 0,
-          remainingSeconds: response.recordingLimitSeconds ?? TRIAL_RECORDING_LIMIT_SECONDS,
-        },
-      });
+      const effectivePlan =
+        response.planCode ?? trialPlan;
+
+      const limit =
+        response.recordingLimitSeconds ??
+        TRIAL_RECORDING_LIMIT_SECONDS;
+
+      const used = Number(
+        response.recordingUsedSeconds ?? 0,
+      );
+
+      const remaining = Number(
+        response.recordingRemainingSeconds ??
+          Math.max(limit - used, 0),
+      );
+
+      setSources((current) =>
+        current.map((source) => {
+          if (
+            ["subscription", "grace_period", "legacy"].includes(
+              source.entitlement.accessSource,
+            )
+          ) {
+            return source;
+          }
+
+          return {
+            ...source,
+            planCode: effectivePlan,
+            entitlement: {
+              ...source.entitlement,
+              accessSource: "trial",
+              monitoringAllowed: true,
+              reason: "active_trial",
+              clipEnabled: false,
+            },
+            quota: {
+              limitSeconds: limit,
+              usedSeconds: used,
+              remainingSeconds: remaining,
+            },
+          };
+        }),
+      );
 
       await loadConfig();
+
       setStatus(
-        "Teste iniciado. Durante as próximas 24 horas, você pode analisar até 24 horas de gravações.",
+        "Teste iniciado. Você pode usar até 6 ambientes e analisar até 24 horas de gravações durante as próximas 24 horas.",
       );
     } catch (caught) {
       setError(
         recordingErrorMessage(
-          caught instanceof Error ? caught.message : String(caught),
+          caught instanceof Error
+            ? caught.message
+            : String(caught),
         ),
       );
     } finally {
@@ -984,18 +1131,43 @@ export function RecordingsClient({
         body: JSON.stringify({ action: "processing_started" }),
       });
 
-      patchSource(selectedSource.id, {
-        planCode: reserved.planCode,
-        quota: {
-          limitSeconds: reserved.quotaLimitSeconds,
-          usedSeconds:
-            reserved.quotaLimitSeconds -
-            Number(reserved.quotaRemainingSeconds ?? 0),
-          remainingSeconds: Number(
-            reserved.quotaRemainingSeconds ?? 0,
+      const updatedUsedSeconds =
+        reserved.quotaLimitSeconds -
+        Number(reserved.quotaRemainingSeconds ?? 0);
+
+      const updatedRemainingSeconds = Number(
+        reserved.quotaRemainingSeconds ?? 0,
+      );
+
+      if (reserved.quotaSource === "trial") {
+        setSources((current) =>
+          current.map((source) =>
+            source.entitlement.accessSource === "trial"
+              ? {
+                  ...source,
+                  planCode: reserved.planCode,
+                  quota: {
+                    limitSeconds:
+                      reserved.quotaLimitSeconds,
+                    usedSeconds: updatedUsedSeconds,
+                    remainingSeconds:
+                      updatedRemainingSeconds,
+                  },
+                }
+              : source,
           ),
-        },
-      });
+        );
+      } else {
+        patchSource(selectedSource.id, {
+          planCode: reserved.planCode,
+          quota: {
+            limitSeconds: reserved.quotaLimitSeconds,
+            usedSeconds: updatedUsedSeconds,
+            remainingSeconds:
+              updatedRemainingSeconds,
+          },
+        });
+      }
 
       const maximumEvents = Math.max(
         1,
@@ -1133,88 +1305,6 @@ export function RecordingsClient({
     }
   }
 
-  async function generateClip(eventId: string) {
-    if (!activeSessionId || !file || !selectedSource) return;
-    setClipBusyId(eventId);
-    setError(null);
-
-    try {
-      const prepared = await jsonRequest<{
-        ready: boolean;
-        assetId: string;
-        signedUrl?: string;
-        offsetSeconds?: number;
-        durationSeconds?: number;
-      }>("/api/recordings/clips/prepare", {
-        method: "POST",
-        body: JSON.stringify({
-          sessionId: activeSessionId,
-          eventId,
-        }),
-      });
-
-      if (prepared.ready) {
-        await waitForSession(activeSessionId);
-        return;
-      }
-
-      if (
-        !prepared.signedUrl ||
-        prepared.offsetSeconds === undefined ||
-        prepared.durationSeconds === undefined
-      ) {
-        throw new Error("clip_upload_not_prepared");
-      }
-
-      setStatus("Preparando o trecho do vídeo…");
-      const clip = await extractRecordingClipWithFfmpeg({
-        file,
-        offsetSeconds: prepared.offsetSeconds,
-        durationSeconds: prepared.durationSeconds,
-        onProgress: (value) =>
-          setProgress(Math.max(0, Math.min(99, value))),
-      });
-
-      const form = new FormData();
-      form.append("file", clip, "clip.mp4");
-      form.append("cacheControl", "3600");
-
-      const upload = await fetch(prepared.signedUrl, {
-        method: "PUT",
-        headers: { "x-upsert": "true" },
-        body: form,
-      });
-
-      if (!upload.ok) {
-        throw new Error(
-          "Não foi possível preparar o trecho do vídeo. Tente novamente.",
-        );
-      }
-
-      await jsonRequest("/api/recordings/clips/complete", {
-        method: "POST",
-        body: JSON.stringify({
-          assetId: prepared.assetId,
-          byteSize: clip.size,
-          contentSha256: await sha256Hex(clip),
-          durationSeconds: prepared.durationSeconds,
-        }),
-      });
-
-      await waitForSession(activeSessionId);
-      setStatus("Trecho do vídeo pronto.");
-      setProgress(100);
-    } catch (caught) {
-      setError(
-        recordingErrorMessage(
-          caught instanceof Error ? caught.message : String(caught),
-        ),
-      );
-    } finally {
-      setClipBusyId(null);
-    }
-  }
-
   const entitlementReady =
     selectedSource?.entitlement.monitoringAllowed ||
     recordingConfig?.entitlement.monitoringAllowed;
@@ -1222,27 +1312,99 @@ export function RecordingsClient({
   const profileReady =
     selectedSource?.profileReady ?? false;
 
+  const recordingPhases = [
+    "Gravação",
+    "Ambiente",
+    "Analisar",
+    "Continuar",
+  ] as const;
+
+  const recordingPhaseIndex =
+    sessionResult && !sessionResult.pending
+      ? 3
+      : profileReady
+        ? 2
+        : file
+          ? 1
+          : 0;
+
   return (
-    <div className={styles.workspace}>
-      <section className={styles.sourcePanel}>
+    <>
+      <section className={onboardingStyles.firstRunCard}>
+        <div
+          className={onboardingStyles.firstRunProgress}
+          style={{
+            gridTemplateColumns:
+              "repeat(4, minmax(0, 1fr))",
+          }}
+          aria-label="Etapas do teste com gravações"
+        >
+          {recordingPhases.map((item, index) => {
+            const done = index < recordingPhaseIndex;
+            const current =
+              index === recordingPhaseIndex;
+
+            return (
+              <article
+                key={item}
+                data-complete={done}
+                data-current={current}
+              >
+                <span>{done ? "✓" : index + 1}</span>
+                <div>
+                  <strong>{item}</strong>
+                  <small>
+                    {done
+                      ? "Concluído"
+                      : current
+                        ? "Agora"
+                        : "Depois"}
+                  </small>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className={styles.workspace}>
+      <section
+        className={styles.sourcePanel}
+        id="recording-environments"
+      >
         <div className={styles.sectionTitle}>
           <div>
             <span>AMBIENTES</span>
             <h2>Onde foi gravado</h2>
           </div>
-          {canManage ? (
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => setNewSourceOpen((value) => !value)}
-            >
-              + Novo ambiente
-            </button>
-          ) : null}
+
+          <div className={styles.environmentLimit}>
+            <small>
+              {sources.length}/{MAX_RECORDING_ENVIRONMENTS} ambientes
+            </small>
+
+            {canManage &&
+            sources.length < MAX_RECORDING_ENVIRONMENTS ? (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() =>
+                  setNewSourceOpen((value) => !value)
+                }
+              >
+                + Novo ambiente
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {newSourceOpen ? (
           <div className={styles.createSource}>
+            <p className={styles.environmentHint}>
+              Você pode criar até 6 ambientes. Todos compartilham
+              o mesmo período e o mesmo saldo do teste de 24 horas.
+            </p>
+
             <label>
               Nome do ambiente
               <input
@@ -1346,6 +1508,19 @@ export function RecordingsClient({
                       ? "restantes no teste"
                       : "restantes neste período"}
                 </small>
+
+                {selectedSource.entitlement.accessSource ===
+                  "trial" &&
+                formatTrialEnd(
+                  selectedSource.entitlement.periodEndsAt,
+                ) ? (
+                  <small>
+                    Teste aberto até{" "}
+                    {formatTrialEnd(
+                      selectedSource.entitlement.periodEndsAt,
+                    )}
+                  </small>
+                ) : null}
               </div>
             </div>
 
@@ -1356,7 +1531,10 @@ export function RecordingsClient({
               </span>
             </div>
 
-            <section className={styles.fileCard}>
+            <section
+              className={styles.fileCard}
+              id="recording-file"
+            >
               <div className={styles.sectionTitle}>
                 <div>
                   <span>1 · ARQUIVO</span>
@@ -1508,8 +1686,9 @@ export function RecordingsClient({
 
                 <p className={styles.muted}>
                   O teste grátis fica disponível por 24 horas. Durante esse
-                  período, você pode analisar até 24 horas de gravações,
-                  em arquivos de até 1 hora cada.
+                  período, você pode usar até 6 ambientes e analisar até
+                  24 horas de gravações no total, em arquivos de até
+                  1 hora cada.
                 </p>
 
                 <div className={styles.planChoice}>
@@ -1657,10 +1836,11 @@ export function RecordingsClient({
                             <div className={styles.eventBody}>
                               <div>
                                 <span>
-                                  {new Intl.DateTimeFormat("pt-BR", {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  }).format(new Date(event.startedAt))}
+                                  Período ·{" "}
+                                  {formatEventPeriod(
+                                    event.startedAt,
+                                    event.endedAt,
+                                  )}
                                 </span>
                                 <strong>
                                   {event.headline || event.summary}
@@ -1683,28 +1863,6 @@ export function RecordingsClient({
                                   Abrir acontecimento
                                 </Link>
 
-                                {event.clipAssetId ? (
-                                  <a
-                                    href={`/api/storage-assets/${event.clipAssetId}?download=1`}
-                                  >
-                                    Baixar vídeo
-                                  </a>
-                                ) : (
-                                  (recordingConfig?.planCode ??
-                                    selectedSource.planCode) === "intensive" &&
-                                  file?.name ===
-                                    sessionResult.session.sourceFilename ? (
-                                    <button
-                                      type="button"
-                                      disabled={clipBusyId === event.id}
-                                      onClick={() => generateClip(event.id)}
-                                    >
-                                      {clipBusyId === event.id
-                                        ? "Preparando vídeo…"
-                                        : "Gerar vídeo do acontecimento"}
-                                    </button>
-                                  ) : null
-                                )}
                               </div>
                             </div>
                           </article>
@@ -1722,9 +1880,110 @@ export function RecordingsClient({
                 )}
               </section>
             ) : null}
+
+            {sessionResult && !sessionResult.pending ? (
+              <section className={styles.nextSteps}>
+                <div className={styles.sectionTitle}>
+                  <div>
+                    <span>4 · CONTINUAR</span>
+                    <h3>O que deseja fazer agora?</h3>
+                  </div>
+                  <small>
+                    {sources.length}/{MAX_RECORDING_ENVIRONMENTS} ambientes
+                  </small>
+                </div>
+
+                <p className={styles.nextStepsIntro}>
+                  Seu teste continua ativo. Você pode analisar outros
+                  vídeos, adicionar ambientes, conhecer os planos ou
+                  conectar suas câmeras.
+                </p>
+
+                <div className={styles.nextStepGrid}>
+                  <button
+                    type="button"
+                    onClick={testAnotherVideo}
+                  >
+                    <strong>Testar outro vídeo</strong>
+                    <span>
+                      Use o mesmo ambiente e mantenha os resultados
+                      anteriores no histórico.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addAnotherEnvironment}
+                    disabled={
+                      sources.length >=
+                      MAX_RECORDING_ENVIRONMENTS
+                    }
+                  >
+                    <strong>Adicionar outro ambiente</strong>
+                    <span>
+                      {sources.length >=
+                      MAX_RECORDING_ENVIRONMENTS
+                        ? "Você já chegou ao limite de 6 ambientes."
+                        : `Você está usando ${sources.length} de 6 ambientes.`}
+                    </span>
+                  </button>
+
+                  <Link href="/dashboard/plans">
+                    <strong>Ver planos e contratar</strong>
+                    <span>
+                      Escolha como deseja continuar usando o MonitorIA.
+                    </span>
+                  </Link>
+
+                  <Link href="/dashboard/installer">
+                    <strong>Conectar minhas câmeras</strong>
+                    <span>
+                      Faça a configuração para acompanhamento contínuo.
+                    </span>
+                  </Link>
+                </div>
+
+                {selectedSource.entitlement.accessSource ===
+                "trial" ? (
+                  <div className={styles.trialSummary}>
+                    <span>
+                      <strong>
+                        {formatQuota(
+                          selectedSource.quota.usedSeconds,
+                        )}
+                      </strong>
+                      de 24 h de vídeos utilizados
+                    </span>
+
+                    <span>
+                      <strong>
+                        {formatQuota(
+                          selectedSource.quota.remainingSeconds,
+                        )}
+                      </strong>
+                      restantes
+                    </span>
+
+                    {formatTrialEnd(
+                      selectedSource.entitlement.periodEndsAt,
+                    ) ? (
+                      <span>
+                        Teste disponível até{" "}
+                        <strong>
+                          {formatTrialEnd(
+                            selectedSource.entitlement.periodEndsAt,
+                          )}
+                        </strong>
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </>
         )}
       </section>
-    </div>
+      </div>
+    </>
   );
 }

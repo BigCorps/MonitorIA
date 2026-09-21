@@ -203,7 +203,7 @@ export async function getRecordingSourceSummaries(
       supabase
         .from("camera_entitlements")
         .select(
-          "camera_id,access_source,monitoring_allowed,plan_code,period_starts_at,period_ends_at,reason,clip_enabled",
+          "camera_id,access_source,monitoring_allowed,plan_code,period_starts_at,period_ends_at,reason,clip_enabled,trial_run_id",
         )
         .eq("organization_id", organizationId),
       supabase
@@ -243,14 +243,21 @@ export async function getRecordingSourceSummaries(
 
     let usedSeconds = 0;
     if (periodStart && periodEnd) {
-      const { data: sessions } = await supabase
+      const sessionQuery = supabase
         .from("recording_sessions")
         .select("status,reserved_seconds,processed_seconds")
-        .eq("camera_id", id)
         .eq("quota_period_start", periodStart)
         .eq("quota_period_end", periodEnd);
 
-      usedSeconds = (sessions ?? []).reduce(
+      const sessionResult =
+        accessSource === "trial" && entitlement?.trial_run_id
+          ? await sessionQuery.eq(
+              "trial_run_id",
+              String(entitlement.trial_run_id),
+            )
+          : await sessionQuery.eq("camera_id", id);
+
+      usedSeconds = (sessionResult.data ?? []).reduce(
         (sum: number, session: any) => {
           const active = ["reserved", "processing"].includes(
             String(session.status),
@@ -285,7 +292,7 @@ export async function getRecordingSourceSummaries(
         periodStartsAt: periodStart,
         periodEndsAt: periodEnd,
         reason: String(entitlement?.reason ?? "plan_not_selected"),
-        clipEnabled: Boolean(entitlement?.clip_enabled),
+        clipEnabled: false,
       },
       quota: {
         limitSeconds: quotaLimitSeconds,

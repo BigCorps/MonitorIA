@@ -121,6 +121,109 @@
   justify-content: center;
 }
 
+.environmentLimit {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.environmentLimit > small {
+  color: #77879a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.environmentHint {
+  margin: 0;
+  color: #64786f;
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+
+.nextSteps {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid #bfe5db;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f2fbf8, #ffffff);
+  box-shadow: 0 12px 34px rgba(15, 128, 94, 0.06);
+}
+
+.nextStepsIntro {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: #66798b;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.nextStepGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nextStepGrid > a,
+.nextStepGrid > button {
+  min-width: 0;
+  min-height: 92px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 15px;
+  border: 1px solid #dce8e4;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nextStepGrid > a:hover,
+.nextStepGrid > button:hover {
+  border-color: #8fd2bf;
+  background: #f7fcfa;
+}
+
+.nextStepGrid > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.nextStepGrid strong {
+  color: #245344;
+  font-size: 11px;
+}
+
+.nextStepGrid span {
+  color: #718197;
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.trialSummary {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trialSummary > span {
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: #eaf8f4;
+  color: #55766c;
+  font-size: 8.5px;
+}
+
+.trialSummary strong {
+  color: #176c56;
+}
+
 .createSource {
   display: grid;
   gap: 10px;
@@ -751,5 +854,14 @@
   .activationActions,
   .analysisActions {
     display: grid;
+  }
+
+  .nextStepGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .environmentLimit {
+    width: 100%;
+    justify-items: start;
   }
 }
