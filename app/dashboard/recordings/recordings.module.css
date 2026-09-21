@@ -4,7 +4,7 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 0.36fr) minmax(0, 1.64fr);
+  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -121,11 +121,31 @@
   justify-content: center;
 }
 
+.sourcePanel .sectionTitle {
+  gap: 12px;
+}
+
+.sourcePanel .sectionTitle > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sourcePanel .sectionTitle h2 {
+  line-height: 1.2;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .environmentLimit {
   flex: 0 0 auto;
+  min-width: 132px;
   display: grid;
   justify-items: end;
   gap: 6px;
+}
+
+.environmentLimit .secondaryButton {
+  white-space: nowrap;
 }
 
 .environmentLimit > small {
