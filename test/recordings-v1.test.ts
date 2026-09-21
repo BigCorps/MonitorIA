@@ -269,3 +269,114 @@ rc3Test(
     rc3Assert.ok(requestLock < duplicateLookup);
   },
 );
+
+
+// RC6 UX + trial readiness regressions — Gravações
+const recordingTrialRoute = rc3ReadFileSync(
+  "app/api/recordings/trial/route.ts",
+  "utf8",
+);
+
+const recordingsClientUi = rc3ReadFileSync(
+  "app/dashboard/recordings/recordings-client.tsx",
+  "utf8",
+);
+
+const recordingsPageUi = rc3ReadFileSync(
+  "app/dashboard/recordings/page.tsx",
+  "utf8",
+);
+
+const firstRunUi = rc3ReadFileSync(
+  "app/dashboard/first-run-setup.tsx",
+  "utf8",
+);
+
+const installerUi = rc3ReadFileSync(
+  "src/components/installer-platform-actions.tsx",
+  "utf8",
+);
+
+const pairingUi = rc3ReadFileSync(
+  "app/dashboard/site-pairing-code.tsx",
+  "utf8",
+);
+
+rc3Test(
+  "trial de gravação aceita readiness aninhado retornado pelo banco",
+  () => {
+    rc3Assert.match(
+      recordingTrialRoute,
+      /preparedValue\?\.readiness\?\.ready === true/,
+    );
+
+    rc3Assert.match(
+      recordingTrialRoute,
+      /preparedValue\?\.status === "ready"/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingTrialRoute,
+      /if \(!preparedValue\?\.ready\)/,
+    );
+  },
+);
+
+rc3Test(
+  "onboarding oferece teste com gravação antes da configuração das câmeras",
+  () => {
+    const recordingCta =
+      firstRunUi.indexOf("Teste agora com uma gravação");
+
+    const cameraSetup =
+      firstRunUi.indexOf("connectGrid");
+
+    rc3Assert.ok(recordingCta >= 0);
+    rc3Assert.ok(cameraSetup >= 0);
+    rc3Assert.ok(recordingCta < cameraSetup);
+    rc3Assert.match(
+      firstRunUi,
+      /Testar com uma gravação/,
+    );
+  },
+);
+
+rc3Test(
+  "interface de gravações usa linguagem de cliente e esconde termos internos",
+  () => {
+    rc3Assert.match(
+      recordingsPageUi,
+      /Teste o MonitorIA com uma gravação/,
+    );
+
+    rc3Assert.match(
+      recordingsClientUi,
+      /Não foi possível concluir agora/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /Vídeo pronto para processamento local pelo navegador/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /Vídeo reconhecido pelo modo de compatibilidade local/,
+    );
+
+    rc3Assert.doesNotMatch(
+      recordingsClientUi,
+      /candidato\(s\) local\(is\)/,
+    );
+
+    rc3Assert.doesNotMatch(
+      installerUi,
+      /O Agent deve ser instalado/,
+    );
+
+    rc3Assert.doesNotMatch(
+      pairingUi,
+      /Gerar código de pareamento/,
+    );
+  },
+);

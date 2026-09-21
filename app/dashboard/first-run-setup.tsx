@@ -49,8 +49,8 @@ export async function FirstRunSetup({
   const phase = firstRun.phase;
 
   const phases = [
-    { id: "connect", title: "Conectar" },
-    { id: "discover", title: "Procurar" },
+    { id: "connect", title: "Começar" },
+    { id: "discover", title: "Preparar" },
     { id: "context", title: "Contexto" },
     { id: "commercial", title: "Ativar" },
   ] as const;
@@ -172,10 +172,10 @@ export async function FirstRunSetup({
         <header className="dashboard-header">
           <div>
             <span className="dashboard-eyebrow">PRIMEIRO ACESSO</span>
-            <h1>Vamos configurar sem pular nenhuma etapa</h1>
+            <h1>Vamos colocar o MonitorIA para funcionar</h1>
             <p>
-              Local <strong>{site.name}</strong>. Você só precisa seguir o passo
-              destacado agora.
+              Local <strong>{site.name}</strong>. Você pode testar primeiro com
+              uma gravação ou conectar suas câmeras quando quiser.
             </p>
           </div>
         </header>
@@ -212,10 +212,39 @@ export async function FirstRunSetup({
             <div className={styles.firstRunBody}>
               <div className={styles.firstRunHeading}>
                 <span>PASSO 1 DE 4</span>
-                <h2>Conecte o computador da loja</h2>
+                <h2>Escolha como quer começar</h2>
                 <p>
-                  O Agent deve ficar em um computador ligado na mesma rede local
-                  das câmeras, DVR ou NVR. Ele é a ponte contínua entre a loja e o MonitorIA.
+                  Para conhecer o MonitorIA mais rápido, teste com um vídeo que
+                  você já tem. Se preferir, conecte suas câmeras agora para o
+                  acompanhamento contínuo.
+                </p>
+              </div>
+
+              <div className={styles.recordingStartCard}>
+                <div>
+                  <span>MAIS RÁPIDO PARA TESTAR</span>
+                  <h3>Teste agora com uma gravação</h3>
+                  <p>
+                    Escolha um vídeo do celular ou computador e veja o MonitorIA
+                    organizar os acontecimentos importantes. Você não precisa
+                    configurar suas câmeras agora.
+                  </p>
+                </div>
+
+                <Link
+                  href="/dashboard/recordings"
+                  className="panel-primary-action"
+                >
+                  Testar com uma gravação
+                </Link>
+              </div>
+
+              <div className={styles.connectOptionTitle}>
+                <span>OU, SE PREFERIR</span>
+                <h3>Conecte suas câmeras</h3>
+                <p>
+                  Faça a configuração completa para acompanhar sua empresa
+                  continuamente.
                 </p>
               </div>
 
@@ -225,28 +254,28 @@ export async function FirstRunSetup({
                     <li>
                       <span>1</span>
                       <div>
-                        <strong>Instale no computador da rede das câmeras</strong>
+                        <strong>Abra o MonitorIA no computador da loja</strong>
                         <p>
-                          Ele precisa estar conectado à mesma rede local do DVR,
-                          NVR ou câmeras IP.
+                          Esse computador deve estar na mesma rede das suas câmeras,
+                          DVR ou NVR.
                         </p>
                       </div>
                     </li>
                     <li>
                       <span>2</span>
                       <div>
-                        <strong>Mantenha esse computador ligado</strong>
+                        <strong>Deixe esse computador ligado</strong>
                         <p>
-                          O MonitorIA depende dele enquanto o monitoramento estiver ativo.
+                          Assim o acompanhamento continua funcionando durante todo o período configurado.
                         </p>
                       </div>
                     </li>
                     <li>
                       <span>3</span>
                       <div>
-                        <strong>Gere o código somente quando o instalador pedir</strong>
+                        <strong>Use o código quando for solicitado</strong>
                         <p>
-                          O código vale 15 minutos. Depois do pareamento, a tela avança automaticamente.
+                          O código vale 15 minutos. Depois da conexão, a tela avança automaticamente.
                         </p>
                       </div>
                     </li>
@@ -258,26 +287,18 @@ export async function FirstRunSetup({
                     que ficará ligado na loja.
                   </div>
 
-                  <div className={styles.firstRunActions}>
-                    <Link
-                      href="/dashboard/recordings"
-                      className="back-link"
-                    >
-                      Não tenho câmera conectada · usar uma gravação →
-                    </Link>
-                  </div>
-                </div>
+                 </div>
 
                 <aside className={styles.connectAside}>
                   <div className={styles.asideTitle}>
-                    <strong>1. Baixe e instale</strong>
-                    <span>Mostramos a opção adequada para este dispositivo.</span>
+                    <strong>1. Abra no computador da loja</strong>
+                    <span>Mostramos a opção adequada para o computador que será usado.</span>
                   </div>
                   <InstallerPlatformActions />
 
                   <div className={styles.asideTitle}>
-                    <strong>2. Pareie com este local</strong>
-                    <span>Gere o código quando o instalador estiver aberto.</span>
+                    <strong>2. Conecte este local</strong>
+                    <span>Gere o código quando o MonitorIA solicitar.</span>
                   </div>
                   <SitePairingCode />
                 </aside>
@@ -320,17 +341,16 @@ export async function FirstRunSetup({
                 context.camera.sourceKind === "local_recording" ? (
                   <div className={styles.waitingBox}>
                     <div>
-                      <strong>Continue pela origem de gravações</strong>
+                      <strong>Continue com sua gravação</strong>
                       <p>
-                        O arquivo permanece neste dispositivo. Abra Gravações para
-                        extrair a primeira imagem, configurar o contexto e iniciar o teste.
+                        Abra Gravações para confirmar o ambiente e iniciar o teste.
                       </p>
                       <div className={styles.firstRunActions}>
                         <Link
                           href={`/dashboard/recordings?source=${context.camera.id}`}
                           className="panel-primary-action"
                         >
-                          Continuar em Gravações
+                          Continuar com a gravação
                         </Link>
                       </div>
                     </div>

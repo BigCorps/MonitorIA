@@ -51,11 +51,10 @@ export default async function RecordingsPage({ searchParams }: Props) {
             <span className="dashboard-eyebrow">
               GRAVAÇÕES · {organization.name.toUpperCase()}
             </span>
-            <h1>Analise vídeos sem instalar o Agent</h1>
+            <h1>Teste o MonitorIA com uma gravação</h1>
             <p>
-              O arquivo original permanece neste dispositivo. O MonitorIA
-              processa localmente e envia somente as imagens dos acontecimentos
-              que precisam de análise.
+              Escolha um vídeo que você já tem e veja os acontecimentos
+              importantes organizados em poucos minutos.
             </p>
           </div>
         </header>

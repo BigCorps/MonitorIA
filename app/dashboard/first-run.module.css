@@ -105,8 +105,61 @@
 .firstRunHeading h2 { margin: 7px 0; color: #17243a; font-size: 24px; letter-spacing: -0.035em; }
 .firstRunHeading p { margin: 0; color: #718197; font-size: 11px; line-height: 1.65; }
 
-.connectGrid {
+.recordingStartCard {
   margin-top: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  border: 1px solid #9fe1d1;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #effcf8, #f8fffd);
+  box-shadow: 0 12px 30px rgba(15, 128, 94, 0.08);
+}
+
+.recordingStartCard > div {
+  min-width: 0;
+}
+
+.recordingStartCard span,
+.connectOptionTitle > span {
+  display: block;
+  color: #16866f;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.recordingStartCard h3,
+.connectOptionTitle h3 {
+  margin: 5px 0;
+  color: #173c34;
+  font-size: 17px;
+}
+
+.recordingStartCard p,
+.connectOptionTitle p {
+  margin: 0;
+  color: #657b76;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.recordingStartCard :global(.panel-primary-action) {
+  flex: 0 0 auto;
+  min-width: 190px;
+  text-align: center;
+}
+
+.connectOptionTitle {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #e4ecef;
+}
+
+.connectGrid {
+  margin-top: 16px;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(270px, 0.65fr);
   gap: 28px;
@@ -249,6 +302,15 @@
     scroll-snap-align: start;
   }
   .firstRunProgress article[data-current='true'] { flex-basis: 150px; }
+  .recordingStartCard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recordingStartCard :global(.panel-primary-action) {
+    width: 100%;
+  }
+
   .connectGrid { grid-template-columns: 1fr; }
   .connectAside { order: -1; }
   .firstRunBody:has(.connectGrid) .connectAside { margin-top: 0; }

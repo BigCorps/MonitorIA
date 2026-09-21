@@ -99,11 +99,24 @@ export async function POST(request: Request) {
   }
 
   const preparedValue = Array.isArray(prepared) ? prepared[0] : prepared;
-  if (!preparedValue?.ready) {
+  const preparedReady =
+    preparedValue?.status === "ready" ||
+    preparedValue?.readiness?.ready === true;
+
+  if (!preparedReady) {
+    const reason = String(preparedValue?.reason ?? "");
+
     return NextResponse.json(
       {
         ok: false,
-        error: "recording_source_not_ready",
+        error:
+          reason === "trial_selection_locked"
+            ? "trial_selection_locked"
+            : "recording_source_not_ready",
+        message:
+          reason === "trial_selection_locked"
+            ? "Já existe um teste em andamento nesta conta."
+            : "Confirme o ambiente desta gravação antes de iniciar o teste.",
         readiness: preparedValue?.readiness ?? null,
       },
       { status: 409 },

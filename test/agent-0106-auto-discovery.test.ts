@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("instalador não coleta câmeras nem credenciais e o pareamento fica no onboarding", async () => {
+test("instalador não coleta câmeras nem credenciais e a conexão fica no onboarding", async () => {
   const [installer, cli, firstRun] = await Promise.all([
     readFile(new URL("../installer/monitoria.iss", import.meta.url), "utf8"),
     readFile(new URL("../agent/src/index.ts", import.meta.url), "utf8"),
@@ -13,7 +13,8 @@ test("instalador não coleta câmeras nem credenciais e o pareamento fica no onb
   assert.doesNotMatch(installer, /Encontrar câmeras automaticamente/);
   assert.doesNotMatch(installer, /cameraHost/);
   assert.match(firstRun, /SitePairingCode/);
-  assert.match(firstRun, /Gere o código quando o instalador estiver aberto/);
+  assert.match(firstRun, /Use o código quando for solicitado/);
+  assert.match(firstRun, /Gere o código quando o MonitorIA solicitar/);
   assert.match(cli, /if \(!input\.username\)/);
   assert.match(cli, /callAgent\("discovery\.configure"/);
 });

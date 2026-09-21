@@ -42,13 +42,13 @@ export function SitePairingCode() {
               {copied ? "Copiado" : "Copiar"}
             </button>
           </div>
-          <p>Digite no instalador. O código vale 15 minutos.</p>
+          <p>Digite este código no MonitorIA instalado no computador. Ele vale 15 minutos.</p>
         </div>
 
         <FirstRunWaiting
           stage={1}
           waitingFor="Esperando o computador se conectar"
-          detail="Assim que o pareamento terminar, esta página avança sozinha."
+          detail="Assim que a conexão terminar, esta página avança sozinha."
         />
       </>
     );
@@ -60,7 +60,7 @@ export function SitePairingCode() {
         <div className="form-alert error">{state.message}</div>
       ) : null}
       <button className="panel-primary-action" type="submit" disabled={pending}>
-        {pending ? "Gerando..." : "Gerar código de pareamento"}
+        {pending ? "Gerando..." : "Gerar código de conexão"}
       </button>
     </form>
   );

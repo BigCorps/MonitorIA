@@ -113,10 +113,100 @@ const PLAN_LABELS: Record<RecordingPlanCode, string> = {
 };
 
 const PLAN_DESCRIPTIONS: Record<RecordingPlanCode, string> = {
-  basic: "1 imagem por acontecimento",
-  standard: "até 3 imagens por acontecimento",
-  intensive: "até 4 imagens e vídeo de evidência sob demanda",
+  basic: "Uma visão objetiva dos principais acontecimentos",
+  standard: "Mais contexto para entender o que aconteceu",
+  intensive: "Análise mais completa, com detalhes extras quando necessário",
 };
+
+const RECORDING_ERROR_MESSAGES: Record<string, string> = {
+  authentication_required:
+    "Sua sessão expirou. Entre novamente para continuar.",
+  not_authorized:
+    "Sua conta não tem permissão para fazer esta alteração.",
+  organization_not_found:
+    "Não encontramos sua empresa. Atualize a página e tente novamente.",
+  recording_source_not_found:
+    "Não encontramos este ambiente. Atualize a página e tente novamente.",
+  recording_source_not_ready:
+    "Confirme o ambiente desta gravação antes de iniciar o teste.",
+  recording_site_not_found:
+    "Não encontramos o local selecionado.",
+  recording_source_create_failed:
+    "Não foi possível preparar este ambiente agora. Tente novamente.",
+  recording_entitlement_unavailable:
+    "Não foi possível verificar seu acesso agora. Tente novamente.",
+  recording_entitlement_required:
+    "Escolha o teste grátis ou um plano para analisar este vídeo.",
+  recording_quota_exceeded:
+    "Você já utilizou todo o tempo de vídeo disponível neste período.",
+  trial_already_used:
+    "O teste grátis desta conta já foi utilizado.",
+  user_trial_already_used:
+    "O teste grátis já foi utilizado anteriormente.",
+  camera_trial_already_used:
+    "Esta câmera já foi utilizada em outro teste.",
+  device_trial_already_used:
+    "Este dispositivo já foi utilizado em outro teste grátis.",
+  organization_already_paid:
+    "Esta conta já possui um pagamento confirmado.",
+  organization_already_subscribed:
+    "Esta conta já possui um plano ativo.",
+  email_confirmation_required:
+    "Confirme seu e-mail antes de iniciar o teste.",
+  trial_selection_locked:
+    "Já existe um teste em andamento nesta conta.",
+  trial_camera_not_ready:
+    "Confirme o ambiente desta gravação antes de iniciar o teste.",
+  trial_not_prepared:
+    "Não foi possível preparar o teste. Tente novamente.",
+  trial_cannot_be_started:
+    "Este teste não pode ser iniciado novamente.",
+  trial_prepare_failed:
+    "Não foi possível iniciar o teste agora. Tente novamente em instantes.",
+  invalid_trial_plan:
+    "Escolha uma opção de análise para continuar.",
+  invalid_trial_request:
+    "Não foi possível iniciar o teste com estas informações.",
+  invalid_camera_id:
+    "Não encontramos esta gravação. Atualize a página e tente novamente.",
+  reference_upload_failed:
+    "Não foi possível preparar a imagem deste ambiente. Tente novamente.",
+  profile_activation_failed:
+    "Não foi possível confirmar o ambiente. Tente novamente.",
+  recording_results_unavailable:
+    "Os resultados ainda não estão disponíveis. Tente novamente em instantes.",
+  recording_event_limit_unavailable:
+    "Não foi possível analisar este vídeo agora. Tente novamente em instantes.",
+  clip_upload_not_prepared:
+    "Não foi possível preparar o trecho do vídeo agora.",
+};
+
+function recordingErrorMessage(value: unknown, status?: number) {
+  const raw = String(value ?? "").trim();
+
+  for (const [code, message] of Object.entries(
+    RECORDING_ERROR_MESSAGES,
+  )) {
+    if (raw === code || raw.includes(code)) return message;
+  }
+
+  if (status === 401) {
+    return "Sua sessão expirou. Entre novamente para continuar.";
+  }
+
+  if (status === 403) {
+    return "Sua conta não tem permissão para fazer esta alteração.";
+  }
+
+  const looksInternal =
+    !raw ||
+    /^[a-z0-9_.:-]+$/i.test(raw) ||
+    /violates|constraint|postgres|supabase|http \d+/i.test(raw);
+
+  return looksInternal
+    ? "Não foi possível concluir agora. Tente novamente."
+    : raw;
+}
 
 function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
@@ -219,10 +309,9 @@ async function jsonRequest<T>(
 
   if (!response.ok) {
     throw new Error(
-      String(
-        payload.error ??
-          `A operação falhou com HTTP ${response.status}.`,
-      ),
+      typeof payload.message === "string"
+        ? payload.message
+        : recordingErrorMessage(payload.error, response.status),
     );
   }
 
@@ -296,7 +385,7 @@ export function RecordingsClient({
     useState<RecordingCameraConfig | null>(null);
 
   const [status, setStatus] = useState(
-    "Selecione uma origem e uma gravação para começar.",
+    "Selecione um vídeo para começar.",
   );
   const [progress, setProgress] = useState(0);
   const [processing, setProcessing] = useState(false);
@@ -392,7 +481,7 @@ export function RecordingsClient({
       setSelectedSourceId(source.id);
       setNewSourceOpen(false);
       setStatus(
-        "Origem criada. Escolha a primeira gravação para definir o contexto.",
+        "Tudo pronto. Escolha uma gravação para começar.",
       );
     } catch (caught) {
       setError(
@@ -435,7 +524,7 @@ export function RecordingsClient({
     const objectUrl = URL.createObjectURL(nextFile);
     objectUrlRef.current = objectUrl;
     setRecordingStart(defaultRecordingStart(nextFile));
-    setStatus("Identificando o formato localmente…");
+    setStatus("Preparando seu vídeo…");
 
     try {
       const native = await ensureNativePreview(video, objectUrl);
@@ -452,12 +541,12 @@ export function RecordingsClient({
       setVideoInfo(info);
       setStatus(
         native
-          ? "Vídeo pronto para processamento local pelo navegador."
-          : "Vídeo reconhecido pelo modo de compatibilidade local.",
+          ? "Vídeo pronto para análise."
+          : "Vídeo pronto para análise.",
       );
 
       if (selectedSource && !selectedSource.profileReady) {
-        setStatus("Extraindo a primeira imagem válida para configurar o contexto…");
+        setStatus("Preparando uma imagem para entender o ambiente…");
         const reference = await extractFirstValidFrame({
           file: nextFile,
           video,
@@ -468,7 +557,7 @@ export function RecordingsClient({
         setReferenceHeight(reference.height ?? info.height ?? 720);
         setReferencePreview(await blobToDataUrl(reference.blob));
         setStatus(
-          "Primeira imagem pronta. Revise e peça à IA para criar o contexto.",
+          "Imagem pronta. Confira o ambiente antes de continuar.",
         );
       }
     } catch (caught) {
@@ -485,7 +574,7 @@ export function RecordingsClient({
     setError(null);
 
     try {
-      setStatus("Salvando somente a imagem de referência…");
+      setStatus("Preparando o ambiente…");
       const referenceResponse = await fetch(
         `/api/recordings/cameras/${selectedSource.id}/reference-frame`,
         {
@@ -511,7 +600,7 @@ export function RecordingsClient({
         );
       }
 
-      setStatus("A IA está entendendo o ambiente desta origem…");
+      setStatus("A IA está entendendo este ambiente…");
       const profilePayload = await jsonRequest<{
         profile: ProfileDraft;
       }>(
@@ -527,7 +616,7 @@ export function RecordingsClient({
 
       setProfileDraft(profilePayload.profile);
       setStatus(
-        "Contexto criado. Confira o resumo e aprove para continuar.",
+        "Ambiente identificado. Confira o resumo e confirme para continuar.",
       );
     } catch (caught) {
       setError(
@@ -554,7 +643,7 @@ export function RecordingsClient({
 
       patchSource(selectedSource.id, { profileReady: true });
       setStatus(
-        "Contexto aprovado. Agora escolha teste grátis ou plano.",
+        "Ambiente confirmado. Agora você pode iniciar o teste grátis.",
       );
     } catch (caught) {
       setError(
@@ -567,7 +656,7 @@ export function RecordingsClient({
 
   async function loadConfig() {
     if (!selectedSource) {
-      throw new Error("Selecione uma origem.");
+      throw new Error("Escolha um ambiente.");
     }
 
     const result = await jsonRequest<{
@@ -613,7 +702,7 @@ export function RecordingsClient({
 
       await loadConfig();
       setStatus(
-        "Teste iniciado. Nesta origem, o teste processa até 10 minutos de gravação.",
+        "Teste iniciado. Você pode analisar até 10 minutos de vídeo gratuitamente.",
       );
     } catch (caught) {
       setError(
@@ -693,8 +782,8 @@ export function RecordingsClient({
       if (remainingFromSource <= 0) {
         throw new Error(
           trial
-            ? "A franquia de 10 minutos deste teste já foi utilizada."
-            : "A franquia de processamento desta origem já foi utilizada neste ciclo.",
+            ? "Os 10 minutos disponíveis no teste grátis já foram utilizados."
+            : "O tempo disponível para analisar vídeos neste período já foi utilizado.",
         );
       }
 
@@ -705,8 +794,8 @@ export function RecordingsClient({
 
       setStatus(
         trial && (!videoInfo.durationKnown || videoInfo.durationSeconds > 600)
-          ? "Mapeando localmente os primeiros 10 minutos do teste…"
-          : "Mapeando acontecimentos localmente…",
+          ? "Analisando os primeiros 10 minutos do vídeo…"
+          : "Analisando o vídeo…",
       );
 
       const scan = await scanRecording({
@@ -729,9 +818,9 @@ export function RecordingsClient({
 
       const sourceStartedAt = localInputToIso(recordingStart);
       setStatus(
-        `Mapeamento concluído: ${scan.candidates.length} acontecimento(s). Reservando ${formatDuration(
-          scan.durationSeconds,
-        )} da franquia…`,
+        scan.candidates.length
+          ? `Encontramos ${scan.candidates.length} momento(s) para analisar. Preparando os resultados…`
+          : "Análise do vídeo concluída. Preparando os resultados…",
       );
 
       const reserved = await jsonRequest<{
@@ -791,7 +880,7 @@ export function RecordingsClient({
 
       if (scan.candidates.length > candidatesToSubmit.length) {
         setStatus(
-          `${scan.candidates.length} mudanças encontradas; ${candidatesToSubmit.length} seguem para IA pelo limite de proteção contra vídeo ruidoso.`,
+          "Encontramos muitas mudanças no vídeo. Vamos priorizar os momentos mais relevantes.",
         );
       }
 
@@ -812,7 +901,7 @@ export function RecordingsClient({
           )}:${candidate.endedAtSeconds.toFixed(3)}`,
         );
         setStatus(
-          `Enviando evidências para a IA · ${index + 1}/${candidatesToSubmit.length}`,
+          `Analisando acontecimento · ${index + 1}/${candidatesToSubmit.length}`,
         );
         setProgress(
           70 +
@@ -881,8 +970,8 @@ export function RecordingsClient({
         setProgress(100);
         setStatus(
           result.failedJobs
-            ? `Concluído com ${result.failedJobs} análise(s) que precisam de nova tentativa.`
-            : "Análise concluída. Os resultados já entraram no histórico normal do MonitorIA.",
+            ? "A análise foi concluída, mas alguns momentos não puderam ser analisados."
+            : "Análise concluída. Os acontecimentos já estão disponíveis no seu histórico.",
         );
       }
       requestKeyRef.current = null;
@@ -952,7 +1041,7 @@ export function RecordingsClient({
         throw new Error("clip_upload_not_prepared");
       }
 
-      setStatus("Preparando o vídeo de evidência localmente…");
+      setStatus("Preparando o trecho do vídeo…");
       const clip = await extractRecordingClipWithFfmpeg({
         file,
         offsetSeconds: prepared.offsetSeconds,
@@ -988,7 +1077,7 @@ export function RecordingsClient({
       });
 
       await waitForSession(activeSessionId);
-      setStatus("Vídeo de evidência pronto.");
+      setStatus("Trecho do vídeo pronto.");
       setProgress(100);
     } catch (caught) {
       setError(
@@ -1011,8 +1100,8 @@ export function RecordingsClient({
       <section className={styles.sourcePanel}>
         <div className={styles.sectionTitle}>
           <div>
-            <span>ORIGENS</span>
-            <h2>Vídeos enviados</h2>
+            <span>AMBIENTES</span>
+            <h2>Onde foi gravado</h2>
           </div>
           {canManage ? (
             <button
@@ -1020,7 +1109,7 @@ export function RecordingsClient({
               className={styles.secondaryButton}
               onClick={() => setNewSourceOpen((value) => !value)}
             >
-              + Nova origem
+              + Novo ambiente
             </button>
           ) : null}
         </div>
@@ -1028,7 +1117,7 @@ export function RecordingsClient({
         {newSourceOpen ? (
           <div className={styles.createSource}>
             <label>
-              Nome da origem
+              Nome do ambiente
               <input
                 value={newSourceName}
                 onChange={(event) => setNewSourceName(event.target.value)}
@@ -1057,7 +1146,7 @@ export function RecordingsClient({
               disabled={sourceBusy || !canManage}
               onClick={createSource}
             >
-              {sourceBusy ? "Criando…" : "Criar origem"}
+              {sourceBusy ? "Criando…" : "Adicionar ambiente"}
             </button>
           </div>
         ) : null}
@@ -1093,27 +1182,27 @@ export function RecordingsClient({
       <section className={styles.mainPanel}>
         {!selectedSource ? (
           <div className={styles.empty}>
-            <strong>Crie sua primeira origem de gravações</strong>
+            <strong>Adicione o primeiro ambiente</strong>
             <p>
-              Ela funciona como uma câmera no MonitorIA, mas recebe arquivos
-              escolhidos no computador ou celular.
+              Dê um nome fácil de reconhecer, como Caixa, Entrada ou Estoque,
+              e escolha um vídeo gravado nesse local.
             </p>
           </div>
         ) : (
           <>
             <div className={styles.sourceHeader}>
               <div>
-                <span>ORIGEM SELECIONADA</span>
+                <span>AMBIENTE</span>
                 <h2>{selectedSource.name}</h2>
                 <p>
                   {selectedSource.siteName} ·{" "}
                   {profileReady
-                    ? "contexto aprovado"
-                    : "aguardando contexto"}
+                    ? "ambiente confirmado"
+                    : "aguardando confirmação"}
                 </p>
               </div>
               <div className={styles.quotaBox}>
-                <span>Franquia do ciclo</span>
+                <span>Tempo disponível</span>
                 <strong>
                   {selectedSource.entitlement.monitoringAllowed
                     ? formatQuota(selectedSource.quota.remainingSeconds)
@@ -1121,20 +1210,18 @@ export function RecordingsClient({
                 </strong>
                 <small>
                   {!selectedSource.entitlement.monitoringAllowed
-                    ? "ative um teste ou plano"
+                    ? "inicie o teste ou escolha um plano"
                     : selectedSource.entitlement.accessSource === "trial"
                       ? "restantes no teste"
-                      : "restantes para esta origem"}
+                      : "restantes neste período"}
                 </small>
               </div>
             </div>
 
             <div className={styles.privacyStrip}>
-              <strong>Arquivo original: somente neste dispositivo</strong>
+              <strong>Privacidade da sua gravação</strong>
               <span>
-                O navegador lê a gravação localmente. O backend recebe apenas
-                as evidências JPEG selecionadas e, na Detalhada, um clipe
-                somente quando você pedir.
+                Seu vídeo original não é armazenado pelo MonitorIA.
               </span>
             </div>
 
@@ -1183,23 +1270,15 @@ export function RecordingsClient({
                     <strong>
                       {videoInfo.durationKnown
                         ? formatDuration(videoInfo.durationSeconds)
-                        : "confirmada durante o mapeamento"}
+                        : "confirmada durante a análise"}
                     </strong>
                   </span>
-                  <span>
-                    <small>Leitura</small>
-                    <strong>
-                      {videoInfo.decoderMode === "native"
-                        ? "Nativa do navegador"
-                        : "Compatibilidade local"}
-                    </strong>
-                  </span>
-                  <span>
+                   <span>
                     <small>Resolução</small>
                     <strong>
                       {videoInfo.width && videoInfo.height
                         ? `${videoInfo.width}×${videoInfo.height}`
-                        : "detectada durante a leitura"}
+                        : "identificada automaticamente"}
                     </strong>
                   </span>
                   <label>
@@ -1221,8 +1300,8 @@ export function RecordingsClient({
               <section className={styles.setupCard}>
                 <div className={styles.sectionTitle}>
                   <div>
-                    <span>2 · CONTEXTO</span>
-                    <h3>Configure esta origem uma única vez</h3>
+                    <span>2 · AMBIENTE</span>
+                    <h3>Confirme o ambiente uma única vez</h3>
                   </div>
                 </div>
 
@@ -1234,7 +1313,7 @@ export function RecordingsClient({
                     />
                     <div>
                       <label>
-                        O que a IA deve saber? <em>opcional</em>
+                        Algo importante sobre este local? <em>opcional</em>
                         <textarea
                           value={profileGuidance}
                           onChange={(event) =>
@@ -1251,27 +1330,27 @@ export function RecordingsClient({
                         onClick={createProfile}
                       >
                         {profileBusy
-                          ? "Analisando contexto…"
+                          ? "Analisando ambiente…"
                           : profileDraft
                             ? "Gerar novamente"
-                            : "Criar contexto com IA"}
+                            : "Analisar ambiente"}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <p className={styles.muted}>
-                    Selecione uma gravação. O MonitorIA extrairá somente a
-                    primeira imagem válida para configurar esta origem.
+                    Selecione uma gravação para o MonitorIA entender este
+                    ambiente antes da primeira análise.
                   </p>
                 )}
 
                 {profileDraft ? (
                   <div className={styles.profileReview}>
                     <div>
-                      <span>CONTEXTO PROPOSTO</span>
+                      <span>AMBIENTE IDENTIFICADO</span>
                       <h4>
                         {profileDraft.environmentDescription ??
-                          "Contexto visual criado"}
+                          "Ambiente identificado"}
                       </h4>
                       <p>
                         {(profileDraft.monitoringGoals ?? []).join(" · ")}
@@ -1292,7 +1371,7 @@ export function RecordingsClient({
                       disabled={profileBusy || !canManage}
                       onClick={activateProfile}
                     >
-                      Aprovar contexto
+                      Confirmar ambiente
                     </button>
                   </div>
                 ) : null}
@@ -1307,8 +1386,8 @@ export function RecordingsClient({
                 </div>
 
                 <p className={styles.muted}>
-                  O mesmo teste grátis da MonitorIA vale para gravações. Nesta
-                  origem, a franquia do teste é de até 10 minutos processados.
+                  Use até 10 minutos de vídeo no teste grátis. Se a gravação
+                  for maior, analisaremos somente os primeiros 10 minutos.
                 </p>
 
                 <div className={styles.planChoice}>
@@ -1380,7 +1459,7 @@ export function RecordingsClient({
                     onClick={analyzeRecording}
                   >
                     {processing
-                      ? "Processando…"
+                      ? "Analisando…"
                       : "Analisar esta gravação"}
                   </button>
 
@@ -1423,9 +1502,7 @@ export function RecordingsClient({
                         : "Nenhum acontecimento relevante"}
                     </h3>
                   </div>
-                  <small>
-                    {sessionResult.session.candidateCount} candidato(s) local(is)
-                  </small>
+                  <small>Análise concluída</small>
                 </div>
 
                 {sessionResult.events.length ? (
@@ -1477,8 +1554,8 @@ export function RecordingsClient({
                                   onClick={() => generateClip(event.id)}
                                 >
                                   {clipBusyId === event.id
-                                    ? "Gerando vídeo…"
-                                    : "Gerar vídeo da evidência"}
+                                    ? "Preparando vídeo…"
+                                    : "Gerar vídeo do acontecimento"}
                                 </button>
                               ) : null
                             )}
@@ -1489,11 +1566,9 @@ export function RecordingsClient({
                   </div>
                 ) : (
                   <div className={styles.emptyResult}>
-                    <strong>A gravação foi processada</strong>
+                    <strong>Análise concluída</strong>
                     <p>
-                      O detector local não encontrou algo que justificasse um
-                      acontecimento relevante, ou a IA descartou as mudanças
-                      como não relevantes.
+                      Não encontramos acontecimentos relevantes nesse trecho.
                     </p>
                   </div>
                 )}

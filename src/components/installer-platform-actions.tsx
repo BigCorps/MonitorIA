@@ -144,9 +144,9 @@ export function InstallerPlatformActions({ compact = false }: Props) {
         <div className={styles.mobileCard}>
           <strong>Você está no celular</strong>
           <p>
-            O Agent deve ser instalado em um computador que fique ligado e
-            esteja na mesma rede local das câmeras, DVR ou NVR. Envie o link
-            abaixo para esse computador.
+            Instale o MonitorIA em um computador que fique ligado e esteja na
+            mesma rede das câmeras, DVR ou NVR. Envie o link abaixo para esse
+            computador.
           </p>
           <div className={styles.shareRow}>
             <button
@@ -176,7 +176,7 @@ export function InstallerPlatformActions({ compact = false }: Props) {
         <div className={styles.unsupportedCard}>
           <strong>Esta plataforma ainda não é compatível</strong>
           <p>
-            O MonitorIA Agent precisa rodar continuamente no computador da loja.
+            O MonitorIA precisa ficar disponível no computador da loja.
             Hoje estão disponíveis Windows e Linux.
           </p>
         </div>
@@ -228,7 +228,7 @@ export function InstallerPlatformActions({ compact = false }: Props) {
         </div>
 
         <div className={styles.samePairing}>
-          O pareamento é igual nas duas opções.
+          A conexão com sua conta é igual nas duas opções.
         </div>
         {otherPlatformsButton()}
       </div>
