@@ -1093,3 +1093,55 @@
   .svgScene .sWipe { transform: scaleX(0); }
   .svgScene .sScan { opacity: 0; }
 }
+
+/* --------------------------------------------------------------------------
+   Arte no estilo do vídeo: detecção, anel de espera e varredura da câmera.
+   Mesma regra de sempre: o estilo base é o estado final.
+   -------------------------------------------------------------------------- */
+
+/* Cantoneira da detecção: chega grande e trava no alvo. */
+.sLock {
+  opacity: 1;
+  transform: none;
+  transform-origin: center;
+  animation: sceneLock 10s infinite both;
+}
+
+@keyframes sceneLock {
+  0% { opacity: 0; transform: scale(1.7); }
+  5% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Anel de quem está esperando: pulsa em volta dos pés. */
+.sRing {
+  opacity: 0.6;
+  transform-origin: center;
+  animation: sceneRing 2s infinite ease-out;
+}
+
+@keyframes sceneRing {
+  0% { opacity: 0.9; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+/* Linha de leitura descendo pela imagem da câmera. */
+.sSweep {
+  opacity: 0;
+  animation: sceneSweep 3.2s infinite linear;
+}
+
+@keyframes sceneSweep {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(285px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svgScene .sLock,
+  .svgScene .sRing,
+  .svgScene .sSweep {
+    animation: none;
+  }
+  .svgScene .sRing { opacity: 0.6; transform: none; }
+  .svgScene .sSweep { opacity: 0; }
+}
