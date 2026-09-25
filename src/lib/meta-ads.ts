@@ -140,6 +140,19 @@ export function measureMetaAdsTrialStartedOnce() {
   });
 }
 
+/**
+ * Cadastro concluído (conta + empresa + local criados). Acontece ANTES de
+ * instalar o agente e conectar a câmera, então tem volume suficiente para a
+ * Meta aprender. É o evento recomendado para otimizar a campanha.
+ */
+export function measureMetaAdsCompleteRegistrationOnce() {
+  return measureOnce('signup:completed', 'CompleteRegistration', {
+    content_name: 'MonitorIA - cadastro',
+    content_category: 'monitoria',
+    status: true,
+  });
+}
+
 export function measureMetaAdsBeginCheckoutOnce(invoiceId: string, value?: number | null) {
   return measureOnce(`checkout:${invoiceId}`, 'InitiateCheckout', {
     content_name: 'MonitorIA',

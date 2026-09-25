@@ -80,7 +80,8 @@ export async function GET(
         "/dashboard?message=" +
           encodeURIComponent(
             "Cadastro concluído. Vamos conectar o computador da loja.",
-          ),
+          ) +
+          "&conversion=signup_completed",
       ),
     );
   } catch (error) {

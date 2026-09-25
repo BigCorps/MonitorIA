@@ -15,6 +15,7 @@ import {
 import {
   initializeMetaAdsPixel,
   measureMetaAdsBeginCheckoutOnce,
+  measureMetaAdsCompleteRegistrationOnce,
   measureMetaAdsPurchaseOnce,
   measureMetaAdsTrialStartedOnce,
 } from '@/src/lib/meta-ads';
@@ -54,6 +55,16 @@ function inspectState() {
   const trialStarted =
     url.searchParams.get('conversion') === 'trial_started' ||
     text.includes('Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.');
+
+  // Marcador colocado pelo servidor no redirecionamento pós-cadastro
+  // (app/onboarding/complete e app/onboarding/actions).
+  if (url.searchParams.get('conversion') === 'signup_completed') {
+    trackEventOnce('signup:completed', 'sign_up', {
+      product: 'monitoria',
+      method: 'guided_onboarding',
+    });
+    measureMetaAdsCompleteRegistrationOnce();
+  }
 
   if (trialStarted) {
     trackEventOnce('trial:start', 'trial_start', {

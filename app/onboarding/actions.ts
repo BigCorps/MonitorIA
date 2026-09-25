@@ -207,7 +207,8 @@ export async function createWorkspace(
     "/dashboard?message=" +
       encodeURIComponent(
         "Local salvo. Agora conecte o computador da loja.",
-      ),
+      ) +
+      "&conversion=signup_completed",
   );
 }
 
@@ -282,6 +283,7 @@ export async function createFirstSite(
     "/dashboard?message=" +
       encodeURIComponent(
         "Local salvo. Agora conecte o computador da loja.",
-      ),
+      ) +
+      "&conversion=signup_completed",
   );
 }
