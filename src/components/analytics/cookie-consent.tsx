@@ -10,6 +10,17 @@ import { applyMetaAdsConsent } from '@/src/lib/meta-ads';
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
+  // Celular: cartão compacto para não cobrir a primeira tela (Clarity mostrou
+  // pouca rolagem e o aviso competindo com o botão principal).
+  const [compacto, setCompacto] = useState(false);
+
+  useEffect(() => {
+    const consulta = window.matchMedia('(max-width: 639px)');
+    const atualizar = () => setCompacto(consulta.matches);
+    atualizar();
+    consulta.addEventListener('change', atualizar);
+    return () => consulta.removeEventListener('change', atualizar);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY);
@@ -38,18 +49,31 @@ export function CookieConsent() {
 
   if (!visible) return null;
 
+  // Botões com 44px de altura (mínimo recomendado para toque) e o mesmo
+  // tamanho para Aceitar e Recusar, como pede a LGPD.
+  const botaoBase = {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 999,
+    padding: '0 14px',
+    fontSize: 14,
+    fontWeight: 800,
+    lineHeight: 1,
+    cursor: 'pointer',
+  } as const;
+
   return (
     <div
       role="dialog"
       aria-label="Preferências de cookies"
       style={{
         position: 'fixed',
-        left: 16,
-        right: 16,
-        bottom: 16,
+        left: compacto ? 12 : 16,
+        right: compacto ? 12 : 16,
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${compacto ? 12 : 16}px)`,
         zIndex: 1000,
         maxWidth: 430,
-        padding: 16,
+        padding: compacto ? 12 : 16,
         border: '1px solid rgba(255,255,255,.14)',
         borderRadius: 16,
         background: 'rgba(7,17,31,.96)',
@@ -58,27 +82,38 @@ export function CookieConsent() {
         backdropFilter: 'blur(14px)',
       }}
     >
-      <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.55, color: '#cbd5e1' }}>
-        Usamos cookies de medição para entender a navegação, atribuir resultados de
-        campanhas e melhorar o MonitorIA. Você pode aceitar ou recusar os cookies não
-        essenciais. Veja a nossa{' '}
-        <a href="/privacidade" style={{ color: '#58e2c7' }}>
-          política de privacidade
-        </a>
-        .
+      <p style={{ margin: compacto ? '0 0 10px' : '0 0 12px', fontSize: 13, lineHeight: compacto ? 1.4 : 1.55, color: '#cbd5e1' }}>
+        {compacto ? (
+          <>
+            Usamos cookies para melhorar sua experiência.{' '}
+            <a href="/privacidade" style={{ color: '#58e2c7', fontWeight: 700 }}>
+              Saiba mais
+            </a>
+          </>
+        ) : (
+          <>
+            Usamos cookies de medição para entender a navegação, atribuir resultados de
+            campanhas e melhorar o MonitorIA. Você pode aceitar ou recusar os cookies não
+            essenciais. Veja a nossa{' '}
+            <a href="/privacidade" style={{ color: '#58e2c7' }}>
+              política de privacidade
+            </a>
+            .
+          </>
+        )}
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           type="button"
           onClick={() => choose(true)}
-          style={{ flex: 1, border: 0, borderRadius: 999, padding: '10px 14px', fontWeight: 800, cursor: 'pointer' }}
+          style={{ ...botaoBase, border: 0, background: '#f8fafc', color: '#07111f' }}
         >
           Aceitar
         </button>
         <button
           type="button"
           onClick={() => choose(false)}
-          style={{ flex: 1, border: '1px solid rgba(255,255,255,.2)', borderRadius: 999, padding: '10px 14px', fontWeight: 800, cursor: 'pointer', background: 'transparent', color: '#e2e8f0' }}
+          style={{ ...botaoBase, border: '1px solid rgba(255,255,255,.2)', background: 'transparent', color: '#e2e8f0' }}
         >
           Recusar
         </button>
