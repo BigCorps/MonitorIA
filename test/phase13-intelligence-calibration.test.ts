@@ -21,6 +21,8 @@ function person(role: "staff" | "customer" | "visitor", zoneIds: string[]) {
     localTrackId: "p1",
     role,
     roleConfidence: 0.9,
+    apparentAgeGroup: "unknown" as const,
+    apparentAgeGroupConfidence: 0,
     upperClothingColor: null,
     lowerClothingColor: null,
     accessories: [],
@@ -90,7 +92,7 @@ test("Pesquisa IA recebe hora local e termos amigáveis", () => {
   );
 });
 
-test("prompt v7 exige portão recorrente, passantes e veículo parado", () => {
+test("prompt v8 exige portão recorrente, passantes e veículo parado", () => {
   const prompt = buildVisionInstructions("detailed");
   assert.match(prompt, /primaryOperationalMarker/);
   assert.match(prompt, /passar na calçada/);
