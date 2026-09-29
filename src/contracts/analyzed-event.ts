@@ -39,6 +39,12 @@ const PersonRoleSchema = z.enum([
   "unknown",
 ]);
 
+export const ApparentAgeGroupSchema = z.enum([
+  "child",
+  "adult",
+  "unknown",
+]);
+
 const VisibilitySchema = z.enum([
   "clear",
   "partial",
@@ -88,6 +94,8 @@ export const AnalyzedEventTransportSchema = z
           localTrackId: z.string().nullable(),
           role: PersonRoleSchema,
           roleConfidence: z.number(),
+          apparentAgeGroup: ApparentAgeGroupSchema,
+          apparentAgeGroupConfidence: z.number(),
           upperClothingColor: z.string().nullable(),
           lowerClothingColor: z.string().nullable(),
           accessories: z.array(z.string()),
@@ -156,6 +164,7 @@ const ValidatedAnalyzedEventSchema =
         ...event.people.flatMap((item) => [
           item.confidence,
           item.roleConfidence,
+          item.apparentAgeGroupConfidence,
           item.appearance.confidence,
         ]),
         ...event.vehicles.flatMap((item) => [
@@ -305,6 +314,14 @@ function normalizeDirectConfidenceFields(
         const item = person as Record<string, unknown>;
         return {
           ...item,
+          apparentAgeGroup:
+            item.apparentAgeGroup === "child" ||
+            item.apparentAgeGroup === "adult"
+              ? item.apparentAgeGroup
+              : "unknown",
+          apparentAgeGroupConfidence: normalizeConfidence(
+            item.apparentAgeGroupConfidence ?? 0,
+          ),
           roleConfidence: normalizeConfidence(
             item.roleConfidence,
           ),
@@ -412,6 +429,13 @@ export const AnalyzedEventSchema = z.preprocess(
             const item = person as Record<string, unknown>;
             return {
               ...item,
+              apparentAgeGroup:
+                item.apparentAgeGroup === "child" ||
+                item.apparentAgeGroup === "adult"
+                  ? item.apparentAgeGroup
+                  : "unknown",
+              apparentAgeGroupConfidence:
+                item.apparentAgeGroupConfidence ?? 0,
               appearance:
                 item.appearance &&
                 typeof item.appearance === "object" &&

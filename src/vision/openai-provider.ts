@@ -12,6 +12,10 @@ import {
   buildVisionStableContext,
 } from "./prompt";
 import {
+  childSafetyClassificationEnabled,
+  normalizeChildSafetyOutput,
+} from "./child-safety";
+import {
   buildCameraProfileContext,
   buildCameraProfileInstructions,
 } from "./profile-prompt";
@@ -114,6 +118,9 @@ export class OpenAIVisionProvider implements VisionProvider {
       throw new Error("A análise exige de 1 a 4 quadros por evento.");
     }
 
+    const childSafetyEnabled =
+      childSafetyClassificationEnabled(input.profile);
+
     const started = performance.now();
     const requestEvent = (maxOutputTokens: number) =>
       this.client.responses.parse({
@@ -125,6 +132,7 @@ export class OpenAIVisionProvider implements VisionProvider {
         instructions: buildVisionInstructions(
           input.analysisMode ?? "balanced",
           Boolean(input.verificationCandidate),
+          childSafetyEnabled,
         ),
         input: [
           {
@@ -178,10 +186,14 @@ export class OpenAIVisionProvider implements VisionProvider {
       );
     }
 
+    const sanitized = sanitizePostgresJson(response.output_parsed);
+    const childSafetyNormalized = normalizeChildSafetyOutput(
+      sanitized,
+      childSafetyEnabled,
+    );
+
     return {
-      // Structured Outputs garante o shape; esta segunda fronteira garante que
-      // nenhuma string válida para JS porém inválida para jsonb derrube o RPC.
-      event: AnalyzedEventSchema.parse(sanitizePostgresJson(response.output_parsed)),
+      event: AnalyzedEventSchema.parse(childSafetyNormalized),
       provider: "openai",
       model: this.model,
       responseId: response.id,

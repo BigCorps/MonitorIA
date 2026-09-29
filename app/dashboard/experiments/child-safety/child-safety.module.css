@@ -1,0 +1,132 @@
+.content {
+  display: grid;
+  gap: 20px;
+}
+
+.notice,
+.empty {
+  border: 1px solid #dfe6ee;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px 20px;
+}
+
+.notice strong,
+.empty strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.notice p,
+.empty p {
+  margin: 0;
+  color: #71849a;
+  line-height: 1.55;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metrics article {
+  border: 1px solid #dfe6ee;
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px;
+}
+
+.metrics span {
+  display: block;
+  color: #71849a;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+}
+
+.metrics strong {
+  font-size: 1.65rem;
+}
+
+.list {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid #dfe6ee;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.cardHeader span,
+.cardHeader time {
+  color: #71849a;
+  font-size: 0.8rem;
+}
+
+.cardHeader h2 {
+  margin: 5px 0 0;
+  font-size: 1rem;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summary > span {
+  border: 1px solid #dfe6ee;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
+
+.people {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.people > div {
+  border: 1px solid #dfe6ee;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.people > div[data-group="child"] {
+  border-style: dashed;
+}
+
+.people span,
+.people small {
+  color: #71849a;
+}
+
+.link {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .cardHeader {
+    display: grid;
+  }
+}

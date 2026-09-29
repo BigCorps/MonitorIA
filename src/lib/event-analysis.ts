@@ -16,6 +16,7 @@ import type {
 import { normalizeVisualStateObservations } from "@/src/vision/visual-state";
 
 export const EVENT_REVIEW_CONFIDENCE_THRESHOLD = 0.35;
+export const CHILD_SAFETY_REVIEW_THRESHOLD = 0.6;
 
 function allowedZoneIds(
   values: string[],
@@ -26,6 +27,36 @@ function allowedZoneIds(
 
 function uniqueReviewReasons(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function uniqueTags(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function applyChildSafetyReviewGuard(
+  event: AnalyzedEvent,
+): AnalyzedEvent {
+  const probableChild = event.people.some(
+    (person) =>
+      person.apparentAgeGroup === "child" &&
+      person.apparentAgeGroupConfidence >=
+        CHILD_SAFETY_REVIEW_THRESHOLD,
+  );
+
+  if (!probableChild) return event;
+
+  return AnalyzedEventSchema.parse({
+    ...event,
+    tags: uniqueTags([
+      ...event.tags,
+      "probable_child",
+    ]),
+    requiresReview: true,
+    reviewReasons: uniqueReviewReasons([
+      ...event.reviewReasons,
+      "child_age_group_requires_human_review",
+    ]),
+  });
 }
 
 function applyConfidenceReviewGuard(
@@ -56,9 +87,11 @@ function applyConfidenceReviewGuard(
 
 type LegacyPerson = Omit<
   AnalyzedEvent["people"][number],
-  "appearance"
+  "appearance" | "apparentAgeGroup" | "apparentAgeGroupConfidence"
 > & {
   appearance?: PersonAppearance;
+  apparentAgeGroup?: "child" | "adult" | "unknown";
+  apparentAgeGroupConfidence?: number;
 };
 
 type LegacyVehicle = Omit<
@@ -112,9 +145,6 @@ export function normalizeAnalyzedEventZones(
       ...object,
       zoneIds: allowedZoneIds(object.zoneIds, allowed),
     })),
-    // Preserva a versão de entrada até o preprocessamento do contrato.
-    // Para 1.1–1.4, AnalyzedEventSchema preenche appearance/sceneComplexity
-    // ausentes e então migra o resultado validado para 1.5.
     schemaVersion: event.schemaVersion,
     stateObservations: normalizeVisualStateObservations(
       event.stateObservations ?? [],
@@ -131,5 +161,7 @@ export function normalizeAnalyzedEventZones(
     sceneComplexity: event.sceneComplexity ?? EmptySceneComplexity,
   });
 
-  return applyConfidenceReviewGuard(normalized);
+  return applyConfidenceReviewGuard(
+    applyChildSafetyReviewGuard(normalized),
+  );
 }

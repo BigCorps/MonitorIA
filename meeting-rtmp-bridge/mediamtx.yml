@@ -1,0 +1,23 @@
+logLevel: warn
+logDestinations: [file]
+logFile: mediamtx.log
+
+api: false
+metrics: false
+pprof: false
+playback: false
+
+rtsp: true
+rtspTransports: [tcp]
+rtspEncryption: "no"
+rtspAddress: 127.0.0.1:8554
+
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+moq: false
+
+paths:
+  meeting:
+    source: publisher
