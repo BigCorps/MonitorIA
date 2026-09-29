@@ -16,6 +16,8 @@ import {
   type SignupState,
 } from "./actions";
 import styles from "./signup-wizard.module.css";
+import { useNavegadorInterno } from "@/src/lib/navegador-interno";
+import AvisoNavegadorInterno from "@/src/components/aviso-navegador-interno";
 
 type Draft = {
   industry: string;
@@ -123,6 +125,7 @@ function ActionMessage({
 }
 
 export function SignupWizard() {
+  const navegadorInterno = useNavegadorInterno();
   const [step, setStep] =
     useState(1);
   const [accessMode, setAccessMode] =
@@ -446,27 +449,41 @@ export function SignupWizard() {
             </span>
           </div>
 
-          <form
-            action={
-              createGoogleAccount
-            }
-          >
-            <IntakeFields
-              draft={draft}
+          {navegadorInterno ? (
+            <AvisoNavegadorInterno
+              info={navegadorInterno}
+              cores={{
+                texto: "#25364c",
+                textoSuave: "#5b6b80",
+                borda: "#d9e2ec",
+                fundo: "#f5f9fc",
+                botao: "#42d0b4",
+                botaoTexto: "#071a16",
+              }}
             />
-            <button
-              type="submit"
-              className={
-                styles.googleButton
+          ) : (
+            <form
+              action={
+                createGoogleAccount
               }
-              disabled={busy}
             >
-              <GoogleIcon />
-              <span>
-                Continuar com Google
-              </span>
-            </button>
-          </form>
+              <IntakeFields
+                draft={draft}
+              />
+              <button
+                type="submit"
+                className={
+                  styles.googleButton
+                }
+                disabled={busy}
+              >
+                <GoogleIcon />
+                <span>
+                  Continuar com Google
+                </span>
+              </button>
+            </form>
+          )}
 
           <div
             className={styles.orDivider}
