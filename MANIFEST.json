@@ -1,114 +1,27 @@
 {
-  "name": "MonitorIA Meeting RTMP + Child Safety Pilot",
-  "date": "2026-09-28",
-  "base_commit": "f1a232734e47f2d9ad7585e5ca6ec250e3acd00c",
-  "rtmp_architecture": "separate MediaMTX sidecar; MonitorIA Agent 1.0.3 unchanged",
-  "child_safety_activation": "camera profile monitoring goal PROINF_CHILD_ADULT_CLASSIFICATION",
+  "name": "MonitorIA OpenAI Plugin Privacy Fix",
+  "date": "2026-09-30",
+  "base_commit": "67434476198397f45f8f4c91287afda4ae08691d",
   "files": [
     {
-      "path": "APLICAR-MEETING-RTMP-INFANCIA.md",
-      "bytes": 5659,
-      "sha256": "35d97c21013697a9dfeb2c379effa9b6116ea4b63514a61cdc8925482c6ce46c"
+      "path": "OPENAI-PLUGIN-REENVIO.md",
+      "bytes": 2724,
+      "sha256": "fe5ecedcc982cf0718b229e218c67f8e6eef29b600c7160c86e58f666b2e7708"
     },
     {
-      "path": "app/dashboard/experiments/child-safety/child-safety.module.css",
-      "bytes": 1766,
-      "sha256": "66205d48d1ccb2563b2535dad5c0ba6224ce2a3159c0b1cf8d66236f3812d140"
+      "path": "app/integrations/monitoria-mcp/privacy/page.tsx",
+      "bytes": 14874,
+      "sha256": "638734a2a33ad1e2ef03b53d907676064f75ebd6d57ceece9dc82ae692f4d79a"
     },
     {
-      "path": "app/dashboard/experiments/child-safety/page.tsx",
-      "bytes": 9365,
-      "sha256": "9b895afcf445d411d26b86058a9abeeee4749b9e29a274369c92469a2796019d"
+      "path": "app/integrations/monitoria-mcp/terms/page.tsx",
+      "bytes": 5715,
+      "sha256": "7914593171a46a0895ad4a00e7048f35dfc51e8ad53668d7fa3a6afc75cee25b"
     },
     {
-      "path": "docs/MEETING-RTMP-INFANCIA-PILOTO.md",
-      "bytes": 4744,
-      "sha256": "1eb636898ed6196e0f9f009b4ec92c49ac5470de8aac7c6fdfde67383665291c"
-    },
-    {
-      "path": "meeting-rtmp-bridge/Install-MeetingRtmpBridge.ps1",
-      "bytes": 6386,
-      "sha256": "7a9b35ab529c0ebf3e16f897b37aa807c8d4d74c02deafdcd23bafdf2f4a1c70"
-    },
-    {
-      "path": "meeting-rtmp-bridge/README.md",
-      "bytes": 1146,
-      "sha256": "bed3d6409f32987bd7af77e65b22c7dc37c0ba3b24792e0525ff2a8f69f034ab"
-    },
-    {
-      "path": "meeting-rtmp-bridge/Start-MeetingRtmpBridge.ps1",
-      "bytes": 1230,
-      "sha256": "1e52756abaf7a148330fb600882142a762a0c9694caeb926beb487084d698c01"
-    },
-    {
-      "path": "meeting-rtmp-bridge/THIRD_PARTY.md",
-      "bytes": 336,
-      "sha256": "29eabd4ec95f688f90c7ed63e13ae9ef3c2a3b81a92703eff45cecb75ae64e9b"
-    },
-    {
-      "path": "meeting-rtmp-bridge/Test-MeetingRtmpBridge.ps1",
-      "bytes": 1756,
-      "sha256": "f9ea62cc55fe0e338153dbe708472388aaf74fe4cf8cd4df241e4cbd5866f60e"
-    },
-    {
-      "path": "meeting-rtmp-bridge/Uninstall-MeetingRtmpBridge.ps1",
-      "bytes": 673,
-      "sha256": "60c8698139e2a13891a3eebf46d7b775e2629d72fac746a30d6410a26aee5de5"
-    },
-    {
-      "path": "meeting-rtmp-bridge/Update-MeetingRtmpSource.ps1",
-      "bytes": 1313,
-      "sha256": "e004b9b2ccd79fc6c6165cc60e02325d363fbae09102858b4e943b798307d4f6"
-    },
-    {
-      "path": "meeting-rtmp-bridge/mediamtx.yml",
-      "bytes": 301,
-      "sha256": "08dd05f7a2e6751d3ea520604496bacbffee83fe6681766440d731a6cf1c0629"
-    },
-    {
-      "path": "scripts/verify-meeting-pilot.mjs",
-      "bytes": 2052,
-      "sha256": "f39ff0c1fd7ab41394d6581a90b72d6fcc2e03dd774e211f1f04dd671762c0f9"
-    },
-    {
-      "path": "src/contracts/analyzed-event.ts",
-      "bytes": 12805,
-      "sha256": "b7fc02bb7dc702d563d08492e4a74ac159b2c156a7e9ba6fd3f455778055e0b3"
-    },
-    {
-      "path": "src/lib/event-analysis.ts",
-      "bytes": 4565,
-      "sha256": "4d3b46d7d90013034060621a95b83154270f4b18b9b8ba5c894bb8facd605b79"
-    },
-    {
-      "path": "src/vision/child-safety.ts",
-      "bytes": 1287,
-      "sha256": "02055d3b05a363ac1f1e1d4c0d4952842311dd3d1a2554e861baf194a180c0f0"
-    },
-    {
-      "path": "src/vision/openai-provider.ts",
-      "bytes": 8970,
-      "sha256": "6b9a4593273757552d134e7fb6601c108da51f1ad33ff2b7621aab5461f3cd2f"
-    },
-    {
-      "path": "src/vision/prompt.ts",
-      "bytes": 20092,
-      "sha256": "db7610850ce24e9378c95b61dda940090a77a4abbcfedc02c35fdb5282101da3"
-    },
-    {
-      "path": "supabase/manual/meeting-child-safety-camera-TEMPLATE.sql",
-      "bytes": 1704,
-      "sha256": "2244f8aacb6b15bdf0e62714888331fb450a1a130d5760819239b01647352b5b"
-    },
-    {
-      "path": "supabase/manual/meeting-pilot-30d-TEMPLATE.sql",
-      "bytes": 3557,
-      "sha256": "fbdf3a4db468bf87c83d0a353a986f9f06033cd34fd58b7323e445354543c0fd"
-    },
-    {
-      "path": "test/child-safety-classification.test.ts",
-      "bytes": 3931,
-      "sha256": "64292d4e30c9ca494ecb829b47f912442ababa314d3b86d6f5b3e0797705b549"
+      "path": "test/mcp-public-privacy-review.test.ts",
+      "bytes": 2591,
+      "sha256": "abd5a36329972275ce12da2498618d760701ca9e40f754c76af251864830964b"
     }
   ]
 }
