@@ -31,9 +31,7 @@ function leadRedirect(
   kind: "message" | "error",
   message: string,
 ): never {
-  redirect(
-    `/lead/${token}?${kind}=${encodeURIComponent(message)}`,
-  );
+  redirect(`/lead/${token}?${kind}=${encodeURIComponent(message)}`);
 }
 
 async function appOrigin() {
@@ -90,6 +88,15 @@ async function redeemInviteForWorkspace(
   return result.success === true;
 }
 
+function continuationPath(vipProjectId: string | null) {
+  return vipProjectId ? "/vip/onboarding" : "/dashboard";
+}
+
+/**
+ * Mantida para compatibilidade com formulários antigos de convite.
+ * A interface nova envia contas existentes à tela central de login, onde
+ * Google, senha, passkey e link por e-mail ficam disponíveis.
+ */
 export async function loginLeadAccountAction(formData: FormData) {
   const token = safeToken(formData.get("token"));
   await requireActiveInvite(token);
@@ -114,7 +121,11 @@ export async function loginLeadAccountAction(formData: FormData) {
   });
 
   if (error) {
-    leadRedirect(token, "error", "E-mail ou senha incorretos.");
+    leadRedirect(
+      token,
+      "error",
+      "Não foi possível entrar com essa senha. Volte e use a tela de login para escolher o mesmo método usado na criação da conta.",
+    );
   }
 
   redirect(`/lead/${token}`);
@@ -162,7 +173,7 @@ export async function createLeadAccountAction(formData: FormData) {
       leadRedirect(
         token,
         "error",
-        "Este e-mail já está cadastrado. Entre com sua conta existente.",
+        "Este e-mail já possui conta. Não crie outra: use “Já tenho conta” e entre pelo mesmo método que utilizava.",
       );
     }
     if (/weak|pwned|compromised|leaked/i.test(normalized)) {
@@ -182,7 +193,7 @@ export async function createLeadAccountAction(formData: FormData) {
   leadRedirect(
     token,
     "message",
-    "Conta criada. Confirme o e-mail e volte por este mesmo convite.",
+    "Conta criada. Confirme o e-mail e volte por este mesmo convite. Se o e-mail já tinha conta, use “Já tenho conta” em vez de criar outra.",
   );
 }
 
@@ -197,7 +208,7 @@ function safeTimezone(value: string) {
 
 export async function createLeadWorkspaceAction(formData: FormData) {
   const token = safeToken(formData.get("token"));
-  await requireActiveInvite(token);
+  const invite = await requireActiveInvite(token);
   const user = await requireAuthenticatedUser();
 
   const existing = await getCurrentOrganization(user.id);
@@ -295,9 +306,6 @@ export async function createLeadWorkspaceAction(formData: FormData) {
     );
   }
 
-  // O convite é aplicado no mesmo request que cria a empresa. Assim o usuário
-  // nunca chega ao passo 4 como self-service, mesmo se depois navegar direto
-  // pelo dashboard e não voltar à página /lead.
   const redeemed = await redeemInviteForWorkspace(
     token,
     organization.id,
@@ -313,9 +321,12 @@ export async function createLeadWorkspaceAction(formData: FormData) {
   }
 
   redirect(
-    "/dashboard?message=" +
+    continuationPath(invite.vipProjectId) +
+      "?message=" +
       encodeURIComponent(
-        "Convite de demonstração aplicado. Siga a configuração guiada; o relógio ainda não começou.",
+        invite.vipProjectId
+          ? "Projeto VIP ativado. Vamos continuar exatamente pela próxima etapa necessária."
+          : "Convite de demonstração aplicado. Siga a configuração guiada; o relógio ainda não começou.",
       ),
   );
 }
@@ -335,7 +346,7 @@ export async function redeemSalesTrialInviteAction(formData: FormData) {
     invite.redeemedBy === user.id &&
     invite.redeemedOrganizationId === organization.id
   ) {
-    redirect("/dashboard");
+    redirect(continuationPath(invite.vipProjectId));
   }
 
   if (!invite?.usable) {
@@ -361,9 +372,12 @@ export async function redeemSalesTrialInviteAction(formData: FormData) {
   }
 
   redirect(
-    "/dashboard?message=" +
+    continuationPath(invite.vipProjectId) +
+      "?message=" +
       encodeURIComponent(
-        "Convite ativado. Agora siga a configuração guiada; o relógio ainda não começou.",
+        invite.vipProjectId
+          ? "Convite VIP ativado. Seu progresso ficará salvo até o fim do piloto e da contratação."
+          : "Convite ativado. Agora siga a configuração guiada; o relógio ainda não começou.",
       ),
   );
 }

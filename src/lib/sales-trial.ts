@@ -26,6 +26,7 @@ export type SalesTrialInvite = {
   redeemedBy: string | null;
   redeemedOrganizationId: string | null;
   trialRunId: string | null;
+  vipProjectId: string | null;
 };
 
 export async function getSalesTrialInvite(
@@ -38,7 +39,7 @@ export async function getSalesTrialInvite(
   const { data, error } = await admin
     .from("sales_trial_invites")
     .select(
-      "id,lead_name,lead_email,company_name,selected_plan_code,duration_minutes,max_cameras,expires_at,revoked_at,redeemed_at,redeemed_by,redeemed_organization_id,trial_run_id",
+      "id,lead_name,lead_email,company_name,selected_plan_code,duration_minutes,max_cameras,expires_at,revoked_at,redeemed_at,redeemed_by,redeemed_organization_id,trial_run_id,vip_project_id",
     )
     .eq("token_hash", hashSalesTrialToken(token))
     .maybeSingle();
@@ -80,5 +81,6 @@ export async function getSalesTrialInvite(
       ? String(data.redeemed_organization_id)
       : null,
     trialRunId: data.trial_run_id ? String(data.trial_run_id) : null,
+    vipProjectId: data.vip_project_id ? String(data.vip_project_id) : null,
   };
 }

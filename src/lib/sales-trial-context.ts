@@ -8,6 +8,7 @@ export type TrialOriginContext = {
   durationMinutes: number;
   maxCameras: number;
   salesInviteId: string | null;
+  vipProjectId: string | null;
 };
 
 function isSalesLeadUser(user: AuthenticatedUser) {
@@ -24,7 +25,9 @@ async function loadTrial(
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("trial_runs")
-    .select("id,trial_mode,status,duration_minutes,max_cameras,sales_invite_id")
+    .select(
+      "id,trial_mode,status,duration_minutes,max_cameras,sales_invite_id,vip_project_id",
+    )
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -47,6 +50,7 @@ async function loadTrial(
     durationMinutes: Number(data.duration_minutes ?? 1440),
     maxCameras: Number(data.max_cameras ?? 1),
     salesInviteId: data.sales_invite_id ? String(data.sales_invite_id) : null,
+    vipProjectId: data.vip_project_id ? String(data.vip_project_id) : null,
   };
 }
 
@@ -83,7 +87,7 @@ export async function ensureSalesTrialForOrganization(
   const admin = createAdminClient();
   const { data: invite, error: inviteError } = await admin
     .from("sales_trial_invites")
-    .select("id,token_hash,duration_minutes,max_cameras")
+    .select("id,token_hash,duration_minutes,max_cameras,vip_project_id")
     .eq("lead_email", user.email.trim().toLowerCase())
     .is("redeemed_at", null)
     .is("revoked_at", null)

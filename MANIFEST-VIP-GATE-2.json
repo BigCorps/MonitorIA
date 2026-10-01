@@ -1,0 +1,186 @@
+{
+  "package": "MonitorIA VIP Gate 2 - cumulativo Gate 1 + Gate 2",
+  "baseline_git_commit": "7e1f2b9b0f48f572fcff622137fc5e9faf8dc383",
+  "generated_date": "2026-10-01",
+  "supabase_project": "xwejfayeackbrilipgrj",
+  "migrations_already_applied": [
+    "20261001153532_monitoria_vip_gate1_foundation",
+    "20261001153713_monitoria_vip_gate1_index_hardening",
+    "20261001153831_monitoria_vip_gate1_atomic_invites",
+    "20261001154741_monitoria_vip_gate1_integrity_hardening",
+    "20261001162012_monitoria_vip_gate2_onboarding_readiness"
+  ],
+  "notes": [
+    "Upload overlay contents to repository root preserving paths.",
+    "Do not manually reapply included Supabase migrations.",
+    "No Agent executable changes.",
+    "Gate 2 does not start the 60-minute VIP trial; start/timer belongs to Gate 3."
+  ],
+  "files": [
+    {
+      "path": "LEIA-ME-GATE-2.md",
+      "bytes": 2555,
+      "sha256": "5457d5fbb699f3f8151a984fb75acdaf3111492a968f2fdf9474b6a977a847fc"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-2.md",
+      "bytes": 3445,
+      "sha256": "24f64071e9faabf886bf9f9730326aa5ed7cb0b69d4046a7f8d273972b6c7b7c"
+    },
+    {
+      "path": "app/dashboard/layout.tsx",
+      "bytes": 3516,
+      "sha256": "9a805ba8d31d24f0a5120339fb8a9bd62b34959fbbed0a2bb3d4a6b4b6a0ec35"
+    },
+    {
+      "path": "app/dashboard/trial/sales/page.tsx",
+      "bytes": 16155,
+      "sha256": "1982558fae0770d94835f2f570f6141fc9f329d5f9e82a0f9ab09cfcfef474ca"
+    },
+    {
+      "path": "app/dashboard/trial/sales/sales-trial.module.css",
+      "bytes": 5886,
+      "sha256": "13e8dad2dfa216b8ba8218d0cf8c74309c29d68dee3e1653815b11b8115aa910"
+    },
+    {
+      "path": "app/lead/[token]/actions.ts",
+      "bytes": 10346,
+      "sha256": "4370de616e0716d5253371471457e257de7cd948944dc4fd77286851282ad9b8"
+    },
+    {
+      "path": "app/lead/[token]/lead.module.css",
+      "bytes": 3355,
+      "sha256": "2082ebab8f45f90e240615c6f502bd0273bc61aef2d3274a34411af03a2efb8c"
+    },
+    {
+      "path": "app/lead/[token]/page.tsx",
+      "bytes": 10988,
+      "sha256": "95ea418dd5fe94a658f2f175ff9d0c7c29e3487b0eedc7070fc11d7a8df5aba3"
+    },
+    {
+      "path": "app/login/login-page.module.css",
+      "bytes": 1850,
+      "sha256": "a7936ba33ae9032956266deeacee8addb4dd3a98951f7ba45418532155cbafe7"
+    },
+    {
+      "path": "app/login/page.tsx",
+      "bytes": 7548,
+      "sha256": "98957043c8f46c4e1327414f9482f1c02c12231ed5031e628ca693d8d67389fa"
+    },
+    {
+      "path": "app/vip/layout.tsx",
+      "bytes": 1216,
+      "sha256": "496b9c2369ddaa0b6f9cbff178202b1c891526278b7c7239171c7f9e858c546b"
+    },
+    {
+      "path": "app/vip/onboarding/actions.ts",
+      "bytes": 4062,
+      "sha256": "cb0e4794ac68d2825f39e070882c642bea42e10fba5a106d1d72f6c5d1cad545"
+    },
+    {
+      "path": "app/vip/onboarding/page.tsx",
+      "bytes": 21992,
+      "sha256": "c5dfbb846f3d257f6e2d8855483a65712563846aee36147902d8accf4577cb3f"
+    },
+    {
+      "path": "app/vip/onboarding/vip-onboarding.module.css",
+      "bytes": 8010,
+      "sha256": "1cad72784f03f4a033a2df6f7f733efa5e20edc3f48821a5f92594ee9b008bf8"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-1.md",
+      "bytes": 3009,
+      "sha256": "b30c238f5aede82c65926ce9c218267c95c57c293d324f9425ad5cb887255c55"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-2.md",
+      "bytes": 1939,
+      "sha256": "9685b2ffafed3f2e38cfd1a26e9b7dc7594fb7c1b3ac4bd485353f27a65c1060"
+    },
+    {
+      "path": "src/lib/sales-trial-context.ts",
+      "bytes": 3725,
+      "sha256": "d10892776f2752fc7661fa369c8fa3acbfae72f92dcec90e929b68a6af9adcf4"
+    },
+    {
+      "path": "src/lib/sales-trial.ts",
+      "bytes": 2680,
+      "sha256": "04c355b6d8c93768a68b6b419336f2c017e94ea419a3b55e7e8f3eaa2e6555c0"
+    },
+    {
+      "path": "src/trial/status.ts",
+      "bytes": 4614,
+      "sha256": "b2290d2cc231c3dbfb2d752fff1c13be870c24cd574610e8baae95b903c24184"
+    },
+    {
+      "path": "src/vip/catalog.ts",
+      "bytes": 2894,
+      "sha256": "4a75a82f4e64a328974b98c81c7655c5c0cec97bbacfcf2574b972ffedb458e8"
+    },
+    {
+      "path": "src/vip/config.ts",
+      "bytes": 303,
+      "sha256": "bc2cac4cd425999e87c3baa3dc657e377990913ea87381aaacb3fe76cfb91725"
+    },
+    {
+      "path": "src/vip/onboarding-server.ts",
+      "bytes": 2713,
+      "sha256": "f5e196d78b0c5b89d53ef0a4c881ffdb5039e8dfd157fb46aed4bacc91bffebf"
+    },
+    {
+      "path": "src/vip/onboarding.ts",
+      "bytes": 5555,
+      "sha256": "5478cc18b8876a4818ddc73cc0eefbf51565d50e3437d197a212e62de95b7fe5"
+    },
+    {
+      "path": "src/vip/server.ts",
+      "bytes": 10920,
+      "sha256": "8944cb8110d9806bba1fadfc275472e4b4a7b978860f7c851f9b8efd8ce17599"
+    },
+    {
+      "path": "src/vip/status.ts",
+      "bytes": 1552,
+      "sha256": "80e02ad1302c54b9077c705269a9c5d69e957f55d2a4a5bd419dacd1701530b5"
+    },
+    {
+      "path": "src/vip/types.ts",
+      "bytes": 2372,
+      "sha256": "6548ffa2812c476c46430ace9e19aaabb72cbf9bee404784b003c1b76e5d13f7"
+    },
+    {
+      "path": "supabase/migrations/20261001153532_monitoria_vip_gate1_foundation.sql",
+      "bytes": 19123,
+      "sha256": "fb9c6243f317bb047aedbf16c2541bb7c82776ab1e4d8e2491a459fed40ebd6e"
+    },
+    {
+      "path": "supabase/migrations/20261001153713_monitoria_vip_gate1_index_hardening.sql",
+      "bytes": 856,
+      "sha256": "6a0c0d8a100caf3abd079ef14b8fec13805605758e5aa0d910b8555e2250cdb9"
+    },
+    {
+      "path": "supabase/migrations/20261001153831_monitoria_vip_gate1_atomic_invites.sql",
+      "bytes": 3193,
+      "sha256": "ae8fd238d96567fcded9009655badc1cb662468358b78837963eb2d411f015d8"
+    },
+    {
+      "path": "supabase/migrations/20261001154741_monitoria_vip_gate1_integrity_hardening.sql",
+      "bytes": 1715,
+      "sha256": "aa6a5964a9f1413d385a59ee6752dcb63388b15edbe32a6fdb2c83a4cf4961cf"
+    },
+    {
+      "path": "supabase/migrations/20261001162012_monitoria_vip_gate2_onboarding_readiness.sql",
+      "bytes": 9161,
+      "sha256": "b487ee9d8f909070438a3b5c8c5fe1a4a9f1e9e32f8fe842c073f6d62647ef7c"
+    },
+    {
+      "path": "test/vip-gate1.test.ts",
+      "bytes": 5980,
+      "sha256": "81c970c5ab8130433e6f180a8931fc21ee40184b11051b482fa99252a497e375"
+    },
+    {
+      "path": "test/vip-gate2.test.ts",
+      "bytes": 4632,
+      "sha256": "24e245fd2d55796a14a713dc45bd88deb576847260c6cef8981a4bd9e3612df8"
+    }
+  ]
+}

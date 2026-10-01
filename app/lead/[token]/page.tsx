@@ -10,7 +10,6 @@ import { getSalesTrialInvite } from "@/src/lib/sales-trial";
 import {
   createLeadAccountAction,
   createLeadWorkspaceAction,
-  loginLeadAccountAction,
   redeemSalesTrialInviteAction,
 } from "./actions";
 import styles from "./lead.module.css";
@@ -56,6 +55,8 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
 
   const user = await getAuthenticatedUser();
   const organization = user ? await getCurrentOrganization(user.id) : null;
+  const vip = Boolean(invite.vipProjectId);
+  const continuationPath = vip ? "/vip/onboarding" : "/dashboard";
 
   if (
     invite.status === "redeemed" &&
@@ -64,7 +65,7 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
     invite.redeemedBy === user.id &&
     invite.redeemedOrganizationId === organization.id
   ) {
-    redirect("/dashboard");
+    redirect(continuationPath);
   }
 
   const message = firstValue(query.message);
@@ -76,15 +77,21 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
       <section className={styles.hero}>
         <Link href="/" className={styles.brand}>
           Monitor<span>IA</span>.cam
+          {vip ? <b className={styles.vipMark}>VIP</b> : null}
         </Link>
-        <span className={styles.eyebrow}>DEMONSTRAÇÃO ASSISTIDA</span>
-        <h1>Veja a IA trabalhando nas câmeras do seu próprio negócio.</h1>
+        <span className={styles.eyebrow}>
+          {vip ? "IMPLANTAÇÃO VIP ASSISTIDA" : "DEMONSTRAÇÃO ASSISTIDA"}
+        </span>
+        <h1>
+          {vip
+            ? "Seu projeto MonitorIA VIP começa com uma implantação acompanhada."
+            : "Veja a IA trabalhando nas câmeras do seu próprio negócio."}
+        </h1>
         <p>
           Este convite libera uma demonstração real de{" "}
           {durationLabel(invite.durationMinutes)} com até {invite.maxCameras}{" "}
-          câmera(s), usando o modo Detalhada. A configuração segue as mesmas
-          etapas do cadastro normal e o relógio só começa quando tudo estiver
-          pronto e você confirmar o início.
+          câmera(s), usando o modo Detalhada. O relógio só começa quando as
+          câmeras escolhidas estiverem prontas e você confirmar o início.
         </p>
         <div className={styles.facts}>
           <div>
@@ -128,39 +135,34 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
           </div>
         ) : !user ? (
           <div className={styles.authGrid}>
-            <form action={loginLeadAccountAction} className={styles.form}>
-              <input type="hidden" name="token" value={token} />
+            <div className={styles.form}>
               <span className={styles.step}>JÁ TENHO CONTA</span>
-              <h3>Entrar no MonitorIA</h3>
-              <label>
-                <span>E-mail</span>
-                <input
-                  name="email"
-                  type="email"
-                  defaultValue={invite.leadEmail ?? ""}
-                  autoComplete="email"
-                  required
-                />
-              </label>
-              <label>
-                <span>Senha</span>
-                <input
-                  name="password"
-                  type="password"
-                  minLength={8}
-                  autoComplete="current-password"
-                  required
-                />
-              </label>
-              <button type="submit" className={styles.primaryButton}>
-                Entrar e continuar
-              </button>
-            </form>
+              <h3>Entre com a mesma forma que já usava</h3>
+              <p className={styles.helper}>
+                Se você já entrou no MonitorIA alguma vez, não crie outra conta.
+                Use Google, senha, passkey ou link por e-mail conforme o método
+                que sua conta aceita.
+              </p>
+              <Link
+                href={`/login?next=${encodeURIComponent(`/lead/${token}`)}`}
+                className={styles.primaryButton}
+              >
+                Entrar e continuar este convite
+              </Link>
+              <p className={styles.helper}>
+                Não lembra a senha? Na tela de login você pode usar “Esqueci
+                minha senha” ou solicitar um link de acesso por e-mail.
+              </p>
+            </div>
 
             <form action={createLeadAccountAction} className={styles.form}>
               <input type="hidden" name="token" value={token} />
               <span className={styles.step}>PRIMEIRO ACESSO</span>
               <h3>Criar conta pelo convite</h3>
+              <p className={styles.helper}>
+                Use esta opção somente se este e-mail nunca teve uma conta
+                MonitorIA.
+              </p>
               <label>
                 <span>Seu nome</span>
                 <input
@@ -200,10 +202,10 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
           <form action={createLeadWorkspaceAction} className={styles.form}>
             <input type="hidden" name="token" value={token} />
             <span className={styles.step}>PASSO 1 DE 2</span>
-            <h3>Prepare seu negócio</h3>
+            <h3>{vip ? "Prepare seu Projeto VIP" : "Prepare seu negócio"}</h3>
             <p className={styles.helper}>
-              Vamos salvar os mesmos dados usados no cadastro normal do MonitorIA.
-              O teste ainda não começa aqui.
+              Vamos salvar os dados da empresa e do primeiro local. O teste
+              ainda não começa aqui.
             </p>
 
             <label>
@@ -223,7 +225,7 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
               <input
                 name="site_name"
                 type="text"
-                placeholder="Ex.: Loja do centro"
+                placeholder="Ex.: Unidade São Paulo"
                 maxLength={160}
                 required
               />
@@ -246,7 +248,7 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
                 name="camera_count"
                 type="number"
                 min={1}
-                max={64}
+                max={100000}
                 defaultValue={DEFAULT_CAMERA_COUNT}
                 required
               />
@@ -264,8 +266,8 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
             </label>
 
             <p className={styles.helper}>
-              A quantidade informada ajuda a busca inicial. Na demonstração você
-              poderá escolher até {invite.maxCameras} câmera(s).
+              A quantidade informada ajuda a preparar a implantação. No piloto
+              você poderá escolher até {invite.maxCameras} câmera(s).
             </p>
 
             <button type="submit" className={styles.primaryButton}>
@@ -276,16 +278,18 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
           <form action={redeemSalesTrialInviteAction} className={styles.activation}>
             <input type="hidden" name="token" value={token} />
             <span className={styles.step}>PASSO 2 DE 2</span>
-            <h3>Ativar demonstração para {organization.name}</h3>
+            <h3>
+              {vip
+                ? `Abrir implantação VIP de ${organization.name}`
+                : `Ativar demonstração para ${organization.name}`}
+            </h3>
             <p>
-              Ao ativar, o painel continuará pelo mesmo onboarding do cadastro
-              normal: conectar o computador, procurar as câmeras e configurar o
-              contexto. No último passo, seu convite libera{" "}
-              {durationLabel(invite.durationMinutes)} de análise no modo Detalhada
-              com até {invite.maxCameras} câmera(s).
+              {vip
+                ? "Ao continuar, você entra no onboarding VIP acompanhado. A instalação, as câmeras, a calibração e o piloto ficam em uma sequência única, e o progresso permanece salvo até a contratação."
+                : `Ao ativar, o painel continua pela configuração guiada. No último passo, o convite libera ${durationLabel(invite.durationMinutes)} de análise no modo Detalhada com até ${invite.maxCameras} câmera(s).`}
             </p>
             <button type="submit" className={styles.primaryButton}>
-              Ativar e começar a configuração
+              {vip ? "Continuar implantação VIP" : "Ativar e começar a configuração"}
             </button>
           </form>
         )}

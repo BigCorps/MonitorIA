@@ -22,25 +22,14 @@ export const dynamic = "force-dynamic";
 
 type LoginPageProps = {
   searchParams: Promise<
-    Record<
-      string,
-      string | string[] | undefined
-    >
+    Record<string, string | string[] | undefined>
   >;
 };
 
 function Logo() {
   return (
-    <span
-      className="auth-logo-mark"
-      aria-hidden="true"
-    >
-      <img
-        src="/favicon.svg"
-        alt=""
-        width={25}
-        height={25}
-      />
+    <span className="auth-logo-mark" aria-hidden="true">
+      <img src="/favicon.svg" alt="" width={25} height={25} />
     </span>
   );
 }
@@ -52,12 +41,7 @@ function MobileBrand() {
       className={loginStyles.mobileBrand}
       aria-label="MonitorIA.cam — página inicial"
     >
-      <img
-        src="/favicon.svg"
-        alt=""
-        width={30}
-        height={30}
-      />
+      <img src="/favicon.svg" alt="" width={30} height={30} />
       <span>
         Monitor<em>IA</em>.cam
       </span>
@@ -65,53 +49,28 @@ function MobileBrand() {
   );
 }
 
-function firstValue(
-  value:
-    | string
-    | string[]
-    | undefined,
-) {
-  return typeof value === "string"
-    ? value
-    : null;
+function firstValue(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : null;
 }
 
-export default async function LoginPage({
-  searchParams,
-}: LoginPageProps) {
+export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getAuthenticatedUser();
-
-  if (user) {
-    redirect("/dashboard");
-  }
+  if (user) redirect("/dashboard");
 
   const params = await searchParams;
   const message = firstValue(params.message);
   const error = firstValue(params.error);
-  const next = normalizeNextPath(
-    firstValue(params.next) ??
-      "/dashboard",
-  );
-  const wantsSignup =
-    params.criar === "1";
+  const next = normalizeNextPath(firstValue(params.next) ?? "/dashboard");
+  const wantsSignup = params.criar === "1";
 
   const cookieStore = await cookies();
   const showPasskey =
-    cookieStore.get(
-      PASSKEY_LOGIN_HINT_COOKIE,
-    )?.value === "1";
+    cookieStore.get(PASSKEY_LOGIN_HINT_COOKIE)?.value === "1";
 
   return (
-    <main
-      className={`auth-page ${loginStyles.page}`}
-    >
-      <section
-        className={`auth-intro ${loginStyles.intro}`}
-      >
-        <Link
-          href="/"
-          className="auth-brand"
-        >
+    <main className={`auth-page ${loginStyles.page}`}>
+      <section className={`auth-intro ${loginStyles.intro}`}>
+        <Link href="/" className="auth-brand">
           <Logo />
           <span>
             Monitor<span>IA</span>.cam
@@ -119,101 +78,83 @@ export default async function LoginPage({
         </Link>
 
         <div>
-          <span className="auth-kicker">
-            ACESSO SEGURO
-          </span>
-          <h1>
-            Sua memória visual começa aqui.
-          </h1>
+          <span className="auth-kicker">ACESSO SEGURO</span>
+          <h1>Sua memória visual começa aqui.</h1>
           <p>
-            Entre para configurar seus locais,
-            suas câmeras e por quanto tempo cada
-            coisa fica guardada.
+            Entre para configurar seus locais, suas câmeras e por quanto tempo
+            cada coisa fica guardada.
           </p>
           <ul>
-            <li>
-              Os dados de cada empresa ficam
-              separados
-            </li>
-            <li>
-              As senhas das câmeras não saem do
-              seu computador
-            </li>
-            <li>
-              Entre com Google, senha ou link no
-              e-mail
-            </li>
+            <li>Os dados de cada empresa ficam separados</li>
+            <li>As senhas das câmeras não saem do seu computador</li>
+            <li>Entre com Google, senha ou link no e-mail</li>
           </ul>
         </div>
 
         <small>
-          Desenvolvido por {appConfig.company} ·{" "}
-          {appConfig.slogan}
+          Desenvolvido por {appConfig.company} · {appConfig.slogan}
         </small>
       </section>
 
-      <section
-        className={`auth-form-shell ${loginStyles.formShell}`}
-      >
-        <div
-          className={`auth-form-card ${loginStyles.formCard}`}
-        >
+      <section className={`auth-form-shell ${loginStyles.formShell}`}>
+        <div className={`auth-form-card ${loginStyles.formCard}`}>
           <MobileBrand />
 
           <div className="auth-form-heading">
-            <span
-              className={
-                loginStyles.desktopKicker
-              }
-            >
-              MonitorIA.cam
-            </span>
+            <span className={loginStyles.desktopKicker}>MonitorIA.cam</span>
             <h2>
-              {wantsSignup
-                ? "Começar seu teste grátis"
-                : "Entrar no painel"}
+              {wantsSignup ? "Começar seu teste grátis" : "Entrar no painel"}
             </h2>
             <p>
               {wantsSignup
                 ? "Vamos fazer três passos rápidos e deixar seu primeiro acesso preparado."
-                : "Como você prefere entrar?"}
+                : "Use a mesma forma de acesso que você utilizou quando criou sua conta."}
             </p>
           </div>
 
-          {message ? (
-            <div className="form-alert success">
-              {message}
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="form-alert error">
-              {error}
-            </div>
-          ) : null}
+          {message ? <div className="form-alert success">{message}</div> : null}
+          {error ? <div className="form-alert error">{error}</div> : null}
 
           {wantsSignup ? (
-            <SignupWizard />
+            <>
+              <div className={loginStyles.accountWarning}>
+                <strong>Já usou este e-mail no MonitorIA?</strong>
+                <span>
+                  Não crie uma segunda conta. Volte para o login e use o mesmo
+                  método de acesso, recuperação de senha ou link por e-mail.
+                </span>
+              </div>
+              <SignupWizard />
+            </>
           ) : (
             <>
-              <AuthButtons
-                next={next}
-                showPasskey={showPasskey}
-              />
-
-              <div className="auth-divider">
-                <span>ou use seu e-mail</span>
+              <div className={loginStyles.methodGuide}>
+                <strong>Qual opção devo usar?</strong>
+                <div>
+                  <span>
+                    <b>Google</b>
+                    Se foi assim que você entrou pela primeira vez.
+                  </span>
+                  <span>
+                    <b>Senha</b>
+                    Somente se você criou ou definiu uma senha para esta conta.
+                  </span>
+                  <span>
+                    <b>Link por e-mail</b>
+                    Uma boa opção quando você não lembra como entrou, desde que
+                    esse método esteja liberado na sua conta.
+                  </span>
+                </div>
               </div>
 
-              <form
-                action={loginWithPassword}
-                className="auth-form"
-              >
-                <input
-                  type="hidden"
-                  name="next"
-                  value={next}
-                />
+              <AuthButtons next={next} showPasskey={showPasskey} />
+
+              <div className="auth-divider">
+                <span>ou use sua senha</span>
+              </div>
+
+              <form action={loginWithPassword} className="auth-form">
+                <input type="hidden" name="next" value={next} />
 
                 <label>
                   <span>E-mail</span>
@@ -239,32 +180,20 @@ export default async function LoginPage({
                 </label>
 
                 <div className="auth-inline-row">
-                  <Link href="/forgot-password">
-                    Esqueci minha senha
-                  </Link>
+                  <Link href="/forgot-password">Esqueci minha senha</Link>
                 </div>
 
-                <button
-                  className="auth-submit"
-                  type="submit"
-                >
+                <button className="auth-submit" type="submit">
                   Entrar com senha
                 </button>
               </form>
 
               <div className="auth-divider">
-                <span>ou</span>
+                <span>não quer usar senha?</span>
               </div>
 
-              <form
-                action={sendMagicLink}
-                className="magic-form"
-              >
-                <input
-                  type="hidden"
-                  name="next"
-                  value={next}
-                />
+              <form action={sendMagicLink} className="magic-form">
+                <input type="hidden" name="next" value={next} />
                 <input
                   name="email"
                   type="email"
@@ -272,36 +201,31 @@ export default async function LoginPage({
                   placeholder="Seu e-mail para receber o link"
                   required
                 />
-                <button type="submit">
-                  Enviar link de acesso
-                </button>
+                <button type="submit">Enviar link de acesso</button>
               </form>
             </>
           )}
 
           <div className="auth-divider">
-            <span>
-              {wantsSignup
-                ? "já possui conta?"
-                : "ainda não possui conta?"}
-            </span>
+            <span>{wantsSignup ? "já possui conta?" : "ainda não possui conta?"}</span>
           </div>
+
+          {!wantsSignup ? (
+            <p className={loginStyles.createAccountHint}>
+              Se este e-mail já foi usado no MonitorIA, não crie outra conta:
+              recupere a senha ou peça um link de acesso acima.
+            </p>
+          ) : null}
 
           <Link
             className={loginStyles.switchLink}
             href={
               wantsSignup
-                ? `/login?next=${encodeURIComponent(
-                    next,
-                  )}`
-                : `/login?criar=1&next=${encodeURIComponent(
-                    next,
-                  )}`
+                ? `/login?next=${encodeURIComponent(next)}`
+                : `/login?criar=1&next=${encodeURIComponent(next)}`
             }
           >
-            {wantsSignup
-              ? "Voltar para o login"
-              : "Criar uma nova conta"}
+            {wantsSignup ? "Voltar para o login" : "Criar uma nova conta"}
           </Link>
         </div>
       </section>

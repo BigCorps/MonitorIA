@@ -52,6 +52,35 @@ function minutesLabel(minutes: number) {
   return `${minutes} minutos`;
 }
 
+function readinessAction(reason: string, cameraId: string) {
+  if (reason === "active_profile_required") {
+    return {
+      label: "Configurar contexto",
+      href: `/dashboard/cameras/${cameraId}`,
+    };
+  }
+  if (reason === "camera_offline" || reason === "camera_not_paired") {
+    return {
+      label: "Abrir câmera",
+      href: `/dashboard/cameras/${cameraId}`,
+    };
+  }
+  if (
+    reason === "agent_camera_not_enabled" ||
+    reason === "agent_offline" ||
+    reason === "agent_heartbeat_stale"
+  ) {
+    return {
+      label: "Ver instalação",
+      href: "/dashboard/installer",
+    };
+  }
+  return {
+    label: "Revisar câmeras",
+    href: "/dashboard/cameras",
+  };
+}
+
 export default async function SalesTrialPage({ searchParams }: Props) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -285,22 +314,37 @@ export default async function SalesTrialPage({ searchParams }: Props) {
                 </div>
 
                 <div className={styles.readinessList}>
-                  {selectedCameras.map((camera) => (
-                    <div className={styles.readinessRow} key={camera.id}>
-                      <div>
-                        <strong>{camera.name}</strong>
-                        <span>{camera.siteName}</span>
+                  {selectedCameras.map((camera) => {
+                    const primaryReason = camera.reasons[0] ?? "";
+                    const action = readinessAction(primaryReason, camera.id);
+
+                    return (
+                      <div className={styles.readinessRow} key={camera.id}>
+                        <div>
+                          <strong>{camera.name}</strong>
+                          <span>{camera.siteName}</span>
+                        </div>
+                        {camera.ready ? (
+                          <div className={styles.readyText}>
+                            Pronta para o teste
+                          </div>
+                        ) : (
+                          <div className={styles.pendingBlock}>
+                            <div className={styles.pendingText}>
+                              {camera.reasons
+                                .slice(0, 2)
+                                .map((reason) => readinessReasonLabel(reason))
+                                .join(" ") ||
+                                "Existe uma pendência na configuração."}
+                            </div>
+                            <Link href={action.href} className={styles.readinessLink}>
+                              {action.label}
+                            </Link>
+                          </div>
+                        )}
                       </div>
-                      <div className={camera.ready ? styles.readyText : styles.pendingText}>
-                        {camera.ready
-                          ? "Pronta para o teste"
-                          : camera.reasons
-                              .slice(0, 2)
-                              .map((reason) => readinessReasonLabel(reason))
-                              .join(" ") || "Existe uma pendência na configuração."}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {canManage ? (

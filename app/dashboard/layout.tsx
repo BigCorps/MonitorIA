@@ -4,6 +4,7 @@ import { createClient } from "@/src/lib/supabase/server";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { getOrganizationSourceContext } from "@/src/lib/source-context";
 import { EMPTY_SOURCE_CONTEXT } from "@/src/lib/source-mode";
+import { getVipProjectForOrganization } from "@/src/vip/server";
 import { DashboardSourceProvider } from "./dashboard-source-context";
 import {
   passkeyLoginReady,
@@ -50,6 +51,7 @@ export default async function PrivateAreaLayout({
   const claims = objectValue(claimsData?.claims);
 
   let sourceContext = EMPTY_SOURCE_CONTEXT;
+  let currentOrganizationId: string | null = null;
   const userId =
     typeof claims.sub === "string" ? claims.sub : null;
 
@@ -59,11 +61,49 @@ export default async function PrivateAreaLayout({
         await getCurrentOrganization(userId);
 
       if (organization) {
-        sourceContext =
-          await getOrganizationSourceContext(
-            organization.id,
-          );
+        currentOrganizationId = organization.id;
       }
+    } catch (error) {
+      console.error(
+        "Falha ao carregar organização atual:",
+        error instanceof Error
+          ? error.message
+          : String(error),
+      );
+    }
+  }
+
+  // Um Projeto VIP em implantação não deve cair no dashboard comum.
+  // A consulta é somente leitura e não afeta organizações sem Projeto VIP.
+  if (currentOrganizationId) {
+    let vipProject = null;
+
+    try {
+      vipProject = await getVipProjectForOrganization(
+        currentOrganizationId,
+      );
+    } catch (error) {
+      console.error(
+        "Falha ao verificar onboarding VIP:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+
+    if (
+      vipProject &&
+      vipProject.status !== "active" &&
+      vipProject.status !== "cancelled"
+    ) {
+      redirect("/vip/onboarding");
+    }
+  }
+
+  if (currentOrganizationId) {
+    try {
+      sourceContext =
+        await getOrganizationSourceContext(
+          currentOrganizationId,
+        );
     } catch (error) {
       console.error(
         "Falha ao carregar contexto das fontes:",

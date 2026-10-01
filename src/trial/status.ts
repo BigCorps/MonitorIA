@@ -33,19 +33,25 @@ export function readinessReasonLabel(
   reason: TrialReadinessReason,
 ) {
   const labels: Record<string, string> = {
-    camera_not_found: "A câmera não foi encontrada.",
-    camera_offline: "A câmera precisa estar online.",
-    camera_not_paired: "Conclua o pareamento da câmera.",
+    camera_not_found:
+      "A câmera não foi encontrada. Volte à lista e confirme se ela ainda existe.",
+    camera_offline:
+      "A câmera está offline. Verifique energia/rede e atualize a prontidão.",
+    camera_not_paired:
+      "Falta concluir o pareamento desta câmera.",
     active_profile_required:
-      "Aprove o perfil inteligente da câmera.",
+      "Falta aprovar o perfil inteligente desta câmera.",
     agent_camera_not_enabled:
-      "Ative a câmera no MonitorIA Agent.",
-    agent_offline: "Abra o MonitorIA Agent no computador.",
+      "A câmera ainda não está ativa no MonitorIA Agent.",
+    agent_offline:
+      "O MonitorIA Agent deste computador está offline. Abra-o novamente.",
     agent_heartbeat_stale:
-      "O Agent não envia sinal há alguns minutos. Inicie-o novamente.",
+      "O Agent parou de enviar sinal recente. Abra-o novamente e atualize.",
+    readiness_unavailable:
+      "Não foi possível conferir a prontidão agora. Tente atualizar novamente.",
   };
 
-  return labels[reason] ?? "Existe uma pendência na configuração.";
+  return labels[reason] ?? "Existe uma pendência na configuração desta câmera.";
 }
 
 export function readinessItems(readiness: TrialReadiness) {
