@@ -40,6 +40,15 @@ export interface OpenAIVisionProviderOptions {
   client?: OpenAI;
 }
 
+const DEFAULT_NANO_MODEL = "gpt-5-nano";
+
+function nanoModel(value?: string) {
+  const candidate = value?.trim();
+  return candidate && candidate.includes("nano")
+    ? candidate
+    : DEFAULT_NANO_MODEL;
+}
+
 function envBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   return value.toLowerCase() === "true";
@@ -94,7 +103,9 @@ export class OpenAIVisionProvider implements VisionProvider {
     this.client = options.client ?? new OpenAI({
       apiKey: options.apiKey ?? process.env.OPENAI_API_KEY,
     });
-    this.model = options.model ?? process.env.VISION_MODEL ?? "gpt-5-mini";
+    // Qualquer configuração antiga apontando para mini é deliberadamente
+    // normalizada para nano. Pins/versionamentos nano continuam aceitos.
+    this.model = nanoModel(options.model ?? process.env.VISION_MODEL);
     this.detail = options.detail ??
       (process.env.VISION_DETAIL as VisionImageDetail | undefined) ?? "low";
     this.profileDetail = options.profileDetail ??
@@ -205,8 +216,11 @@ export class OpenAIVisionProvider implements VisionProvider {
   async analyzeCameraProfile(
     input: AnalyzeCameraProfileInput,
   ): Promise<CameraProfileAnalysisResult> {
-    const model = process.env.VISION_PROFILE_MODEL ??
-      process.env.VISION_MODEL ?? this.model;
+    const model = nanoModel(
+      process.env.VISION_PROFILE_MODEL ??
+        process.env.VISION_MODEL ??
+        this.model,
+    );
     const started = performance.now();
     const requestProfile = (maxOutputTokens: number) =>
       this.client.responses.parse({

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { resolveVisionRouteExecution } from "../src/vision/plans";
 
-test("plano Detalhada usa o modelo balanceado na rota normal", () => {
+test("todas as rotas generativas normalizam modelos antigos para nano", () => {
   const previousBalanced = process.env.VISION_MODEL_BALANCED;
   const previousDetailed = process.env.VISION_MODEL_DETAILED;
 
@@ -20,8 +20,10 @@ test("plano Detalhada usa o modelo balanceado na rota normal", () => {
       "strong",
     );
 
-    assert.equal(balanced.model, "balanced-cost-probe");
-    assert.equal(strong.model, "detailed-cost-probe");
+    assert.equal(balanced.model, "gpt-5-nano");
+    assert.equal(strong.model, "gpt-5-nano");
+    assert.equal(balanced.verifierModel, "gpt-5-nano");
+    assert.equal(strong.verifierModel, "gpt-5-nano");
   } finally {
     if (previousBalanced === undefined) {
       delete process.env.VISION_MODEL_BALANCED;

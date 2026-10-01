@@ -25,6 +25,15 @@ export type VisionRouteExecution = {
   verifierModel: string | null;
 };
 
+const DEFAULT_NANO_MODEL = "gpt-5-nano";
+
+function nanoModel(value?: string) {
+  const candidate = value?.trim();
+  return candidate && candidate.includes("nano")
+    ? candidate
+    : DEFAULT_NANO_MODEL;
+}
+
 function positiveInteger(value: string | undefined, fallback: number) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0
@@ -46,8 +55,7 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
     return {
       code,
       mode: "economic",
-      primaryModel:
-        process.env.VISION_MODEL_ECONOMIC ?? "gpt-5-nano",
+      primaryModel: nanoModel(process.env.VISION_MODEL_ECONOMIC),
       escalationModel: null,
       detail: detail(process.env.VISION_DETAIL_ECONOMIC, "low"),
       maxOutputTokens: positiveInteger(
@@ -62,10 +70,8 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
     return {
       code,
       mode: "detailed",
-      primaryModel:
-        process.env.VISION_MODEL_DETAILED ?? "gpt-5-mini",
-      escalationModel:
-        process.env.VISION_MODEL_VERIFIER ?? "gpt-5-mini",
+      primaryModel: nanoModel(process.env.VISION_MODEL_DETAILED),
+      escalationModel: nanoModel(process.env.VISION_MODEL_VERIFIER),
       detail: detail(process.env.VISION_DETAIL_DETAILED, "high"),
       maxOutputTokens: positiveInteger(
         process.env.VISION_MAX_OUTPUT_DETAILED,
@@ -78,10 +84,8 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
   return {
     code: "standard",
     mode: "balanced",
-    primaryModel:
-      process.env.VISION_MODEL_BALANCED ?? "gpt-5-nano",
-    escalationModel:
-      process.env.VISION_MODEL_ESCALATION ?? "gpt-5-mini",
+    primaryModel: nanoModel(process.env.VISION_MODEL_BALANCED),
+    escalationModel: nanoModel(process.env.VISION_MODEL_ESCALATION),
     detail: detail(process.env.VISION_DETAIL_BALANCED, "low"),
     maxOutputTokens: positiveInteger(
       process.env.VISION_MAX_OUTPUT_BALANCED,
@@ -95,16 +99,15 @@ export function resolveVisionRouteExecution(
   code: AnalysisPlanCode,
   route: VisionRouteCode,
 ): VisionRouteExecution {
-  const economicModel =
-    process.env.VISION_MODEL_ECONOMIC ?? "gpt-5-nano";
-  const balancedModel =
-    process.env.VISION_MODEL_BALANCED ?? "gpt-5-nano";
-  const strongModel =
+  const economicModel = nanoModel(process.env.VISION_MODEL_ECONOMIC);
+  const balancedModel = nanoModel(process.env.VISION_MODEL_BALANCED);
+  const strongModel = nanoModel(
     process.env.VISION_MODEL_DETAILED ??
-    process.env.VISION_MODEL_ESCALATION ??
-    "gpt-5-mini";
-  const verifierModel =
-    process.env.VISION_MODEL_VERIFIER ?? strongModel;
+      process.env.VISION_MODEL_ESCALATION,
+  );
+  const verifierModel = nanoModel(
+    process.env.VISION_MODEL_VERIFIER ?? strongModel,
+  );
 
   if (route === "deterministic") {
     return {
@@ -177,8 +180,8 @@ export function resolveVisionRouteExecution(
   };
 }
 
-export function otherValidationModel(model: string) {
-  return model.includes("nano")
-    ? process.env.VISION_MODEL_ESCALATION ?? "gpt-5-mini"
-    : process.env.VISION_MODEL_ECONOMIC ?? "gpt-5-nano";
+export function otherValidationModel(_model: string) {
+  // A/B histórico pode continuar existindo no banco, mas novas análises não
+  // alternam para mini. Se o experimento tentar pedir outro modelo, recebe nano.
+  return nanoModel(process.env.VISION_MODEL_ECONOMIC);
 }

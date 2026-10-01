@@ -16,8 +16,8 @@ test("GPT-5 nano usa preço de entrada, cache e saída corretos", () => {
   assert.ok(Math.abs(cost.totalCostUsd - 0.00072) < 0.0000001);
 });
 
-test("tokens de raciocínio não são cobrados duas vezes", () => {
-  const cost = estimateVisionCostBreakdown("gpt-5-mini", {
+test("tokens de raciocínio do nano não são cobrados duas vezes", () => {
+  const cost = estimateVisionCostBreakdown("gpt-5-nano", {
     inputTokens: 0,
     cachedInputTokens: 0,
     outputTokens: 1000,
@@ -25,6 +25,6 @@ test("tokens de raciocínio não são cobrados duas vezes", () => {
     totalTokens: 1000,
   });
 
-  assert.equal(cost.outputCostUsd, 0.002);
-  assert.equal(cost.totalCostUsd, 0.002);
+  assert.equal(cost.outputCostUsd, 0.0004);
+  assert.equal(cost.totalCostUsd, 0.0004);
 });
