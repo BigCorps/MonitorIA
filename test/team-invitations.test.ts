@@ -64,5 +64,10 @@ test("convite por e-mail tem fallback de link copiável", async () => {
   assert.match(notification, /RESEND_API_KEY/);
   assert.match(notification, /Aceitar convite/);
   assert.match(manager, /Copiar link/);
-  assert.match(manager, /O e-mail automático não saiu/);
+  const actions = await readFile(
+    new URL("../app/dashboard/team/actions.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(manager, /state\.message/);
+  assert.match(actions, /O e-mail automático não saiu/);
 });

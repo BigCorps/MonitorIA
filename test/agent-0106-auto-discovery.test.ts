@@ -22,7 +22,10 @@ test("instalador não coleta câmeras nem credenciais e a conexão fica no onboa
 test("descoberta combina ONVIF e varredura TCP mesmo quando ONVIF responde", async () => {
   const discovery = await readFile(new URL("../agent/src/discovery/index.ts", import.meta.url), "utf8");
   assert.doesNotMatch(discovery, /byHost\.size > 0 \|\| options\?\.skipScan/);
-  assert.match(discovery, /for \(const device of await scanLocalNetwork/);
+  assert.match(
+    discovery,
+    /for\s*\(\s*const device of\s*await scanLocalNetwork\s*\(/s,
+  );
   assert.match(discovery, /if \(!byHost\.has\(device\.host\)\)/);
 });
 

@@ -93,12 +93,14 @@ test("RC9 acontecimento conhece a origem visual", () => {
 test("RC9 Pesquisa IA recebe sourceKind", () => {
   const contracts = read("src/assistant/contracts.ts");
   const route = read("app/api/assistant/query/route.ts");
-  const openai = read("src/assistant/openai.ts");
 
   assert.match(contracts, /sourceKind/);
-  assert.match(route, /sourceKind: camera\.sourceKind/);
-  assert.match(openai, /local_recording/);
-  assert.match(openai, /horário do registro/);
+  assert.match(route, /sourceKind:\s*x\.sourceKind/);
+  assert.match(route, /x\.sourceKind === "local_recording"/);
+  assert.match(
+    contracts,
+    /sourceKind:\s*"live_camera"\s*\|\s*"local_recording"/,
+  );
 });
 
 test("RC9 planos não mostram ambiente de gravações como offline", () => {
