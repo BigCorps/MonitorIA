@@ -46,11 +46,24 @@ async function ensureAuthOtp(email: string) {
   if (!first.error && first.data?.properties?.email_otp) return first;
 
   const normalized = String(first.error?.message ?? "").toLowerCase();
-  const missingUser = normalized.includes("user not found") || normalized.includes("not found") || normalized.includes("does not exist");
+  const missingUser =
+    normalized.includes("user not found") ||
+    normalized.includes("not found") ||
+    normalized.includes("does not exist");
   if (!missingUser) return first;
 
-  const created = await admin.auth.admin.createUser({ email, email_confirm: true });
-  if (created.error) return { data: null, error: created.error } as typeof first;
+  const created = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  });
+
+  if (created.error) {
+    return {
+      data: { properties: null, user: null },
+      error: created.error,
+    };
+  }
+
   return admin.auth.admin.generateLink({ type: "magiclink", email });
 }
 
@@ -74,8 +87,14 @@ export async function sendTeamInviteAccessCodeAction(formData: FormData) {
     inviteRedirect(token, "error", "Não foi possível preparar o código de acesso agora.");
   }
 
-  const delivery = await sendTeamAccessCode({ email, code: otp, organizationName: organizationName(invitation) });
-  if (!delivery.ok) inviteRedirect(token, "error", "Não foi possível enviar o código por e-mail agora. Tente novamente.");
+  const delivery = await sendTeamAccessCode({
+    email,
+    code: otp,
+    organizationName: organizationName(invitation),
+  });
+  if (!delivery.ok) {
+    inviteRedirect(token, "error", "Não foi possível enviar o código por e-mail agora. Tente novamente.");
+  }
 
   inviteRedirect(token, "message", `Enviamos um código de 6 dígitos para ${email}.`);
 }
@@ -139,20 +158,30 @@ export async function verifyTeamInviteAccessCodeAction(formData: FormData) {
   const token = String(formData.get("token") ?? "").trim();
   const code = String(formData.get("code") ?? "").replace(/\D/g, "").slice(0, 6);
   if (!token) return;
-  if (!/^\d{6}$/.test(code)) inviteRedirect(token, "error", "Digite o código de 6 dígitos recebido por e-mail.");
+  if (!/^\d{6}$/.test(code)) {
+    inviteRedirect(token, "error", "Digite o código de 6 dígitos recebido por e-mail.");
+  }
 
   const invitation = await validInvitation(token);
   if (!invitation) inviteRedirect(token, "error", "Este convite não está mais disponível.");
 
   const email = String(invitation.email).trim().toLowerCase();
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: "email",
+  });
   if (error || !data.user) {
     console.error("Falha ao validar código da equipe:", error?.message ?? "missing_user");
     inviteRedirect(token, "error", "Código inválido ou expirado. Solicite um novo código e tente novamente.");
   }
 
-  await grantInvitation({ token, invitation, user: { id: data.user.id, email: data.user.email } });
+  await grantInvitation({
+    token,
+    invitation,
+    user: { id: data.user.id, email: data.user.email },
+  });
 }
 
 export async function acceptTeamInvitationAction(formData: FormData) {
@@ -160,7 +189,9 @@ export async function acceptTeamInvitationAction(formData: FormData) {
   if (!token) return;
   const user = await requireAuthenticatedUser();
   const invitation = await validInvitation(token);
-  if (!invitation) inviteRedirect(token, "error", "Este convite expirou, foi cancelado ou já foi usado.");
+  if (!invitation) {
+    inviteRedirect(token, "error", "Este convite expirou, foi cancelado ou já foi usado.");
+  }
   await grantInvitation({ token, invitation, user });
 }
 
