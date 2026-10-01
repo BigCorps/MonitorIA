@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { requireCommercialAccess } from "@/src/lib/commercial-operator";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { getSalesTrialResultsById } from "@/src/lib/trial-results";
+import { getVipTrialLiveSnapshotByTrialId } from "@/src/vip/live";
 import { TrialResultsView } from "@/app/dashboard/trial/results/trial-results-view";
+import { VipSellerLivePanel } from "./vip-seller-live";
 import styles from "../../trials.module.css";
 
 export const metadata = { title: "Resultado do trial comercial" };
@@ -34,7 +36,10 @@ export default async function AdminSalesTrialResultsPage({ params }: Props) {
     if (!ownedInvite) notFound();
   }
 
-  const result = await getSalesTrialResultsById(trialId);
+  const [result, vipLive] = await Promise.all([
+    getSalesTrialResultsById(trialId),
+    getVipTrialLiveSnapshotByTrialId(trialId),
+  ]);
 
   if (!result) notFound();
 
@@ -45,9 +50,13 @@ export default async function AdminSalesTrialResultsPage({ params }: Props) {
           <Link href="/dashboard/admin/customers/trials">
             ← Voltar para a área comercial
           </Link>
-          <span>RESULTADO · BIGCORPS</span>
+          <span>{vipLive ? "MONITORIA VIP · BIGCORPS" : "RESULTADO · BIGCORPS"}</span>
           <h1>{result.organizationName}</h1>
-          <p>Resumo da demonstração comercial vinculada a este lead.</p>
+          <p>
+            {vipLive
+              ? "Acompanhe o piloto VIP e os resultados deste projeto em tempo real."
+              : "Resumo da demonstração comercial vinculada a este lead."}
+          </p>
         </div>
         <div className={styles.operator}>
           <span>{access.isManager ? "Administrador" : "Vendedor"}</span>
@@ -55,6 +64,7 @@ export default async function AdminSalesTrialResultsPage({ params }: Props) {
         </div>
       </header>
       <section className={styles.content}>
+        {vipLive ? <VipSellerLivePanel snapshot={vipLive} /> : null}
         <TrialResultsView result={result} viewer="admin" />
       </section>
     </main>

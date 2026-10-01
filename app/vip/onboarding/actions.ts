@@ -20,6 +20,8 @@ function friendlyError(message: string) {
   if (normalized.includes("agent_trial_already_used")) return "Um dos computadores selecionados já participou de outro teste gratuito.";
   if (normalized.includes("trial_selection_locked")) return "A seleção de câmeras foi bloqueada porque o teste já começou.";
   if (normalized.includes("trial_camera_not_ready")) return "Ainda existe uma pendência nas câmeras selecionadas. Resolva o item indicado e verifique novamente.";
+  if (normalized.includes("email_confirmation_required")) return "Confirme seu e-mail antes de iniciar os 60 minutos.";
+  if (normalized.includes("trial_cannot_be_started")) return "Este piloto não está em um estado que permita iniciar o relógio.";
   return "Não foi possível atualizar a implantação VIP. Tente novamente.";
 }
 
@@ -101,5 +103,38 @@ export async function refreshVipTrialAction() {
     result.ready === true
       ? "Tudo pronto. Os 60 minutos continuam parados até sua confirmação."
       : "Prontidão atualizada. Veja abaixo exatamente o que falta em cada câmera.",
+  );
+}
+
+
+export async function startVipTrialAction() {
+  const { organization, project } = await context();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("start_sales_monitoria_trial", {
+    p_organization_id: organization.id,
+  });
+
+  if (error) {
+    console.error("Falha ao iniciar piloto VIP:", error.message);
+    vipRedirect("error", friendlyError(error.message));
+  }
+
+  const result = data && typeof data === "object" && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : {};
+
+  if (result.success !== true) {
+    vipRedirect("error", "O piloto VIP não foi iniciado.");
+  }
+
+  await refreshVipOnboarding(project.id, true);
+  refreshPaths();
+
+  vipRedirect(
+    "message",
+    result.duplicate === true
+      ? "O piloto VIP já estava em andamento. O mesmo relógio foi mantido."
+      : "Piloto VIP iniciado. Os 60 minutos começaram agora para cliente e vendedor.",
   );
 }

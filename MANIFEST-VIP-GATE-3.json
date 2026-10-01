@@ -1,0 +1,262 @@
+{
+  "artifact": "MonitorIA VIP — Gate 3",
+  "package_type": "cumulative_overlay",
+  "base_git_commit": "a2846e99894194e612371b58b616a24780e639a7",
+  "base_vercel_state": "READY",
+  "supabase_project": "xwejfayeackbrilipgrj",
+  "supabase_migrations_already_applied": [
+    "20261001153532_monitoria_vip_gate1_foundation",
+    "20261001153713_monitoria_vip_gate1_index_hardening",
+    "20261001153831_monitoria_vip_gate1_atomic_invites",
+    "20261001154741_monitoria_vip_gate1_integrity_hardening",
+    "20261001162012_monitoria_vip_gate2_onboarding_readiness",
+    "20261001171911_monitoria_vip_gate3_trial_state_sync"
+  ],
+  "gate3_validation": {
+    "typescript_tsx_files_parsed": 26,
+    "syntax_errors": 0,
+    "gate3_tests_passed": 5,
+    "gate3_tests_failed": 0,
+    "supabase_smoke_test": "passed_with_rollback",
+    "agent_exe_changed": false,
+    "new_trial_engine_created": false,
+    "parallel_timer_created": false
+  },
+  "files": [
+    {
+      "path": "LEIA-ME-GATE-1.md",
+      "size": 1114,
+      "sha256": "e0ce3056547791cd923c265c64fb808cc4771bf00524dbdc96f1389c7f2358fb"
+    },
+    {
+      "path": "LEIA-ME-GATE-2.md",
+      "size": 2555,
+      "sha256": "5457d5fbb699f3f8151a984fb75acdaf3111492a968f2fdf9474b6a977a847fc"
+    },
+    {
+      "path": "LEIA-ME-GATE-3.md",
+      "size": 1043,
+      "sha256": "a01870a224b0b4c678927b69b17e6fcd21276203297ad4bf893cdab2e82a2cb7"
+    },
+    {
+      "path": "MANIFEST-VIP-GATE-2.json",
+      "size": 6367,
+      "sha256": "ffec9fb53514adc0665451d3654ffadd494da6224d98bfd07fa69c1d24b06852"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-1.md",
+      "size": 4165,
+      "sha256": "0c656ac1b5eff97dc7c4064f924684d83c848a28cebeb84a89955272d59c46b2"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-2.md",
+      "size": 3445,
+      "sha256": "24f64071e9faabf886bf9f9730326aa5ed7cb0b69d4046a7f8d273972b6c7b7c"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-3.md",
+      "size": 2278,
+      "sha256": "c8e9322cdaef127a105bad0a318ecc2aaac9234976273750565c03ccb99b5023"
+    },
+    {
+      "path": "app/dashboard/admin/customers/trials/[trialId]/results/page.tsx",
+      "size": 2500,
+      "sha256": "900c2445cbd2bb3d3f6a6fdcd9d560b1dfc9da0b2d1bbac2dc7c68a653646644"
+    },
+    {
+      "path": "app/dashboard/admin/customers/trials/[trialId]/results/vip-seller-live.module.css",
+      "size": 2396,
+      "sha256": "738bee1af6139b875553dddc7b3c2658e36f47b598baa5c13e0ef966d2a70052"
+    },
+    {
+      "path": "app/dashboard/admin/customers/trials/[trialId]/results/vip-seller-live.tsx",
+      "size": 3703,
+      "sha256": "692914d9bf7c127c6c93587bdcb69ccdcf7823d83b31a3758c4a2f4cda3c9ad2"
+    },
+    {
+      "path": "app/dashboard/layout.tsx",
+      "size": 3516,
+      "sha256": "9a805ba8d31d24f0a5120339fb8a9bd62b34959fbbed0a2bb3d4a6b4b6a0ec35"
+    },
+    {
+      "path": "app/dashboard/trial/sales/page.tsx",
+      "size": 16155,
+      "sha256": "1982558fae0770d94835f2f570f6141fc9f329d5f9e82a0f9ab09cfcfef474ca"
+    },
+    {
+      "path": "app/dashboard/trial/sales/sales-trial.module.css",
+      "size": 5886,
+      "sha256": "13e8dad2dfa216b8ba8218d0cf8c74309c29d68dee3e1653815b11b8115aa910"
+    },
+    {
+      "path": "app/lead/[token]/actions.ts",
+      "size": 10346,
+      "sha256": "4370de616e0716d5253371471457e257de7cd948944dc4fd77286851282ad9b8"
+    },
+    {
+      "path": "app/lead/[token]/lead.module.css",
+      "size": 3355,
+      "sha256": "2082ebab8f45f90e240615c6f502bd0273bc61aef2d3274a34411af03a2efb8c"
+    },
+    {
+      "path": "app/lead/[token]/page.tsx",
+      "size": 10988,
+      "sha256": "95ea418dd5fe94a658f2f175ff9d0c7c29e3487b0eedc7070fc11d7a8df5aba3"
+    },
+    {
+      "path": "app/login/login-page.module.css",
+      "size": 1850,
+      "sha256": "a7936ba33ae9032956266deeacee8addb4dd3a98951f7ba45418532155cbafe7"
+    },
+    {
+      "path": "app/login/page.tsx",
+      "size": 7548,
+      "sha256": "98957043c8f46c4e1327414f9482f1c02c12231ed5031e628ca693d8d67389fa"
+    },
+    {
+      "path": "app/vip/layout.tsx",
+      "size": 1216,
+      "sha256": "496b9c2369ddaa0b6f9cbff178202b1c891526278b7c7239171c7f9e858c546b"
+    },
+    {
+      "path": "app/vip/onboarding/actions.ts",
+      "size": 5248,
+      "sha256": "25bc2552ad1125862f3642acbe312d1e35702742b29804b8549b0f1029552ade"
+    },
+    {
+      "path": "app/vip/onboarding/page.tsx",
+      "size": 25400,
+      "sha256": "a39bdde665baca3dcf2a419ac44201bf1e2b9543931d88db736a78e0fd7371e4"
+    },
+    {
+      "path": "app/vip/onboarding/vip-assistant-panel.tsx",
+      "size": 5151,
+      "sha256": "bd5819270dd1a4c55ba2de2dcf1ea4d1c910d4a4e854c572e1efddf776dc1991"
+    },
+    {
+      "path": "app/vip/onboarding/vip-onboarding.module.css",
+      "size": 13456,
+      "sha256": "c28405082439455ec4ac4873af4fc8461ad6313a83b634837458e0e7b7837bca"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-1.md",
+      "size": 3009,
+      "sha256": "b30c238f5aede82c65926ce9c218267c95c57c293d324f9425ad5cb887255c55"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-2.md",
+      "size": 1939,
+      "sha256": "9685b2ffafed3f2e38cfd1a26e9b7dc7594fb7c1b3ac4bd485353f27a65c1060"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-3.md",
+      "size": 2269,
+      "sha256": "d55747add3363092c764d54c7c1f093b4568c2be1f9840b8ac1b605a3f14baef"
+    },
+    {
+      "path": "src/components/vip-live-refresh.tsx",
+      "size": 396,
+      "sha256": "75dd9183aae1cf578c3113733c289b7edd91ae2fba47109c26b8cea4d3bffc3a"
+    },
+    {
+      "path": "src/lib/sales-trial-context.ts",
+      "size": 3725,
+      "sha256": "d10892776f2752fc7661fa369c8fa3acbfae72f92dcec90e929b68a6af9adcf4"
+    },
+    {
+      "path": "src/lib/sales-trial.ts",
+      "size": 2680,
+      "sha256": "04c355b6d8c93768a68b6b419336f2c017e94ea419a3b55e7e8f3eaa2e6555c0"
+    },
+    {
+      "path": "src/trial/status.ts",
+      "size": 4614,
+      "sha256": "b2290d2cc231c3dbfb2d752fff1c13be870c24cd574610e8baae95b903c24184"
+    },
+    {
+      "path": "src/vip/catalog.ts",
+      "size": 2894,
+      "sha256": "4a75a82f4e64a328974b98c81c7655c5c0cec97bbacfcf2574b972ffedb458e8"
+    },
+    {
+      "path": "src/vip/config.ts",
+      "size": 303,
+      "sha256": "bc2cac4cd425999e87c3baa3dc657e377990913ea87381aaacb3fe76cfb91725"
+    },
+    {
+      "path": "src/vip/live.ts",
+      "size": 7443,
+      "sha256": "a21c545263767203adfa4167a2652fee5c0dfd5168f74d4300d701951ecab4c2"
+    },
+    {
+      "path": "src/vip/onboarding-server.ts",
+      "size": 2713,
+      "sha256": "f5e196d78b0c5b89d53ef0a4c881ffdb5039e8dfd157fb46aed4bacc91bffebf"
+    },
+    {
+      "path": "src/vip/onboarding.ts",
+      "size": 5555,
+      "sha256": "5478cc18b8876a4818ddc73cc0eefbf51565d50e3437d197a212e62de95b7fe5"
+    },
+    {
+      "path": "src/vip/server.ts",
+      "size": 10920,
+      "sha256": "8944cb8110d9806bba1fadfc275472e4b4a7b978860f7c851f9b8efd8ce17599"
+    },
+    {
+      "path": "src/vip/status.ts",
+      "size": 1552,
+      "sha256": "80e02ad1302c54b9077c705269a9c5d69e957f55d2a4a5bd419dacd1701530b5"
+    },
+    {
+      "path": "src/vip/types.ts",
+      "size": 2372,
+      "sha256": "6548ffa2812c476c46430ace9e19aaabb72cbf9bee404784b003c1b76e5d13f7"
+    },
+    {
+      "path": "supabase/migrations/20261001153532_monitoria_vip_gate1_foundation.sql",
+      "size": 19123,
+      "sha256": "fb9c6243f317bb047aedbf16c2541bb7c82776ab1e4d8e2491a459fed40ebd6e"
+    },
+    {
+      "path": "supabase/migrations/20261001153713_monitoria_vip_gate1_index_hardening.sql",
+      "size": 856,
+      "sha256": "6a0c0d8a100caf3abd079ef14b8fec13805605758e5aa0d910b8555e2250cdb9"
+    },
+    {
+      "path": "supabase/migrations/20261001153831_monitoria_vip_gate1_atomic_invites.sql",
+      "size": 3193,
+      "sha256": "ae8fd238d96567fcded9009655badc1cb662468358b78837963eb2d411f015d8"
+    },
+    {
+      "path": "supabase/migrations/20261001154741_monitoria_vip_gate1_integrity_hardening.sql",
+      "size": 1715,
+      "sha256": "aa6a5964a9f1413d385a59ee6752dcb63388b15edbe32a6fdb2c83a4cf4961cf"
+    },
+    {
+      "path": "supabase/migrations/20261001162012_monitoria_vip_gate2_onboarding_readiness.sql",
+      "size": 9161,
+      "sha256": "b487ee9d8f909070438a3b5c8c5fe1a4a9f1e9e32f8fe842c073f6d62647ef7c"
+    },
+    {
+      "path": "supabase/migrations/20261001171911_monitoria_vip_gate3_trial_state_sync.sql",
+      "size": 2881,
+      "sha256": "2674a86eb5edb5890b086b4e16165f700540cc4f366438dbd55f164e65753cd4"
+    },
+    {
+      "path": "test/vip-gate1.test.ts",
+      "size": 5980,
+      "sha256": "81c970c5ab8130433e6f180a8931fc21ee40184b11051b482fa99252a497e375"
+    },
+    {
+      "path": "test/vip-gate2.test.ts",
+      "size": 4632,
+      "sha256": "24e245fd2d55796a14a713dc45bd88deb576847260c6cef8981a4bd9e3612df8"
+    },
+    {
+      "path": "test/vip-gate3.test.ts",
+      "size": 2754,
+      "sha256": "9db221e7fd57f78f2ff7a2ab6ee995b3de9c569fe50830c6a3a4bc2d2c88a22a"
+    }
+  ]
+}

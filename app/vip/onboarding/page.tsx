@@ -22,6 +22,10 @@ import {
   type SalesCameraOption,
 } from "@/app/dashboard/trial/sales/sales-camera-selection";
 import { readinessReasonLabel } from "@/src/trial/status";
+import { TrialCountdown } from "@/app/dashboard/trial/trial-countdown";
+import { VipLiveRefresh } from "@/src/components/vip-live-refresh";
+import { getVipTrialLiveSnapshotByProject } from "@/src/vip/live";
+import { VipAssistantPanel } from "./vip-assistant-panel";
 import { getVipPlanCatalog, getVipProjectForOrganization } from "@/src/vip/server";
 import { refreshVipOnboarding } from "@/src/vip/onboarding-server";
 import {
@@ -34,6 +38,7 @@ import {
 import {
   prepareVipTrialAction,
   refreshVipTrialAction,
+  startVipTrialAction,
 } from "./actions";
 import styles from "./vip-onboarding.module.css";
 
@@ -160,11 +165,15 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
   const { data: trial } = await supabase
     .from("trial_runs")
     .select(
-      "id,status,trial_mode,duration_minutes,max_cameras,capture_started_at,capture_ends_at,capture_completed_at",
+      "id,status,trial_mode,duration_minutes,max_cameras,capture_started_at,capture_ends_at,capture_completed_at,exploration_ends_at",
     )
     .eq("organization_id", organization.id)
     .eq("vip_project_id", refreshedProject.id)
     .maybeSingle();
+
+  const live = trial
+    ? await getVipTrialLiveSnapshotByProject(refreshedProject.id)
+    : null;
 
   let selectedIds: string[] = [];
   let cameraOptions: SalesCameraOption[] = [];
@@ -520,43 +529,92 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
                   </section>
                 ) : null}
 
-                {allSelectedReady ? (
+                {allSelectedReady && String(trial.status) === "ready" ? (
                   <div className={styles.readyToStart}>
                     <span>TUDO PRONTO</span>
                     <h3>As câmeras estão prontas e o relógio continua parado.</h3>
                     <p>
-                      O Gate 3 adicionará aqui o início sincronizado do teste,
-                      contador compartilhado e a Pesquisa IA durante os 60 minutos.
+                      O piloto só começa quando você confirmar abaixo. A partir desse
+                      clique, cliente e vendedor passam a ver o mesmo relógio de 60 minutos.
                     </p>
+                    {canManage ? (
+                      <form action={startVipTrialAction}>
+                        <button className={styles.startTrialButton} type="submit">
+                          Iniciar os 60 minutos agora
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            {onboarding.status === "trial_running" ? (
-              <div className={styles.placeholderState}>
-                <span>TESTE EM ANDAMENTO</span>
-                <h2>Seu piloto VIP está ativo.</h2>
-                <p>
-                  O estado já é reconhecido pelo onboarding. A experiência de
-                  acompanhamento em tempo real entra no Gate 3.
-                </p>
-                <strong className={styles.inlineNotice}>
-                  O acompanhamento completo dos 60 minutos entra no Gate 3 e permanecerá nesta mesma página.
-                </strong>
+            {onboarding.status === "trial_running" && live ? (
+              <div className={styles.liveTrial}>
+                <VipLiveRefresh intervalMs={10_000} />
+                <div className={styles.liveTrialHeader}>
+                  <div>
+                    <span>● PILOTO VIP EM ANDAMENTO</span>
+                    <h2>O MonitorIA está analisando sua operação agora.</h2>
+                    <p>
+                      Cliente e vendedor usam o mesmo relógio. As métricas abaixo
+                      são atualizadas automaticamente sem reiniciar a sessão.
+                    </p>
+                  </div>
+                  {live.captureEndsAt ? (
+                    <TrialCountdown target={live.captureEndsAt} label="Tempo restante" />
+                  ) : null}
+                </div>
+
+                <div className={styles.liveMetrics}>
+                  <div><span>CÂMERAS</span><strong>{live.camerasOnline}/{live.cameraCount}</strong><small>online no piloto</small></div>
+                  <div><span>ACONTECIMENTOS</span><strong>{live.eventCount}</strong><small>já consolidados</small></div>
+                  <div><span>PESQUISA IA</span><strong>{live.assistantRemaining}</strong><small>perguntas restantes</small></div>
+                  <div><span>AGENTS</span><strong>{live.agentsOnline}</strong><small>online agora</small></div>
+                </div>
+
+                <div className={styles.liveCameraGrid}>
+                  {live.cameras.map((camera) => (
+                    <article key={camera.id}>
+                      <div><span>{camera.siteName}</span><strong>{camera.name}</strong></div>
+                      <div className={styles.liveCameraStatus}>
+                        <b data-online={camera.cameraStatus === "online"}>
+                          {camera.cameraStatus === "online" ? "Câmera online" : "Câmera offline"}
+                        </b>
+                        <small>{camera.agentStatus === "online" ? "Agent online" : "Agent requer atenção"}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <VipAssistantPanel initialRemaining={live.assistantRemaining} />
               </div>
             ) : null}
 
-            {onboarding.status === "trial_completed" ? (
-              <div className={styles.placeholderState}>
-                <span>CAPTURA CONCLUÍDA</span>
-                <h2>Os dados do piloto continuam disponíveis.</h2>
-                <p>
-                  A captura foi encerrada. O relatório VIP e a proposta
-                  permanecerão dentro deste onboarding nas próximas etapas.
-                </p>
+            {onboarding.status === "trial_completed" && live ? (
+              <div className={styles.completedTrial}>
+                <VipLiveRefresh intervalMs={30_000} />
+                <div className={styles.completedHeader}>
+                  <span>CAPTURA CONCLUÍDA</span>
+                  <h2>Os 60 minutos terminaram, mas a análise continua disponível.</h2>
+                  <p>
+                    Nenhuma nova captura gratuita é iniciada. Os dados já registrados
+                    permanecem acessíveis durante o período de exploração e podem ser
+                    consultados pela Pesquisa IA antes da proposta comercial.
+                  </p>
+                </div>
+                <div className={styles.liveMetrics}>
+                  <div><span>CÂMERAS</span><strong>{live.cameraCount}</strong><small>participaram do piloto</small></div>
+                  <div><span>ACONTECIMENTOS</span><strong>{live.eventCount}</strong><small>registrados</small></div>
+                  <div><span>PESQUISA IA</span><strong>{live.assistantRemaining}</strong><small>perguntas restantes</small></div>
+                  <div><span>STATUS</span><strong>Concluído</strong><small>captura encerrada</small></div>
+                </div>
+                <VipAssistantPanel
+                  initialRemaining={live.assistantRemaining}
+                  trialFinished
+                />
                 <strong className={styles.inlineNotice}>
-                  O relatório VIP entra no Gate 4 e ficará nesta mesma sequência de implantação.
+                  O Gate 4 transformará esses dados no relatório de prova de valor e na proposta comercial, sem sair deste fluxo.
                 </strong>
               </div>
             ) : null}
