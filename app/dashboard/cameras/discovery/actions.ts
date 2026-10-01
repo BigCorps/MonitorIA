@@ -14,12 +14,24 @@ export type DiscoveryStartState = {
   runId?: string;
 };
 
+export type DiscoveryAgentOption = {
+  id: string;
+  name: string;
+  status: string;
+  siteId: string;
+  siteName: string;
+  lastHeartbeatAt: string | null;
+};
+
 /**
- * Cria o pedido de busca que o programa da loja vai executar.
+ * A busca precisa ser enviada ao Agent do local correto.
  *
- * O programa consulta o servidor de tempos em tempos; o pedido fica
- * esperando ali até a próxima consulta. Por isso a tela avisa que pode levar
- * alguns segundos para começar — não é travamento.
+ * Antes a action pegava o primeiro Agent não desabilitado da organização.
+ * Em empresas com várias filiais isso fazia uma busca do Local B chegar ao
+ * computador do Local A. Agora o painel pode enviar agent_id explicitamente.
+ *
+ * Chamadas antigas/onboarding sem agent_id continuam funcionando quando há
+ * um único Agent online: escolhemos o mais recente pelo heartbeat.
  */
 export async function startDiscoveryAction(
   _previousState: DiscoveryStartState,
@@ -49,6 +61,7 @@ export async function startDiscoveryAction(
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const cameraCount = Number(formData.get("cameraCount") ?? 4);
+  const requestedAgentId = String(formData.get("agent_id") ?? "").trim();
 
   if (!username) {
     return {
@@ -66,30 +79,49 @@ export async function startDiscoveryAction(
 
   const supabase = createAdminClient();
 
-  const { data: agent, error: agentError } = await supabase
+  let agentQuery = supabase
     .from("agents")
-    .select("id,site_id")
+    .select("id,site_id,status,last_heartbeat_at")
     .eq("organization_id", organization.id)
-    .neq("status", "disabled")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .neq("status", "disabled");
+
+  if (requestedAgentId) {
+    agentQuery = agentQuery.eq("id", requestedAgentId);
+  } else {
+    // Compatibilidade com o onboarding antigo: quando não há seletor,
+    // escolha o Agent online que falou mais recentemente.
+    agentQuery = agentQuery
+      .eq("status", "online")
+      .order("last_heartbeat_at", {
+        ascending: false,
+        nullsFirst: false,
+      })
+      .limit(1);
+  }
+
+  const { data: agent, error: agentError } = await agentQuery.maybeSingle();
 
   if (agentError || !agent) {
     return {
       status: "error",
+      message: requestedAgentId
+        ? "O computador selecionado não está disponível nesta empresa."
+        : "Nenhum computador online está conectado. Confirme o Agent deste local.",
+    };
+  }
+
+  if (String((agent as { status: string }).status) !== "online") {
+    return {
+      status: "error",
       message:
-        "Nenhum computador da loja está conectado ainda. Instale o programa " +
-        "do MonitorIA no computador que fica ligado e volte aqui.",
+        "O computador selecionado está offline. Ligue o Agent deste local e tente novamente.",
     };
   }
 
   const agentId = String((agent as { id: string }).id);
+  const siteId = String((agent as { site_id: string }).site_id);
   const nowIso = new Date().toISOString();
 
-  // Uma busca por vez. Encerra o que já passou do prazo antes de tentar
-  // criar a nova, senão o índice único recusa o pedido novo por causa de um
-  // pedido morto.
   await supabase
     .from("discovery_runs")
     .update({
@@ -120,13 +152,13 @@ export async function startDiscoveryAction(
     .from("discovery_runs")
     .insert({
       organization_id: organization.id,
-      site_id: String((agent as { site_id: string }).site_id),
+      site_id: siteId,
       agent_id: agentId,
       requested_by: user.id,
       camera_count_hint: Math.round(cameraCount),
       username,
       credentials_sealed: sealCredentials({ username, password }),
-      progress_message: "Aguardando o programa da loja receber o pedido.",
+      progress_message: "Aguardando o Agent deste local receber o pedido.",
     })
     .select("id")
     .maybeSingle();
@@ -143,10 +175,12 @@ export async function startDiscoveryAction(
     };
   }
 
-  return { status: "started", runId: String((data as { id: string }).id) };
+  return {
+    status: "started",
+    runId: String((data as { id: string }).id),
+  };
 }
 
-/** Cancela a busca em andamento e apaga a senha guardada. */
 export async function cancelDiscoveryAction(runId: string) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -199,12 +233,6 @@ export type DiscoveryStatus = {
   failureMessage: string | null;
 };
 
-/**
- * Estado atual de uma busca, para a tela acompanhar.
- *
- * `failure_detail` existe na tabela e nunca é lido aqui de propósito: é
- * texto técnico e não pode chegar à tela do cliente.
- */
 export async function getDiscoveryStatusAction(
   runId: string,
 ): Promise<DiscoveryStatus> {
@@ -251,7 +279,9 @@ export async function getDiscoveryStatusAction(
         streamCount: Number(item.streamCount ?? 0),
         connected: item.connected === true,
         failureMessage:
-          typeof item.failureMessage === "string" ? item.failureMessage : null,
+          typeof item.failureMessage === "string"
+            ? item.failureMessage
+            : null,
       }))
     : [];
 
@@ -260,13 +290,17 @@ export async function getDiscoveryStatusAction(
     step: String(row.progress_step ?? "queued"),
     percent: Number(row.progress_percent ?? 0),
     message:
-      typeof row.progress_message === "string" ? row.progress_message : null,
+      typeof row.progress_message === "string"
+        ? row.progress_message
+        : null,
     found: Number(row.found_count ?? 0),
     connected: Number(row.connected_count ?? 0),
     alreadyConnected: Number(row.already_connected_count ?? 0),
     cameraCountHint: Number(row.camera_count_hint ?? 0),
     devices,
     failureMessage:
-      typeof row.failure_message === "string" ? row.failure_message : null,
+      typeof row.failure_message === "string"
+        ? row.failure_message
+        : null,
   };
 }

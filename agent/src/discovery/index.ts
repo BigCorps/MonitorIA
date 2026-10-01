@@ -5,8 +5,8 @@ import {
   candidatesFor,
   normalizeForRegistry,
   normalizeVendor,
-  RTSP_PORTS,
 } from "./catalog.js";
+import { isLikelySameVisualStream } from "./frame-fingerprint.js";
 import {
   getDeviceInformation,
   getProfiles,
@@ -29,23 +29,17 @@ import type {
   ValidationLevel,
 } from "./types.js";
 
-/**
- * Esperas toleradas numa mesma porta antes de desistir dela.
- *
- * Uma porta que aceita a conexão e nunca entrega vídeo custa os tempos
- * limite do ffprobe a cada caminho testado. Com dez caminhos, isso vira
- * minutos de tela parada para o cliente.
- */
 const MAX_TIMEOUTS_PER_PORT = 2;
 
 /**
- * Orquestração da descoberta, na ordem do item 7 da diretriz.
+ * Quantos canais consecutivos podem devolver a MESMA imagem antes de
+ * considerarmos que o firmware está apenas aceitando qualquer número de
+ * canal e redirecionando tudo para a mesma fonte.
  *
- * ONVIF → caminhos oficiais → candidatos genéricos → URL manual.
- *
- * Toda URI, venha de onde vier, passa pela mesma validação. O nível de
- * confiança só decide a ordem de tentativa e o rótulo mostrado ao lojista.
+ * Três é conservador: ainda permite um firmware esquisito ter um alias no
+ * meio da numeração, sem varrer 32/64 aliases idênticos como câmeras reais.
  */
+const MAX_CONSECUTIVE_VISUAL_ALIASES = 3;
 
 export type DiscoveryResult = {
   device: DiscoveredDevice;
@@ -54,29 +48,15 @@ export type DiscoveryResult = {
   onvifSupported: boolean;
   streams: Array<{
     rtspUrl: string;
-    /** Sem credencial e sem IP, para exibição e registro. */
     displayPath: string;
     port: number;
     stream: "main" | "sub";
     level: ValidationLevel;
     profileToken: string | null;
-    /**
-     * Canal do aparelho. 1 para câmera IP, 1..N para gravador.
-     *
-     * Cada canal vira uma câmera no painel. Dois streams com o mesmo canal
-     * são a mesma câmera em qualidades diferentes.
-     */
     channel: number;
-    /**
-     * Identificador da fonte de vídeo, quando o ONVIF informa.
-     *
-     * Mais confiável que o número do canal para agrupar: é o próprio
-     * aparelho dizendo quais perfis são a mesma câmera.
-     */
     sourceKey: string | null;
     validation: StreamValidationResult;
   }>;
-  /** Preenchido quando nada funcionou, para a interface explicar o motivo. */
   failure: { code: string; message: string } | null;
 };
 
@@ -86,14 +66,6 @@ function log(logger: ((message: string) => void) | undefined, message: string) {
   logger?.(message);
 }
 
-/**
- * Escolhe o melhor stream entre os validados.
- *
- * Ordem de preferência da diretriz: substream H.264 até 720p, depois stream
- * principal H.264, depois H.265. O MonitorIA analisa acontecimentos, não
- * detalhe — e stream leve é mais estável e não disputa banda com o gravador
- * da loja.
- */
 export function rankStreams(streams: DiscoveryResult["streams"]) {
   const score = (entry: DiscoveryResult["streams"][number]) => {
     const { codec, height } = entry.validation;
@@ -111,11 +83,13 @@ export function rankStreams(streams: DiscoveryResult["streams"]) {
 }
 
 async function resolveTools(): Promise<Tools> {
-  const [ffmpegPath, ffprobePath] = await Promise.all([resolveFfmpeg(), resolveFfprobe()]);
+  const [ffmpegPath, ffprobePath] = await Promise.all([
+    resolveFfmpeg(),
+    resolveFfprobe(),
+  ]);
   return { ffmpegPath, ffprobePath };
 }
 
-/** Endereços de serviço ONVIF a tentar quando o WS-Discovery não os trouxe. */
 function fallbackServiceUrls(host: string) {
   return [
     `http://${host}/onvif/device_service`,
@@ -131,19 +105,26 @@ async function readOnvif(
   logger?: (message: string) => void,
 ) {
   const urls =
-    device.serviceUrls.length > 0 ? device.serviceUrls : fallbackServiceUrls(device.host);
+    device.serviceUrls.length > 0
+      ? device.serviceUrls
+      : fallbackServiceUrls(device.host);
 
   for (const serviceUrl of urls) {
     try {
-      const information = await getDeviceInformation(serviceUrl, credentials);
+      const information = await getDeviceInformation(
+        serviceUrl,
+        credentials,
+      );
 
       let mediaUrl: string | null = null;
       let generation: "media" | "media2" = "media";
 
       try {
-        const services = await getServices(serviceUrl, credentials);
+        const services = await getServices(
+          serviceUrl,
+          credentials,
+        );
 
-        // Media2 primeiro: firmwares recentes só expõem essa geração.
         const media2 = services.get(NS.media2);
         const media = services.get(NS.media);
 
@@ -158,22 +139,44 @@ async function readOnvif(
         // GetServices é opcional em firmwares antigos.
       }
 
-      if (!mediaUrl) mediaUrl = serviceUrl.replace(/\/device_service$/i, "/media_service");
+      if (!mediaUrl) {
+        mediaUrl = serviceUrl.replace(
+          /\/device_service$/i,
+          "/media_service",
+        );
+      }
 
       let profiles: OnvifProfile[] = [];
 
       try {
-        profiles = await getProfiles(mediaUrl, credentials, generation);
+        profiles = await getProfiles(
+          mediaUrl,
+          credentials,
+          generation,
+        );
       } catch {
         if (generation === "media2") {
           generation = "media";
-          profiles = await getProfiles(mediaUrl, credentials, "media").catch(() => []);
+          profiles = await getProfiles(
+            mediaUrl,
+            credentials,
+            "media",
+          ).catch(() => []);
         }
       }
 
-      return { serviceUrl, mediaUrl, generation, information, profiles };
+      return {
+        serviceUrl,
+        mediaUrl,
+        generation,
+        information,
+        profiles,
+      };
     } catch (error) {
-      if (error instanceof OnvifError && error.status === 401) {
+      if (
+        error instanceof OnvifError &&
+        error.status === 401
+      ) {
         log(
           logger,
           `Credencial ONVIF recusada em ${device.host}. ` +
@@ -181,7 +184,6 @@ async function readOnvif(
         );
         return null;
       }
-      // Endereço errado é esperado no fallback; tenta o próximo.
     }
   }
 
@@ -191,20 +193,43 @@ async function readOnvif(
 function displayPath(rtspUrl: string) {
   try {
     const parsed = new URL(rtspUrl);
-    return `rtsp://{USUARIO}:{SENHA}@{IP}:${parsed.port || 554}${parsed.pathname}${parsed.search}`;
+    return (
+      `rtsp://{USUARIO}:{SENHA}@{IP}:${parsed.port || 554}` +
+      `${parsed.pathname}${parsed.search}`
+    );
   } catch {
     return "rtsp://{USUARIO}:{SENHA}@{IP}";
   }
 }
 
-/**
- * Descobre e valida os streams de um dispositivo.
- *
- * Para na primeira URI validada com sucesso por nível, para não abrir dezenas
- * de conexões: muitos aparelhos limitam sessões RTSP simultâneas a duas ou
- * quatro, e esgotar esse limite durante a descoberta faria o próprio
- * monitoramento falhar em seguida.
- */
+function duplicateChannelFor(
+  streams: DiscoveryResult["streams"],
+  validation: StreamValidationResult,
+) {
+  if (!validation.frameFingerprint) return null;
+
+  for (const existing of streams) {
+    if (
+      !existing.validation.success ||
+      existing.sourceKey !== null ||
+      !existing.validation.frameFingerprint
+    ) {
+      continue;
+    }
+
+    if (
+      isLikelySameVisualStream(
+        existing.validation.frameFingerprint,
+        validation.frameFingerprint,
+      )
+    ) {
+      return existing.channel;
+    }
+  }
+
+  return null;
+}
+
 export async function discoverDeviceStreams(options: {
   device: DiscoveredDevice;
   credentials: Credentials;
@@ -216,9 +241,7 @@ export async function discoverDeviceStreams(options: {
   const { device, credentials } = options;
   const logger = options.log;
 
-  // Portas anunciadas pelo próprio ONVIF, mesmo que a varredura não as veja.
   const onvifPorts = new Set<number>();
-  // Fonte de vídeo -> número do canal, na ordem em que o aparelho as lista.
   const canalPorFonte = new Map<string, number>();
 
   const result: DiscoveryResult = {
@@ -230,8 +253,11 @@ export async function discoverDeviceStreams(options: {
     failure: null,
   };
 
-  // Passos 1 a 5: ONVIF é sempre o caminho preferencial.
-  const onvif = await readOnvif(device, credentials, logger);
+  const onvif = await readOnvif(
+    device,
+    credentials,
+    logger,
+  );
 
   if (onvif) {
     result.onvifSupported = true;
@@ -241,11 +267,10 @@ export async function discoverDeviceStreams(options: {
       normalizeVendor(onvif.information.model) ??
       result.vendor;
 
-    // A câmera de homologação devolve estes campos em branco, não nulos.
-    // Tratar string vazia como ausente evita log enganoso e impede que o
-    // catálogo registre fabricante "" como se fosse informação.
-    const fabricante = onvif.information.manufacturer?.trim() || null;
-    const modelo = onvif.information.model?.trim() || null;
+    const fabricante =
+      onvif.information.manufacturer?.trim() || null;
+    const modelo =
+      onvif.information.model?.trim() || null;
 
     log(
       logger,
@@ -259,109 +284,141 @@ export async function discoverDeviceStreams(options: {
       let uri: string | null = null;
 
       try {
-        uri = await getStreamUri(onvif.mediaUrl, credentials, profile.token, onvif.generation);
+        uri = await getStreamUri(
+          onvif.mediaUrl,
+          credentials,
+          profile.token,
+          onvif.generation,
+        );
       } catch (error) {
-        // A versão anterior engolia esta falha com um catch vazio. Em campo,
-        // a câmera de homologação respondeu GetProfiles e falhou aqui — e o
-        // log não dizia por quê, o que tornou o problema não diagnosticável.
         log(
           logger,
           `GetStreamUri falhou no perfil "${profile.name}" (${onvif.generation}): ` +
             `${error instanceof Error ? error.message : "erro desconhecido"}`,
         );
 
-        // Firmwares que anunciam Media2 mas implementam o formato antigo são
-        // comuns. Vale uma tentativa na outra geração antes de desistir.
-        const alternativa = onvif.generation === "media2" ? "media" : "media2";
+        const alternativa =
+          onvif.generation === "media2"
+            ? "media"
+            : "media2";
 
         try {
-          uri = await getStreamUri(onvif.mediaUrl, credentials, profile.token, alternativa);
+          uri = await getStreamUri(
+            onvif.mediaUrl,
+            credentials,
+            profile.token,
+            alternativa,
+          );
           if (uri) {
-            log(logger, `GetStreamUri funcionou na geração ${alternativa}.`);
+            log(
+              logger,
+              `GetStreamUri funcionou na geração ${alternativa}.`,
+            );
           }
         } catch (segundoErro) {
           log(
             logger,
             `GetStreamUri também falhou em ${alternativa}: ` +
-              `${segundoErro instanceof Error ? segundoErro.message : "erro desconhecido"}`,
+              `${
+                segundoErro instanceof Error
+                  ? segundoErro.message
+                  : "erro desconhecido"
+              }`,
           );
           continue;
         }
       }
 
       if (!uri) {
-        log(logger, `O perfil "${profile.name}" não devolveu URI de stream.`);
+        log(
+          logger,
+          `O perfil "${profile.name}" não devolveu URI de stream.`,
+        );
         continue;
       }
 
-      const rtspUrl = withCredentials(uri, credentials);
+      const rtspUrl = withCredentials(
+        uri,
+        credentials,
+      );
       const validation = await validateStream({
-          ...tools,
-          rtspUrl,
-          credentials,
-          ...(logger ? { log: logger } : {}),
-        });
+        ...tools,
+        rtspUrl,
+        credentials,
+        ...(logger ? { log: logger } : {}),
+      });
 
       let port = 554;
       try {
-        port = Number(new URL(rtspUrl).port || 554);
+        port = Number(
+          new URL(rtspUrl).port || 554,
+        );
       } catch {
-        // Mantém o padrão.
+        // Mantém padrão.
       }
 
-      // A porta que o aparelho declarou vale mais que a varredura: o scan usa
-      // tempo limite de 900ms e perde porta de aparelho lento. Sem isto, uma
-      // câmera que fala ONVIF na 8080 e serve vídeo na 554 nunca tinha a 554
-      // testada, e terminava com "não respondeu ao protocolo RTSP".
-      if (Number.isFinite(port) && port > 0) onvifPorts.add(port);
+      if (
+        Number.isFinite(port) &&
+        port > 0
+      ) {
+        onvifPorts.add(port);
+      }
 
-      // Agrupa por fonte de vídeo. Num gravador, cada câmera ligada nele é
-      // uma fonte, e o número do canal sai da ordem em que elas aparecem.
-      //
-      // Quando o firmware não declara a fonte, todos os perfis contam como
-      // canal 1. A versão anterior caía para o token do perfil, que é único
-      // por perfil — e isso fazia uma câmera IP comum, com perfil de alta e
-      // de baixa resolução, ser lida como duas câmeras diferentes. Sem fonte
-      // declarada não há como separar canal de qualidade, e supor que há é
-      // pior do que admitir que não há: gravador nessa situação ainda é
-      // atendido pela varredura de canais do plano B.
       const chave = profile.sourceToken;
-      if (chave && !canalPorFonte.has(chave)) {
-        canalPorFonte.set(chave, canalPorFonte.size + 1);
+      if (
+        chave &&
+        !canalPorFonte.has(chave)
+      ) {
+        canalPorFonte.set(
+          chave,
+          canalPorFonte.size + 1,
+        );
       }
 
       result.streams.push({
         rtspUrl,
         displayPath: displayPath(rtspUrl),
         port,
-        // Perfil de menor resolução é tratado como substream.
-        stream: (profile.height ?? 0) > 0 && (profile.height ?? 0) <= 720 ? "sub" : "main",
+        stream:
+          (profile.height ?? 0) > 0 &&
+          (profile.height ?? 0) <= 720
+            ? "sub"
+            : "main",
         level: "onvif_discovered",
         profileToken: profile.token,
-        channel: chave ? (canalPorFonte.get(chave) ?? 1) : 1,
+        channel: chave
+          ? canalPorFonte.get(chave) ?? 1
+          : 1,
         sourceKey: chave ?? null,
         validation,
       });
 
       if (validation.success) {
-        log(logger, `Stream validado por ONVIF no perfil "${profile.name}".`);
+        log(
+          logger,
+          `Stream validado por ONVIF no perfil "${profile.name}".`,
+        );
       }
     }
 
-    // Antes bastava um stream válido para encerrar. Num gravador isso
-    // devolvia o canal 1 e descartava os outros sete. Agora só encerra
-    // quando toda fonte anunciada tem pelo menos um stream funcionando.
     const fontesComVideo = new Set(
       result.streams
-        .filter((entry) => entry.validation.success)
+        .filter(
+          (entry) =>
+            entry.validation.success,
+        )
         .map((entry) => entry.channel),
     );
 
-    // Sem fonte declarada, `canalPorFonte` fica vazio e um stream válido já
-    // encerra — que é o comportamento de sempre para câmera IP.
-    const fontesEsperadas = Math.max(canalPorFonte.size, 1);
+    const fontesEsperadas = Math.max(
+      canalPorFonte.size,
+      1,
+    );
 
-    if (fontesComVideo.size > 0 && fontesComVideo.size >= fontesEsperadas) {
+    if (
+      fontesComVideo.size > 0 &&
+      fontesComVideo.size >= fontesEsperadas
+    ) {
       if (canalPorFonte.size > 1) {
         log(
           logger,
@@ -372,13 +429,21 @@ export async function discoverDeviceStreams(options: {
     }
   }
 
-  // Passos 8 a 10: caminhos oficiais da família, depois genéricos.
-  const channels = options.channels ?? [1];
-  const candidates = candidatesFor({ vendor: result.vendor, includeGeneric: true });
+  const channels =
+    options.channels ?? [1];
+  const candidates = candidatesFor({
+    vendor: result.vendor,
+    includeGeneric: true,
+  });
 
-  // Sonda as portas uma única vez em vez de testar todo caminho em todas.
-  const varridas = await openRtspPorts(device.host);
-  const portasAbertas = [...new Set([...varridas, ...onvifPorts])];
+  const varridas =
+    await openRtspPorts(device.host);
+  const portasAbertas = [
+    ...new Set([
+      ...varridas,
+      ...onvifPorts,
+    ]),
+  ];
 
   if (portasAbertas.length === 0) {
     result.failure = {
@@ -395,12 +460,16 @@ export async function discoverDeviceStreams(options: {
   log(
     logger,
     `ONVIF não produziu stream utilizável em ${device.host}. ` +
-      `Testando ${candidates.length} caminho(s) na(s) porta(s) ${portasAbertas.join(", ")}.`,
+      `Testando ${candidates.length} caminho(s) na(s) porta(s) ` +
+      `${portasAbertas.join(", ")}.`,
   );
 
-  let lastFailure: StreamValidationResult | null = null;
-  const nonRtspPorts = new Set<number>();
-  const timeoutsByPort = new Map<number, number>();
+  let lastFailure: StreamValidationResult | null =
+    null;
+  const nonRtspPorts =
+    new Set<number>();
+  const timeoutsByPort =
+    new Map<number, number>();
 
   const provar = async (
     candidate: (typeof candidates)[number],
@@ -415,32 +484,31 @@ export async function discoverDeviceStreams(options: {
       credentials,
     });
 
-    const validation = await validateStream({
-      ...tools,
-      rtspUrl,
-      credentials,
-      ...(logger ? { log: logger } : {}),
-    });
+    const validation =
+      await validateStream({
+        ...tools,
+        rtspUrl,
+        credentials,
+        ...(logger
+          ? { log: logger }
+          : {}),
+      });
 
-    return { rtspUrl, validation };
+    return {
+      rtspUrl,
+      validation,
+    };
   };
 
-  /**
-   * Fase 1: achar um caminho que funcione, testando só o canal 1.
-   *
-   * A ordem antiga era caminho, depois canal, depois porta — o que fazia o
-   * número de tentativas ser multiplicado pela quantidade de câmeras
-   * informada pelo cliente, inclusive nos caminhos que nunca funcionariam.
-   * Um gravador de oito canais custava oito vezes mais tempo para descobrir
-   * a mesma coisa.
-   */
   let vencedor: {
     candidate: (typeof candidates)[number];
     port: number;
   } | null = null;
 
   busca: for (const candidate of candidates) {
-    const portas = [...portasAbertas].sort((a, b) => {
+    const portas = [
+      ...portasAbertas,
+    ].sort((a, b) => {
       if (a === candidate.defaultPort) return -1;
       if (b === candidate.defaultPort) return 1;
       return a - b;
@@ -448,34 +516,58 @@ export async function discoverDeviceStreams(options: {
 
     for (const port of portas) {
       if (nonRtspPorts.has(port)) continue;
-      if ((timeoutsByPort.get(port) ?? 0) >= MAX_TIMEOUTS_PER_PORT) continue;
+      if (
+        (timeoutsByPort.get(port) ?? 0) >=
+        MAX_TIMEOUTS_PER_PORT
+      ) {
+        continue;
+      }
 
-      const { rtspUrl, validation } = await provar(candidate, port, 1);
+      const { rtspUrl, validation } =
+        await provar(
+          candidate,
+          port,
+          1,
+        );
 
-      // Credencial errada não melhora com outro caminho: aborta tudo e
-      // devolve a mensagem certa em vez de mil tentativas inúteis.
-      if (validation.rtspStatus === 401 || validation.rtspStatus === 403) {
+      if (
+        validation.rtspStatus === 401 ||
+        validation.rtspStatus === 403
+      ) {
         result.failure = {
           code: "unauthorized",
           message:
-            validation.errorMessage ?? "Usuário ou senha da câmera incorretos.",
+            validation.errorMessage ??
+            "Usuário ou senha da câmera incorretos.",
         };
         return result;
       }
 
-      // Porta 80/88/8080 aberta muitas vezes é apenas o painel HTTP. Se a
-      // primeira tentativa nem sequer recebeu resposta RTSP, repetir dez
-      // caminhos nessa mesma porta só adiciona minutos de timeout.
-      if (validation.rtspStatus === 0) {
+      if (
+        validation.rtspStatus === 0
+      ) {
         nonRtspPorts.add(port);
-        log(logger, `A porta ${port} não respondeu como RTSP e será ignorada.`);
+        log(
+          logger,
+          `A porta ${port} não respondeu como RTSP e será ignorada.`,
+        );
       }
 
-      if (!validation.success && validation.rtspStatus === undefined) {
-        const total = (timeoutsByPort.get(port) ?? 0) + 1;
-        timeoutsByPort.set(port, total);
+      if (
+        !validation.success &&
+        validation.rtspStatus === undefined
+      ) {
+        const total =
+          (timeoutsByPort.get(port) ?? 0) + 1;
+        timeoutsByPort.set(
+          port,
+          total,
+        );
 
-        if (total >= MAX_TIMEOUTS_PER_PORT) {
+        if (
+          total >=
+          MAX_TIMEOUTS_PER_PORT
+        ) {
           log(
             logger,
             `A porta ${port} aceita conexão mas não entrega vídeo. ` +
@@ -487,18 +579,26 @@ export async function discoverDeviceStreams(options: {
       if (validation.success) {
         result.streams.push({
           rtspUrl,
-          displayPath: normalizeForRegistry(candidate),
+          displayPath:
+            normalizeForRegistry(candidate),
           port,
           stream: candidate.stream,
-          level: candidate.validationLevel,
+          level:
+            candidate.validationLevel,
           profileToken: null,
           channel: 1,
           sourceKey: null,
           validation,
         });
 
-        log(logger, `Stream validado pelo caminho ${candidate.pathTemplate}.`);
-        vencedor = { candidate, port };
+        log(
+          logger,
+          `Stream validado pelo caminho ${candidate.pathTemplate}.`,
+        );
+        vencedor = {
+          candidate,
+          port,
+        };
         break busca;
       }
 
@@ -506,61 +606,119 @@ export async function discoverDeviceStreams(options: {
     }
   }
 
-  /**
-   * Fase 2: com o caminho já provado, varrer os canais seguintes.
-   *
-   * Só aqui o número de câmeras informado pelo cliente é usado, e sobre um
-   * caminho que comprovadamente responde. Um canal vazio custa uma tentativa,
-   * não dez.
-   */
-  if (vencedor && channels.length > 1) {
-    const seguintes = channels.filter((channel) => channel !== 1);
+  if (
+    vencedor &&
+    channels.length > 1
+  ) {
+    const seguintes =
+      channels.filter(
+        (channel) => channel !== 1,
+      );
     let vazios = 0;
+    let aliasesVisuaisSeguidos = 0;
 
     for (const channel of seguintes) {
-      // Gravador costuma ter canais contíguos. Duas ausências seguidas
-      // significam que a numeração acabou — insistir até 64 seria gastar
-      // minutos para confirmar o que já se sabe.
       if (vazios >= 2) {
-        log(logger, `Canais encerrados em ${channel - 1}: dois vazios seguidos.`);
+        log(
+          logger,
+          `Canais encerrados em ${channel - 1}: dois vazios seguidos.`,
+        );
         break;
       }
 
-      const { rtspUrl, validation } = await provar(
-        vencedor.candidate,
-        vencedor.port,
-        channel,
-      );
+      if (
+        aliasesVisuaisSeguidos >=
+        MAX_CONSECUTIVE_VISUAL_ALIASES
+      ) {
+        log(
+          logger,
+          "A varredura de canais foi encerrada porque vários números " +
+            "consecutivos devolveram a mesma imagem. O equipamento parece " +
+            "aceitar aliases de canal em vez de fontes físicas diferentes.",
+        );
+        break;
+      }
+
+      const { rtspUrl, validation } =
+        await provar(
+          vencedor.candidate,
+          vencedor.port,
+          channel,
+        );
 
       if (validation.success) {
         vazios = 0;
+
+        const duplicateOf =
+          duplicateChannelFor(
+            result.streams,
+            validation,
+          );
+
+        if (duplicateOf !== null) {
+          aliasesVisuaisSeguidos += 1;
+
+          log(
+            logger,
+            `Canal ${channel} devolveu a mesma imagem do canal ${duplicateOf}; ` +
+              "tratando como alias e não como nova câmera.",
+          );
+
+          continue;
+        }
+
+        aliasesVisuaisSeguidos = 0;
+
         result.streams.push({
           rtspUrl,
-          displayPath: normalizeForRegistry(vencedor.candidate),
+          displayPath:
+            normalizeForRegistry(
+              vencedor.candidate,
+            ),
           port: vencedor.port,
-          stream: vencedor.candidate.stream,
-          level: vencedor.candidate.validationLevel,
+          stream:
+            vencedor.candidate.stream,
+          level:
+            vencedor.candidate
+              .validationLevel,
           profileToken: null,
           channel,
           sourceKey: null,
           validation,
         });
 
-        log(logger, `Canal ${channel} validado no mesmo caminho.`);
+        log(
+          logger,
+          `Canal ${channel} validado como imagem diferente.`,
+        );
       } else {
         vazios += 1;
+        aliasesVisuaisSeguidos = 0;
       }
     }
 
-    const canais = new Set(result.streams.map((entry) => entry.channel)).size;
+    const canais = new Set(
+      result.streams
+        .filter(
+          (entry) =>
+            entry.validation.success,
+        )
+        .map((entry) => entry.channel),
+    ).size;
+
     if (canais > 1) {
-      log(logger, `Gravador com ${canais} canal(is) de vídeo encontrado(s).`);
+      log(
+        logger,
+        `Gravador com ${canais} canal(is) de vídeo distinto(s) encontrado(s).`,
+      );
     }
   }
 
   if (result.streams.length === 0) {
     result.failure = {
-      code: lastFailure?.errorCode ?? "no_stream",
+      code:
+        lastFailure?.errorCode ??
+        "no_stream",
       message:
         lastFailure?.errorMessage ??
         "A câmera foi encontrada, mas não conseguimos abrir o vídeo.",
@@ -570,18 +728,19 @@ export async function discoverDeviceStreams(options: {
   return result;
 }
 
-/** Passos 1 e 2: combina ONVIF e varredura TCP para não perder câmeras. */
 export async function discoverDevices(options?: {
   log?: (message: string) => void;
   skipScan?: boolean;
   hosts?: string[];
 }): Promise<DiscoveredDevice[]> {
   const logger = options?.log;
-  const byHost = new Map<string, DiscoveredDevice>();
+  const byHost =
+    new Map<string, DiscoveredDevice>();
 
-  const probeOptions = logger ? { log: logger } : {};
+  const probeOptions = logger
+    ? { log: logger }
+    : {};
 
-  // O modo manual continua aceitando uma lista explícita de endereços.
   if (options?.hosts?.length) {
     return scanLocalNetwork({
       ...probeOptions,
@@ -589,11 +748,21 @@ export async function discoverDevices(options?: {
     });
   }
 
-  for (const device of await probeOnvifDevices(probeOptions)) {
-    byHost.set(device.host, device);
+  for (
+    const device of
+    await probeOnvifDevices(
+      probeOptions,
+    )
+  ) {
+    byHost.set(
+      device.host,
+      device,
+    );
   }
 
-  if (options?.skipScan) return [...byHost.values()];
+  if (options?.skipScan) {
+    return [...byHost.values()];
+  }
 
   log(
     logger,
@@ -602,34 +771,58 @@ export async function discoverDevices(options?: {
       : "Nenhum dispositivo respondeu ao ONVIF. Partindo para varredura da rede local.",
   );
 
-  for (const device of await scanLocalNetwork(probeOptions)) {
-    if (!byHost.has(device.host)) byHost.set(device.host, device);
+  for (
+    const device of
+    await scanLocalNetwork(
+      probeOptions,
+    )
+  ) {
+    if (!byHost.has(device.host)) {
+      byHost.set(
+        device.host,
+        device,
+      );
+    }
   }
 
   return [...byHost.values()];
 }
 
-/** Passo 13: registro do que funcionou, para a base de compatibilidade. */
 export function compatibilityRecordFrom(
   result: DiscoveryResult,
   chosen: DiscoveryResult["streams"][number],
   agentVersion: string,
 ): CompatibilityRecord {
-  const { width, height, codec } = chosen.validation;
+  const {
+    width,
+    height,
+    codec,
+  } = chosen.validation;
 
   return {
-    vendor: result.information?.manufacturer ?? result.vendor,
-    model: result.information?.model ?? null,
-    firmware: result.information?.firmwareVersion ?? null,
+    vendor:
+      result.information?.manufacturer ??
+      result.vendor,
+    model:
+      result.information?.model ??
+      null,
+    firmware:
+      result.information?.firmwareVersion ??
+      null,
     deviceType: "camera",
     source: chosen.level,
     rtspPort: chosen.port,
     pathTemplate: chosen.displayPath,
     streamType: chosen.stream,
     codec: codec ?? null,
-    resolution: width && height ? `${width}x${height}` : null,
-    onvifSupported: result.onvifSupported,
-    validatedAt: new Date().toISOString(),
+    resolution:
+      width && height
+        ? `${width}x${height}`
+        : null,
+    onvifSupported:
+      result.onvifSupported,
+    validatedAt:
+      new Date().toISOString(),
     agentVersion,
   };
 }

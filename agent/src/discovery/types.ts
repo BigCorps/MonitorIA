@@ -7,6 +7,8 @@
  * validação real de stream, independente do nível.
  */
 
+import type { FrameFingerprint } from "./frame-fingerprint.js";
+
 export type ValidationLevel =
   /** Testado fisicamente pela equipe num modelo específico. */
   | "hardware_validated"
@@ -55,6 +57,13 @@ export type StreamValidationResult = {
   bitrateKbps?: number;
   firstFrameDecoded: boolean;
   blackFrameDetected: boolean;
+  /**
+   * Fingerprint visual efêmero usado apenas durante a descoberta.
+   *
+   * Não é enviado ao servidor e não é salvo no banco. Serve para detectar
+   * firmwares que respondem vários números de canal com a mesma imagem.
+   */
+  frameFingerprint?: FrameFingerprint;
   latencyMs?: number;
   errorCode?: string;
   errorMessage?: string;

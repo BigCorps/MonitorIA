@@ -121,11 +121,18 @@ export const dashboardNavigationGroups: Record<
     items: [
       {
         id: "company",
-        label: "Empresa e equipe",
+        label: "Perfil e empresa",
         href: "/dashboard/profile",
         exactPaths: ["/dashboard/profile"],
         activePrefixes: ["/dashboard/profile/"],
         excludePrefixes: ["/dashboard/profile/mcp-connections"],
+      },
+      {
+        id: "team",
+        label: "Equipe",
+        href: "/dashboard/team",
+        exactPaths: ["/dashboard/team"],
+        activePrefixes: ["/dashboard/team/"],
       },
       {
         id: "plan",

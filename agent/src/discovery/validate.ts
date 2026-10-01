@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { sanitizeFfmpegError } from "../ffmpeg.js";
+import { frameFingerprint } from "./frame-fingerprint.js";
 import { describeStatusMessage, describeStream, RtspError } from "./rtsp.js";
 import type { Credentials, StreamValidationResult } from "./types.js";
 
@@ -15,13 +16,13 @@ import type { Credentials, StreamValidationResult } from "./types.js";
  *
  *   1. DESCRIBE  — separa erro de senha de erro de caminho, em milissegundos
  *   2. ffprobe   — codec, resolução, FPS, bitrate
- *   3. quadro    — decodificação real e checagem de imagem preta
+ *   3. quadro    — decodificação real, checagem de imagem preta e fingerprint
  */
 
 const PROBE_TIMEOUT_MS = 15_000;
 const FRAME_TIMEOUT_MS = 20_000;
 
-/** Amostra reduzida para a checagem de luminância. Mesmo formato do motion. */
+/** Amostra reduzida para a checagem de luminância/fingerprint. */
 const SAMPLE_WIDTH = 160;
 const SAMPLE_HEIGHT = 90;
 
@@ -111,8 +112,6 @@ async function probeStream(ffprobePath: string, rtspUrl: string) {
     [
       "-v",
       "error",
-      // TCP em vez de UDP: rede de loja com Wi-Fi perde pacote, e um
-      // diagnóstico que falha por perda de UDP acusaria a câmera errada.
       "-rtsp_transport",
       "tcp",
       "-rw_timeout",
@@ -140,13 +139,6 @@ async function probeStream(ffprobePath: string, rtspUrl: string) {
   return video;
 }
 
-/**
- * Decodifica um quadro em escala de cinza reduzida e mede a luminância média.
- *
- * Fazemos assim em vez de usar o filtro blackdetect por dois motivos: o
- * pipeline de rawvideo já existe no motion.ts e é conhecido, e a média é lida
- * diretamente dos bytes em vez de depender de parsing de log do FFmpeg.
- */
 export function frameDecodeArguments(rtspUrl: string) {
   return [
     "-hide_banner",
@@ -154,11 +146,6 @@ export function frameDecodeArguments(rtspUrl: string) {
     "error",
     "-rtsp_transport",
     "tcp",
-    // Não usamos -rw_timeout aqui. A build compartilhada do FFmpeg 8.1
-    // empacotada para Windows aceita essa opção no ffprobe, mas a rejeita no
-    // ffmpeg com "Option rw_timeout not found". O processo já possui o
-    // timeout externo FRAME_TIMEOUT_MS, que encerra a tentativa travada sem
-    // tornar a validação dependente de uma opção específica da build.
     "-i",
     rtspUrl,
     "-frames:v",
@@ -188,10 +175,21 @@ async function decodeSampleFrame(ffmpegPath: string, rtspUrl: string) {
     );
   }
 
-  let total = 0;
-  for (let index = 0; index < expected; index += 1) total += result.stdout[index] ?? 0;
+  const frame = result.stdout.subarray(0, expected);
 
-  return { meanLuma: total / expected };
+  let total = 0;
+  for (let index = 0; index < expected; index += 1) {
+    total += frame[index] ?? 0;
+  }
+
+  return {
+    meanLuma: total / expected,
+    fingerprint: frameFingerprint(
+      frame,
+      SAMPLE_WIDTH,
+      SAMPLE_HEIGHT,
+    ),
+  };
 }
 
 export async function validateStream(options: {
@@ -210,19 +208,6 @@ export async function validateStream(options: {
     blackFrameDetected: false,
   };
 
-  /**
-   * O ffprobe é a autoridade, não o nosso cliente RTSP.
-   *
-   * A versão anterior fazia DESCRIBE primeiro e abortava se não viesse 200.
-   * Em campo isso reprovou um stream que o FFmpeg abria sem problema: a
-   * câmera de homologação entrega HEVC 2560x1440 em /stream0, o monitor
-   * contínuo captura normalmente, e a validação descartava o mesmo endereço.
-   * Um cliente de protocolo escrito à mão jamais deve ter poder de veto sobre
-   * o motor que realmente vai abrir o vídeo em produção.
-   *
-   * O DESCRIBE continua útil — só mudou de papel. Agora ele explica a falha
-   * depois que o ffprobe recusa, que é onde distinguir 401 de 404 importa.
-   */
   let video;
 
   try {
@@ -231,7 +216,6 @@ export async function validateStream(options: {
     const detalhe = probeError instanceof Error ? probeError.message : "falha desconhecida";
     log(`ffprobe recusou o stream: ${detalhe}`);
 
-    // Só agora perguntamos ao protocolo qual foi o motivo.
     try {
       const describe = await describeStream(options.rtspUrl, options.credentials);
       result.rtspStatus = describe.status;
@@ -267,11 +251,11 @@ export async function validateStream(options: {
     return result;
   }
 
-  // Quadro real. É o que separa "a porta respondeu" de "há imagem".
   try {
     const sample = await decodeSampleFrame(options.ffmpegPath, options.rtspUrl);
     result.firstFrameDecoded = true;
     result.blackFrameDetected = sample.meanLuma < BLACK_LUMA_THRESHOLD;
+    result.frameFingerprint = sample.fingerprint;
   } catch (error) {
     result.errorCode = "frame_decode_failed";
     result.errorMessage =

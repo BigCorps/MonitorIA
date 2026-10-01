@@ -1,0 +1,33 @@
+.content { min-width: 0; }
+.stack { display: grid; gap: 16px; max-width: 1000px; }
+.permissions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.permissions article, .card { border: 1px solid #dfe6ee; border-radius: 15px; background: #fff; padding: 18px; }
+.permissions strong { color: #27435c; font-size: 10px; }
+.permissions p { margin: 6px 0 0; color: #71849a; font-size: 8px; line-height: 1.5; }
+.card { display: grid; gap: 15px; }
+.cardHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.cardHeading span { color: #28a98e; font-size: 8px; font-weight: 850; letter-spacing: .1em; }
+.cardHeading h2 { margin: 4px 0 0; color: #213a53; font-size: 16px; }
+.cardHeading small { color: #8392a2; font-size: 8px; }
+.inviteForm { display: grid; grid-template-columns: minmax(0,2fr) minmax(180px,1fr) auto; gap: 10px; align-items: end; }
+.inviteForm label { display: grid; gap: 5px; color: #52687e; font-size: 8px; font-weight: 750; }
+.inviteForm input, .inviteForm select, .memberControls select, .inviteLink input { min-height: 39px; border: 1px solid #d9e3eb; border-radius: 9px; background: #fff; padding: 0 10px; color: #27435c; font: inherit; }
+.inviteForm button, .memberControls button, .inviteLink button { min-height: 39px; border: 0; border-radius: 9px; padding: 0 13px; background: #24c4a3; color: #092a23; font-size: 8px; font-weight: 850; cursor: pointer; }
+.memberList { display: grid; gap: 8px; }
+.member { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #e3e9ef; border-radius: 12px; padding: 12px 13px; }
+.identity { min-width: 0; display: grid; gap: 2px; }
+.identity strong { color: #2b435b; font-size: 10px; overflow-wrap: anywhere; }
+.identity span, .identity small { color: #7b8c9f; font-size: 8px; overflow-wrap: anywhere; }
+.memberControls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.memberControls form { display: flex; align-items: center; gap: 6px; }
+.memberControls select { min-height: 34px; }
+.memberControls button { min-height: 34px; }
+.memberControls .danger, .member > form .danger { background: #fff; color: #a13d3d; border: 1px solid #eccaca; min-height: 34px; border-radius: 8px; padding: 0 11px; font-size: 8px; font-weight: 800; }
+.roleBadge { display: inline-flex; min-height: 30px; align-items: center; padding: 0 10px; border-radius: 999px; background: #eef7f5; color: #176c5c; font-size: 8px; font-weight: 800; }
+.success, .error, .warning { border-radius: 10px; padding: 11px 12px; font-size: 8px; line-height: 1.5; }
+.success { border: 1px solid #bde7dd; background: #effaf7; color: #176c5c; }
+.error { border: 1px solid #efc6c6; background: #fff5f5; color: #923a3a; }
+.warning { border: 1px solid #ead6ac; background: #fff9ec; color: #7b5a20; }
+.inviteLink { margin-top: 8px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; }
+@media (max-width: 850px) { .permissions { grid-template-columns: repeat(2,minmax(0,1fr)); } .inviteForm { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .permissions { grid-template-columns: 1fr; } .member { align-items: flex-start; flex-direction: column; } .memberControls { width: 100%; justify-content: flex-start; } .inviteLink { grid-template-columns: 1fr; } }

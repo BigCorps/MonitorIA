@@ -1,0 +1,15 @@
+.page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f8fa; }
+.card { width: min(620px,100%); border: 1px solid #dfe6ee; border-radius: 18px; background: #fff; padding: 28px; color: #2d455d; box-shadow: 0 16px 50px rgba(15,31,52,.06); }
+.brand { display: inline-flex; align-items: center; gap: 9px; color: #213a53; text-decoration: none; font-weight: 850; margin-bottom: 28px; }
+.kicker { color: #28a98e; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.card h1 { margin: 8px 0 10px; color: #213a53; font-size: 28px; }
+.card p { color: #6d8094; line-height: 1.65; }
+.actions { display: grid; gap: 10px; margin-top: 22px; }
+.actions form { display: grid; }
+.actions button, .primaryLink { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; padding: 0 16px; background: #24c4a3; color: #092a23; text-decoration: none; font-weight: 850; cursor: pointer; }
+.actions > a:not(.primaryLink) { color: #176c5c; text-align: center; font-weight: 750; }
+.actions small { color: #8392a2; text-align: center; line-height: 1.5; }
+.success, .error { margin-top: 14px; padding: 11px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+.success { background: #effaf7; border: 1px solid #bde7dd; color: #176c5c; }
+.error { background: #fff5f5; border: 1px solid #efc6c6; color: #923a3a; }
+.center { text-align: center; }
