@@ -1,60 +1,31 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  addAssistantUsage,
-  answerAssistantQuery,
-  planAssistantQuery,
-} from "@/src/assistant/openai";
-import type {
-  AssistantDirectory,
-  AssistantHistoryItem,
-  AssistantPlan,
-} from "@/src/assistant/contracts";
+import { addAssistantUsage, answerAssistantQuery, planAssistantQuery } from "@/src/assistant/openai";
 import { buildAssistantChart } from "@/src/assistant/chart";
+import { AssistantPlanV2Schema, type AssistantDirectoryV2, type AssistantHistoryItemV2, type AssistantPlanV2 } from "@/src/assistant/v2-contracts";
+import { executeAssistantPlanV2 } from "@/src/assistant/executor-v2";
 import { getAuthenticatedUser } from "@/src/lib/auth";
-import {
-  getCurrentOrganization,
-  getOrganizationCameras,
-  getOrganizationSites,
-} from "@/src/lib/dashboard-data";
-import {
-  addDaysToDateOnly,
-  dateOnlyToIso,
-  searchEvents,
-  siteTimezone,
-  type SearchEventRow,
-} from "@/src/lib/event-search-data";
-import {
-  assistantPeriodLabel,
-  localizeAssistantPayload,
-} from "@/src/lib/assistant-display";
+import { getCurrentOrganization, getOrganizationCameras, getOrganizationSites } from "@/src/lib/dashboard-data";
+import { addDaysToDateOnly, dateOnlyToIso, siteTimezone } from "@/src/lib/event-search-data";
+import { assistantPeriodLabel, localizeAssistantPayload } from "@/src/lib/assistant-display";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
-import {
-  consumeRateLimit,
-  rateLimitHeaders,
-} from "@/src/lib/rate-limit";
+import { consumeRateLimit, rateLimitHeaders } from "@/src/lib/rate-limit";
 import { estimateVisionCostBreakdown } from "@/src/vision/cost";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const DateOnlySchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .nullable();
-
-const RequestSchema = z
-  .object({
-    message: z.string().trim().min(2).max(2000),
-    threadId: z.string().uuid().nullable(),
-    fromDate: DateOnlySchema,
-    toDate: DateOnlySchema,
-    cameraId: z.string().uuid().nullable(),
-    siteId: z.string().uuid().nullable(),
-  })
-  .strict();
+const DateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+const RequestSchema = z.object({
+  message: z.string().trim().min(2).max(2000),
+  threadId: z.string().uuid().nullable(),
+  fromDate: DateOnlySchema,
+  toDate: DateOnlySchema,
+  cameraId: z.string().uuid().nullable(),
+  siteId: z.string().uuid().nullable(),
+}).strict();
 
 type EvidenceResponse = {
   id: string;
@@ -68,96 +39,42 @@ type EvidenceResponse = {
 };
 
 function currentDateInZone(timeZone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
-
 function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
-
 function relationOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
-
 function isValidDateOnly(value: string | null): value is string {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
-
-function safeDate(value: string | null, fallback: string) {
-  return isValidDateOnly(value) ? value : fallback;
-}
-
+function safeDate(value: string | null, fallback: string) { return isValidDateOnly(value) ? value : fallback; }
 function previousPeriod(fromDate: string, toDate: string) {
   const from = new Date(`${fromDate}T00:00:00Z`);
   const to = new Date(`${toDate}T00:00:00Z`);
-  const days = Math.max(
-    1,
-    Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1,
-  );
+  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1);
   const compareTo = addDaysToDateOnly(fromDate, -1);
-  const compareFrom = addDaysToDateOnly(compareTo, -(days - 1));
-  return { compareFrom, compareTo };
+  return { compareFrom: addDaysToDateOnly(compareTo, -(days - 1)), compareTo };
 }
 
-async function hydrateEvidence(
-  organizationId: string,
-  eventIds: string[],
-): Promise<EvidenceResponse[]> {
+async function hydrateEvidence(organizationId: string, eventIds: string[]): Promise<EvidenceResponse[]> {
   const ids = [...new Set(eventIds)].slice(0, 12);
   if (!ids.length) return [];
-
   const admin = createAdminClient();
   const [{ data: events }, { data: assets }] = await Promise.all([
-    admin
-      .from("events")
-      .select(`
-        id,
-        started_at,
-        headline,
-        summary,
-        confidence,
-        camera:cameras(name),
-        site:sites(name)
-      `)
-      .eq("organization_id", organizationId)
-      .in("id", ids)
-      .is("deleted_at", null),
-    admin
-      .from("storage_assets")
-      .select("id,event_id,captured_at")
-      .eq("organization_id", organizationId)
-      .in("event_id", ids)
-      .eq("status", "ready")
-      .is("deleted_at", null)
-      .order("captured_at", { ascending: false }),
+    admin.from("events").select(`id,started_at,headline,summary,confidence,camera:cameras(name),site:sites(name)`).eq("organization_id", organizationId).in("id", ids).is("deleted_at", null),
+    admin.from("storage_assets").select("id,event_id,captured_at").eq("organization_id", organizationId).in("event_id", ids).eq("status", "ready").is("deleted_at", null).order("captured_at", { ascending: false }),
   ]);
-
   const assetByEvent = new Map<string, string>();
   for (const asset of assets ?? []) {
     const eventId = String((asset as any).event_id);
-    if (!assetByEvent.has(eventId)) {
-      assetByEvent.set(eventId, String((asset as any).id));
-    }
+    if (!assetByEvent.has(eventId)) assetByEvent.set(eventId, String((asset as any).id));
   }
-
   const byId = new Map<string, EvidenceResponse>();
   for (const event of events ?? []) {
     const camera = relationOne((event as any).camera);
@@ -174,1100 +91,235 @@ async function hydrateEvidence(
       thumbnailAssetId: assetByEvent.get(id) ?? null,
     });
   }
+  return ids.flatMap((id) => byId.get(id) ? [byId.get(id)!] : []);
+}
 
-  return ids.flatMap((id) => {
-    const event = byId.get(id);
-    return event ? [event] : [];
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function directoryFromRpc(value: unknown, fallback: AssistantDirectoryV2): AssistantDirectoryV2 {
+  const row = objectValue(value);
+  const mapBase = (items: unknown) => Array.isArray(items) ? items.map(objectValue) : [];
+  if (row.error) return fallback;
+  return {
+    sites: mapBase(row.sites).map((x) => ({ id: String(x.id), name: String(x.name), timezone: String(x.timezone) })),
+    cameras: mapBase(row.cameras).map((x) => ({
+      id: String(x.id), name: String(x.name), siteId: String(x.siteId),
+      sourceKind: x.sourceKind === "local_recording" ? "local_recording" as const : "live_camera" as const,
+    })),
+    zones: mapBase(row.zones).map((x) => ({
+      id: String(x.id), name: String(x.name), cameraId: String(x.cameraId), siteId: String(x.siteId),
+      zoneType: String(x.zoneType ?? ""), description: String(x.description ?? ""), personRoleHint: x.personRoleHint ? String(x.personRoleHint) : null,
+    })),
+    visualEntities: mapBase(row.visualEntities).map((x) => ({
+      id: String(x.id), name: String(x.name), cameraId: String(x.cameraId), siteId: String(x.siteId),
+      entityType: String(x.entityType ?? ""), aliases: stringArray(x.aliases), enabled: x.enabled !== false, reliability: String(x.reliability ?? ""),
+    })),
+    processes: mapBase(row.processes).map((x) => ({
+      id: String(x.id), name: String(x.name), processCode: String(x.processCode ?? ""),
+      cameraId: x.cameraId ? String(x.cameraId) : null, siteId: String(x.siteId), description: String(x.description ?? ""),
+      sessionType: String(x.sessionType ?? ""), aliases: stringArray(x.aliases),
+    })),
+  };
+}
+
+function sanitizePlan(plan: AssistantPlanV2, directory: AssistantDirectoryV2, selectedCameraId: string | null, selectedSiteId: string | null): AssistantPlanV2 {
+  const sites = new Set(directory.sites.map((x) => x.id));
+  const cameras = new Map(directory.cameras.map((x) => [x.id, x]));
+  const zones = new Set(directory.zones.map((x) => x.id));
+  const entities = new Set(directory.visualEntities.map((x) => x.id));
+  const processes = new Set(directory.processes.map((x) => x.id));
+  const safeSite = (id: string | null) => selectedSiteId ?? (id && sites.has(id) ? id : null);
+  const safeCamera = (id: string | null, siteId: string | null) => {
+    const wanted = selectedCameraId ?? id;
+    if (!wanted || !cameras.has(wanted)) return null;
+    const camera = cameras.get(wanted)!;
+    return !siteId || camera.siteId === siteId ? wanted : null;
+  };
+  const siteId = safeSite(plan.legacyPlan.siteId);
+  const cameraId = safeCamera(plan.legacyPlan.cameraId, siteId);
+  return AssistantPlanV2Schema.parse({
+    ...plan,
+    legacyPlan: { ...plan.legacyPlan, siteId, cameraId },
+    operations: plan.operations.map((op) => {
+      const opSite = safeSite(op.siteId ?? siteId);
+      return {
+        ...op,
+        siteId: opSite,
+        cameraId: safeCamera(op.cameraId ?? cameraId, opSite),
+        fromCameraId: safeCamera(op.fromCameraId, opSite),
+        toCameraId: safeCamera(op.toCameraId, opSite),
+        zoneId: op.zoneId && zones.has(op.zoneId) ? op.zoneId : null,
+        visualEntityId: op.visualEntityId && entities.has(op.visualEntityId) ? op.visualEntityId : null,
+        processId: op.processId && processes.has(op.processId) ? op.processId : null,
+      };
+    }),
   });
-}
-
-function evidenceIdsFromSummary(value: unknown) {
-  const summary = objectValue(value);
-  return Array.isArray(summary.evidence)
-    ? summary.evidence
-        .map((item) => objectValue(item).id)
-        .filter((id): id is string => typeof id === "string")
-    : [];
-}
-
-function evidenceIdsFromRows(rows: SearchEventRow[]) {
-  return rows.map((row) => row.id);
-}
-
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function evidenceIdsFromOperationalData(value: unknown) {
-  const found = new Set<string>();
-
-  function visit(current: unknown, key = "", depth = 0) {
-    if (depth > 8 || found.size >= 24 || current == null) return;
-
-    if (typeof current === "string") {
-      if (
-        uuidPattern.test(current) &&
-        /(evidence|event)/i.test(key) &&
-        !/(session|profile|observation)/i.test(key)
-      ) {
-        found.add(current);
-      }
-      return;
-    }
-
-    if (Array.isArray(current)) {
-      for (const item of current) visit(item, key, depth + 1);
-      return;
-    }
-
-    if (typeof current === "object") {
-      for (const [childKey, child] of Object.entries(current)) {
-        visit(child, childKey, depth + 1);
-      }
-    }
-  }
-
-  visit(value);
-  return [...found];
 }
 
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser();
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, error: "authentication_required" },
-      { status: 401 },
-    );
-  }
-
+  if (!user) return NextResponse.json({ ok: false, error: "authentication_required" }, { status: 401 });
   let body: z.infer<typeof RequestSchema>;
-  try {
-    body = RequestSchema.parse(await request.json());
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "invalid_request" },
-      { status: 400 },
-    );
-  }
+  try { body = RequestSchema.parse(await request.json()); }
+  catch { return NextResponse.json({ ok: false, error: "invalid_request" }, { status: 400 }); }
 
   const organization = await getCurrentOrganization(user.id);
-  if (!organization) {
-    return NextResponse.json(
-      { ok: false, error: "organization_not_found" },
-      { status: 404 },
-    );
-  }
+  if (!organization) return NextResponse.json({ ok: false, error: "organization_not_found" }, { status: 404 });
 
-  if (!process.env.OPENAI_API_KEY?.trim()) {
-    return NextResponse.json(
-      { ok: false, error: "assistant_not_configured" },
-      { status: 503 },
-    );
-  }
-
-  const [sites, cameras] = await Promise.all([
-    getOrganizationSites(organization.id),
-    getOrganizationCameras(organization.id),
-  ]);
-
-  const allowedSiteIds = new Set(sites.map((site) => site.id));
-  const allowedCameraIds = new Set(cameras.map((camera) => camera.id));
-  const selectedSiteId =
-    body.siteId && allowedSiteIds.has(body.siteId)
-      ? body.siteId
-      : null;
-  const selectedCamera =
-    body.cameraId && allowedCameraIds.has(body.cameraId)
-      ? cameras.find((camera) => camera.id === body.cameraId) ?? null
-      : null;
-  const selectedCameraId =
-    selectedCamera &&
-    (!selectedSiteId || selectedCamera.siteId === selectedSiteId)
-      ? selectedCamera.id
-      : null;
+  const [sites, cameras] = await Promise.all([getOrganizationSites(organization.id), getOrganizationCameras(organization.id)]);
+  const allowedSiteIds = new Set(sites.map((x) => x.id));
+  const allowedCameraIds = new Set(cameras.map((x) => x.id));
+  const selectedSiteId = body.siteId && allowedSiteIds.has(body.siteId) ? body.siteId : null;
+  const selectedCamera = body.cameraId && allowedCameraIds.has(body.cameraId) ? cameras.find((x) => x.id === body.cameraId) ?? null : null;
+  const selectedCameraId = selectedCamera && (!selectedSiteId || selectedCamera.siteId === selectedSiteId) ? selectedCamera.id : null;
   const timeZone = siteTimezone(sites, selectedSiteId);
   const currentDate = currentDateInZone(timeZone);
 
-  const admin = createAdminClient();
   let rateLimit;
-  try {
-    rateLimit = await consumeRateLimit({
-      scope: "assistant-query",
-      subject: `${organization.id}:${user.id}`,
-      limit: 15,
-      windowSeconds: 60,
-    });
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "rate_limit_unavailable" },
-      { status: 503 },
-    );
-  }
+  try { rateLimit = await consumeRateLimit({ scope: "assistant-query", subject: `${organization.id}:${user.id}`, limit: 15, windowSeconds: 60 }); }
+  catch { return NextResponse.json({ ok: false, error: "rate_limit_unavailable" }, { status: 503 }); }
+  if (!rateLimit.allowed) return NextResponse.json({ ok: false, error: "too_many_requests" }, { status: 429, headers: rateLimitHeaders(rateLimit) });
 
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { ok: false, error: "too_many_requests" },
-      { status: 429, headers: rateLimitHeaders(rateLimit) },
-    );
-  }
+  const admin = createAdminClient();
+  const supabase = await createClient();
+  const fallbackDirectory: AssistantDirectoryV2 = {
+    sites: sites.map((x) => ({ id: x.id, name: x.name, timezone: x.timezone })),
+    cameras: cameras.map((x) => ({ id: x.id, name: x.name, siteId: x.siteId, sourceKind: x.sourceKind })),
+    zones: [], visualEntities: [], processes: [],
+  };
+  const directoryRpc = await supabase.rpc("assistant_context_directory_v2", { p_organization_id: organization.id });
+  const directory = directoryRpc.error ? fallbackDirectory : directoryFromRpc(directoryRpc.data, fallbackDirectory);
 
   const isNewThread = !body.threadId;
   let threadId = body.threadId;
-  let history: AssistantHistoryItem[] = [];
-
+  let history: AssistantHistoryItemV2[] = [];
   if (threadId) {
-    const { data: thread } = await admin
-      .from("assistant_threads")
-      .select("id")
-      .eq("id", threadId)
-      .eq("organization_id", organization.id)
-      .eq("created_by", user.id)
-      .is("archived_at", null)
-      .maybeSingle();
-
-    if (!thread) {
-      return NextResponse.json(
-        { ok: false, error: "thread_not_found" },
-        { status: 404 },
-      );
-    }
-
-    const { data: historyRows } = await admin
-      .from("assistant_messages")
-      .select("role,content")
-      .eq("organization_id", organization.id)
-      .eq("thread_id", threadId)
-      .order("created_at", { ascending: false })
-      .limit(8);
-
-    history = (historyRows ?? [])
-      .reverse()
-      .map((message: any) => ({
-        role:
-          message.role === "assistant" ? "assistant" : "user",
-        content: String(message.content).slice(0, 1800),
-      }));
+    const { data: thread } = await admin.from("assistant_threads").select("id").eq("id", threadId).eq("organization_id", organization.id).eq("created_by", user.id).is("archived_at", null).maybeSingle();
+    if (!thread) return NextResponse.json({ ok: false, error: "thread_not_found" }, { status: 404 });
+    const { data: rows } = await admin.from("assistant_messages").select("role,content,query_plan").eq("organization_id", organization.id).eq("thread_id", threadId).order("created_at", { ascending: false }).limit(12);
+    history = (rows ?? []).reverse().map((row: any) => ({
+      role: row.role === "assistant" ? "assistant" : "user",
+      content: String(row.content).slice(0, 1800),
+      plan: (() => {
+        const raw = objectValue(row.query_plan);
+        const parsed = AssistantPlanV2Schema.safeParse({
+          version: raw.version,
+          legacyPlan: raw.legacyPlan,
+          operations: raw.operations,
+          plannerNotes: raw.plannerNotes ?? [],
+        });
+        return parsed.success ? parsed.data : null;
+      })(),
+    }));
   } else {
-    const title = body.message.replace(/\s+/g, " ").slice(0, 80);
-    const { data: created, error } = await admin
-      .from("assistant_threads")
-      .insert({
-        organization_id: organization.id,
-        created_by: user.id,
-        title,
-      })
-      .select("id")
-      .single();
-
-    if (error || !created) {
-      return NextResponse.json(
-        { ok: false, error: "thread_creation_failed" },
-        { status: 500 },
-      );
-    }
-
+    const { data: created, error } = await admin.from("assistant_threads").insert({ organization_id: organization.id, created_by: user.id, title: body.message.replace(/\s+/g, " ").slice(0, 80) }).select("id").single();
+    if (error || !created) return NextResponse.json({ ok: false, error: "thread_creation_failed" }, { status: 500 });
     threadId = String(created.id);
   }
-
-  if (!threadId) {
-    return NextResponse.json(
-      { ok: false, error: "thread_creation_failed" },
-      { status: 500 },
-    );
-  }
-
+  if (!threadId) return NextResponse.json({ ok: false, error: "thread_creation_failed" }, { status: 500 });
   const activeThreadId = threadId;
 
-  const { data: userMessage, error: userMessageError } = await admin
-    .from("assistant_messages")
-    .insert({
-      organization_id: organization.id,
-      thread_id: activeThreadId,
-      role: "user",
-      content: body.message,
-      created_by: user.id,
-    })
-    .select("id,created_at")
-    .single();
-
-  if (userMessageError || !userMessage) {
-    return NextResponse.json(
-      { ok: false, error: "message_creation_failed" },
-      { status: 500 },
-    );
-  }
+  const { data: userMessage, error: userMessageError } = await admin.from("assistant_messages").insert({
+    organization_id: organization.id, thread_id: activeThreadId, role: "user", content: body.message, created_by: user.id,
+  }).select("id,created_at").single();
+  if (userMessageError || !userMessage) return NextResponse.json({ ok: false, error: "message_creation_failed" }, { status: 500 });
 
   try {
-    const directory: AssistantDirectory = {
-      sites: sites.map((site) => ({
-        id: site.id,
-        name: site.name,
-        timezone: site.timezone,
-      })),
-      cameras: cameras.map((camera) => ({
-        id: camera.id,
-        name: camera.name,
-        siteId: camera.siteId,
-        sourceKind: camera.sourceKind,
-      })),
-    };
-
     const planned = await planAssistantQuery({
-      organizationId: organization.id,
-      message: body.message,
-      currentDate,
-      timezone: timeZone,
-      selectedFrom: body.fromDate,
-      selectedTo: body.toDate,
-      selectedCameraId,
-      selectedSiteId,
-      directory,
-      history,
+      organizationId: organization.id, message: body.message, currentDate, timezone: timeZone,
+      selectedFrom: body.fromDate, selectedTo: body.toDate, selectedCameraId, selectedSiteId, directory, history,
     });
-
-    const plannedSiteId =
-      selectedSiteId ??
-      (planned.plan.siteId &&
-      allowedSiteIds.has(planned.plan.siteId)
-        ? planned.plan.siteId
-        : null);
-    const plannedCamera =
-      selectedCameraId
-        ? cameras.find((camera) => camera.id === selectedCameraId) ?? null
-        : planned.plan.cameraId &&
-            allowedCameraIds.has(planned.plan.cameraId)
-          ? cameras.find(
-              (camera) => camera.id === planned.plan.cameraId,
-            ) ?? null
-          : null;
-
-    const plan: AssistantPlan = {
-      ...planned.plan,
-      siteId: plannedSiteId,
-      cameraId:
-        plannedCamera &&
-        (!plannedSiteId || plannedCamera.siteId === plannedSiteId)
-          ? plannedCamera.id
-          : null,
-    };
-
-    const effectiveTimeZone = siteTimezone(sites, plan.siteId);
-    const fromDate = safeDate(
-      body.fromDate ?? plan.fromDate,
-      currentDate,
-    );
-    const toDate = safeDate(
-      body.toDate ?? plan.toDate,
-      currentDate,
-    );
+    const plan = sanitizePlan(planned.plan, directory, selectedCameraId, selectedSiteId);
+    const effectiveTimeZone = siteTimezone(sites, plan.legacyPlan.siteId);
+    const fromDate = safeDate(body.fromDate ?? plan.legacyPlan.fromDate, currentDate);
+    const toDate = safeDate(body.toDate ?? plan.legacyPlan.toDate, currentDate);
     const fromIso = dateOnlyToIso(fromDate, effectiveTimeZone)!;
-    const toIso = dateOnlyToIso(
-      addDaysToDateOnly(toDate, 1),
-      effectiveTimeZone,
-    )!;
+    const toIso = dateOnlyToIso(addDaysToDateOnly(toDate, 1), effectiveTimeZone)!;
 
-    const supabase = await createClient();
-    let retrievedData: unknown = {};
-    let candidateEvidenceIds: string[] = [];
+    const fallbackComparison = previousPeriod(fromDate, toDate);
+    const compareFromDate = safeDate(plan.legacyPlan.compareFromDate, fallbackComparison.compareFrom);
+    const compareToDate = safeDate(plan.legacyPlan.compareToDate, fallbackComparison.compareTo);
+    const needsComparison = plan.operations.some((op) => op.kind === "compare_periods");
+    const compareFromIso = needsComparison ? dateOnlyToIso(compareFromDate, effectiveTimeZone)! : null;
+    const compareToIso = needsComparison ? dateOnlyToIso(addDaysToDateOnly(compareToDate, 1), effectiveTimeZone)! : null;
 
-    if (plan.intent === "cross_camera_sequence") {
-      const result = await supabase.rpc("cross_camera_summary_v1", {
-        p_organization_id: organization.id,
-        p_from: fromIso,
-        p_to: toIso,
-        p_site_id: plan.siteId,
-      });
-      if (result.error) throw new Error(result.error.message);
-      const payload = objectValue(result.data);
-      candidateEvidenceIds = Array.isArray(payload.evidenceEventIds)
-        ? payload.evidenceEventIds.filter((id): id is string => typeof id === "string")
-        : [];
-      retrievedData = {
-        crossCameraSequence: result.data,
-        definitions: {
-          probableSequence: "Hipótese temporária baseada em janela de passagem e características visíveis não biométricas.",
-          competingHypothesis: "Pessoas ou veículos diferentes podem ter aparência semelhante; a sequência não confirma identidade.",
-        },
-      };
-    } else if (plan.intent === "vehicle_continuity") {
-      const result = await supabase.rpc(
-        "assistant_vehicle_continuity_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const payload = objectValue(result.data);
-      const vehicles = Array.isArray(payload.vehicles)
-        ? payload.vehicles.map(objectValue)
-        : [];
-
-      candidateEvidenceIds = vehicles
-        .flatMap((vehicle) =>
-          Array.isArray(vehicle.evidenceEventIds)
-            ? vehicle.evidenceEventIds
-            : [],
-        )
-        .filter((id): id is string => typeof id === "string");
-
-      retrievedData = {
-        vehicleContinuity: result.data,
-        definitions: {
-          probableDistinctVehicles:
-            "Estimativa temporária baseada em tipo, cor, carroceria, porte, características visíveis, zona e proximidade temporal.",
-          limitation:
-            "Veículos visualmente semelhantes podem ser indistinguíveis sem característica distintiva ou sequência suficiente.",
-        },
-      };
-    } else if (
-      plan.intent === "interaction_sessions" ||
-      plan.intent === "interaction_summary"
-    ) {
-      const result = await supabase.rpc(
-        "assistant_operational_sessions_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const payload = objectValue(result.data);
-      const sessions = Array.isArray(payload.sessions)
-        ? payload.sessions.map(objectValue)
-        : [];
-
-      candidateEvidenceIds = sessions
-        .flatMap((session) =>
-          Array.isArray(session.evidence_event_ids)
-            ? session.evidence_event_ids
-            : Array.isArray(session.evidenceEventIds)
-              ? session.evidenceEventIds
-              : [],
-        )
-        .filter((id): id is string => typeof id === "string");
-
-      retrievedData = {
-        operationalSessions: result.data,
-        definitions: {
-          session:
-            "História operacional formada por capítulos visualmente relacionados.",
-          outcome:
-            "Resultado visual observado; não confirma venda, pagamento ou intenção.",
-          closureByInactivity:
-            "Encerramento calculado quando não houve novo capítulo dentro da janela configurada.",
-        },
-      };
-    } else if (plan.intent === "routine_deviation") {
-      const result = await supabase.rpc(
-        "assistant_routine_deviation_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) throw new Error(result.error.message);
-      candidateEvidenceIds = evidenceIdsFromOperationalData(result.data);
-      retrievedData = {
-        routineDeviation: result.data,
-        definitions: {
-          baseline:
-            "Faixa esperada calculada a partir de observações históricas comparáveis.",
-          deviation:
-            "Diferença mensurável em relação à faixa esperada; não prova causa ou intenção.",
-        },
-      };
-    } else if (plan.intent === "staff_activity") {
-      const [profiles, sessions, routines] = await Promise.all([
-        supabase.rpc("assistant_staff_operational_profile_summary_v1", {
-          p_organization_id: organization.id,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        supabase.rpc("assistant_operational_sessions_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        supabase.rpc("assistant_routine_deviation_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-      ]);
-
-      const rpcError = profiles.error ?? sessions.error ?? routines.error;
-      if (rpcError) throw new Error(rpcError.message);
-      retrievedData = {
-        staffOperationalProfiles: profiles.data,
-        operationalSessions: sessions.data,
-        routineDeviation: routines.data,
-        definitions: {
-          staffProfile:
-            "Perfil operacional aprovado por aparência ampla e contexto; não identifica uma pessoa civil nem usa biometria facial.",
-          probablePresence:
-            "Presença provável inferida dos eventos disponíveis, sujeita a oclusões e lacunas de captura.",
-        },
-      };
-      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
-    } else if (plan.intent === "queue_analysis") {
-      const [queue, sessions] = await Promise.all([
-        supabase.rpc("assistant_queue_analysis_v1", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        supabase.rpc("assistant_operational_sessions_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-      ]);
-
-      const rpcError = queue.error ?? sessions.error;
-      if (rpcError) throw new Error(rpcError.message);
-      retrievedData = {
-        queueAnalysis: queue.data,
-        relatedOperationalSessions: sessions.data,
-      };
-      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
-    } else if (
-      plan.intent === "object_history" ||
-      plan.intent === "equipment_history"
-    ) {
-      const [states, matchingEvents] = await Promise.all([
-        supabase.rpc("assistant_visual_state_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        searchEvents(organization.id, {
-          query: plan.query || body.message,
-          from: fromIso,
-          to: toIso,
-          cameraId: plan.cameraId,
-          siteId: plan.siteId,
-          limit: plan.evidenceLimit,
-          offset: 0,
-        }),
-      ]);
-
-      if (states.error) throw new Error(states.error.message);
-      retrievedData = {
-        visualStateHistory: states.data,
-        matchingEvents: matchingEvents.rows,
-        matchingEventsTotal: matchingEvents.total,
-        subject:
-          plan.intent === "equipment_history" ? "equipment" : "object",
-        definitions: {
-          absence:
-            "Ausência visual no enquadramento observado; não confirma perda, furto ou localização fora da câmera.",
-        },
-      };
-      candidateEvidenceIds = [
-        ...evidenceIdsFromRows(matchingEvents.rows),
-        ...evidenceIdsFromOperationalData(states.data),
-      ];
-    } else if (plan.intent === "camera_health") {
-      const result = await supabase.rpc(
-        "assistant_camera_health_summary_v1",
-        {
-          p_organization_id: organization.id,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) throw new Error(result.error.message);
-      retrievedData = {
-        cameraHealth: result.data,
-        definitions: {
-          incident:
-            "Sinal técnico de qualidade ou enquadramento comparado ao baseline; não determina a causa.",
-        },
-      };
-      candidateEvidenceIds = evidenceIdsFromOperationalData(result.data);
-    } else if (plan.intent === "daily_operations") {
-      const [summary, sessions, routines, processes, health] =
-        await Promise.all([
-          supabase.rpc("assistant_period_summary", {
-            p_organization_id: organization.id,
-            p_from: fromIso,
-            p_to: toIso,
-            p_camera_id: plan.cameraId,
-            p_site_id: plan.siteId,
-          }),
-          supabase.rpc("assistant_operational_sessions_summary", {
-            p_organization_id: organization.id,
-            p_from: fromIso,
-            p_to: toIso,
-            p_camera_id: plan.cameraId,
-            p_site_id: plan.siteId,
-          }),
-          supabase.rpc("assistant_routine_deviation_summary", {
-            p_organization_id: organization.id,
-            p_from: fromIso,
-            p_to: toIso,
-            p_camera_id: plan.cameraId,
-            p_site_id: plan.siteId,
-          }),
-          supabase.rpc("assistant_operational_process_summary_v1", {
-            p_organization_id: organization.id,
-            p_from: fromIso,
-            p_to: toIso,
-            p_camera_id: plan.cameraId,
-            p_site_id: plan.siteId,
-          }),
-          supabase.rpc("assistant_camera_health_summary_v1", {
-            p_organization_id: organization.id,
-            p_camera_id: plan.cameraId,
-            p_site_id: plan.siteId,
-          }),
-        ]);
-
-      const rpcError =
-        summary.error ??
-        sessions.error ??
-        routines.error ??
-        processes.error ??
-        health.error;
-      if (rpcError) throw new Error(rpcError.message);
-
-      retrievedData = {
-        periodSummary: summary.data,
-        operationalSessions: sessions.data,
-        routineDeviation: routines.data,
-        operationalProcesses: processes.data,
-        cameraHealth: health.data,
-        definitions: {
-          operationalMemory:
-            "Combinação de eventos, sessões, rotinas, processos e saúde técnica já calculados pelo banco.",
-        },
-      };
-      candidateEvidenceIds = evidenceIdsFromOperationalData(retrievedData);
-    } else if (plan.intent === "continuity_summary") {
-      const result = await supabase.rpc(
-        "assistant_continuity_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const payload = objectValue(result.data);
-      const groups = Array.isArray(payload.groups)
-        ? payload.groups.map(objectValue)
-        : [];
-
-      candidateEvidenceIds = groups
-        .flatMap((group) =>
-          Array.isArray(group.evidenceEventIds)
-            ? group.evidenceEventIds
-            : [],
-        )
-        .filter((id): id is string => typeof id === "string");
-
-      retrievedData = {
-        continuity: result.data,
-        definitions: {
-          probableDistinctPeople:
-            "Estimativa temporária baseada em aparência não biométrica, posição e proximidade temporal.",
-          interactionGroup:
-            "Conjunto de capítulos que provavelmente pertencem à mesma visita ou atendimento.",
-          staffProfile:
-            "Perfil operacional aprovado; não é reconhecimento facial.",
-        },
-      };
-    } else if (plan.intent === "operating_hours") {
-      const result = await supabase.rpc(
-        "assistant_operating_hours_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const payload = objectValue(result.data);
-      const sessions = Array.isArray(payload.sessions)
-        ? payload.sessions.map(objectValue)
-        : [];
-
-      candidateEvidenceIds = sessions
-        .flatMap((session) => [
-          typeof session.openingEventId === "string"
-            ? session.openingEventId
-            : null,
-          typeof session.closingEventId === "string"
-            ? session.closingEventId
-            : null,
-        ])
-        .filter((id): id is string => Boolean(id));
-
-      retrievedData = {
-        operatingHours: result.data,
-        definitions: {
-          observedOnly:
-            "O estado já era visível naquele momento; a transição exata não foi capturada.",
-          visibleTransition:
-            "Os quadros mostram visualmente a mudança de estado.",
-          declaredHours:
-            "O horário cadastrado é contexto e não prova que o estabelecimento estava aberto ou fechado.",
-        },
-      };
-    } else if (plan.intent === "visual_state") {
-      const result = await supabase.rpc(
-        "assistant_visual_state_summary",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-
-      const payload = objectValue(result.data);
-      const transitions = Array.isArray(payload.transitions)
-        ? payload.transitions.map(objectValue)
-        : [];
-
-      candidateEvidenceIds = transitions
-        .map((transition) => transition.eventId)
-        .filter((id): id is string => typeof id === "string");
-
-      retrievedData = {
-        visualStates: result.data,
-        definitions: {
-          outsideDeclaredHours:
-            "O evento ocorreu fora da janela semanal cadastrada.",
-          afterConfirmedClosing:
-            "O evento ocorreu depois de um fechamento visual confirmado e antes de uma reabertura confirmada.",
-        },
-      };
-    } else if (plan.intent === "period_summary") {
-      const [summaryResult, matchingEvents] = await Promise.all([
-        supabase.rpc("assistant_period_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        plan.query.trim()
-          ? searchEvents(organization.id, {
-              query: plan.query,
-              from: fromIso,
-              to: toIso,
-              cameraId: plan.cameraId,
-              siteId: plan.siteId,
-              limit: plan.evidenceLimit,
-              offset: 0,
-            })
-          : Promise.resolve({ rows: [], total: 0 }),
-      ]);
-
-      if (summaryResult.error) {
-        throw new Error(summaryResult.error.message);
-      }
-
-      const summaryEvidenceIds = evidenceIdsFromSummary(
-        summaryResult.data,
-      );
-      candidateEvidenceIds = matchingEvents.rows.length
-        ? evidenceIdsFromRows(matchingEvents.rows)
-        : summaryEvidenceIds;
-
-      retrievedData = {
-        summary: summaryResult.data,
-        matchingEvents: matchingEvents.rows,
-        matchingEventsTotal: matchingEvents.total,
-      };
-    } else if (plan.intent === "search_events") {
-      const result = await searchEvents(organization.id, {
-        query: plan.query || body.message,
-        from: fromIso,
-        to: toIso,
-        cameraId: plan.cameraId,
-        siteId: plan.siteId,
-        limit: plan.evidenceLimit,
-        offset: 0,
-      });
-      retrievedData = {
-        totalFound: result.total,
-        events: result.rows,
-        definitions: {
-          peopleCount:
-            "Pessoas estruturadas no evento, sem deduplicação entre eventos.",
-          vehicleCount:
-            "Veículos estruturados no evento, sem deduplicação entre eventos.",
-        },
-      };
-      candidateEvidenceIds = evidenceIdsFromRows(result.rows);
-    } else if (plan.intent === "compare_periods") {
-      const fallback = previousPeriod(fromDate, toDate);
-      const compareFromDate = safeDate(
-        plan.compareFromDate,
-        fallback.compareFrom,
-      );
-      const compareToDate = safeDate(
-        plan.compareToDate,
-        fallback.compareTo,
-      );
-      const compareFromIso = dateOnlyToIso(
-        compareFromDate,
-        effectiveTimeZone,
-      )!;
-      const compareToIso = dateOnlyToIso(
-        addDaysToDateOnly(compareToDate, 1),
-        effectiveTimeZone,
-      )!;
-
-      const [
-        summaryA,
-        summaryB,
-        eventsA,
-        eventsB,
-      ] = await Promise.all([
-        supabase.rpc("assistant_period_summary", {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        supabase.rpc("assistant_period_summary", {
-          p_organization_id: organization.id,
-          p_from: compareFromIso,
-          p_to: compareToIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        }),
-        searchEvents(organization.id, {
-          query: plan.query || null,
-          from: fromIso,
-          to: toIso,
-          cameraId: plan.cameraId,
-          siteId: plan.siteId,
-          limit: 4,
-        }),
-        searchEvents(organization.id, {
-          query: plan.query || null,
-          from: compareFromIso,
-          to: compareToIso,
-          cameraId: plan.cameraId,
-          siteId: plan.siteId,
-          limit: 4,
-        }),
-      ]);
-
-      if (summaryA.error || summaryB.error) {
-        throw new Error(
-          summaryA.error?.message ??
-            summaryB.error?.message ??
-            "comparison_summary_failed",
-        );
-      }
-
-      retrievedData = {
-        periodA: {
-          fromDate,
-          toDate,
-          summary: summaryA.data,
-        },
-        periodB: {
-          fromDate: compareFromDate,
-          toDate: compareToDate,
-          summary: summaryB.data,
-        },
-      };
-      candidateEvidenceIds = [
-        ...eventsA.rows.map((event) => event.id),
-        ...eventsB.rows.map((event) => event.id),
-      ];
-    } else {
-      retrievedData = {
-        capabilities: [
-          "estimar pessoas distintas e agrupar capítulos do mesmo atendimento",
-          "consolidar capítulos em sessões operacionais com duração e resultado visual",
-          "diferenciar funcionários prováveis por perfis operacionais aprovados",
-          "informar abertura e fechamento visualmente confirmados",
-          "consultar o estado atual de entidades configuradas",
-          "localizar mudanças em caixas, armários, objetos, equipamentos e áreas",
-          "comparar a operação com rotinas históricas e explicar desvios",
-          "resumir atividade provável de funcionários sem identificação biométrica",
-          "analisar sinais explícitos de fila e espera",
-          "informar incidentes de qualidade e enquadramento das câmeras",
-          "mostrar passagens prováveis entre câmeras com hipóteses concorrentes",
-          "gerar um resumo diário de eventos, sessões, rotinas, processos e saúde",
-          "resumir períodos",
-          "estimar aparições de clientes e funcionários",
-          "localizar entregas, objetos e veículos",
-          "comparar períodos",
-          "mostrar eventos como evidência",
-        ],
-        limitations: [
-          "não identifica pessoas",
-          "não conta clientes únicos",
-          "não confirma vendas sem integração transacional",
-        ],
-      };
-    }
-
-    if (plan.intent !== "general_help") {
-      const calibrated = await supabase.rpc(
-        "assistant_calibrated_activity_summary_v1",
-        {
-          p_organization_id: organization.id,
-          p_from: fromIso,
-          p_to: toIso,
-          p_camera_id: plan.cameraId,
-          p_site_id: plan.siteId,
-        },
-      );
-
-      if (!calibrated.error) {
-        retrievedData = {
-          ...objectValue(retrievedData),
-          calibratedActivity: calibrated.data,
-          calibratedDefinitions: {
-            qualifiedCustomerVisits:
-              "Visitas prováveis que realmente alcançaram o balcão e apresentaram sinal visual de atendimento; pessoas na rua e simples passagens ficam fora.",
-            probableDistinctStaff:
-              "Funcionários distintos prováveis após continuidade temporal não biométrica; aparições repetidas não são somadas como novos funcionários.",
-            probableDistinctParkedVehicles:
-              "Veículos distintos prováveis após agrupar permanências compatíveis; não usa placa nem confirma identidade do veículo.",
-          },
-        };
-      } else {
-        console.error(
-          "Falha ao carregar métricas calibradas do Assistente:",
-          calibrated.error.message,
-        );
-      }
-    }
-
-    candidateEvidenceIds = [
-      ...new Set(candidateEvidenceIds),
-    ].slice(0, 12);
-
-    const displayPeriodLabel = assistantPeriodLabel(
-      fromDate,
-      toDate,
-      effectiveTimeZone,
-    );
-
+    const executed = await executeAssistantPlanV2({ supabase, organizationId: organization.id, plan, fromIso, toIso, compareFromIso, compareToIso });
+    const localizedData = localizeAssistantPayload(executed.retrievedData, effectiveTimeZone);
     const answered = await answerAssistantQuery({
-      organizationId: organization.id,
-      message: body.message,
-      plan: {
-        ...plan,
-        fromDate,
-        toDate,
-      },
-      retrievedData: localizeAssistantPayload(
-        retrievedData,
-        effectiveTimeZone,
-      ),
-      allowedEvidenceIds: candidateEvidenceIds,
-      history,
+      organizationId: organization.id, message: body.message, plan,
+      retrievedData: localizedData, allowedEvidenceIds: executed.candidateEvidenceIds, history,
     });
 
-    const allowedSet = new Set(candidateEvidenceIds);
-    let evidenceIds = answered.answer.evidenceEventIds.filter((id) =>
-      allowedSet.has(id),
-    );
-    if (!evidenceIds.length && plan.intent !== "general_help") {
-      evidenceIds = candidateEvidenceIds.slice(0, 4);
+    let evidenceIds = answered.answer.evidenceEventIds.filter((id) => executed.candidateEvidenceIds.includes(id));
+    if (!evidenceIds.length) evidenceIds = executed.candidateEvidenceIds.slice(0, 4);
+    const displayPeriodLabel = assistantPeriodLabel(fromDate, toDate, effectiveTimeZone);
+    const localizedObject = objectValue(localizedData);
+    const operationResults = objectValue(localizedObject.operationResults);
+    const summaryOperation = plan.operations.find((op) => op.kind === "period_summary");
+    const compareOperation = plan.operations.find((op) => op.kind === "compare_periods");
+    let chartData: unknown = localizedData;
+    if (compareOperation) {
+      const comparison = objectValue(operationResults[compareOperation.id]);
+      chartData = {
+        periodA: { fromDate, toDate, summary: objectValue(comparison.periodA).summary },
+        periodB: { fromDate: compareFromDate, toDate: compareToDate, summary: objectValue(comparison.periodB).summary },
+      };
+    } else if (summaryOperation) {
+      chartData = { summary: objectValue(operationResults[summaryOperation.id]).summary };
     }
-
-    const chart = buildAssistantChart({
-      plan,
-      retrievedData,
-      fromDate,
-      toDate,
-    });
-
-    const combinedUsage = addAssistantUsage(
-      planned.usage,
-      answered.usage,
-    );
-    const cost = estimateVisionCostBreakdown(
-      answered.model,
-      combinedUsage,
-    );
-
-    const queryPlan = {
+    const chart = buildAssistantChart({ plan: plan.legacyPlan, retrievedData: chartData, fromDate, toDate });
+    const combinedUsage = addAssistantUsage(planned.usage, answered.usage);
+    const cost = estimateVisionCostBreakdown(answered.model, combinedUsage);
+    const storedPlan = {
       ...plan,
-      fromDate,
-      toDate,
       periodLabel: displayPeriodLabel,
       caution: answered.answer.caution,
       suggestions: answered.answer.suggestions,
       chart,
+      plannerSource: planned.source,
+      localConfidence: planned.localConfidence,
       plannerResponseId: planned.responseId,
       answerResponseId: answered.responseId,
+      dataState: objectValue(executed.coverage).dataState ?? null,
     };
 
-    const { data: assistantMessage, error: assistantError } =
-      await admin
-        .from("assistant_messages")
-        .insert({
-          organization_id: organization.id,
-          thread_id: activeThreadId,
-          role: "assistant",
-          content: answered.answer.answer,
-          evidence_event_ids: evidenceIds,
-          query_plan: queryPlan,
-          model: answered.model,
-          usage: combinedUsage,
-          estimated_cost_usd: cost.totalCostUsd,
-          created_by: null,
-        })
-        .select("id,created_at")
-        .single();
-
-    if (assistantError || !assistantMessage) {
-      throw new Error(
-        assistantError?.message ?? "assistant_message_failed",
-      );
-    }
+    const { data: assistantMessage, error: assistantError } = await admin.from("assistant_messages").insert({
+      organization_id: organization.id, thread_id: activeThreadId, role: "assistant", content: answered.answer.answer,
+      evidence_event_ids: evidenceIds, query_plan: storedPlan, model: answered.model, usage: combinedUsage,
+      estimated_cost_usd: cost.totalCostUsd, created_by: null,
+    }).select("id,created_at").single();
+    if (assistantError || !assistantMessage) throw new Error(assistantError?.message ?? "assistant_message_failed");
 
     await Promise.all([
-      admin
-        .from("assistant_threads")
-        .update({
-          last_message_at: assistantMessage.created_at,
-          updated_at: assistantMessage.created_at,
-        })
-        .eq("id", activeThreadId)
-        .eq("organization_id", organization.id)
-        .eq("created_by", user.id),
+      admin.from("assistant_threads").update({ last_message_at: assistantMessage.created_at, updated_at: assistantMessage.created_at }).eq("id", activeThreadId).eq("organization_id", organization.id).eq("created_by", user.id),
       admin.from("usage_events").insert({
-        organization_id: organization.id,
-        camera_id: plan.cameraId,
-        analysis_job_id: null,
+        organization_id: organization.id, camera_id: plan.legacyPlan.cameraId, analysis_job_id: null,
         provider: "openai",
-        model: answered.model,
-        input_tokens: combinedUsage.inputTokens,
-        cached_input_tokens: combinedUsage.cachedInputTokens,
-        output_tokens: combinedUsage.outputTokens,
-        reasoning_tokens: combinedUsage.reasoningTokens,
-        estimated_cost_usd: cost.totalCostUsd,
-        pricing: cost.rates,
+        model: answered.model, input_tokens: combinedUsage.inputTokens, cached_input_tokens: combinedUsage.cachedInputTokens,
+        output_tokens: combinedUsage.outputTokens, reasoning_tokens: combinedUsage.reasoningTokens,
+        estimated_cost_usd: cost.totalCostUsd, pricing: cost.rates,
         metadata: {
-          purpose: "assistant_query",
-          thread_id: activeThreadId,
-          user_message_id: userMessage.id,
-          assistant_message_id: assistantMessage.id,
-          intent: plan.intent,
-          cost_breakdown: cost,
+          purpose: "assistant_query_v2", thread_id: activeThreadId, user_message_id: userMessage.id,
+          assistant_message_id: assistantMessage.id, operations: plan.operations.map((op) => op.kind),
+          planner_source: planned.source, data_state: objectValue(executed.coverage).dataState ?? null, cost_breakdown: cost,
         },
       }),
     ]);
 
-    const evidence = await hydrateEvidence(
-      organization.id,
-      evidenceIds,
-    );
-
-    return NextResponse.json(
-      {
-        ok: true,
-        threadId: activeThreadId,
-        userMessage: {
-          id: String(userMessage.id),
-          role: "user",
-          content: body.message,
-          createdAt: String(userMessage.created_at),
-          evidenceEventIds: [],
-          periodLabel: null,
-          caution: null,
-          suggestions: [],
-          chart: null,
-        },
-        assistantMessage: {
-          id: String(assistantMessage.id),
-          role: "assistant",
-          content: answered.answer.answer,
-          createdAt: String(assistantMessage.created_at),
-          evidenceEventIds: evidenceIds,
-          periodLabel: displayPeriodLabel,
-          caution: answered.answer.caution,
-          suggestions: answered.answer.suggestions,
-          chart,
-        },
-        evidence,
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    const evidence = await hydrateEvidence(organization.id, evidenceIds);
+    return NextResponse.json({
+      ok: true,
+      threadId: activeThreadId,
+      userMessage: { id: String(userMessage.id), role: "user", content: body.message, createdAt: String(userMessage.created_at), evidenceEventIds: [], periodLabel: null, caution: null, suggestions: [], chart: null },
+      assistantMessage: { id: String(assistantMessage.id), role: "assistant", content: answered.answer.answer, createdAt: String(assistantMessage.created_at), evidenceEventIds: evidenceIds, periodLabel: displayPeriodLabel, caution: answered.answer.caution, suggestions: answered.answer.suggestions, chart },
+      evidence,
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("Falha no Assistente MonitorIA:", error);
-
-    await admin
-      .from("assistant_messages")
-      .delete()
-      .eq("id", userMessage.id)
-      .eq("organization_id", organization.id)
-      .eq("thread_id", activeThreadId)
-      .eq("created_by", user.id);
-
-    if (isNewThread) {
-      await admin
-        .from("assistant_threads")
-        .delete()
-        .eq("id", activeThreadId)
-        .eq("organization_id", organization.id)
-        .eq("created_by", user.id);
-    }
-
-    return NextResponse.json(
-      { ok: false, error: "assistant_query_failed" },
-      { status: 503 },
-    );
+    console.error("Falha no Assistente MonitorIA 2.0:", error);
+    await admin.from("assistant_messages").delete().eq("id", userMessage.id).eq("organization_id", organization.id).eq("thread_id", activeThreadId).eq("created_by", user.id);
+    if (isNewThread) await admin.from("assistant_threads").delete().eq("id", activeThreadId).eq("organization_id", organization.id).eq("created_by", user.id);
+    return NextResponse.json({ ok: false, error: "assistant_query_failed" }, { status: 503 });
   }
 }

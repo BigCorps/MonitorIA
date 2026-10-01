@@ -1,76 +1,42 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
+import type { AssistantUsage } from "./contracts";
+import { ZERO_ASSISTANT_USAGE } from "./deterministic";
 import {
-  AssistantPlanSchema,
-  type AssistantDirectory,
-  type AssistantHistoryItem,
-  type AssistantPlan,
-  type AssistantUsage,
-} from "./contracts";
+  answerDeterministicallyV2,
+  planDeterministicallyV2,
+} from "./deterministic-v2";
 import {
-  ZERO_ASSISTANT_USAGE,
-  answerDeterministically,
-  planDeterministically,
-} from "./deterministic";
+  AssistantPlanV2Schema,
+  type AssistantDirectoryV2,
+  type AssistantHistoryItemV2,
+  type AssistantPlanV2,
+} from "./v2-contracts";
 
 let client: OpenAI | null = null;
+const model = "gpt-5-nano";
 
-function getClient(): OpenAI {
-  if (!client) {
-    client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
+function getClient() {
+  if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return client;
 }
 
-/**
- * Fallback deliberadamente fixo em nano.
- *
- * A Pesquisa IA resolve primeiro a pergunta localmente. OpenAI só é chamada
- * quando o motor determinístico não consegue produzir um plano com confiança
- * suficiente. Não existe fallback para mini nesta camada.
- */
-const model = "gpt-5-nano";
-
-function usageFromResponse(
-  usage:
-    | {
-        input_tokens?: number;
-        input_tokens_details?: {
-          cached_tokens?: number;
-        };
-        output_tokens?: number;
-        output_tokens_details?: {
-          reasoning_tokens?: number;
-        };
-        total_tokens?: number;
-      }
-    | null
-    | undefined,
-): AssistantUsage {
+function usageFromResponse(usage: any): AssistantUsage {
   return {
     inputTokens: usage?.input_tokens ?? 0,
-    cachedInputTokens:
-      usage?.input_tokens_details?.cached_tokens ?? 0,
+    cachedInputTokens: usage?.input_tokens_details?.cached_tokens ?? 0,
     outputTokens: usage?.output_tokens ?? 0,
-    reasoningTokens:
-      usage?.output_tokens_details?.reasoning_tokens ?? 0,
+    reasoningTokens: usage?.output_tokens_details?.reasoning_tokens ?? 0,
     totalTokens: usage?.total_tokens ?? 0,
   };
 }
 
-export function addAssistantUsage(
-  left: AssistantUsage,
-  right: AssistantUsage,
-): AssistantUsage {
+export function addAssistantUsage(left: AssistantUsage, right: AssistantUsage): AssistantUsage {
   return {
     inputTokens: left.inputTokens + right.inputTokens,
-    cachedInputTokens:
-      left.cachedInputTokens + right.cachedInputTokens,
+    cachedInputTokens: left.cachedInputTokens + right.cachedInputTokens,
     outputTokens: left.outputTokens + right.outputTokens,
-    reasoningTokens:
-      left.reasoningTokens + right.reasoningTokens,
+    reasoningTokens: left.reasoningTokens + right.reasoningTokens,
     totalTokens: left.totalTokens + right.totalTokens,
   };
 }
@@ -84,174 +50,105 @@ export async function planAssistantQuery(input: {
   selectedTo: string | null;
   selectedCameraId: string | null;
   selectedSiteId: string | null;
-  directory: AssistantDirectory;
-  history: AssistantHistoryItem[];
+  directory: AssistantDirectoryV2;
+  history: AssistantHistoryItemV2[];
 }) {
-  const local = planDeterministically({
-    message: input.message,
-    currentDate: input.currentDate,
-    timezone: input.timezone,
-    selectedFrom: input.selectedFrom,
-    selectedTo: input.selectedTo,
-    selectedCameraId: input.selectedCameraId,
-    selectedSiteId: input.selectedSiteId,
-    directory: input.directory,
-    history: input.history,
-  });
-
+  const local = planDeterministicallyV2(input);
   if (local.understood) {
     return {
       plan: local.plan,
       responseId: null,
       usage: ZERO_ASSISTANT_USAGE,
       model,
-      source: "deterministic" as const,
+      source: "deterministic_v2" as const,
       localConfidence: local.confidence,
     };
   }
 
-  const requestPlan = (maxOutputTokens: number) =>
-    getClient().responses.parse({
-      model,
-      store: false,
-      max_output_tokens: maxOutputTokens,
-      prompt_cache_key: `monitoria-assistant-fallback-plan-${input.organizationId}`,
-      // O fallback é raro. Quando necessário, usa mais raciocínio do que o
-      // antigo caminho "minimal" para maximizar a chance de uma única chamada
-      // resolver a ambiguidade sem precisar de outra IA para redigir resposta.
-      reasoning: { effort: "medium" },
-      instructions: [
-        "Você é SOMENTE o fallback de interpretação da Pesquisa IA MonitorIA.",
-        "Não responda a pergunta do usuário. Produza apenas o plano estruturado solicitado.",
-        "O backend fará consultas determinísticas e escreverá a resposta sem outra chamada de IA.",
-        "Escolha operating_hours para abertura, fechamento, horário real de funcionamento, duração aberta, atraso ou fechamento antecipado.",
-        "Escolha visual_state para estado atual ou histórico de porta, portão, caixa, gaveta, armário, equipamento, iluminação ou área configurada.",
-        "Escolha continuity_summary para pessoas/clientes distintos prováveis ou registros provavelmente pertencentes à mesma visita.",
-        "Escolha interaction_sessions para atendimentos, entregas, visitas ou procedimentos compostos por vários registros.",
-        "Escolha interaction_summary para quantidades de interações/atendimentos distintos prováveis.",
-        "Escolha vehicle_continuity para veículos distintos prováveis, permanência, retorno ou aparições relacionadas.",
-        "Escolha cross_camera_sequence para passagem, direção ou sequência provável entre câmeras do mesmo local.",
-        "Escolha routine_deviation para diferenças em relação à rotina, horários habituais, volumes fora da faixa ou atividade após fechamento.",
-        "Escolha staff_activity para atividade ou padrões de funcionários prováveis, sem identidade civil.",
-        "Escolha queue_analysis para fila, espera ou pico de fila.",
-        "Escolha object_history para aparecimento, ausência, remoção ou deslocamento de objetos.",
-        "Escolha equipment_history para histórico/mudança de estado de equipamentos.",
-        "Escolha camera_health para câmera offline, escura, desfocada, obstruída, movida ou sem observação recente.",
-        "Escolha daily_operations para um resumo do dia combinando acontecimentos, rotinas, processos e saúde.",
-        "Escolha period_summary para contagens, métricas, câmera com mais eventos ou panorama de um período.",
-        "Escolha search_events quando o usuário pedir uma lista/localização de acontecimentos específicos.",
-        "Escolha compare_periods somente quando houver comparação explícita.",
-        "Escolha general_help apenas para capacidades/uso da Pesquisa IA.",
-        "Datas são inclusivas e absolutas no formato YYYY-MM-DD.",
-        "Resolva hoje, ontem, semana e expressões semelhantes usando currentDate/timezone.",
-        "Se não houver período explícito, use currentDate como início e fim.",
-        "Use somente IDs presentes no directory. Nunca invente organization_id, site_id ou camera_id.",
-        "Filtros selecionados na interface têm prioridade.",
-        "live_camera é monitoramento contínuo; local_recording é gravação histórica.",
-        "Nunca escolha camera_health ou cross_camera_sequence para uma seleção composta apenas por local_recording.",
-        "Defina wantsChart=true apenas se o usuário pedir gráfico/visualização.",
-        "Nunca planeje reconhecimento facial, identidade civil, emoção, gênero, crime, fraude ou intenção.",
-        "Aparições não são pessoas únicas e sinais de atendimento não confirmam venda.",
-        "A query deve conter termos objetivos curtos; nunca SQL, operadores SQL ou nomes de tabelas.",
-        "Responda somente no esquema estruturado solicitado.",
-      ].join("\n"),
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(
-                {
-                  currentDate: input.currentDate,
-                  timezone: input.timezone,
-                  selectedFilters: {
-                    fromDate: input.selectedFrom,
-                    toDate: input.selectedTo,
-                    cameraId: input.selectedCameraId,
-                    siteId: input.selectedSiteId,
-                  },
-                  directory: input.directory,
-                  recentConversation: input.history,
-                  localAttempt: {
-                    confidence: local.confidence,
-                    reason: local.reason,
-                    proposedPlan: local.plan,
-                  },
-                  userMessage: input.message,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: zodTextFormat(
-          AssistantPlanSchema,
-          "monitoria_assistant_fallback_plan",
-        ),
-      },
-    });
-
-  // Uma única chamada de fallback. Reservamos tokens suficientes já na
-  // primeira tentativa para não transformar uma pergunta ambígua em duas
-  // chamadas pagas. Se ainda assim o plano vier incompleto, usamos o plano
-  // local conservador em vez de repetir a API.
-  const response = await requestPlan(1600);
-  const usage = usageFromResponse(response.usage);
-
-  if (!response.output_parsed) {
-    // Mesmo quando o fallback falha, não dispara uma segunda família/modelo.
-    // Usa o plano local conservador para manter a pesquisa disponível.
+  // A Pesquisa IA continua útil mesmo se a OpenAI estiver indisponível.
+  // Somente a interpretação rara/ambígua perde o fallback.
+  if (!process.env.OPENAI_API_KEY?.trim()) {
     return {
       plan: local.plan,
-      responseId: response.id,
-      usage,
+      responseId: null,
+      usage: ZERO_ASSISTANT_USAGE,
       model,
-      source: "deterministic_after_fallback" as const,
+      source: "deterministic_no_api" as const,
       localConfidence: local.confidence,
     };
   }
 
+  const response = await getClient().responses.parse({
+    model,
+    store: false,
+    max_output_tokens: 2200,
+    prompt_cache_key: `monitoria-assistant-v2-plan-${input.organizationId}`,
+    reasoning: { effort: "medium" },
+    instructions: [
+      "Você é somente o fallback de planejamento da Pesquisa IA MonitorIA 2.0.",
+      "Nunca responda ao usuário; devolva apenas o plano estruturado.",
+      "O backend executará todas as consultas e escreverá a resposta sem outra chamada de IA.",
+      "Uma pergunta pode conter várias operações. Decomponha em até 6 operações independentes.",
+      "Use apenas IDs existentes no directory e nunca invente organization_id.",
+      "Use camera_health_current somente para estado atual. Para período passado use camera_health_history.",
+      "Use attention_summary para perguntas sobre prioridade, alertas, incidentes ou o que merece atenção.",
+      "Use cross_camera_sequence com fromCameraId/toCameraId quando a direção estiver explícita.",
+      "Use visual_state quando a pergunta citar uma visualEntity do diretório.",
+      "Use process_summary quando citar um processo operacional do diretório.",
+      "Use search_events com zoneId quando uma zona configurada estiver explícita.",
+      "Use period_summary para COUNT/RANK/PEAK/AVERAGE de métricas do período.",
+      "Nunca gere SQL, nomes de tabelas ou código executável.",
+      "Nunca planeje reconhecimento facial, identidade civil, emoção, gênero, crime, fraude ou intenção.",
+      "Passagens entre câmeras são hipóteses não biométricas, não identidade.",
+      "Objeto removido não significa furto; atividade após fechamento não significa ato oculto.",
+      "Ausência de registros não prova ausência de acontecimento.",
+      "Mantenha legacyPlan compatível com o contrato legado; operations carrega a composição 2.0.",
+    ].join("\n"),
+    input: [{
+      role: "user",
+      content: [{
+        type: "input_text",
+        text: JSON.stringify({
+          currentDate: input.currentDate,
+          timezone: input.timezone,
+          selectedFilters: {
+            fromDate: input.selectedFrom,
+            toDate: input.selectedTo,
+            cameraId: input.selectedCameraId,
+            siteId: input.selectedSiteId,
+          },
+          directory: input.directory,
+          recentConversation: input.history.slice(-8),
+          localAttempt: local,
+          userMessage: input.message,
+        }),
+      }],
+    }],
+    text: { format: zodTextFormat(AssistantPlanV2Schema, "monitoria_assistant_v2_plan") },
+  });
+
+  const usage = usageFromResponse(response.usage);
+  const parsed = AssistantPlanV2Schema.safeParse(response.output_parsed);
   return {
-    plan: AssistantPlanSchema.parse(
-      response.output_parsed,
-    ) as AssistantPlan,
+    plan: parsed.success ? parsed.data : local.plan,
     responseId: response.id,
     usage,
     model,
-    source: "openai_fallback" as const,
+    source: parsed.success ? "openai_fallback_v2" as const : "deterministic_after_fallback" as const,
     localConfidence: local.confidence,
   };
 }
 
-/**
- * A redação da resposta não chama OpenAI.
- *
- * O conteúdo é montado a partir dos dados estruturados já recuperados pelo
- * endpoint, com frases específicas para fato observado, cálculo, desvio e
- * inferência limitada. Assim a pergunta simples custa 0 chamadas de LLM e a
- * pergunta ambígua custa, no máximo, a chamada do planner acima.
- */
 export async function answerAssistantQuery(input: {
   organizationId: string;
   message: string;
-  plan: AssistantPlan;
+  plan: AssistantPlanV2;
   retrievedData: unknown;
   allowedEvidenceIds: string[];
-  history: AssistantHistoryItem[];
+  history: AssistantHistoryItemV2[];
 }) {
-  const answer = answerDeterministically({
-    message: input.message,
-    plan: input.plan,
-    retrievedData: input.retrievedData,
-    allowedEvidenceIds: input.allowedEvidenceIds,
-  });
-
   return {
-    answer,
+    answer: answerDeterministicallyV2(input),
     responseId: null,
     usage: ZERO_ASSISTANT_USAGE,
     model,
