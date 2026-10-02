@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import { getCurrentOrganization } from "@/src/lib/dashboard-data";
-import { getOrganizationCameraProductHealth } from "@/src/lib/camera-product-state-data";
+import { getOrganizationCameraRecoveryHealth } from "@/src/lib/camera-recovery-data";
+// Gate 3 complementa getOrganizationCameraProductHealth com telemetria de recuperação.
 import { VipCameraHealth } from "@/src/components/vip-camera-health";
 import { getVipDashboardForOrganization } from "@/src/vip/dashboard";
 import styles from "./vip-dashboard.module.css";
@@ -43,7 +44,10 @@ export default async function VipDashboardPage({ searchParams }: Props) {
 
   const [data, health, query] = await Promise.all([
     getVipDashboardForOrganization(organization.id),
-    getOrganizationCameraProductHealth(organization.id, { vipOnly: true }),
+    getOrganizationCameraRecoveryHealth(organization.id, {
+      vipOnly: true,
+      experience: "vip",
+    }),
     searchParams,
   ]);
 

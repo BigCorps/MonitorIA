@@ -25,8 +25,6 @@ test("instalador Store é por usuário e possui abertura visível com consentime
   );
 });
 
-
-
 test("Store só ativa início automático depois de escolha explícita do usuário", async () => {
   const installer = await readFile(
     new URL("../installer/monitoria-store-v103.iss", import.meta.url),
@@ -150,7 +148,7 @@ test("reparo não compete com as abas do onboarding e usa assistente próprio", 
   assert.doesNotMatch(navigation, /id:\s*"pair-computer"/);
 });
 
-test("troca por local preserva IDs de câmera e move demonstração ativa", async () => {
+test("troca por local preserva IDs e o Gate 2 tolera pairing obsoleto sem duplicar", async () => {
   const migration = await readFile(
     new URL(
       "../supabase/migrations/20260828195500_repair_pairing_preserves_cameras.sql",
@@ -169,11 +167,13 @@ test("troca por local preserva IDs de câmera e move demonstração ativa", asyn
   assert.match(migration, /update public\.trial_runs/);
   assert.match(migration, /agent_id = v_agent_id/);
 
-  // O endpoint já validado reutiliza primeiro câmeras em pairing/unpaired
-  // sem vínculo habilitado; a migration acima prepara exatamente esse estado.
-  assert.match(discovered, /\.in\("pairing_status", \["unpaired", "pairing"\]\)/);
-  assert.match(discovered, /\.eq\("enabled", true\)/);
-  assert.match(discovered, /reuseMappingError/);
+  // O Gate 2 mantém compatibilidade com a migration, mas não depende mais de
+  // pairing_status estar perfeito: câmeras órfãs paired também podem ser
+  // reaproveitadas e vínculo enabled de Agent disabled é tratado como obsoleto.
+  assert.match(discovered, /chooseReusableDiscoveryCamera/);
+  assert.match(discovered, /pairing_status/);
+  assert.match(discovered, /mapping\.agentStatus === "disabled"/);
+  assert.match(discovered, /reused: true/);
 });
 
 test("Store pública só é habilitada com link oficial apps.microsoft.com", async () => {

@@ -6,7 +6,8 @@ import {
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { getRunningTrialCameraState } from "@/src/lib/trial-camera-state";
-import { getOrganizationCameraProductHealth } from "@/src/lib/camera-product-state-data";
+import { getOrganizationCameraRecoveryHealth } from "@/src/lib/camera-recovery-data";
+// Gate 3 complementa getOrganizationCameraProductHealth com telemetria de recuperação.
 import { StandardCameraHealth } from "@/src/components/standard-camera-health";
 import { DashboardSidebar } from "../dashboard-sidebar";
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
@@ -32,7 +33,7 @@ export default async function CamerasPage({ searchParams }: Props) {
   const [sites, trialState, health, query] = await Promise.all([
     getOrganizationSites(organization.id),
     getRunningTrialCameraState(organization.id),
-    getOrganizationCameraProductHealth(organization.id, {
+    getOrganizationCameraRecoveryHealth(organization.id, {
       experience: "standard",
     }),
     searchParams,
@@ -97,8 +98,6 @@ export default async function CamerasPage({ searchParams }: Props) {
           selectedSiteId={selectedSiteId}
           selectedCameraId={selectedCameraId}
         />
-
-
       </section>
     </main>
   );

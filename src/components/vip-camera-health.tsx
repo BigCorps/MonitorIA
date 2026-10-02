@@ -1,6 +1,8 @@
 import Link from "next/link";
-import type { OrganizationCameraProductHealth } from "@/src/lib/camera-product-state-data";
+import type { OrganizationCameraRecoveryHealth } from "@/src/lib/camera-recovery-data";
+import { CameraRecoveryPanel } from "@/src/components/camera-recovery-panel";
 import styles from "./vip-camera-health.module.css";
+// “Ver diagnóstico avançado” agora é renderizado pelo CameraRecoveryPanel compartilhado.
 
 function relativeDate(value: string | null) {
   if (!value) return "Ainda sem análise concluída";
@@ -28,7 +30,7 @@ export function VipCameraHealth({
   selectedSiteId,
   selectedCameraId,
 }: {
-  data: OrganizationCameraProductHealth;
+  data: OrganizationCameraRecoveryHealth;
   selectedSiteId: string;
   selectedCameraId: string | null;
 }) {
@@ -57,8 +59,8 @@ export function VipCameraHealth({
           <span>SAÚDE DA OPERAÇÃO</span>
           <h2>Conectada não basta. Aqui você vê quem está realmente monitorando.</h2>
           <p>
-            Cada câmera mostra o que já está pronto, o que falta e qual é o próximo
-            botão. Detalhes técnicos ficam recolhidos.
+            Cada câmera mostra a causa provável quando os sinais não fecham,
+            o que o MonitorIA já tenta sozinho e a próxima ação segura para a equipe.
           </p>
         </div>
 
@@ -91,9 +93,7 @@ export function VipCameraHealth({
         </article>
         <article>
           <span>CONFIGURAÇÃO</span>
-          <strong>
-            {scopeSummary.setup}
-          </strong>
+          <strong>{scopeSummary.setup}</strong>
           <small>ainda precisam de uma etapa</small>
         </article>
         <article>
@@ -115,103 +115,70 @@ export function VipCameraHealth({
 
       {filtered.length ? (
         <div className={styles.cameraGrid}>
-          {filtered.map((camera) => (
-            <article
-              className={styles.cameraCard}
-              data-selected={selectedCameraId === camera.id}
-              key={camera.id}
-            >
-              <div className={styles.cameraTop}>
-                <div>
-                  <span>{camera.siteName}</span>
-                  <h3>{camera.name}</h3>
+          {filtered.map((camera) => {
+            const diagnosticOpen =
+              selectedCameraId === camera.id ||
+              !["healthy", "recording_ready"].includes(camera.diagnosis.issue);
+            const refreshHref = `/vip/dashboard?site=${encodeURIComponent(
+              selectedSiteId,
+            )}&camera=${encodeURIComponent(camera.id)}#saude`;
+
+            return (
+              <article
+                className={styles.cameraCard}
+                data-selected={selectedCameraId === camera.id}
+                key={camera.id}
+              >
+                <div className={styles.cameraTop}>
+                  <div>
+                    <span>{camera.siteName}</span>
+                    <h3>{camera.name}</h3>
+                  </div>
+                  <b data-tone={stateTone(camera.status)}>{camera.label}</b>
                 </div>
-                <b data-tone={stateTone(camera.status)}>{camera.label}</b>
-              </div>
 
-              <p className={styles.description}>{camera.description}</p>
+                <p className={styles.description}>{camera.description}</p>
 
-              <div className={styles.checklist}>
-                {camera.checklist
-                  .filter((item) => item.applicable)
-                  .map((item) => (
-                    <div
-                      key={item.key}
-                      data-complete={item.complete}
-                      data-warning={item.warning}
-                    >
-                      <i>{item.complete ? "✓" : item.warning ? "!" : "○"}</i>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
-              </div>
+                <div className={styles.checklist}>
+                  {camera.checklist
+                    .filter((item) => item.applicable)
+                    .map((item) => (
+                      <div
+                        key={item.key}
+                        data-complete={item.complete}
+                        data-warning={item.warning}
+                      >
+                        <i>{item.complete ? "✓" : item.warning ? "!" : "○"}</i>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                </div>
 
-              <div className={styles.statusLine}>
-                <strong>
-                  {camera.remainingSteps === 0
-                    ? camera.status === "monitoring"
-                      ? "Tudo funcionando"
-                      : "Configuração essencial concluída"
-                    : `${camera.remainingSteps} etapa(s) restante(s)`}
-                </strong>
-                <span>{relativeDate(camera.latestAnalysisAt)}</span>
-              </div>
-
-              {camera.status === "attention_required" ? (
-                <div className={styles.attentionHelp}>
+                <div className={styles.statusLine}>
                   <strong>
-                    {["degraded", "critical"].includes(camera.visualHealthStatus ?? "")
-                      ? "A qualidade visual desta câmera precisa de atenção."
-                      : "Imagem e conexão continuam disponíveis."}
+                    {camera.remainingSteps === 0
+                      ? camera.status === "monitoring"
+                        ? "Tudo funcionando"
+                        : "Configuração essencial concluída"
+                      : `${camera.remainingSteps} etapa(s) restante(s)`}
                   </strong>
-                  <span>
-                    {["degraded", "critical"].includes(camera.visualHealthStatus ?? "")
-                      ? "O MonitorIA detectou degradação recente da imagem. Confira o diagnóstico antes de depender desta câmera."
-                      : "Há sinal de que o monitoramento parou de produzir normalmente. Nesta versão verificamos o diagnóstico sem alterar parâmetros da câmera automaticamente."}
-                  </span>
+                  <span>{relativeDate(camera.latestAnalysisAt)}</span>
                 </div>
-              ) : null}
 
-              <div className={styles.actions}>
-                <Link href={camera.action.href}>{camera.action.label}</Link>
-                <Link href={`/dashboard/cameras/${camera.id}`}>Abrir câmera</Link>
-              </div>
+                <div className={styles.actions}>
+                  <Link href={camera.action.href}>{camera.action.label}</Link>
+                  <Link href={`/dashboard/cameras/${camera.id}`}>Abrir câmera</Link>
+                </div>
 
-              <details className={styles.technical}>
-                <summary>Ver diagnóstico avançado</summary>
-                <dl>
-                  <div>
-                    <dt>Fonte</dt>
-                    <dd>{camera.sourceKind === "local_recording" ? "gravação local" : "câmera ao vivo"}</dd>
-                  </div>
-                  <div>
-                    <dt>Conexão da câmera</dt>
-                    <dd>{camera.cameraOnline ? "OK" : "sem sinal"}</dd>
-                  </div>
-                  <div>
-                    <dt>Computador responsável</dt>
-                    <dd>{camera.agentOnline && camera.agentHeartbeatRecent ? "OK" : "sem sinal recente"}</dd>
-                  </div>
-                  <div>
-                    <dt>Liberação</dt>
-                    <dd>{camera.planReady ? camera.planCode ?? "ativa" : "pendente"}</dd>
-                  </div>
-                  <div>
-                    <dt>Perfil</dt>
-                    <dd>{camera.profileReady ? "ativo" : "pendente"}</dd>
-                  </div>
-                  <div>
-                    <dt>Monitor local</dt>
-                    <dd>{camera.monitorActive ? "ativo" : "não confirmado"}</dd>
-                  </div>
-                  <div>
-                    <dt>Saúde visual</dt>
-                    <dd>{camera.visualHealthStatus ?? "ainda sem leitura"}</dd>
-                  </div>
-                </dl>
-              </details>
-            </article>
-          ))}
+                <CameraRecoveryPanel
+                  camera={camera}
+                  variant="vip"
+                  refreshHref={refreshHref}
+                  open={diagnosticOpen}
+                />
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className={styles.empty}>

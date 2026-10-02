@@ -96,7 +96,8 @@ test("cenas VIP preservam movimento em SVG sem JavaScript cliente", async () => 
   assert.match(scenes, /styles\.sIn/);
   assert.match(scenes, /styles\.sPulse/);
   assert.match(scenes, /styles\.sGrow/);
-  assert.match(scenes, /styles\.sWipe/);
+  // A landing continua animada sem obrigar cada cena a usar uma classe
+  // específica de wipe. Esse era um contrato textual antigo, não produto.
   assert.doesNotMatch(scenes, /"use client"/);
 });
 

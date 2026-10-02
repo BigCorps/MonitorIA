@@ -73,8 +73,8 @@ test("painel orienta Administrador para equipe técnica", async () => {
   assert.match(navigation, /href: "\/dashboard\/team"/);
 });
 
-test("convite por e-mail tem fallback de link copiável", async () => {
-  const [notification, manager] = await Promise.all([
+test("convite por e-mail usa página + código próprio e mantém fallback copiável", async () => {
+  const [notification, manager, accessCodeMigration] = await Promise.all([
     readFile(
       new URL("../src/lib/team-notification.ts", import.meta.url),
       "utf8",
@@ -83,10 +83,21 @@ test("convite por e-mail tem fallback de link copiável", async () => {
       new URL("../app/dashboard/team/team-manager.tsx", import.meta.url),
       "utf8",
     ),
+    readFile(
+      new URL(
+        "../supabase/migrations/20261002175500_organization_team_invite_access_codes.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
   ]);
 
   assert.match(notification, /RESEND_API_KEY/);
-  assert.match(notification, /Aceitar convite/);
+  assert.match(notification, /RESEND_FROM/);
+  assert.match(notification, /Abrir convite/);
+  assert.match(notification, /código de 6 dígitos/);
+  assert.match(notification, /sendTeamAccessCode/);
+  assert.match(accessCodeMigration, /access_code_hash/);
   assert.match(manager, /Copiar link/);
 
   const actions = await readFile(

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("listagem de câmeras preserva contexto do teste sem chamar conexão de monitoramento", async () => {
+test("listagem de câmeras preserva contexto do teste e usa estado real de monitoramento", async () => {
   const [page, health] = await Promise.all([
     readFile(new URL("../app/dashboard/cameras/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/components/standard-camera-health.tsx", import.meta.url), "utf8"),
@@ -13,7 +13,8 @@ test("listagem de câmeras preserva contexto do teste sem chamar conexão de mon
   assert.match(page, /estado real abaixo/);
   assert.match(page, /StandardCameraHealth/);
   assert.match(health, /Conectada não basta/);
-  assert.match(health, /Monitoramento iniciado/);
+  assert.match(health, /monitor realmente ativo/);
+  assert.match(health, /camera\.monitorActive/);
   assert.doesNotMatch(page, /cameraHasRecentSignal/);
 });
 
