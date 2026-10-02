@@ -21,10 +21,22 @@ import {
 } from '@/src/lib/meta-ads';
 
 const GTM_ID = 'GTM-MXQX5Z8X';
-const PRODUCTION_HOSTS = new Set(['monitoria.cam', 'www.monitoria.cam']);
+const PRODUCTION_HOSTS = new Set([
+  'monitoria.cam',
+  'www.monitoria.cam',
+  'vip.monitoria.cam',
+]);
 
 function normalize(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function clarityEvent(name: string) {
+  if (typeof window === 'undefined') return;
+  const clarity = (window as Window & {
+    clarity?: (...args: unknown[]) => void;
+  }).clarity;
+  if (typeof clarity === 'function') clarity('event', name);
 }
 
 function parseBrl(value: string) {
@@ -37,7 +49,9 @@ function parseBrl(value: string) {
 function loadGtm() {
   if (document.getElementById('monitoria-gtm-script')) return;
 
-  const granted = localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === 'granted';
+  const granted =
+    localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === 'granted';
+
   ensureGtag();
   applyGoogleConsent(granted, 'default');
 
@@ -51,13 +65,26 @@ function loadGtm() {
 function inspectState() {
   const text = normalize(document.body?.innerText);
   const url = new URL(window.location.href);
+  const host = url.hostname.toLowerCase();
+  const vipLanding = host === 'vip.monitoria.cam' && url.pathname === '/';
+
+  if (vipLanding && url.searchParams.get('contato') === 'enviado') {
+    if (
+      trackEventOnce('vip:lead:submitted', 'vip_lead_submit', {
+        product: 'monitoria_vip',
+        source: 'vip_landing',
+      })
+    ) {
+      clarityEvent('vip_lead_submit');
+    }
+  }
 
   const trialStarted =
     url.searchParams.get('conversion') === 'trial_started' ||
-    text.includes('Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.');
+    text.includes(
+      'Teste iniciado. O MonitorIA já pode começar a receber e analisar as imagens.',
+    );
 
-  // Marcador colocado pelo servidor no redirecionamento pós-cadastro
-  // (app/onboarding/complete e app/onboarding/actions).
   if (url.searchParams.get('conversion') === 'signup_completed') {
     trackEventOnce('signup:completed', 'sign_up', {
       product: 'monitoria',
@@ -78,7 +105,9 @@ function inspectState() {
   const invoiceId = url.searchParams.get('invoice');
   const billingPage = url.pathname.includes('/dashboard/billing');
   if (billingPage && invoiceId) {
-    const pixSection = Array.from(document.querySelectorAll('section')).find((section) =>
+    const pixSection = Array.from(
+      document.querySelectorAll('section'),
+    ).find((section) =>
       normalize(section.textContent).includes('PAGAMENTO PIX BIGCORPS'),
     );
     const sectionText = normalize(pixSection?.textContent);
@@ -106,21 +135,52 @@ function inspectState() {
 
 export function MonitoriaAnalytics() {
   useEffect(() => {
-    if (!PRODUCTION_HOSTS.has(window.location.hostname.toLowerCase())) return;
+    const host = window.location.hostname.toLowerCase();
+    if (!PRODUCTION_HOSTS.has(host)) return;
+
+    // No subdomínio VIP, pixels de marketing ficam somente na landing pública.
+    // Clarity também é montado apenas nessa página.
+    if (host === 'vip.monitoria.cam' && window.location.pathname !== '/') {
+      return;
+    }
 
     loadGtm();
-    initializeOpenAiAdsPixel();
-    initializeMetaAdsPixel();
+
+    if (host !== 'vip.monitoria.cam') {
+      initializeOpenAiAdsPixel();
+      initializeMetaAdsPixel();
+    }
 
     const clickHandler = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
+      const target =
+        event.target instanceof Element ? event.target : null;
       if (!target) return;
-      const anchor = target.closest('a');
-      if (!anchor) return;
 
-      const href = anchor.getAttribute('href') || '';
-      const label = normalize(anchor.textContent);
-      if (href.includes('/login?criar=1') || /começar o teste grátis/i.test(label)) {
+      const actionable = target.closest('a,button');
+      if (!actionable) return;
+
+      const vipEvent = actionable.getAttribute('data-vip-event');
+      if (vipEvent) {
+        trackEvent('vip_cta_click', {
+          product: 'monitoria_vip',
+          action: vipEvent,
+          link_url:
+            actionable instanceof HTMLAnchorElement
+              ? actionable.getAttribute('href') || ''
+              : '',
+        });
+        clarityEvent(`vip_${vipEvent}`);
+      }
+
+      if (!(actionable instanceof HTMLAnchorElement)) return;
+
+      const href = actionable.getAttribute('href') || '';
+      const label = normalize(actionable.textContent);
+
+      if (
+        href.includes('/login?criar=1') ||
+        /começar o teste grátis/i.test(label)
+      ) {
         trackEvent('trial_cta_click', {
           product: 'monitoria',
           link_url: href,
@@ -142,7 +202,11 @@ export function MonitoriaAnalytics() {
 
     inspect();
     const observer = new MutationObserver(inspect);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
 
     return () => {
       document.removeEventListener('click', clickHandler, true);

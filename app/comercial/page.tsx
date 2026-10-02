@@ -22,7 +22,7 @@ export default async function CommercialEntryPage({ searchParams }: Props) {
 
   if (user) {
     const access = await getCommercialAccessForUser(user);
-    if (access) redirect("/dashboard/admin/customers/trials");
+    if (access) redirect("/comercial/vip");
     redirect("/dashboard");
   }
 
@@ -39,8 +39,9 @@ export default async function CommercialEntryPage({ searchParams }: Props) {
         <span className={styles.eyebrow}>ACESSO COMERCIAL</span>
         <h1>Entre na sua área de vendas.</h1>
         <p className={styles.intro}>
-          Use o e-mail que foi liberado pela administração da BigCorps. Aqui você
-          gera demonstrações, acompanha seus leads e vê as conversões.
+          Use o e-mail que foi liberado pela administração da BigCorps. O
+          acesso abre primeiro a operação VIP, com a fila de interesses, os
+          projetos acompanhados e as conversões.
         </p>
 
         {message ? <div className={styles.success}>{message}</div> : null}
@@ -48,7 +49,9 @@ export default async function CommercialEntryPage({ searchParams }: Props) {
 
         <AuthButtons next="/comercial" showPasskey={false} />
 
-        <div className={styles.divider}><span>ou receba um link</span></div>
+        <div className={styles.divider}>
+          <span>ou receba um link</span>
+        </div>
 
         <form action={sendCommercialMagicLinkAction} className={styles.form}>
           <label>
