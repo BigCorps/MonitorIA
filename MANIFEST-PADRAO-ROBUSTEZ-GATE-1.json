@@ -1,0 +1,102 @@
+{
+  "artifact": "MonitorIA padrão — Robustez Gate 1",
+  "kind": "overlay",
+  "base_commit": "a066def70077eafc4aad17b84e47794fa5e0b578",
+  "supabase_migrations": [],
+  "agent_changes": false,
+  "future_agent_target": "1.0.4",
+  "validation": {
+    "typescript_parser": "12 files / 0 syntax errors",
+    "product_state_runtime": "6/6 assertions",
+    "secret_scan": "clean",
+    "agent_files": "0",
+    "full_repo_build": "GitHub Actions/Vercel after upload"
+  },
+  "files": [
+    {
+      "path": "APLICAR-PADRAO-ROBUSTEZ-GATE-1.md",
+      "bytes": 680,
+      "sha256": "d1fff9d97e2cda3d929d14cfb5bd7f8fcd933b5c640f5bcec1a8146d6a2dc418"
+    },
+    {
+      "path": "LEIA-ME-PADRAO-ROBUSTEZ-GATE-1.md",
+      "bytes": 701,
+      "sha256": "09eefc4427b4af4c3e44a419c490b048cd86ece1315937e60f8357eebe2cf878"
+    },
+    {
+      "path": "VALIDACAO-PADRAO-ROBUSTEZ-GATE-1.md",
+      "bytes": 2330,
+      "sha256": "bd4a602edb380654f87cd1a004d7ebbd26b0c6ab20c404d6d8575c891df2f90e"
+    },
+    {
+      "path": "app/dashboard/cameras/[cameraId]/page.tsx",
+      "bytes": 9299,
+      "sha256": "4aa96a509061bdceed1502d90ec9bd322aa37279d3a9570c2c2aafea2034156b"
+    },
+    {
+      "path": "app/dashboard/cameras/guided-camera-profile.module.css",
+      "bytes": 2710,
+      "sha256": "79c37bb8b02d6876c502c2a64f88693b3cd3fa423bd9037f7872bbecb3611e8c"
+    },
+    {
+      "path": "app/dashboard/cameras/guided-camera-profile.tsx",
+      "bytes": 7585,
+      "sha256": "f8e57e27c0ebadcb2952bbce4e11033d3e414a32b8404f224c6fdf406d47f327"
+    },
+    {
+      "path": "app/dashboard/cameras/page.tsx",
+      "bytes": 3418,
+      "sha256": "ce53f183a68684c3745f913f6370a90222a504e7a20367c394d2ec1f6a80a087"
+    },
+    {
+      "path": "app/dashboard/onboarding-camera-context.tsx",
+      "bytes": 13891,
+      "sha256": "81302f95172af04218c296bd10ea5ce0249822b8f8a7f13669bec3f523b7ed1e"
+    },
+    {
+      "path": "app/dashboard/site-pairing-actions.ts",
+      "bytes": 3689,
+      "sha256": "643e3739fe92df3677e0fc5879dd6d83f48540c96dc7e179f43085a5383873b8"
+    },
+    {
+      "path": "app/dashboard/site-pairing-code.tsx",
+      "bytes": 6411,
+      "sha256": "533e91602fff7eee6c3358c90f6c67ab79d805672901cc935435f66493a944de"
+    },
+    {
+      "path": "src/camera/product-state.ts",
+      "bytes": 8733,
+      "sha256": "3dc9fa34fdb2678fcd0b1abe441a828e5e0565d6a06757a26408d33d33288fb9"
+    },
+    {
+      "path": "src/components/standard-camera-health.module.css",
+      "bytes": 4072,
+      "sha256": "db94e99058e2498020bb3d10d60a1fd6d561691c643176bf3919cf5a15b23156"
+    },
+    {
+      "path": "src/components/standard-camera-health.tsx",
+      "bytes": 7392,
+      "sha256": "40d806d5772b020841bae27348651d2db12b840ae5c0e78862a532f256921983"
+    },
+    {
+      "path": "src/lib/camera-product-state-data.ts",
+      "bytes": 14570,
+      "sha256": "28a00a123f1fa436b52d288f64b33c459aa690a81f285274f49cc59a8d7f9345"
+    },
+    {
+      "path": "test/standard-robustness-gate1.test.ts",
+      "bytes": 3602,
+      "sha256": "f813e439b5b8aef723e19a2e4d47b20397b06a583413569fa9fb16a3d071ce78"
+    },
+    {
+      "path": "test/trial-camera-ux.test.ts",
+      "bytes": 1579,
+      "sha256": "0856fc3701ede2b88e470f7ead6d20fb8a7c89b6dca5dace38728b83a4fbb4c9"
+    },
+    {
+      "path": "test/vip-robustness-gate1.test.ts",
+      "bytes": 3596,
+      "sha256": "4278ee8072ea0c0749c86a2eb02cff53785c7b0006689b59cbb4baa2c066b78f"
+    }
+  ]
+}

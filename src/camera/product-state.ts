@@ -6,6 +6,8 @@ export type CameraProductStatus =
   | "attention_required"
   | "offline";
 
+export type CameraProductExperience = "standard" | "vip";
+
 export type CameraChecklistKey =
   | "agent"
   | "image"
@@ -86,7 +88,9 @@ function requiredChecklist(input: CameraProductInput) {
     },
     {
       key: "plan",
-      label: input.planCode ? `Plano ${input.planCode === "intensive" ? "Intensive" : input.planCode}` : "Plano liberado",
+      label: input.planCode
+        ? `Plano ${input.planCode === "intensive" ? "Intensive" : input.planCode}`
+        : "Plano liberado",
       complete: input.planReady,
       applicable: true,
       warning: false,
@@ -115,7 +119,65 @@ function requiredChecklist(input: CameraProductInput) {
   ] satisfies CameraProductChecklistItem[];
 }
 
-function actionFor(
+function standardAction(
+  input: CameraProductInput,
+  status: CameraProductStatus,
+): CameraProductState["action"] {
+  if (!input.profileReady) {
+    return {
+      label: "Concluir configuração",
+      href: `/dashboard/cameras/${encodeURIComponent(input.id)}?setup=guided#perfil-inteligente`,
+    };
+  }
+
+  if (!input.planReady) {
+    return {
+      label: "Concluir ativação",
+      href: "/dashboard/commercial-choice",
+    };
+  }
+
+  if (status === "offline") {
+    return {
+      label: "Reconectar computador",
+      href: "/dashboard/installer",
+    };
+  }
+
+  if (status === "attention_required") {
+    return {
+      label: "Ver diagnóstico",
+      href: `/dashboard/cameras?camera=${encodeURIComponent(input.id)}#saude`,
+    };
+  }
+
+  if (status === "ready_to_monitor") {
+    return {
+      label:
+        input.sourceKind === "local_recording"
+          ? "Começar análise"
+          : "Verificar monitoramento",
+      href:
+        input.sourceKind === "local_recording"
+          ? `/dashboard/recordings?source=${encodeURIComponent(input.id)}`
+          : `/dashboard/cameras/${encodeURIComponent(input.id)}?setup=guided#perfil-inteligente`,
+    };
+  }
+
+  if (status === "connecting") {
+    return {
+      label: "Continuar configuração",
+      href: "/dashboard/cameras/connections",
+    };
+  }
+
+  return {
+    label: "Abrir câmera",
+    href: `/dashboard/cameras/${encodeURIComponent(input.id)}`,
+  };
+}
+
+function vipAction(
   input: CameraProductInput,
   status: CameraProductStatus,
 ): CameraProductState["action"] {
@@ -149,9 +211,10 @@ function actionFor(
 
   if (status === "ready_to_monitor") {
     return {
-      label: input.sourceKind === "local_recording"
-        ? "Começar análise"
-        : "Verificar ativação",
+      label:
+        input.sourceKind === "local_recording"
+          ? "Começar análise"
+          : "Verificar ativação",
       href: `/vip/onboarding?camera=${encodeURIComponent(input.id)}#camera-setup`,
     };
   }
@@ -169,9 +232,21 @@ function actionFor(
   };
 }
 
+function actionFor(
+  input: CameraProductInput,
+  status: CameraProductStatus,
+  experience: CameraProductExperience,
+) {
+  return experience === "vip"
+    ? vipAction(input, status)
+    : standardAction(input, status);
+}
+
 export function deriveCameraProductState(
   input: CameraProductInput,
+  options: { experience?: CameraProductExperience } = {},
 ): CameraProductState {
+  const experience = options.experience ?? "standard";
   const live = input.sourceKind === "live_camera";
   const agentReady = liveAgentReady(input);
   let status: CameraProductStatus;
@@ -203,7 +278,10 @@ export function deriveCameraProductState(
     status = "monitoring";
   }
 
-  const copy: Record<CameraProductStatus, { label: string; description: string }> = {
+  const copy: Record<
+    CameraProductStatus,
+    { label: string; description: string }
+  > = {
     connecting: {
       label: "Conectando",
       description:
@@ -213,15 +291,17 @@ export function deriveCameraProductState(
       label: "Precisa concluir configuração",
       description: !input.profileReady
         ? "A imagem já está disponível. Falta concluir o perfil inteligente para começar a analisar."
-        : "A câmera está configurada, mas ainda falta liberar o monitoramento deste Projeto.",
+        : "A câmera está configurada, mas ainda falta liberar o monitoramento.",
     },
     ready_to_monitor: {
-      label: input.sourceKind === "local_recording"
-        ? "Pronta para analisar"
-        : "Pronta para monitorar",
-      description: input.sourceKind === "local_recording"
-        ? "O arquivo e o perfil estão prontos. Você já pode iniciar a análise."
-        : "Conexão, plano e perfil estão prontos. Falta confirmar o início do monitoramento.",
+      label:
+        input.sourceKind === "local_recording"
+          ? "Pronta para analisar"
+          : "Pronta para monitorar",
+      description:
+        input.sourceKind === "local_recording"
+          ? "O arquivo e o perfil estão prontos. Você já pode iniciar a análise."
+          : "Conexão, plano e perfil estão prontos. Falta confirmar que o monitoramento foi iniciado.",
     },
     monitoring: {
       label: "Monitorando",
@@ -251,6 +331,6 @@ export function deriveCameraProductState(
     ...copy[status],
     remainingSteps,
     checklist,
-    action: actionFor(input, status),
+    action: actionFor(input, status, experience),
   };
 }

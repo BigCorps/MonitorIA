@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
 import {
   createSitePairingCodeAction,
   getSitePairingOptionsAction,
@@ -14,21 +13,17 @@ import styles from "./first-run.module.css";
 const initial: SitePairingState = { status: "idle" };
 
 export function SitePairingCode() {
-  const pathname = usePathname();
-  const vipExperience = pathname.startsWith("/vip/");
   const [state, formAction, pending] = useActionState(
     createSitePairingCodeAction,
     initial,
   );
   const [copied, setCopied] = useState(false);
   const [sites, setSites] = useState<SitePairingOption[]>([]);
-  const [sitesLoading, setSitesLoading] = useState(vipExperience);
+  const [sitesLoading, setSitesLoading] = useState(true);
   const [sitesError, setSitesError] = useState<string | null>(null);
   const [selectedSiteId, setSelectedSiteId] = useState("");
 
   useEffect(() => {
-    if (!vipExperience) return;
-
     let active = true;
     void getSitePairingOptionsAction().then((result) => {
       if (!active) return;
@@ -48,7 +43,7 @@ export function SitePairingCode() {
     return () => {
       active = false;
     };
-  }, [vipExperience]);
+  }, []);
 
   const selectedSite = useMemo(
     () => sites.find((site) => site.id === selectedSiteId) ?? null,
@@ -81,9 +76,7 @@ export function SitePairingCode() {
             </button>
           </div>
           <p>
-            {vipExperience && (state.siteName || selectedSite)
-              ? `Digite este código no MonitorIA instalado em ${state.siteName ?? selectedSite?.name}. Este computador ficará responsável pelas câmeras deste Local.`
-              : "Digite este código no MonitorIA instalado no computador. Ele vale 15 minutos."}
+            {`Digite este código no MonitorIA instalado em ${state.siteName ?? selectedSite?.name ?? "este Local"}. Este computador ficará responsável pelas câmeras deste Local. O código vale 15 minutos.`}
           </p>
         </div>
 
@@ -98,8 +91,7 @@ export function SitePairingCode() {
 
   return (
     <form action={formAction} className={styles.pairingForm}>
-      {vipExperience ? (
-        <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
           <strong style={{ color: "#263f57", fontSize: 12 }}>
             Onde este computador está instalado?
           </strong>
@@ -168,7 +160,6 @@ export function SitePairingCode() {
             </>
           )}
         </div>
-      ) : null}
 
       {state.status === "error" ? (
         <div className="form-alert error">{state.message}</div>
@@ -177,8 +168,7 @@ export function SitePairingCode() {
         className="panel-primary-action"
         type="submit"
         disabled={
-          pending ||
-          (vipExperience && (sitesLoading || !selectedSiteId))
+          pending || sitesLoading || !selectedSiteId
         }
       >
         {pending ? "Gerando..." : "Gerar código de conexão"}

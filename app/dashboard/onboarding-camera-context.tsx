@@ -6,9 +6,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { CameraProfileWorkspace } from "@/src/lib/camera-profile-data";
-import { CameraProfilePanel } from "./cameras/[cameraId]/camera-profile-panel";
 import { GuidedCameraProfile } from "./cameras/guided-camera-profile";
 import { DiscoveryPanel } from "./cameras/discovery/discovery-panel";
 import {
@@ -134,8 +133,7 @@ export function OnboardingCameraContext({
   defaultCameraCount,
 }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
-  const vipExperience = pathname.startsWith("/vip/");
+  const guidedExperience = true;
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [nameState, nameAction, namePending] = useActionState(
@@ -183,8 +181,8 @@ export function OnboardingCameraContext({
   }, [nameState.status, router]);
 
   const wait = useMemo(
-    () => waitState(waitSeconds, hasAgent, vipExperience),
-    [waitSeconds, hasAgent, vipExperience],
+    () => waitState(waitSeconds, hasAgent, guidedExperience),
+    [waitSeconds, hasAgent, guidedExperience],
   );
 
   const visualProgress = Math.min(
@@ -268,10 +266,10 @@ export function OnboardingCameraContext({
             <div className={styles.loadingSteps}>
               <span data-active="true">Câmera encontrada</span>
               <span data-active={hasAgent}>
-                {vipExperience ? "Computador conectado" : "Agent conectado"}
+                {guidedExperience ? "Computador conectado" : "Agent conectado"}
               </span>
               <span data-active="true">
-                {vipExperience ? "Aguardando imagem" : "Aguardando snapshot"}
+                {guidedExperience ? "Aguardando imagem" : "Aguardando snapshot"}
               </span>
               <span>Imagem recebida</span>
             </div>
@@ -355,9 +353,9 @@ export function OnboardingCameraContext({
             <button type="submit" className={styles.primary} disabled={namePending}>
               {namePending
                 ? "Salvando…"
-                : vipExperience
+                : guidedExperience
                   ? "Salvar e preparar perfil inteligente"
-                  : "Salvar nome e configurar contexto"}
+                  : "Salvar e preparar perfil inteligente"}
             </button>
           </form>
         </section>
@@ -372,7 +370,7 @@ export function OnboardingCameraContext({
           <div>
             <strong>{camera.name} concluída</strong>
             <span>
-              {vipExperience
+              {guidedExperience
                 ? "Perfil inteligente aprovado. Agora verificaremos se o monitoramento realmente ficou ativo."
                 : "Nome e contexto aprovados."}
             </span>
@@ -401,12 +399,12 @@ export function OnboardingCameraContext({
       <div className={styles.cameraProgress}>
         <div>
           <strong>
-            {vipExperience
+            {guidedExperience
               ? `Perfil inteligente de ${camera.name}`
               : `Configure o contexto de ${camera.name}`}
           </strong>
           <span>
-            {vipExperience
+            {guidedExperience
               ? "O MonitorIA prepara uma sugestão a partir da imagem real. Configurações avançadas continuam disponíveis se você quiser editar."
               : "Todas as funções atuais de análise, zonas, edição manual e aprovação continuam disponíveis abaixo."}
           </span>
@@ -426,22 +424,13 @@ export function OnboardingCameraContext({
         </button>
       </div>
 
-      {vipExperience ? (
-        <GuidedCameraProfile
-          cameraId={camera.id}
-          cameraName={camera.name}
-          cameraStatus={camera.status}
-          canManage={canManage}
-          workspace={workspace}
-        />
-      ) : (
-        <CameraProfilePanel
-          cameraId={camera.id}
-          cameraStatus={camera.status}
-          canManage={canManage}
-          workspace={workspace}
-        />
-      )}
+      <GuidedCameraProfile
+        cameraId={camera.id}
+        cameraName={camera.name}
+        cameraStatus={camera.status}
+        canManage={canManage}
+        workspace={workspace}
+      />
     </div>
   );
 }

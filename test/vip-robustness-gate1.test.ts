@@ -6,7 +6,7 @@ async function read(path: string) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("VIP usa estado de produto em vez de Online isolado", async () => {
+test("VIP continua usando estado de produto em vez de Online isolado", async () => {
   const [page, component, data] = await Promise.all([
     read("app/vip/dashboard/page.tsx"),
     read("src/components/vip-camera-health.tsx"),
@@ -24,34 +24,38 @@ test("VIP usa estado de produto em vez de Online isolado", async () => {
   assert.match(data, /camera_evidence_gaps/);
   assert.match(data, /vip_project_cameras/);
   assert.match(data, /vip_project_sites/);
+  assert.match(data, /options\.vipOnly \? "vip" : "standard"/);
   assert.doesNotMatch(data, /sessionHasNoFrames/);
 });
 
-test("VIP possui seletor de Local sem mudar a experiência padrão", async () => {
+test("seleção explícita de Local vale para VIP e padrão", async () => {
   const [component, action] = await Promise.all([
     read("app/dashboard/site-pairing-code.tsx"),
     read("app/dashboard/site-pairing-actions.ts"),
   ]);
 
-  assert.match(component, /pathname\.startsWith\("\/vip\/"\)/);
   assert.match(component, /Onde este computador está instalado/);
   assert.match(component, /name="site_id"/);
   assert.match(component, /\+ Criar novo Local/);
   assert.match(component, /new_site_name/);
+  assert.doesNotMatch(component, /vipExperience/);
+  assert.doesNotMatch(component, /usePathname/);
   assert.match(action, /requestedSiteId/);
   assert.match(action, /sites\.find/);
   assert.match(action, /createRepairPairingCodeAction/);
-  assert.match(action, /: sites\[0\] \?\? null/);
+  assert.match(action, /Escolha o Local onde este computador está instalado/);
+  assert.doesNotMatch(action, /: sites\[0\] \?\? null/);
 });
 
-test("VIP gera perfil automaticamente e mantém edição avançada opcional", async () => {
+test("perfil guiado aprovado no VIP agora é compartilhado com o padrão", async () => {
   const [context, guided] = await Promise.all([
     read("app/dashboard/onboarding-camera-context.tsx"),
     read("app/dashboard/cameras/guided-camera-profile.tsx"),
   ]);
 
-  assert.match(context, /vipExperience/);
+  assert.match(context, /const guidedExperience = true/);
   assert.match(context, /GuidedCameraProfile/);
+  assert.doesNotMatch(context, /pathname\.startsWith\("\/vip\/"\)/);
   assert.match(guided, /analysisFormRef\.current\?\.requestSubmit/);
   assert.match(guided, /router\.refresh\(\)/);
   assert.match(guided, /Aprovar e iniciar monitoramento/);
@@ -59,7 +63,7 @@ test("VIP gera perfil automaticamente e mantém edição avançada opcional", as
   assert.match(guided, /CameraProfilePanel/);
 });
 
-test("convite corporativo tem cooldown e não cai em remetente sandbox em produção", async () => {
+test("convite corporativo mantém cooldown e remetente seguro em produção", async () => {
   const [actions, notification] = await Promise.all([
     read("app/join/[token]/actions.ts"),
     read("src/lib/team-notification.ts"),
@@ -75,7 +79,7 @@ test("convite corporativo tem cooldown e não cai em remetente sandbox em produ�
 });
 
 test("nenhum arquivo do Agent é necessário neste Gate", async () => {
-  const page = await read("app/vip/dashboard/page.tsx");
-  assert.doesNotMatch(page, /runtime_revision/);
-  assert.doesNotMatch(page, /camera_monitor_self_recovered/);
+  const state = await read("src/camera/product-state.ts");
+  assert.doesNotMatch(state, /runtime_revision/);
+  assert.doesNotMatch(state, /camera_monitor_self_recovered/);
 });

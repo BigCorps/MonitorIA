@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   deriveCameraProductState,
+  type CameraProductExperience,
   type CameraProductState,
   type CameraProductStatus,
 } from "@/src/camera/product-state";
@@ -76,7 +77,10 @@ function newestByCamera(
 
 export async function getOrganizationCameraProductHealth(
   organizationId: string,
-  options: { vipOnly?: boolean } = {},
+  options: {
+    vipOnly?: boolean;
+    experience?: CameraProductExperience;
+  } = {},
 ): Promise<OrganizationCameraProductHealth> {
   const admin = createAdminClient();
   const now = Date.now();
@@ -386,6 +390,9 @@ export async function getOrganizationCameraProductHealth(
         ? String(latestIngestion.completed_at)
         : null,
       latestImageAt: asset?.captured_at ? String(asset.captured_at) : null,
+    }, {
+      experience:
+        options.experience ?? (options.vipOnly ? "vip" : "standard"),
     });
   });
 

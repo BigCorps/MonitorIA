@@ -3,53 +3,52 @@ import { redirect } from "next/navigation";
 import { requireAuthenticatedUser } from "@/src/lib/auth";
 import {
   getCurrentOrganization,
-  getOrganizationCameras,
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { getRunningTrialCameraState } from "@/src/lib/trial-camera-state";
-import { cameraHasRecentSignal } from "@/src/lib/camera-connection";
+import { getOrganizationCameraProductHealth } from "@/src/lib/camera-product-state-data";
+import { StandardCameraHealth } from "@/src/components/standard-camera-health";
 import { DashboardSidebar } from "../dashboard-sidebar";
-import styles from "./cameras.module.css";
-
 import { DashboardSectionTabs } from "../dashboard-section-tabs";
+import styles from "./cameras.module.css";
 
 export const metadata = { title: "Câmeras" };
 export const dynamic = "force-dynamic";
 
-const planLabels: Record<string, string> = {
-  basic: "Essencial",
-  standard: "Atenta",
-  intensive: "Detalhada",
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const pairingLabels: Record<string, string> = {
-  unpaired: "Sem computador conectado",
-  pairing: "Conectando",
-  paired: "Conectada",
-};
+function first(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : null;
+}
 
-export default async function CamerasPage() {
+export default async function CamerasPage({ searchParams }: Props) {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
 
   if (!organization) redirect("/onboarding");
 
-  const [sites, cameras, trialState] = await Promise.all([
+  const [sites, trialState, health, query] = await Promise.all([
     getOrganizationSites(organization.id),
-    getOrganizationCameras(organization.id),
     getRunningTrialCameraState(organization.id),
+    getOrganizationCameraProductHealth(organization.id, {
+      experience: "standard",
+    }),
+    searchParams,
   ]);
 
   if (!sites.length) redirect("/onboarding");
 
-  const showSiteName = sites.length > 1;
-  const liveCameras = cameras.filter(
-    (camera) => camera.sourceKind !== "local_recording",
-  );
-  const liveCameraIds = new Set(liveCameras.map((camera) => camera.id));
-  const activeTrialCameraIds = new Set(
-    trialState.cameraIds.filter((cameraId) => liveCameraIds.has(cameraId)),
-  );
+  const requestedSite = first(query.site);
+  const selectedSiteId =
+    requestedSite &&
+    (requestedSite === "all" ||
+      health.sites.some((site) => site.id === requestedSite))
+      ? requestedSite
+      : "all";
+
+  const selectedCameraId = first(query.camera);
 
   return (
     <main className="dashboard-shell">
@@ -67,9 +66,8 @@ export default async function CamerasPage() {
             </span>
             <h1>Câmeras do MonitorIA</h1>
             <p>
-              Veja cada câmera, sua imagem de referência e o estado da conexão.
-              Abra uma câmera para desconectar ou reconectar o monitoramento
-              sem apagar o histórico.
+              Veja quais câmeras estão realmente monitorando, quais ainda
+              precisam de configuração e qual é o próximo passo para cada uma.
             </p>
           </div>
 
@@ -87,155 +85,20 @@ export default async function CamerasPage() {
           <div className={styles.trialNotice}>
             <strong>Período de teste em andamento</strong>
             <span>
-              {activeTrialCameraIds.size === 1
-                ? "Uma câmera está ativa no teste. As demais permanecem conectadas e poderão ser ativadas após a contratação."
-                : `${activeTrialCameraIds.size} câmeras estão ativas no teste. As demais permanecem conectadas e aguardam ativação.`}
+              {trialState.cameraIds.length === 1
+                ? "Uma câmera está ativa no teste. As demais podem continuar conectadas e ficam visíveis com o estado real abaixo."
+                : `${trialState.cameraIds.length} câmeras estão ativas no teste. As demais continuam visíveis com o estado real abaixo.`}
             </span>
           </div>
         ) : null}
 
-        {cameras.length ? (
-          <div className="camera-list-grid">
-            {cameras.map((camera) => {
-              const activeInTrial =
-                trialState.running && activeTrialCameraIds.has(camera.id);
-              const awaitingTrialActivation =
-                trialState.running && !activeInTrial;
-              const hasRecentSignal = cameraHasRecentSignal(
-                camera.status,
-                camera.lastSeenAt,
-              );
+        <StandardCameraHealth
+          data={health}
+          selectedSiteId={selectedSiteId}
+          selectedCameraId={selectedCameraId}
+        />
 
-              return (
-                <Link
-                  href={`/dashboard/cameras/${camera.id}`}
-                  className="camera-list-card"
-                  key={camera.id}
-                >
-                  <div className={`camera-card-preview ${styles.preview}`}>
-                    {camera.thumbnailAssetId ? (
-                      <img
-                        className={styles.thumbnail}
-                        src={`/api/storage-assets/${camera.thumbnailAssetId}`}
-                        alt={`Imagem de referência da câmera ${camera.name}`}
-                      />
-                    ) : (
-                      <img className={styles.logo} src="/favicon.svg" alt="" />
-                    )}
 
-                    <span
-                      className={
-                        hasRecentSignal
-                          ? styles.statusOnline
-                          : camera.status === "online"
-                            ? styles.statusStale
-                            : undefined
-                      }
-                    >
-                      {camera.status === "disabled"
-                        ? "DESATIVADA"
-                        : hasRecentSignal
-                          ? "ONLINE"
-                          : camera.status === "online"
-                            ? "SEM SINAL RECENTE"
-                            : "AGUARDANDO CONEXÃO"}
-                    </span>
-                  </div>
-
-                  <div className="camera-card-body">
-                    <div>
-                      {trialState.running ? (
-                        <span
-                          className={
-                            activeInTrial
-                              ? styles.trialActiveBadge
-                              : styles.trialWaitingBadge
-                          }
-                        >
-                          {activeInTrial
-                            ? "ATIVA NO TESTE"
-                            : "AGUARDANDO ATIVAÇÃO"}
-                        </span>
-                      ) : null}
-
-                      {showSiteName ? (
-                        <span className={styles.siteLabel}>
-                          LOCAL · {camera.siteName}
-                        </span>
-                      ) : null}
-
-                      <h2>{camera.name}</h2>
-                    </div>
-
-                    <p>
-                      {camera.description ||
-                        "Descrição do ambiente ainda não informada."}
-                    </p>
-
-                    <dl>
-                      <div>
-                        <dt>Plano</dt>
-                        <dd>{planLabels[camera.planCode] ?? camera.planCode}</dd>
-                      </div>
-                      <div>
-                        <dt>Intervalo de análise</dt>
-                        <dd>{camera.consolidationIntervalSeconds}s</dd>
-                      </div>
-                      <div>
-                        <dt>Conexão</dt>
-                        <dd>
-                          {camera.status === "disabled"
-                            ? "Desconectada"
-                            : hasRecentSignal
-                              ? pairingLabels[camera.pairingStatus] ??
-                                camera.pairingStatus
-                              : camera.status === "online"
-                                ? "Sem sinal recente"
-                                : pairingLabels[camera.pairingStatus] ??
-                                  camera.pairingStatus}
-                        </dd>
-                      </div>
-                      {trialState.running ? (
-                        <div>
-                          <dt>Teste</dt>
-                          <dd
-                            className={
-                              activeInTrial
-                                ? styles.trialActiveText
-                                : styles.trialWaitingText
-                            }
-                          >
-                            {activeInTrial
-                              ? "Monitorando agora"
-                              : awaitingTrialActivation
-                                ? "Aguardando ativação"
-                                : "—"}
-                          </dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <section className="camera-empty-state">
-            <div className="camera-empty-icon">◉</div>
-            <span>PRIMEIRA CÂMERA</span>
-            <h2>Conecte a primeira câmera</h2>
-            <p>
-              O cadastro leva menos de um minuto. As informações de acesso serão
-              solicitadas somente no computador instalado.
-            </p>
-            <Link
-              href="/dashboard/cameras/new"
-              className="panel-primary-action"
-            >
-              Cadastrar câmera
-            </Link>
-          </section>
-        )}
       </section>
     </main>
   );

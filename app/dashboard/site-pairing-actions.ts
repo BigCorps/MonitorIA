@@ -51,9 +51,9 @@ export async function getSitePairingOptionsAction(): Promise<{
 /**
  * Gera o código que conecta um computador a um Local.
  *
- * No fluxo VIP o Local é escolhido explicitamente. O comportamento antigo
- * (primeiro Local) permanece somente para as telas padrão enquanto a nova UX
- * ainda está sendo validada no VIP.
+ * O Local é sempre escolhido explicitamente antes de gerar o código.
+ * Isso evita que um segundo computador seja pareado por engano no primeiro
+ * Local cadastrado e mantém a operação Multi-Site previsível.
  */
 export async function createSitePairingCodeAction(
   _previousState: SitePairingState,
@@ -88,7 +88,14 @@ export async function createSitePairingCodeAction(
 
   const site = requestedSiteId
     ? sites.find((item) => item.id === requestedSiteId) ?? null
-    : sites[0] ?? null;
+    : null;
+
+  if (!requestedSiteId) {
+    return {
+      status: "error",
+      message: "Escolha o Local onde este computador está instalado.",
+    };
+  }
 
   if (requestedSiteId && !site) {
     return {

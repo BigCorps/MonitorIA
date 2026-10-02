@@ -2,27 +2,30 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("listagem de câmeras diferencia conexão de ativação no teste", async () => {
-  const page = await readFile(
-    new URL("../app/dashboard/cameras/page.tsx", import.meta.url),
-    "utf8",
-  );
+test("listagem de câmeras preserva contexto do teste sem chamar conexão de monitoramento", async () => {
+  const [page, health] = await Promise.all([
+    readFile(new URL("../app/dashboard/cameras/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/standard-camera-health.tsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(page, /ATIVA NO TESTE/);
-  assert.match(page, /AGUARDANDO ATIVAÇÃO/);
-  assert.match(page, /Monitorando agora/);
+  assert.match(page, /Período de teste em andamento/);
   assert.match(page, /getRunningTrialCameraState/);
+  assert.match(page, /estado real abaixo/);
+  assert.match(page, /StandardCameraHealth/);
+  assert.match(health, /Conectada não basta/);
+  assert.match(health, /Monitoramento iniciado/);
+  assert.doesNotMatch(page, /cameraHasRecentSignal/);
 });
 
-test("nome do local não aparece como número solto quando só existe um local", async () => {
-  const page = await readFile(
-    new URL("../app/dashboard/cameras/page.tsx", import.meta.url),
+test("Local aparece explicitamente no estado operacional", async () => {
+  const health = await readFile(
+    new URL("../src/components/standard-camera-health.tsx", import.meta.url),
     "utf8",
   );
 
-  assert.match(page, /const showSiteName = sites\.length > 1/);
-  assert.match(page, /LOCAL · \{camera\.siteName\}/);
-  assert.doesNotMatch(page, /<span>\{camera\.siteName\}<\/span>/);
+  assert.match(health, /\{camera\.siteName\}/);
+  assert.match(health, /Todos os locais/);
+  assert.match(health, /name="site"/);
 });
 
 test("acontecimentos prioriza a câmera ativa do teste no card de referência", async () => {
