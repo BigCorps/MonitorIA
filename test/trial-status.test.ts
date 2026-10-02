@@ -44,7 +44,7 @@ test("prontidão exige heartbeat recente", () => {
   assert.equal(items.at(-1)?.complete, false);
   assert.match(
     readinessReasonLabel("agent_heartbeat_stale"),
-    /Inicie-o novamente/,
+    /Abra-o novamente e atualize/,
   );
 });
 
@@ -53,7 +53,6 @@ test("expõe os rótulos comerciais do ciclo", () => {
   assert.equal(trialStatusLabel("exploration"), "Período de exploração");
   assert.equal(trialStatusLabel("converted"), "Serviço contratado");
 });
-
 
 test("muda a interface para exploração sem esperar o cron", () => {
   const now = Date.parse("2026-08-01T12:00:00Z");

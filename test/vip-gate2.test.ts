@@ -19,13 +19,22 @@ test("Gate 2 mantém o usuário em uma sequência de implantação explícita", 
 test("próxima ação é objetiva para os principais pontos de abandono", () => {
   assert.match(vipNextAction("install_agent").title, /computador/i);
   assert.match(vipNextAction("discover_cameras").title, /câmeras/i);
-  assert.match(vipNextAction("configure_camera_context").title, /contexto/i);
-  assert.match(vipNextAction("ready_to_start").description, /relógio ainda não começou/i);
+  assert.match(
+    vipNextAction("configure_camera_context").title,
+    /contexto/i,
+  );
+  assert.match(
+    vipNextAction("ready_to_start").description,
+    /relógio ainda não começou/i,
+  );
 });
 
 test("pendências de câmera possuem destino de resolução", () => {
   assert.match(
-    readinessAction("active_profile_required", "00000000-0000-4000-8000-000000000001").href,
+    readinessAction(
+      "active_profile_required",
+      "00000000-0000-4000-8000-000000000001",
+    ).href,
     /^\/vip\/onboarding/,
   );
   assert.equal(
@@ -43,7 +52,10 @@ test("migration Gate 2 consolida readiness sem expor a RPC ao cliente", async ()
     "utf8",
   );
 
-  assert.match(migration, /create or replace function public\.refresh_vip_onboarding_v1/);
+  assert.match(
+    migration,
+    /create or replace function public\.refresh_vip_onboarding_v1/,
+  );
   assert.match(migration, /private\.monitoria_trial_readiness/);
   assert.match(migration, /onboarding_last_activity_at/);
   assert.match(migration, /onboarding_attention_code/);
@@ -55,10 +67,16 @@ test("migration Gate 2 consolida readiness sem expor a RPC ao cliente", async ()
   assert.match(migration, /grant execute[\s\S]*to service_role/);
 });
 
-test("onboarding VIP reutiliza componentes maduros e não inicia o relógio no Gate 2", async () => {
+test("Gate 2 prepara e atualiza readiness sem iniciar o relógio; Gate 3 inicia explicitamente", async () => {
   const [page, actions] = await Promise.all([
-    readFile(new URL("../app/vip/onboarding/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/vip/onboarding/actions.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/vip/onboarding/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../app/vip/onboarding/actions.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
 
   assert.match(page, /InstallerPlatformActions/);
@@ -66,15 +84,43 @@ test("onboarding VIP reutiliza componentes maduros e não inicia o relógio no G
   assert.match(page, /OnboardingCameraContext/);
   assert.match(page, /SalesCameraSelection/);
   assert.match(page, /PRÓXIMA AÇÃO/);
-  assert.doesNotMatch(actions, /start_sales_monitoria_trial/);
-  assert.match(actions, /prepare_sales_monitoria_trial/);
-  assert.match(actions, /refresh_sales_monitoria_trial/);
+
+  const prepareBlock =
+    actions.match(
+      /export async function prepareVipTrialAction[\s\S]*?(?=export async function refreshVipTrialAction)/,
+    )?.[0] ?? "";
+  const refreshBlock =
+    actions.match(
+      /export async function refreshVipTrialAction[\s\S]*?(?=export async function startVipTrialAction)/,
+    )?.[0] ?? "";
+  const startBlock =
+    actions.match(
+      /export async function startVipTrialAction[\s\S]*$/,
+    )?.[0] ?? "";
+
+  assert.match(prepareBlock, /prepare_sales_monitoria_trial/);
+  assert.doesNotMatch(prepareBlock, /start_sales_monitoria_trial/);
+
+  assert.match(refreshBlock, /refresh_sales_monitoria_trial/);
+  assert.doesNotMatch(refreshBlock, /start_sales_monitoria_trial/);
+
+  assert.match(startBlock, /start_sales_monitoria_trial/);
+  assert.match(
+    startBlock,
+    /Piloto VIP iniciado\. Os 60 minutos começaram agora/,
+  );
 });
 
 test("Clarity: convite existente não força login por senha e VIP retorna ao onboarding", async () => {
   const [page, actions] = await Promise.all([
-    readFile(new URL("../app/lead/[token]/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/lead/[token]/actions.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/lead/[token]/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../app/lead/[token]/actions.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
 
   assert.match(page, /mesma forma que já usava/i);
@@ -92,11 +138,13 @@ test("Clarity: login padrão explica métodos e desencoraja conta duplicada", as
 
   assert.match(page, /mesma forma de acesso/i);
   assert.match(page, /Google/);
-  assert.match(page, /Somente se você criou ou definiu uma senha/);
+  assert.match(
+    page,
+    /Somente se você criou ou definiu uma senha/,
+  );
   assert.match(page, /não crie outra conta/i);
   assert.match(page, /link por e-mail/i);
 });
-
 
 test("VIP em implantação é impedido de escapar para o dashboard padrão", async () => {
   const layout = await readFile(
@@ -108,7 +156,6 @@ test("VIP em implantação é impedido de escapar para o dashboard padrão", asy
   assert.match(layout, /redirect\("\/vip\/onboarding"\)/);
   assert.match(layout, /vipProject\.status !== "active"/);
 });
-
 
 test("área VIP preserva a exigência de MFA do dashboard", async () => {
   const layout = await readFile(
