@@ -1,0 +1,272 @@
+{
+  "name": "MonitorIA VIP Gate 5 — cumulativo com Gate 4",
+  "generated_at": "2026-10-02T01:00:00-03:00",
+  "repository": "BigCorps/MonitorIA",
+  "base_main_sha": "e255bc5d211e5339cc7870846b8f8fe5e93847db",
+  "cumulative_gates": [
+    4,
+    5
+  ],
+  "supabase_project_id": "xwejfayeackbrilipgrj",
+  "supabase_migrations_already_applied": [
+    "20261001175640_monitoria_vip_gate4_commercial_contracts",
+    "20261001175728_monitoria_vip_gate4_contract_retry_hardening",
+    "20261001175809_monitoria_vip_gate4_pix_confirmation",
+    "20261001180303_monitoria_vip_gate4_index_hardening",
+    "20261001181538_monitoria_vip_gate4_reopen_hardening",
+    "20261002002928_monitoria_vip_gate5_assistant_source",
+    "20261002003111_monitoria_vip_gate5_entitlement_foundation",
+    "20261002003225_monitoria_vip_gate5_entitlement_runtime",
+    "20261002003519_monitoria_vip_gate5_index_hardening",
+    "20261002003656_monitoria_vip_gate5_assistant_monthly_refresh",
+    "20261002003814_monitoria_vip_gate5_security_definer_auth_hardening",
+    "20261002004905_monitoria_vip_gate5_assistant_entitlement",
+    "20261002004946_monitoria_vip_gate5_double_billing_guard"
+  ],
+  "edge_functions_live": {
+    "monitoria-create-pix": 4,
+    "monitoria-check-pix": 5,
+    "monitoria-process-billing": 6
+  },
+  "external_pending": [
+    "Attach/configure vip.monitoria.cam on the existing Vercel monitoria project/DNS if not already attached."
+  ],
+  "agent_exe_changed": false,
+  "files": [
+    {
+      "path": "LEIA-ME-GATE-4.md",
+      "bytes": 1865,
+      "sha256": "dbd69b097ad42705097fd10345cb4052de295d8e7c730951f71a2cf8fca5e53e"
+    },
+    {
+      "path": "LEIA-ME-GATE-5.md",
+      "bytes": 1434,
+      "sha256": "72c0990ed089c5fd5b877e6ce8f6753c7e24a1c48593609fa00f5e351f810168"
+    },
+    {
+      "path": "MANIFEST-VIP-GATE-4.json",
+      "bytes": 4088,
+      "sha256": "740b45f8781946907d13fe1d72813537cca0e0ed6b13549e0bf382699a2ce907"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-4.md",
+      "bytes": 2282,
+      "sha256": "7ce3e03d8f8f8a409e3c7f728ab22a7f2978c6748a34bc0123a465ddab03337e"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-5.md",
+      "bytes": 1825,
+      "sha256": "57ea733188cf0a1770c8d3c598e2315a4c00c3f0f01e1ca65f376fba1f9ad308"
+    },
+    {
+      "path": "app/comercial/vip/[projectId]/actions.ts",
+      "bytes": 3553,
+      "sha256": "ca84a4cc49294ff3b1ec762da5cfe290ee717f281a667413cef6830a81ba0f5a"
+    },
+    {
+      "path": "app/comercial/vip/[projectId]/page.tsx",
+      "bytes": 11687,
+      "sha256": "e5ba0601108d199b23501ca047e3b6d6b632cdb8183eca6f0e3b9589867f3eee"
+    },
+    {
+      "path": "app/comercial/vip/page.tsx",
+      "bytes": 8482,
+      "sha256": "22b22bc7144b781aa76119cca01b59021037197c8224fcda4f936c785bc0d405"
+    },
+    {
+      "path": "app/comercial/vip/vip-commercial.module.css",
+      "bytes": 5327,
+      "sha256": "0eb31b3e7a3becc9aa00963db1490885f86da11d078068d1ac217f25aca8a060"
+    },
+    {
+      "path": "app/vip/closing/actions.ts",
+      "bytes": 2690,
+      "sha256": "e0a204caf45b3787b2068d31542ada62ef97ac024f34d03d4da2f2b9964ea2ed"
+    },
+    {
+      "path": "app/vip/closing/page.tsx",
+      "bytes": 19110,
+      "sha256": "0acc8e60f305cf2c52a7b68c9a7f09b9f52a7c9e96cd5301f2d308dd4fca5f0c"
+    },
+    {
+      "path": "app/vip/closing/vip-closing.module.css",
+      "bytes": 10279,
+      "sha256": "345a160727fc177618ed0eca9bed50b1681e8c005d4050a671d0d4f4b0a15155"
+    },
+    {
+      "path": "app/vip/closing/vip-payment-panel.tsx",
+      "bytes": 10086,
+      "sha256": "f2f1f491f144845bedfbd2eccc0d92219fe0932727db66a8374dc1a92bca1ac8"
+    },
+    {
+      "path": "app/vip/dashboard/beta/page.tsx",
+      "bytes": 3295,
+      "sha256": "ebc9f3793787aaec29821b63594e6308a9869f2700bb2c850322c2062820b245"
+    },
+    {
+      "path": "app/vip/dashboard/layout.tsx",
+      "bytes": 2547,
+      "sha256": "7c4f2a0bcb6089bb7b4542c475a4dabb8a8e1c855c8782c1d0c735960d557ed7"
+    },
+    {
+      "path": "app/vip/dashboard/page.tsx",
+      "bytes": 5364,
+      "sha256": "24d9e85ec42de2373442c0b40eff2d56afe6e2720ea10e37db14cd7d94d73b24"
+    },
+    {
+      "path": "app/vip/dashboard/projects/[projectId]/actions.ts",
+      "bytes": 4011,
+      "sha256": "f5984fd76c91dc0757f77688f8c637c21c50e50d3ad32093c6a5ce16e517d760"
+    },
+    {
+      "path": "app/vip/dashboard/projects/[projectId]/page.tsx",
+      "bytes": 7753,
+      "sha256": "295caab541579edbf6df9f1eac013bdfd6f44ca649c4a872044013af1d8d4ff4"
+    },
+    {
+      "path": "app/vip/dashboard/vip-dashboard.module.css",
+      "bytes": 7459,
+      "sha256": "333703807f6a7deca190d87fcdea4f4cb03cb06c6f7ad9725e0a8169e762ca08"
+    },
+    {
+      "path": "app/vip/onboarding/layout.tsx",
+      "bytes": 934,
+      "sha256": "c02412866fe60da6a5311a83611866256de92e1c685d761df616186a971dd67f"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-4.md",
+      "bytes": 1913,
+      "sha256": "6833297a27d29f48eca746086c6504d5ef8bd003824f28380273f82ad03bd590"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-5.md",
+      "bytes": 3078,
+      "sha256": "ec60ddfa4ad55eb8438a6a3d034fc34a64102e274c2804e780cca4c7c9dba4f6"
+    },
+    {
+      "path": "proxy.ts",
+      "bytes": 1595,
+      "sha256": "684baf1c757ea6852eaf21962d95c6da8dafe87a33140029e7bb53c686500fe9"
+    },
+    {
+      "path": "src/lib/supabase/auth-cookie-options.ts",
+      "bytes": 906,
+      "sha256": "2f09c465c626817dfe030a7b82b32990cfd710d697d8771c035d77c753db90e6"
+    },
+    {
+      "path": "src/lib/supabase/client.ts",
+      "bytes": 713,
+      "sha256": "4c5aee83d8a5d711bc2fb7af1496c38c33beec7258bf57293761bb17a0931668"
+    },
+    {
+      "path": "src/lib/supabase/proxy.ts",
+      "bytes": 4804,
+      "sha256": "0e7c64be7c0858daa2a4aca49ee72af84a4fd06803156bd098b966768722d670"
+    },
+    {
+      "path": "src/lib/supabase/server.ts",
+      "bytes": 991,
+      "sha256": "d04993518e1229d21ea313d4ede2bc5d49b2fbf853f0b082baf413c5cf7cb4f9"
+    },
+    {
+      "path": "src/vip/dashboard.ts",
+      "bytes": 11920,
+      "sha256": "0dc458c8e103a0402002bef40a34723f6abb375fe772c49982181a52acf35732"
+    },
+    {
+      "path": "src/vip/proposal.ts",
+      "bytes": 16514,
+      "sha256": "70cfb4c2295906bfade02c8390403f3cc78495f46cf448c08de82dfacc0fbd90"
+    },
+    {
+      "path": "supabase/functions/monitoria-check-pix/index.ts",
+      "bytes": 8686,
+      "sha256": "c54b65f2bc0a9678c0e867b35e9eda6001903e4e33e20f358c47be014418803a"
+    },
+    {
+      "path": "supabase/functions/monitoria-create-pix/index.ts",
+      "bytes": 6807,
+      "sha256": "ac802f50fc26a8de785d96dffaa92c76e835fb532a0df09bb0899f97d3f4cdc7"
+    },
+    {
+      "path": "supabase/functions/monitoria-process-billing/index.ts",
+      "bytes": 6088,
+      "sha256": "9dcf1cfd1b427f964ba3331e14d2249802d26e5283984560ca6c595fc979b5a4"
+    },
+    {
+      "path": "supabase/migrations/20261001175640_monitoria_vip_gate4_commercial_contracts.sql",
+      "bytes": 26881,
+      "sha256": "36e38b0ae719355f26cb50468b9cd9c77207e29dc8914ac2244863a943aecb35"
+    },
+    {
+      "path": "supabase/migrations/20261001175728_monitoria_vip_gate4_contract_retry_hardening.sql",
+      "bytes": 9084,
+      "sha256": "32d8fab681d4603481714643d892da3e3482bda79da43aefd767b9bab283c16d"
+    },
+    {
+      "path": "supabase/migrations/20261001175809_monitoria_vip_gate4_pix_confirmation.sql",
+      "bytes": 10693,
+      "sha256": "97641b010bafbef14a87c391cf08f3123c238f162d3c9492a4fe8ae858773495"
+    },
+    {
+      "path": "supabase/migrations/20261001180303_monitoria_vip_gate4_index_hardening.sql",
+      "bytes": 980,
+      "sha256": "e8cbca9587a04679ed6a4423fe8cdb0cca2148b260a28f5e12ab9edad0a3ff45"
+    },
+    {
+      "path": "supabase/migrations/20261001181538_monitoria_vip_gate4_reopen_hardening.sql",
+      "bytes": 3563,
+      "sha256": "5b70db9b4fc430ca5f0b2cd0e8c04f5dfcc56049c542b4b0239d15840805d965"
+    },
+    {
+      "path": "supabase/migrations/20261002002928_monitoria_vip_gate5_assistant_source.sql",
+      "bytes": 176,
+      "sha256": "e5a5f4cf6df2df1c1d4e798446e7052f2311e8dcc1e8c4cebea89e02b405071e"
+    },
+    {
+      "path": "supabase/migrations/20261002003111_monitoria_vip_gate5_entitlement_foundation.sql",
+      "bytes": 22322,
+      "sha256": "c546b801ed364540f3885c19b8168be2fc0776a7cf197a3e50e320b955e7cffd"
+    },
+    {
+      "path": "supabase/migrations/20261002003225_monitoria_vip_gate5_entitlement_runtime.sql",
+      "bytes": 17541,
+      "sha256": "3a43f4fd1ef0548cc163498b9a6894eb5de078ddb7a758bfebd202065ef601da"
+    },
+    {
+      "path": "supabase/migrations/20261002003519_monitoria_vip_gate5_index_hardening.sql",
+      "bytes": 395,
+      "sha256": "80b9171e23a39c6866ac8ccaa0da7a792ffa90a665abd8743e62c8f3d5491f32"
+    },
+    {
+      "path": "supabase/migrations/20261002003656_monitoria_vip_gate5_assistant_monthly_refresh.sql",
+      "bytes": 4189,
+      "sha256": "3fe66a1eecccbe54ca01ac9bf5c6bf3565d170e0049836a80a5db51da9aaa4a3"
+    },
+    {
+      "path": "supabase/migrations/20261002003814_monitoria_vip_gate5_security_definer_auth_hardening.sql",
+      "bytes": 325,
+      "sha256": "1d961246cd697c945afd942432e7ec0888ba2d57e4c5529aec0d876b6e7c9302"
+    },
+    {
+      "path": "supabase/migrations/20261002004905_monitoria_vip_gate5_assistant_entitlement.sql",
+      "bytes": 2271,
+      "sha256": "238407a4122662828bfe2995a33f0a78255960a830ed5dc07f6a7229fbb681ec"
+    },
+    {
+      "path": "supabase/migrations/20261002004946_monitoria_vip_gate5_double_billing_guard.sql",
+      "bytes": 877,
+      "sha256": "844da489977c7ec04209f2fdc56adce7f6fb7f36f1ccf59ac7cc1f9f848e9e76"
+    },
+    {
+      "path": "test/vip-gate4.test.ts",
+      "bytes": 5145,
+      "sha256": "f344c248d2c4378d677ff68651a73706443889ee65295bbe52911688aaeb870b"
+    },
+    {
+      "path": "test/vip-gate5.test.ts",
+      "bytes": 4236,
+      "sha256": "7e22ea6b5d308aaab42d693bf35981492dd361e5609b1339f37a29ef16848d5d"
+    }
+  ]
+}

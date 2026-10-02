@@ -1,0 +1,4 @@
+-- MonitorIA VIP — Gate 5
+-- Hardening aplicado após auditoria: funções SECURITY DEFINER do runtime usam auth.role()/auth.uid(),
+-- nunca current_user, para que a validação de tenant represente a sessão real.
+-- A definição final já está consolidada em 20261002003225_monitoria_vip_gate5_entitlement_runtime.sql.

@@ -1,0 +1,117 @@
+{
+  "artifact": "MonitorIA VIP Gate 4",
+  "kind": "overlay",
+  "base_commit": "e255bc5d211e5339cc7870846b8f8fe5e93847db",
+  "node": "22.x",
+  "next": "16.3.8",
+  "supabase_migrations_already_applied": [
+    "20261001175640_monitoria_vip_gate4_commercial_contracts",
+    "20261001175728_monitoria_vip_gate4_contract_retry_hardening",
+    "20261001175809_monitoria_vip_gate4_pix_confirmation",
+    "20261001180303_monitoria_vip_gate4_index_hardening",
+    "20261001181538_monitoria_vip_gate4_reopen_hardening"
+  ],
+  "validation": {
+    "gate4_tests": "8/8",
+    "typescript_parser": "9 files / 0 syntax errors",
+    "secret_scan": "clean",
+    "full_repo_build": "GitHub Actions/Vercel after upload"
+  },
+  "files": [
+    {
+      "path": "LEIA-ME-GATE-4.md",
+      "bytes": 1865,
+      "sha256": "dbd69b097ad42705097fd10345cb4052de295d8e7c730951f71a2cf8fca5e53e"
+    },
+    {
+      "path": "VALIDACAO-VIP-GATE-4.md",
+      "bytes": 2282,
+      "sha256": "7ce3e03d8f8f8a409e3c7f728ab22a7f2978c6748a34bc0123a465ddab03337e"
+    },
+    {
+      "path": "app/comercial/vip/[projectId]/actions.ts",
+      "bytes": 3553,
+      "sha256": "ca84a4cc49294ff3b1ec762da5cfe290ee717f281a667413cef6830a81ba0f5a"
+    },
+    {
+      "path": "app/comercial/vip/[projectId]/page.tsx",
+      "bytes": 11687,
+      "sha256": "e5ba0601108d199b23501ca047e3b6d6b632cdb8183eca6f0e3b9589867f3eee"
+    },
+    {
+      "path": "app/comercial/vip/page.tsx",
+      "bytes": 8482,
+      "sha256": "22b22bc7144b781aa76119cca01b59021037197c8224fcda4f936c785bc0d405"
+    },
+    {
+      "path": "app/comercial/vip/vip-commercial.module.css",
+      "bytes": 5327,
+      "sha256": "0eb31b3e7a3becc9aa00963db1490885f86da11d078068d1ac217f25aca8a060"
+    },
+    {
+      "path": "app/vip/closing/actions.ts",
+      "bytes": 2690,
+      "sha256": "e0a204caf45b3787b2068d31542ada62ef97ac024f34d03d4da2f2b9964ea2ed"
+    },
+    {
+      "path": "app/vip/closing/page.tsx",
+      "bytes": 18466,
+      "sha256": "4711ecac9c99646891998d53502d3441d82836e7a80b7fabf4fd9a98bc451e93"
+    },
+    {
+      "path": "app/vip/closing/vip-closing.module.css",
+      "bytes": 10279,
+      "sha256": "345a160727fc177618ed0eca9bed50b1681e8c005d4050a671d0d4f4b0a15155"
+    },
+    {
+      "path": "app/vip/closing/vip-payment-panel.tsx",
+      "bytes": 10086,
+      "sha256": "f2f1f491f144845bedfbd2eccc0d92219fe0932727db66a8374dc1a92bca1ac8"
+    },
+    {
+      "path": "app/vip/onboarding/layout.tsx",
+      "bytes": 912,
+      "sha256": "8602dc18345d5f9fd8ccfe24019cdf9094fe81f40e205b147105931aacc6cd55"
+    },
+    {
+      "path": "docs/MONITORIA-VIP-GATE-4.md",
+      "bytes": 1913,
+      "sha256": "6833297a27d29f48eca746086c6504d5ef8bd003824f28380273f82ad03bd590"
+    },
+    {
+      "path": "src/vip/proposal.ts",
+      "bytes": 16514,
+      "sha256": "70cfb4c2295906bfade02c8390403f3cc78495f46cf448c08de82dfacc0fbd90"
+    },
+    {
+      "path": "supabase/migrations/20261001175640_monitoria_vip_gate4_commercial_contracts.sql",
+      "bytes": 26881,
+      "sha256": "36e38b0ae719355f26cb50468b9cd9c77207e29dc8914ac2244863a943aecb35"
+    },
+    {
+      "path": "supabase/migrations/20261001175728_monitoria_vip_gate4_contract_retry_hardening.sql",
+      "bytes": 9084,
+      "sha256": "32d8fab681d4603481714643d892da3e3482bda79da43aefd767b9bab283c16d"
+    },
+    {
+      "path": "supabase/migrations/20261001175809_monitoria_vip_gate4_pix_confirmation.sql",
+      "bytes": 10693,
+      "sha256": "97641b010bafbef14a87c391cf08f3123c238f162d3c9492a4fe8ae858773495"
+    },
+    {
+      "path": "supabase/migrations/20261001180303_monitoria_vip_gate4_index_hardening.sql",
+      "bytes": 980,
+      "sha256": "e8cbca9587a04679ed6a4423fe8cdb0cca2148b260a28f5e12ab9edad0a3ff45"
+    },
+    {
+      "path": "supabase/migrations/20261001181538_monitoria_vip_gate4_reopen_hardening.sql",
+      "bytes": 3563,
+      "sha256": "5b70db9b4fc430ca5f0b2cd0e8c04f5dfcc56049c542b4b0239d15840805d965"
+    },
+    {
+      "path": "test/vip-gate4.test.ts",
+      "bytes": 5145,
+      "sha256": "f344c248d2c4378d677ff68651a73706443889ee65295bbe52911688aaeb870b"
+    }
+  ]
+}
