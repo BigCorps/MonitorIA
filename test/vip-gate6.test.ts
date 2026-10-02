@@ -31,17 +31,22 @@ test("vip.monitoria.cam usa landing pública na raiz e mantém áreas do cliente
 });
 
 test("landing VIP é consultiva e não cria conta nem inicia trial diretamente", async () => {
-  const page = await read("app/vip/landing/page.tsx");
+  const [page, hero, commerce] = await Promise.all([
+    read("app/vip/landing/page.tsx"),
+    read("src/components/vip-landing/hero.tsx"),
+    read("src/components/vip-landing/commerce.tsx"),
+  ]);
+  const landing = `${page}\n${hero}\n${commerce}`;
 
-  assert.match(page, /Solicitar avaliação VIP/);
-  assert.match(page, /requestVipContactAction/);
-  assert.match(page, /min=\{10\}/);
-  assert.match(page, /60 minutos/);
-  assert.match(page, /Até 6/);
-  assert.match(page, /Intensive/);
-  assert.match(page, /Você não precisa criar conta agora/);
+  assert.match(landing, /Solicitar avaliação VIP/);
+  assert.match(landing, /requestVipContactAction/);
+  assert.match(landing, /min=\{10\}/);
+  assert.match(landing, /60 minutos/);
+  assert.match(landing, /Até 6/);
+  assert.match(landing, /Intensive/);
+  assert.match(landing, /Você não precisa criar conta agora/);
   assert.match(page, /ClarityScript/);
-  assert.doesNotMatch(page, /login\?criar=1/);
+  assert.doesNotMatch(landing, /login\?criar=1/);
 });
 
 test("formulário público grava somente via backend e reduz spam sem Turnstile", async () => {
