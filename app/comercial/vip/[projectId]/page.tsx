@@ -143,8 +143,8 @@ export default async function VipCommercialProjectPage({
                 <h2>O que apareceu no piloto</h2>
               </div>
               <strong>
-                {results.captureCompletedAt
-                  ? `Concluído ${formatDate(results.captureCompletedAt)}`
+                {trial?.capture_completed_at
+                  ? `Concluído ${formatDate(String(trial.capture_completed_at))}`
                   : String(trial?.status ?? "")}
               </strong>
             </div>
