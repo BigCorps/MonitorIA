@@ -10,25 +10,54 @@ import {
   getOrganizationSites,
 } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
+import { createRepairPairingCodeAction } from "./installer/pair/actions";
 
 export type SitePairingState = {
   status: "idle" | "success" | "error";
   message?: string;
   code?: string;
   expiresAt?: string;
+  siteName?: string;
 };
 
+export type SitePairingOption = {
+  id: string;
+  name: string;
+};
+
+export async function getSitePairingOptionsAction(): Promise<{
+  status: "success" | "error";
+  sites: SitePairingOption[];
+  message?: string;
+}> {
+  const user = await requireAuthenticatedUser();
+  const organization = await getCurrentOrganization(user.id);
+
+  if (!organization) {
+    return {
+      status: "error",
+      sites: [],
+      message: "Não encontramos sua empresa. Entre novamente e tente de novo.",
+    };
+  }
+
+  const sites = await getOrganizationSites(organization.id);
+  return {
+    status: "success",
+    sites: sites.map((site) => ({ id: site.id, name: site.name })),
+  };
+}
+
 /**
- * Gera o código que conecta o computador da loja ao painel.
+ * Gera o código que conecta um computador a um Local.
  *
- * Antes o código nascia preso a uma câmera, e por isso o cliente precisava
- * cadastrar uma câmera à mão antes de instalar o programa — inventando nome
- * e endereço de um aparelho que ele ainda nem sabia se estava na rede. Agora
- * o vínculo é com o local, e as câmeras entram depois, pela busca.
+ * No fluxo VIP o Local é escolhido explicitamente. O comportamento antigo
+ * (primeiro Local) permanece somente para as telas padrão enquanto a nova UX
+ * ainda está sendo validada no VIP.
  */
 export async function createSitePairingCodeAction(
   _previousState: SitePairingState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<SitePairingState> {
   const user = await requireAuthenticatedUser();
   const organization = await getCurrentOrganization(user.id);
@@ -41,12 +70,37 @@ export async function createSitePairingCodeAction(
   }
 
   const sites = await getOrganizationSites(organization.id);
-  const site = sites[0];
+  const requestedSiteId = String(formData.get("site_id") ?? "").trim();
+
+  if (requestedSiteId === "__new__") {
+    const created = await createRepairPairingCodeAction(
+      { status: "idle" },
+      formData,
+    );
+    return {
+      status: created.status,
+      message: created.message,
+      code: created.code,
+      expiresAt: created.expiresAt,
+      siteName: created.siteName,
+    };
+  }
+
+  const site = requestedSiteId
+    ? sites.find((item) => item.id === requestedSiteId) ?? null
+    : sites[0] ?? null;
+
+  if (requestedSiteId && !site) {
+    return {
+      status: "error",
+      message: "Selecione um Local válido desta empresa.",
+    };
+  }
 
   if (!site) {
     return {
       status: "error",
-      message: "Cadastre o local do seu negócio antes de conectar o computador.",
+      message: "Cadastre o Local onde este computador será instalado antes de continuar.",
     };
   }
 
@@ -77,5 +131,7 @@ export async function createSitePairingCodeAction(
     status: "success",
     code,
     expiresAt: String(result.expires_at),
+    siteName: site.name,
+    message: `Código criado para ${site.name}.`,
   };
 }

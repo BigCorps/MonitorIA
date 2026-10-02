@@ -14,6 +14,7 @@ import { sendTeamAccessCode } from "@/src/lib/team-notification";
 
 const ACCESS_CODE_MINUTES = 10;
 const ACCESS_CODE_MAX_ATTEMPTS = 5;
+const ACCESS_CODE_RESEND_COOLDOWN_SECONDS = 60;
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -59,7 +60,7 @@ async function validInvitation(token: string) {
   const { data, error } = await admin
     .from("organization_invitations")
     .select(
-      "id,organization_id,email,role,expires_at,accepted_at,revoked_at,access_code_hash,access_code_expires_at,access_code_attempts,organization:organizations(name)",
+      "id,organization_id,email,role,expires_at,accepted_at,revoked_at,access_code_hash,access_code_expires_at,access_code_attempts,access_code_sent_at,organization:organizations(name)",
     )
     .eq("token_hash", hashToken(token))
     .maybeSingle();
@@ -90,12 +91,29 @@ function organizationName(invitation: { organization?: unknown }) {
   return "Equipe MonitorIA";
 }
 
+async function auditInvite(input: {
+  invitationId: string;
+  organizationId: string;
+  action: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const admin = createAdminClient();
+  await admin.from("audit_logs").insert({
+    organization_id: input.organizationId,
+    actor_user_id: null,
+    action: input.action,
+    entity_type: "organization_team",
+    entity_id: input.invitationId,
+    metadata: input.metadata ?? {},
+  });
+}
+
 /**
  * Convites corporativos usam um código próprio do MonitorIA.
  *
- * Não dependemos mais de `email_otp` retornado pelo Admin API do Supabase e
- * também não enviamos um link de autenticação single-use no e-mail. Isso evita
- * que scanners de segurança de empresas consumam o acesso antes da pessoa.
+ * O link do convite não autentica ninguém. Scanners corporativos podem abri-lo
+ * sem consumir o acesso; a confirmação depende de um código de 6 dígitos que
+ * existe somente como HMAC no banco.
  */
 export async function sendTeamInviteAccessCodeAction(formData: FormData) {
   const token = String(formData.get("token") ?? "").trim();
@@ -106,6 +124,23 @@ export async function sendTeamInviteAccessCodeAction(formData: FormData) {
     inviteRedirect(token, "error", "Este convite não está mais disponível.");
   }
 
+  const lastSentAt = invitation.access_code_sent_at
+    ? Date.parse(String(invitation.access_code_sent_at))
+    : Number.NaN;
+  const elapsed = Number.isFinite(lastSentAt)
+    ? Date.now() - lastSentAt
+    : Number.POSITIVE_INFINITY;
+  const cooldownMs = ACCESS_CODE_RESEND_COOLDOWN_SECONDS * 1000;
+
+  if (elapsed < cooldownMs) {
+    const remaining = Math.max(1, Math.ceil((cooldownMs - elapsed) / 1000));
+    inviteRedirect(
+      token,
+      "error",
+      `Um código já foi enviado. Aguarde ${remaining} segundo(s) antes de pedir outro.`,
+    );
+  }
+
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const codeHash = accessCodeHash(String(invitation.id), code);
   const expiresAt = new Date(
@@ -113,13 +148,14 @@ export async function sendTeamInviteAccessCodeAction(formData: FormData) {
   ).toISOString();
 
   const admin = createAdminClient();
+  const sentAt = new Date().toISOString();
   const { data: updated, error: updateError } = await admin
     .from("organization_invitations")
     .update({
       access_code_hash: codeHash,
       access_code_expires_at: expiresAt,
       access_code_attempts: 0,
-      access_code_sent_at: new Date().toISOString(),
+      access_code_sent_at: sentAt,
     })
     .eq("id", invitation.id)
     .is("accepted_at", null)
@@ -147,23 +183,37 @@ export async function sendTeamInviteAccessCodeAction(formData: FormData) {
   });
 
   if (!delivery.ok) {
-    // Não deixe um código válido no banco se o envio falhou.
     await admin
       .from("organization_invitations")
       .update({
         access_code_hash: null,
         access_code_expires_at: null,
         access_code_attempts: 0,
+        access_code_sent_at: null,
       })
       .eq("id", invitation.id)
       .eq("access_code_hash", codeHash);
 
+    console.error("Falha ao enviar código da equipe:", delivery.error);
     inviteRedirect(
       token,
       "error",
-      "Não foi possível enviar o código por e-mail agora. Tente novamente.",
+      delivery.error === "resend_from_not_configured"
+        ? "O e-mail de acesso ainda não está configurado corretamente. A administração do MonitorIA foi avisada."
+        : "Não foi possível enviar o código por e-mail agora. Tente novamente.",
     );
   }
+
+  await auditInvite({
+    invitationId: String(invitation.id),
+    organizationId: String(invitation.organization_id),
+    action: "team_invite_code_sent",
+    metadata: {
+      email,
+      expires_at: expiresAt,
+      resend_cooldown_seconds: ACCESS_CODE_RESEND_COOLDOWN_SECONDS,
+    },
+  });
 
   inviteRedirect(
     token,
@@ -227,6 +277,7 @@ async function grantInvitation(input: {
       access_code_hash: null,
       access_code_expires_at: null,
       access_code_attempts: 0,
+      access_code_sent_at: null,
     })
     .eq("id", input.invitation.id)
     .is("accepted_at", null)
@@ -336,9 +387,9 @@ export async function verifyTeamInviteAccessCodeAction(formData: FormData) {
   const email = String(invitation.email).trim().toLowerCase();
   const admin = createAdminClient();
 
-  // Só depois de o código próprio ser validado criamos o token de login.
-  // O link nunca é enviado por e-mail, então scanners corporativos não podem
-  // consumi-lo. `magiclink` também cria o usuário quando ele ainda não existe.
+  // Só depois de o código próprio ser validado criamos um token Supabase.
+  // Ele nunca é enviado por e-mail, então scanners corporativos não podem
+  // consumi-lo antes do usuário.
   const generated = await admin.auth.admin.generateLink({
     type: "magiclink",
     email,
@@ -373,6 +424,13 @@ export async function verifyTeamInviteAccessCodeAction(formData: FormData) {
       "O código foi validado, mas não foi possível abrir sua sessão agora. Solicite um novo código.",
     );
   }
+
+  await auditInvite({
+    invitationId: String(invitation.id),
+    organizationId: String(invitation.organization_id),
+    action: "team_invite_code_verified",
+    metadata: { email, attempts },
+  });
 
   await grantInvitation({
     token,

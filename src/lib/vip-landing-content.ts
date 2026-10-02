@@ -34,22 +34,25 @@ export const vipSectors = [
     value: "Múltiplos locais",
     label:
       "Uma visão para matriz, filiais, fábricas, centros logísticos e áreas críticas — sem perder o contexto de cada ambiente.",
-    sector: "Grandes empresas",
+    sector: "Médias e Grandes empresas",
     tone: "enterprise",
+    media: "sector-store",
   },
   {
     value: "Mais evidência",
     label:
       "Sua equipe chega mais rápido ao que merece atenção, cruza acontecimentos e reduz o tempo gasto procurando trechos.",
-    sector: "Empresas de segurança",
+    sector: "Empresas de segurança e monitoramento",
     tone: "security",
+    media: "sector-forecourt",
   },
   {
     value: "Longos períodos",
     label:
       "Câmeras ao vivo e gravações locais viram uma base consultável por tempo, ambiente, acontecimento e contexto observável.",
-    sector: "Projetos científicos",
+    sector: "Fábricas, Faculdades, Projetos científicos, etc",
     tone: "science",
+    media: "sector-warehouse",
   },
 ] as const;
 

@@ -11,6 +11,11 @@ import {
   VipSceneSecurity,
 } from "./scenes";
 import { VipMedia } from "./hero";
+import {
+  posterUrl,
+  videoUrl,
+  type SectorMediaId,
+} from "@/src/components/landing/media-slot";
 import styles from "@/src/components/landing/landing.module.css";
 import vip from "@/app/vip/landing/vip-landing.module.css";
 
@@ -43,43 +48,64 @@ export function VipSectors() {
         </div>
 
         <div className={styles.sectorStack}>
-          {vipSectors.map((item) => (
-            <article
-              className={`${styles.sectorCard} ${vip.sectorCard}`}
-              data-tone={item.tone}
-              key={item.sector}
-            >
-              <div
-                className={`${styles.sectorArt} ${vip.sectorArt}`}
-                aria-hidden="true"
+          {vipSectors.map((item) => {
+            const id = item.media as SectorMediaId;
+            const src = videoUrl(id);
+            const poster = posterUrl(id);
+
+            return (
+              <article
+                className={`${styles.sectorCard} ${vip.sectorCard}`}
+                data-tone={item.tone}
+                key={item.sector}
               >
-                <span />
-                <span />
-                <span />
-              </div>
-              <div
-                className={`${styles.sectorScrim} ${vip.sectorScrim}`}
-                aria-hidden="true"
-              />
+                {src ? (
+                  <video
+                    className={styles.sectorMedia}
+                    src={src}
+                    poster={poster ?? undefined}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="none"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <div
+                    className={`${styles.sectorArt} ${vip.sectorArt}`}
+                    aria-hidden="true"
+                  >
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                )}
 
-              <div className={styles.sectorTop}>
-                <p
-                  className={`${styles.sectorValue} ${vip.goldText}`}
-                >
-                  {item.value}
-                </p>
-                <p className={styles.sectorLabel}>{item.label}</p>
-              </div>
+                <div
+                  className={`${styles.sectorScrim} ${vip.sectorScrim}`}
+                  aria-hidden="true"
+                />
 
-              <div className={styles.sectorBottom}>
-                <span
-                  className={`${styles.sectorTag} ${vip.sectorTag}`}
-                >
-                  {item.sector}
-                </span>
-              </div>
-            </article>
-          ))}
+                <div className={styles.sectorTop}>
+                  <p
+                    className={`${styles.sectorValue} ${vip.sectorValue} ${vip.goldText}`}
+                  >
+                    {item.value}
+                  </p>
+                  <p className={styles.sectorLabel}>{item.label}</p>
+                </div>
+
+                <div className={styles.sectorBottom}>
+                  <span
+                    className={`${styles.sectorTag} ${vip.sectorTag}`}
+                  >
+                    {item.sector}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

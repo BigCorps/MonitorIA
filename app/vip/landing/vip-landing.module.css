@@ -18,6 +18,20 @@
     #08090b;
 }
 
+/*
+ * Segurança tipográfica do VIP.
+ *
+ * A landing base usa `.wipe` com clip-path ligado ao scroll. Em alguns títulos
+ * maiores do VIP o navegador pode parar a animação num estado intermediário e
+ * recortar parte das letras. Dentro do VIP preferimos preservar 100% do texto
+ * a manter esse efeito específico.
+ */
+.vipPage [class*="wipe"] {
+  opacity: 1 !important;
+  clip-path: none !important;
+  animation: none !important;
+}
+
 .vipSection::before {
   background: linear-gradient(
     90deg,
@@ -46,6 +60,14 @@
   background-size: 180% 100%;
   -webkit-background-clip: text;
   background-clip: text;
+}
+
+/* Evita corte de descendentes como g, j, p, q e y nos títulos dourados. */
+.sectorValue {
+  display: block;
+  line-height: 1.1 !important;
+  padding-bottom: .12em;
+  overflow: visible;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -193,7 +215,6 @@
     inset 0 0 0 1px rgba(243, 218, 145, .025),
     inset 0 -1px 0 rgba(209, 161, 47, .16);
 }
-
 
 .goldScene {
   background: #08090b;

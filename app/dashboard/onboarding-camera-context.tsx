@@ -6,9 +6,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { CameraProfileWorkspace } from "@/src/lib/camera-profile-data";
 import { CameraProfilePanel } from "./cameras/[cameraId]/camera-profile-panel";
+import { GuidedCameraProfile } from "./cameras/guided-camera-profile";
 import { DiscoveryPanel } from "./cameras/discovery/discovery-panel";
 import {
   saveOnboardingCameraNameAction,
@@ -42,13 +43,20 @@ function formatElapsed(seconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
-function waitState(seconds: number, agentConnected: boolean) {
-  if (!agentConnected) {
+function waitState(
+  seconds: number,
+  computerConnected: boolean,
+  guidedLanguage: boolean,
+) {
+  if (!computerConnected) {
     return {
-      title: "O computador da loja não está conectado",
-      text:
-        "A primeira imagem depende do Agent. Reconecte o computador e esta tela continuará verificando automaticamente.",
-      label: "Aguardando o Agent reconectar",
+      title: "O computador responsável não está conectado",
+      text: guidedLanguage
+        ? "Reconecte o computador deste Local. Assim que ele voltar, continuaremos daqui automaticamente."
+        : "A primeira imagem depende do Agent. Reconecte o computador e esta tela continuará verificando automaticamente.",
+      label: guidedLanguage
+        ? "Aguardando o computador reconectar"
+        : "Aguardando o Agent reconectar",
       warning: true,
     };
   }
@@ -56,19 +64,25 @@ function waitState(seconds: number, agentConnected: boolean) {
   if (seconds < 60) {
     return {
       title: "Preparando a primeira imagem",
-      text:
-        "A câmera já foi encontrada. O MonitorIA está aguardando o primeiro snapshot enviado pelo Agent, sem processamento de IA.",
-      label: "Câmera conectada · aguardando primeiro snapshot",
+      text: guidedLanguage
+        ? "A câmera já foi encontrada. Agora estamos esperando uma imagem real para preparar a configuração inteligente."
+        : "A câmera já foi encontrada. O MonitorIA está aguardando o primeiro snapshot enviado pelo Agent, sem processamento de IA.",
+      label: guidedLanguage
+        ? "Câmera conectada · aguardando imagem"
+        : "Câmera conectada · aguardando primeiro snapshot",
       warning: false,
     };
   }
 
   if (seconds < 3 * 60) {
     return {
-      title: "Aguardando o primeiro ciclo de captura",
-      text:
-        "Com o Agent 1.0.0, a primeira imagem normalmente aparece entre 3 e 5 minutos. Você pode deixar esta tela aberta; ela atualiza sozinha.",
-      label: "Agent ativo · verificando a chegada da imagem",
+      title: "Aguardando o primeiro ciclo da câmera",
+      text: guidedLanguage
+        ? "Pode deixar esta tela aberta. O MonitorIA continua verificando automaticamente e segue assim que a imagem chegar."
+        : "Com o Agent 1.0.0, a primeira imagem normalmente aparece entre 3 e 5 minutos. Você pode deixar esta tela aberta; ela atualiza sozinha.",
+      label: guidedLanguage
+        ? "Computador conectado · verificando a imagem"
+        : "Agent ativo · verificando a chegada da imagem",
       warning: false,
     };
   }
@@ -76,8 +90,9 @@ function waitState(seconds: number, agentConnected: boolean) {
   if (seconds <= 5 * 60) {
     return {
       title: "A imagem deve chegar em breve",
-      text:
-        "Estamos dentro do tempo normal de 3 a 5 minutos observado no Agent 1.0.0. A página continua consultando o servidor automaticamente.",
+      text: guidedLanguage
+        ? "Ainda estamos dentro do tempo esperado para a primeira imagem. Não é necessário atualizar a página."
+        : "Estamos dentro do tempo normal de 3 a 5 minutos observado no Agent 1.0.0. A página continua consultando o servidor automaticamente.",
       label: "Recebimento em andamento · atualização automática",
       warning: false,
     };
@@ -85,8 +100,9 @@ function waitState(seconds: number, agentConnected: boolean) {
 
   return {
     title: "Está levando mais do que o normal",
-    text:
-      "Já passaram mais de 5 minutos nesta tela. Continuamos verificando, mas você também pode conferir a câmera ou executar uma nova busca sem apagar as já cadastradas.",
+    text: guidedLanguage
+      ? "Continuamos verificando. Você também pode procurar as câmeras novamente sem apagar o que já foi configurado."
+      : "Já passaram mais de 5 minutos nesta tela. Continuamos verificando, mas você também pode conferir a câmera ou executar uma nova busca sem apagar as já cadastradas.",
     label: "Continuamos verificando em segundo plano",
     warning: true,
   };
@@ -118,6 +134,8 @@ export function OnboardingCameraContext({
   defaultCameraCount,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const vipExperience = pathname.startsWith("/vip/");
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [nameState, nameAction, namePending] = useActionState(
@@ -165,8 +183,8 @@ export function OnboardingCameraContext({
   }, [nameState.status, router]);
 
   const wait = useMemo(
-    () => waitState(waitSeconds, hasAgent),
-    [waitSeconds, hasAgent],
+    () => waitState(waitSeconds, hasAgent, vipExperience),
+    [waitSeconds, hasAgent, vipExperience],
   );
 
   const visualProgress = Math.min(
@@ -190,7 +208,7 @@ export function OnboardingCameraContext({
             className={styles.secondary}
             onClick={() => setShowDiscovery(false)}
           >
-            Voltar ao contexto
+            Voltar à configuração
           </button>
         </div>
 
@@ -205,13 +223,13 @@ export function OnboardingCameraContext({
 
   if (!hasFrame) {
     return (
-      <div className={styles.shell}>
+      <div className={styles.shell} id="camera-setup">
         <div className={styles.cameraProgress}>
           <div>
             <strong>Preparando {camera.name}</strong>
             <span>
               Primeiro recebemos uma imagem real; depois você identifica a câmera
-              e configura o contexto.
+              e o MonitorIA prepara a configuração inteligente.
             </span>
           </div>
           <span className={styles.cameraCount}>
@@ -249,13 +267,17 @@ export function OnboardingCameraContext({
             </div>
             <div className={styles.loadingSteps}>
               <span data-active="true">Câmera encontrada</span>
-              <span data-active={hasAgent}>Agent conectado</span>
-              <span data-active="true">Aguardando snapshot</span>
+              <span data-active={hasAgent}>
+                {vipExperience ? "Computador conectado" : "Agent conectado"}
+              </span>
+              <span data-active="true">
+                {vipExperience ? "Aguardando imagem" : "Aguardando snapshot"}
+              </span>
               <span>Imagem recebida</span>
             </div>
             <small>
-              Tempo normal observado: <strong>3 a 5 minutos</strong>. Esta tela
-              consulta o servidor a cada 5 segundos; não é necessário recarregar.
+              Esta tela consulta o servidor a cada 5 segundos; não é necessário
+              recarregar.
             </small>
           </div>
 
@@ -282,11 +304,11 @@ export function OnboardingCameraContext({
 
   if (!named) {
     return (
-      <div className={styles.shell}>
+      <div className={styles.shell} id="camera-setup">
         <div className={styles.cameraProgress}>
           <div>
-            <strong>Imagem recebida</strong>
-            <span>Agora identifique esta câmera antes de configurar o contexto.</span>
+            <strong>Imagem recebida ✓</strong>
+            <span>Agora dê um nome fácil de reconhecer para esta câmera.</span>
           </div>
           <span className={styles.cameraCount}>
             {cameraIndex} de {cameraTotal}
@@ -305,7 +327,7 @@ export function OnboardingCameraContext({
               <h3>Como deseja chamar esta câmera?</h3>
               <p>
                 Use a imagem ao lado para saber exatamente qual câmera está
-                configurando e escolha um nome fácil de reconhecer.
+                configurando. O Local já é o mesmo escolhido para este computador.
               </p>
             </div>
 
@@ -322,7 +344,7 @@ export function OnboardingCameraContext({
                 type="text"
                 name="camera_name"
                 defaultValue=""
-                placeholder="Ex.: Entrada da loja"
+                placeholder="Ex.: Entrada principal"
                 minLength={2}
                 maxLength={160}
                 required
@@ -331,7 +353,11 @@ export function OnboardingCameraContext({
             </label>
 
             <button type="submit" className={styles.primary} disabled={namePending}>
-              {namePending ? "Salvando…" : "Salvar nome e configurar contexto"}
+              {namePending
+                ? "Salvando…"
+                : vipExperience
+                  ? "Salvar e preparar perfil inteligente"
+                  : "Salvar nome e configurar contexto"}
             </button>
           </form>
         </section>
@@ -341,11 +367,15 @@ export function OnboardingCameraContext({
 
   if (profileReadyForCurrentName) {
     return (
-      <div className={styles.shell}>
+      <div className={styles.shell} id="camera-setup">
         <div className={styles.cameraProgress}>
           <div>
             <strong>{camera.name} concluída</strong>
-            <span>Nome e contexto aprovados.</span>
+            <span>
+              {vipExperience
+                ? "Perfil inteligente aprovado. Agora verificaremos se o monitoramento realmente ficou ativo."
+                : "Nome e contexto aprovados."}
+            </span>
           </div>
           <span className={styles.cameraCount}>
             {cameraIndex} de {cameraTotal}
@@ -354,11 +384,11 @@ export function OnboardingCameraContext({
 
         <div className={styles.contextReady} role="status">
           <div>
-            <strong>Contexto configurado</strong>
+            <strong>Configuração essencial concluída ✓</strong>
             <span>
               {cameraIndex < cameraTotal
                 ? "Abrindo a próxima câmera do onboarding…"
-                : "Todas as câmeras estão prontas. Indo para a etapa Ativar…"}
+                : "Todas as câmeras têm perfil. Indo para a verificação de ativação…"}
             </span>
           </div>
         </div>
@@ -367,13 +397,18 @@ export function OnboardingCameraContext({
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} id="camera-setup">
       <div className={styles.cameraProgress}>
         <div>
-          <strong>Configure o contexto de {camera.name}</strong>
+          <strong>
+            {vipExperience
+              ? `Perfil inteligente de ${camera.name}`
+              : `Configure o contexto de ${camera.name}`}
+          </strong>
           <span>
-            Todas as funções atuais de análise, zonas, edição manual e aprovação
-            continuam disponíveis abaixo.
+            {vipExperience
+              ? "O MonitorIA prepara uma sugestão a partir da imagem real. Configurações avançadas continuam disponíveis se você quiser editar."
+              : "Todas as funções atuais de análise, zonas, edição manual e aprovação continuam disponíveis abaixo."}
           </span>
         </div>
         <span className={styles.cameraCount}>
@@ -391,12 +426,22 @@ export function OnboardingCameraContext({
         </button>
       </div>
 
-      <CameraProfilePanel
-        cameraId={camera.id}
-        cameraStatus={camera.status}
-        canManage={canManage}
-        workspace={workspace}
-      />
+      {vipExperience ? (
+        <GuidedCameraProfile
+          cameraId={camera.id}
+          cameraName={camera.name}
+          cameraStatus={camera.status}
+          canManage={canManage}
+          workspace={workspace}
+        />
+      ) : (
+        <CameraProfilePanel
+          cameraId={camera.id}
+          cameraStatus={camera.status}
+          canManage={canManage}
+          workspace={workspace}
+        />
+      )}
     </div>
   );
 }
