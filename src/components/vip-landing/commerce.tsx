@@ -277,7 +277,7 @@ export function VipFaq() {
       className={`${styles.section} ${vip.vipSection}`}
       id="duvidas"
     >
-      <div className={`${styles.container} ${styles.recede}`}>
+      <div className={styles.container}>
         <div className={`${styles.sectionHead} ${styles.wipe}`}>
           <p className={`${styles.eyebrow} ${vip.eyebrow}`}>
             <span className={styles.eyebrowTime}>—</span>
