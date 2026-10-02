@@ -49,7 +49,13 @@ export default function Image() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 940 }}>
+        <div
+  style={{
+    maxWidth: 940,
+    display: "flex",
+    flexDirection: "column",
+  }}
+>
           <div
             style={{
               fontSize: 74,
