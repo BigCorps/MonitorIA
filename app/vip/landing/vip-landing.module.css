@@ -650,3 +650,10 @@
     font-size: 42px;
   }
 }
+
+/* FAQ precisa permanecer 100% legível até o fim da seção. */
+.vipPage [id="duvidas"] [class*="recede"] {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
