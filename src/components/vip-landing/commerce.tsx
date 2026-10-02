@@ -288,7 +288,7 @@ export function VipFaq() {
           </h2>
         </div>
 
-        <div className={`${styles.faqList} ${styles.stagger}`}>
+        <div className={styles.faqList}>
           {vipFaq.map((item) => (
             <details
               className={`${styles.faqItem} ${vip.faqItem}`}
