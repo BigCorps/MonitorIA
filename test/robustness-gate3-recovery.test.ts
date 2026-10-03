@@ -226,5 +226,7 @@ test("falha real do monitor contínuo é separada de RTSP e plano", () => {
   assert.equal(diagnosis.issue, "monitor_pending");
   assert.equal(diagnosis.area, "monitor");
   assert.match(diagnosis.title, /monitor local/i);
-  assert.doesNotMatch(diagnosis.summary, /plano|perfil.*pendente/i);
+  // O texto pode citar plano/perfil para dizer explicitamente que NÃO são a causa.
+  // O contrato correto é impedir que o diagnóstico os apresente como pendentes.
+  assert.doesNotMatch(diagnosis.summary, /plano\s+pendente|perfil\s+pendente/i);
 });
