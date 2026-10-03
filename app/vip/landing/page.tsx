@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { ClarityScript } from "@/src/components/analytics/clarity";
 import {
   VipHero,
@@ -18,9 +19,14 @@ import {
   VipPlans,
   VipTrial,
 } from "@/src/components/vip-landing/commerce";
+import { AssistedJourneyTracker } from "@/src/components/vip-landing/assisted-journey";
+import { VipAssistedClosing } from "@/src/components/vip-landing/assisted-closing";
+import { VipVideoEvidence } from "@/src/components/vip-landing/video-evidence";
 import { SalesProof } from "@/src/components/landing/sales-proof";
 import { VipStructuredData } from "@/src/components/vip-landing/structured-data";
+import { getSalesTrialInvite } from "@/src/lib/sales-trial";
 import { getVipPlanCatalog } from "@/src/vip/server";
+import { VIP_ASSIST_COOKIE, vipAssistAlias } from "@/src/vip/assisted";
 import { vipConfig } from "@/src/vip/config";
 import styles from "@/src/components/landing/landing.module.css";
 import vip from "./vip-landing.module.css";
@@ -38,9 +44,7 @@ export const metadata: Metadata = {
     canonical: vipConfig.url,
   },
   icons: {
-    icon: [
-      { url: "/vip-favicon.svg", type: "image/svg+xml" },
-    ],
+    icon: [{ url: "/vip-favicon.svg", type: "image/svg+xml" }],
     shortcut: ["/vip-favicon.svg"],
   },
   openGraph: {
@@ -67,12 +71,14 @@ export const metadata: Metadata = {
       "Muitas câmeras deixam de ser muitas telas e viram uma operação pesquisável.",
     images: [`${vipConfig.url}/vip/landing/twitter-image`],
   },
+  // O VIP é uma venda consultiva. A página continua acessível pelo link,
+  // mas não deve entrar em aquisição orgânica nem competir com a landing padrão.
   robots: {
-    index: true,
-    follow: true,
+    index: false,
+    follow: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
       "max-image-preview": "large",
       "max-snippet": -1,
       "max-video-preview": -1,
@@ -90,15 +96,29 @@ type Props = {
 };
 
 export default async function VipLandingPage({ searchParams }: Props) {
-  const [plans, query] = await Promise.all([
+  const cookieStore = await cookies();
+  const assistToken = cookieStore.get(VIP_ASSIST_COOKIE)?.value ?? "";
+
+  const [plans, query, invite] = await Promise.all([
     getVipPlanCatalog(),
     searchParams,
+    assistToken
+      ? getSalesTrialInvite(assistToken).catch(() => null)
+      : Promise.resolve(null),
   ]);
+
+  const assisted = Boolean(
+    invite?.vipProjectId && ["active", "redeemed"].includes(invite.status),
+  );
+  const alias = invite ? vipAssistAlias(invite.id) : null;
 
   return (
     <main className={`${styles.page} ${vip.vipPage}`}>
       <VipStructuredData plans={plans} />
       <ClarityScript />
+      {assisted && invite && alias ? (
+        <AssistedJourneyTracker inviteId={invite.id} alias={alias} />
+      ) : null}
 
       <div className={styles.rail} aria-hidden="true">
         <span className={styles.railFill} />
@@ -110,12 +130,21 @@ export default async function VipLandingPage({ searchParams }: Props) {
       <SalesProof experience="vip" />
       <VipSectors />
       <VipHowItWorks />
+      <VipVideoEvidence />
       <VipUnderstands />
       <VipAssistant />
       <VipPlans plans={plans} />
       <VipTrial />
       <VipFaq />
-      <VipClosing query={query} />
+      {assisted && invite && alias ? (
+        <VipAssistedClosing
+          companyName={invite.companyName}
+          alias={alias}
+          redeemed={invite.status === "redeemed"}
+        />
+      ) : (
+        <VipClosing query={query} />
+      )}
       <VipLandingFooter />
     </main>
   );

@@ -1,0 +1,1 @@
+.tabs{padding:9px 28px;display:flex;gap:8px;background:#11151a;border-bottom:1px solid #29313a;font-family:system-ui,sans-serif}.tabs a{padding:8px 11px;border-radius:8px;color:#aab4be;text-decoration:none;font-size:.72rem;font-weight:850}.tabs a:hover{background:#1b222a;color:#fff}@media(max-width:680px){.tabs{padding:8px 12px;overflow:auto;white-space:nowrap}}
