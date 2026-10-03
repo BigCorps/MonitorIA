@@ -1,0 +1,250 @@
+.calculator {
+  display: grid;
+  gap: 20px;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid var(--hair-mint);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--mint) 10%, transparent), transparent 38%),
+    var(--card);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .18);
+}
+
+@media (min-width: 920px) {
+  .calculator {
+    grid-template-columns: .76fr 1.24fr;
+    align-items: start;
+  }
+
+  .resultMessage {
+    grid-column: 1 / -1;
+  }
+}
+
+.controls {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field > span {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 13px;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: rgba(255,255,255,.025);
+}
+
+.inputRow input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 24px/1 var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.inputRow b {
+  color: var(--ink-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mathNote {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.results {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .results {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.resultCard {
+  min-height: 148px;
+  padding: 20px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: rgba(3, 10, 18, .32);
+}
+
+.resultCard span {
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.resultCard strong {
+  margin-top: 18px;
+  color: var(--ink);
+  font-size: clamp(27px, 3vw, 38px);
+  line-height: .95;
+  letter-spacing: -.035em;
+}
+
+.resultCard small {
+  margin-top: 7px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+}
+
+.resultAccent {
+  border-color: var(--hair-mint);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--mint) 9%, transparent), transparent),
+    rgba(3, 10, 18, .38);
+}
+
+.resultAccent strong {
+  color: var(--mint);
+}
+
+.resultMessage {
+  display: grid;
+  gap: 5px;
+  padding-top: 4px;
+}
+
+.resultMessage strong {
+  color: var(--ink);
+  font-size: clamp(20px, 2.3vw, 29px);
+  letter-spacing: -.025em;
+}
+
+.resultMessage span {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.comparison {
+  display: grid;
+  gap: 1px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  background: var(--hair);
+}
+
+@media (min-width: 880px) {
+  .comparison {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.beforeCard,
+.afterCard {
+  padding: clamp(24px, 3vw, 34px);
+  background: var(--deep-2);
+}
+
+.afterCard {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--mint) 7%, transparent), transparent 64%),
+    var(--deep-2);
+}
+
+.cardKicker {
+  margin: 0 0 12px;
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.afterCard .cardKicker {
+  color: var(--mint);
+}
+
+.beforeCard ul,
+.afterCard ul {
+  display: grid;
+  gap: 13px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.beforeCard li,
+.afterCard li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.beforeCard li::before,
+.afterCard li::before {
+  position: absolute;
+  left: 0;
+  top: .72em;
+  width: 7px;
+  height: 1px;
+  content: "";
+  background: var(--ink-3);
+}
+
+.afterCard li::before {
+  background: var(--mint);
+}
+
+.cta {
+  min-height: 48px;
+  margin-top: 26px;
+  padding: 0 18px;
+  border: 1px solid var(--hair-mint);
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mint);
+  color: var(--deep);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.cta:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 639px) {
+  .resultCard {
+    min-height: 118px;
+  }
+
+  .cta {
+    width: 100%;
+  }
+}

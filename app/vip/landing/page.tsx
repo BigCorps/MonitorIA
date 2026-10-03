@@ -18,6 +18,7 @@ import {
   VipPlans,
   VipTrial,
 } from "@/src/components/vip-landing/commerce";
+import { SalesProof } from "@/src/components/landing/sales-proof";
 import { VipStructuredData } from "@/src/components/vip-landing/structured-data";
 import { getVipPlanCatalog } from "@/src/vip/server";
 import { vipConfig } from "@/src/vip/config";
@@ -105,8 +106,9 @@ export default async function VipLandingPage({ searchParams }: Props) {
 
       <VipLandingHeader />
       <VipHero />
-      <VipSectors />
       <VipProblem />
+      <SalesProof experience="vip" />
+      <VipSectors />
       <VipHowItWorks />
       <VipUnderstands />
       <VipAssistant />

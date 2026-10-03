@@ -1,0 +1,57 @@
+{
+  "name": "MonitorIA Gate Comercial — Landings padrão + VIP",
+  "base_commit": "cadb71c6acf1689fba267c3f2b9932e9a4821393",
+  "scope": {
+    "agent_files": 0,
+    "migrations": 0,
+    "backend_routes_changed": 0,
+    "production_contracts_changed": 0
+  },
+  "files": [
+    {
+      "path": "LEIA-ME-GATE-COMERCIAL-LANDINGS.md",
+      "bytes": 1407,
+      "sha256": "9770a26eb65841b049d866d814629e54adb74543561278158ad8bd4dd99510c0"
+    },
+    {
+      "path": "app/page.tsx",
+      "bytes": 1842,
+      "sha256": "06988d4d8ad6f283bd76fb01d694ea4fa394a50e2142c0b4ee283664c4519d15"
+    },
+    {
+      "path": "app/vip/landing/page.tsx",
+      "bytes": 3348,
+      "sha256": "cff28900d6813b64078220d8333d3b7305b292acf41cedb16654aaff8d1b5668"
+    },
+    {
+      "path": "docs/MONITORIA-GATE-COMERCIAL-LANDINGS.md",
+      "bytes": 2022,
+      "sha256": "b6e849eb6340b11f7b38ad25bf57e3fe5f440601f7fdf619f67f9606026c63fb"
+    },
+    {
+      "path": "src/components/landing/hero.tsx",
+      "bytes": 6260,
+      "sha256": "2d2301b2043d9a65a47204454e8cc2fbb947cdcf7064b0b46bcb2169d9a2b550"
+    },
+    {
+      "path": "src/components/landing/sales-proof.module.css",
+      "bytes": 4157,
+      "sha256": "29b5612c161066e8342ceb53779158e28c431dcf3f4da1390c2dc6edc2eff3f5"
+    },
+    {
+      "path": "src/components/landing/sales-proof.tsx",
+      "bytes": 8522,
+      "sha256": "85cf13a68998a782f9c964024b513838ec5599d24ee166a2def742627c6d40e2"
+    },
+    {
+      "path": "src/landing/video-volume.ts",
+      "bytes": 747,
+      "sha256": "26e0a8f4a6617b64d2c1f540541566a9105aa1f20083c9eff6111ef602d53ef2"
+    },
+    {
+      "path": "test/landing-sales-conversion.test.ts",
+      "bytes": 2870,
+      "sha256": "b4b3b532452d2e50b360c2d5a0e59f79e408430fc8f8db8cac5a9643a99d2997"
+    }
+  ]
+}

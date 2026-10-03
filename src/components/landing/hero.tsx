@@ -13,6 +13,13 @@ const accountCta: Cta = {
   external: false,
 };
 
+const heroPrimaryCta: Cta = {
+  ...primaryCta,
+  label: primaryCta.href.startsWith("/login")
+    ? "Testar nas minhas câmeras"
+    : primaryCta.label,
+};
+
 const playStoreUrl =
   "https://play.google.com/store/apps/details?id=cam.monitoria.twa";
 
@@ -123,16 +130,17 @@ export function Hero() {
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
             <span className={styles.eyebrowTime}>08:12</span>
-            <span>Loja aberta</span>
+            <span>Algo aconteceu. Você precisa da resposta.</span>
           </p>
 
           <h1 className={styles.h1}>
-            <span className={styles.heroSlogan}>{appConfig.sloganParts.first}</span>
-            {appConfig.sloganParts.second}
+            <span className={styles.heroSlogan}>Você já tem câmeras.</span>
+            Encontre o que elas viram.
           </h1>
 
           <p className={styles.lede}>
-            Pergunte o que aconteceu e receba informações em tempo real, com gráficos e análises.
+            Em vez de rebobinar horas de DVR, pesquise o que aconteceu e chegue ao horário,
+            às evidências e ao trecho que importa.
           </p>
 
           <p
@@ -143,11 +151,11 @@ export function Hero() {
               fontWeight: 650,
             }}
           >
-            Configure sozinho em cerca de 10 minutos — sem técnico ou especialista.
+            {appConfig.slogan} Configure sozinho em cerca de 10 minutos — sem técnico ou especialista.
           </p>
 
           <div className={styles.actions}>
-            <CtaLink cta={primaryCta} variant="primary" />
+            <CtaLink cta={heroPrimaryCta} variant="primary" />
             <CtaLink cta={accountCta} variant="ghost" />
           </div>
 
