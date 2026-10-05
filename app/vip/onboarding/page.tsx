@@ -82,10 +82,10 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
   const organization = await getCurrentOrganization(user.id);
   if (!organization) redirect("/onboarding");
 
-  await ensureSalesTrialForOrganization(user, organization.id);
-
   const project = await getVipProjectForOrganization(organization.id);
-  if (!project) redirect("/dashboard");
+  if (!project) redirect("/vip/access");
+
+  await ensureSalesTrialForOrganization(user, organization.id);
 
   const [onboarding, firstRun, sites, setupCameras, cameras, plans, query] =
     await Promise.all([
@@ -99,7 +99,7 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
     ]);
 
   const refreshedProject = await getVipProjectForOrganization(organization.id);
-  if (!refreshedProject) redirect("/dashboard");
+  if (!refreshedProject) redirect("/vip/access");
 
   const plan =
     plans.find((item) => item.code === refreshedProject.selectedPlanCode) ?? null;

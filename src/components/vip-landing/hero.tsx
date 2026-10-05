@@ -38,7 +38,7 @@ export function VipLandingHeader() {
       <div className={styles.headerCta}>
         <a
           className={`${styles.btn} ${styles.btnGhost} ${vip.goldGhost}`}
-          href="https://monitoria.cam/login?next=%2Fvip%2Fdashboard"
+          href="/vip/access"
           data-vip-event="client_login"
         >
           Já sou cliente VIP

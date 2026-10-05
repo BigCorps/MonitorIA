@@ -54,21 +54,22 @@ function firstValue(value: string | string[] | undefined) {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const user = await getAuthenticatedUser();
-  if (user) redirect("/dashboard");
-
   const params = await searchParams;
   const message = firstValue(params.message);
   const error = firstValue(params.error);
   const next = normalizeNextPath(firstValue(params.next) ?? "/dashboard");
   const wantsSignup = params.criar === "1";
+  const isVipLogin = next.startsWith("/vip/");
+
+  const user = await getAuthenticatedUser();
+  if (user) redirect(next);
 
   const cookieStore = await cookies();
   const showPasskey =
     cookieStore.get(PASSKEY_LOGIN_HINT_COOKIE)?.value === "1";
 
   return (
-    <main className={`auth-page ${loginStyles.page}`}>
+    <main className={`auth-page ${loginStyles.page} ${isVipLogin ? loginStyles.vipContext : ""}`}>
       <section className={`auth-intro ${loginStyles.intro}`}>
         <Link href="/" className="auth-brand">
           <Logo />
@@ -78,8 +79,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </Link>
 
         <div>
-          <span className="auth-kicker">ACESSO SEGURO</span>
-          <h1>Sua memória visual começa aqui.</h1>
+          <span className="auth-kicker">{isVipLogin ? "ACESSO MONITORIA VIP" : "ACESSO SEGURO"}</span>
+          <h1>{isVipLogin ? "Seu Projeto VIP continua aqui." : "Sua memória visual começa aqui."}</h1>
           <p>
             Entre para configurar seus locais, suas câmeras e por quanto tempo
             cada coisa fica guardada.
@@ -101,14 +102,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <MobileBrand />
 
           <div className="auth-form-heading">
-            <span className={loginStyles.desktopKicker}>MonitorIA.cam</span>
+            <span className={loginStyles.desktopKicker}>{isVipLogin ? "MonitorIA VIP" : "MonitorIA.cam"}</span>
             <h2>
-              {wantsSignup ? "Começar seu teste grátis" : "Entrar no painel"}
+              {wantsSignup ? "Começar seu teste grátis" : isVipLogin ? "Entrar no MonitorIA VIP" : "Entrar no painel"}
             </h2>
             <p>
               {wantsSignup
                 ? "Vamos fazer três passos rápidos e deixar seu primeiro acesso preparado."
-                : "Use a mesma forma de acesso que você utilizou quando criou sua conta."}
+                : isVipLogin
+                  ? "Use a mesma conta MonitorIA vinculada ao seu Projeto VIP. Você não precisa criar outro cadastro."
+                  : "Use a mesma forma de acesso que você utilizou quando criou sua conta."}
             </p>
           </div>
 

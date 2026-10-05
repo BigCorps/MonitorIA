@@ -22,10 +22,10 @@ export default async function VipDashboardLayout({ children }: Readonly<{ childr
 
   if (!count) {
     const current = await getVipProjectForOrganization(organization.id);
-    if (!current) redirect("/dashboard");
+    if (!current) redirect("/vip/access");
     if (["trial_completed", "proposal", "payment_pending"].includes(current.status)) redirect("/vip/closing");
     if (current.status !== "cancelled") redirect("/vip/onboarding");
-    redirect("/dashboard");
+    redirect("/vip/access");
   }
 
   return (

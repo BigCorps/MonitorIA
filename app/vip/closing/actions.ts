@@ -27,7 +27,7 @@ async function customerContext() {
 
   const project = await getVipProjectForOrganization(organization.id);
   if (!project || project.organizationId !== organization.id) {
-    redirect("/dashboard");
+    redirect("/vip/access");
   }
 
   if (!["owner", "admin"].includes(organization.role)) {

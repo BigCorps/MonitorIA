@@ -31,7 +31,7 @@ async function context() {
   if (!organization) redirect("/onboarding");
 
   const project = await getVipProjectForOrganization(organization.id);
-  if (!project) redirect("/dashboard");
+  if (!project) redirect("/vip/access");
 
   if (!["owner", "admin"].includes(organization.role)) {
     vipRedirect("error", "Somente proprietários e administradores podem alterar o piloto VIP.");

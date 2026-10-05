@@ -57,7 +57,7 @@ export default async function VipClosingPage({ searchParams }: Props) {
   if (!organization) redirect("/onboarding");
 
   const project = await getVipProjectForOrganization(organization.id);
-  if (!project) redirect("/dashboard");
+  if (!project) redirect("/vip/access");
 
   if (
     ["lead", "invited", "project_setup", "installing", "calibrating",
@@ -67,7 +67,7 @@ export default async function VipClosingPage({ searchParams }: Props) {
   }
 
   if (project.status === "active") redirect("/vip/dashboard");
-  if (project.status === "cancelled") redirect("/dashboard");
+  if (project.status === "cancelled") redirect("/vip/access");
 
   const [proposal, contract, results, live, plans, query] = await Promise.all([
     getVipProposalForProject(project.id),

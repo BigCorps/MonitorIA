@@ -4,6 +4,7 @@ import { serverAuthCookieOptions } from "./auth-cookie-options";
 
 const protectedPrefixes = [
   "/dashboard",
+  "/vip/access",
   "/vip/onboarding",
   "/vip/closing",
   "/vip/dashboard",
@@ -20,6 +21,7 @@ function booleanClaim(value: unknown) {
 
 function isVipCustomerPath(pathname: string) {
   return (
+    pathname.startsWith("/vip/access") ||
     pathname.startsWith("/vip/onboarding") ||
     pathname.startsWith("/vip/closing") ||
     pathname.startsWith("/vip/dashboard")

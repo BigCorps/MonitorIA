@@ -12,7 +12,7 @@ export default async function VipOnboardingLayout({
   if (!organization) redirect("/onboarding");
 
   const project = await getVipProjectForOrganization(organization.id);
-  if (!project) redirect("/dashboard");
+  if (!project) redirect("/vip/access");
 
   if (
     project.status === "trial_completed" ||
@@ -23,7 +23,7 @@ export default async function VipOnboardingLayout({
   }
 
   if (project.status === "active") redirect("/vip/dashboard");
-  if (project.status === "cancelled") redirect("/dashboard");
+  if (project.status === "cancelled") redirect("/vip/access");
 
   return children;
 }
