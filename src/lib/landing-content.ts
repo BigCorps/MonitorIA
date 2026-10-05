@@ -3,7 +3,7 @@ import { appConfig } from "./app-config";
 /**
  * Conteúdo da landing.
  *
- * FONTE ÚNICA: PLANO-DE-PRODUCAO.md v1.0.
+ * FONTE ÚNICA: docs/PRODUCT-CONTRACT.md.
  * Cada bloco referencia a seção de origem. Não adicione afirmação
  * que não exista no plano — especialmente número, prazo ou preço.
  *

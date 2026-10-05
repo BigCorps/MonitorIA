@@ -13,8 +13,10 @@ const validateWorkflow = readFileSync(
   ".github/workflows/validate-release-candidate-v103.yml",
   "utf8",
 );
-const handoff = readFileSync("docs/MONITORIA-1.0.3-ENTREGA-05A.md", "utf8");
-const matrix = readFileSync("docs/MONITORIA-1.0.3-MATRIZ-RC.md", "utf8");
+const releaseContract = readFileSync(
+  "docs/releases/MONITORIA-1.0.3-CONTRACT.md",
+  "utf8",
+);
 const collector = readFileSync("scripts/collect-rc-v103-evidence.ps1", "utf8");
 const installer247Base = readFileSync("installer/monitoria.iss", "utf8");
 const storeInstaller = readFileSync("installer/monitoria-store-v103.iss", "utf8");
@@ -140,17 +142,15 @@ test("validação leve roda no push sem construir/publicar a RC", () => {
   assert.doesNotMatch(validateWorkflow, /action-gh-release/i);
 });
 
-test("handoff e matriz mantêm as travas antes da certificação", () => {
-  for (const text of [handoff, matrix]) {
-    assert.match(text, /agent-v1\.0\.3/);
-    assert.match(text, /MONITORIA_STORE_PUBLIC_URL/);
-    assert.match(text, /Microsoft/i);
-  }
-  assert.match(matrix, /duas câmeras/i);
-  assert.match(matrix, /reboot/i);
-  assert.match(matrix, /lock\/unlock/i);
-  assert.match(matrix, /upgrade/i);
-  assert.match(matrix, /abertura\/fechamento/i);
+test("contrato consolidado mantém as travas da release 1.0.3", () => {
+  assert.match(releaseContract, /agent-v1\.0\.3/);
+  assert.match(releaseContract, /MONITORIA_STORE_PUBLIC_URL/);
+  assert.match(releaseContract, /Microsoft/i);
+  assert.match(releaseContract, /duas câmeras/i);
+  assert.match(releaseContract, /reboot/i);
+  assert.match(releaseContract, /lock\/unlock/i);
+  assert.match(releaseContract, /upgrade/i);
+  assert.match(releaseContract, /abertura\/fechamento/i);
 });
 
 test("coletor de evidências é somente leitura sobre a instalação", () => {

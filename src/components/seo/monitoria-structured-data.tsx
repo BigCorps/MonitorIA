@@ -65,7 +65,7 @@ const structuredData = {
         "@type": "Country",
         name: "Brasil",
       },
-      // Preços congelados no PLANO-DE-PRODUCAO.md §3.2.
+      // Preços congelados no docs/PRODUCT-CONTRACT.md §3.2.
       // Mantenha em sincronia com src/lib/landing-content.ts.
       offers: [
         {
@@ -99,7 +99,7 @@ const structuredData = {
           availability: "https://schema.org/InStock",
           url: `${appConfig.url}/#planos`,
           description:
-            "Por câmera, por mês. 365 dias de histórico, 3 imagens por acontecimento e clipe de 15 segundos guardado por 30 dias.",
+            "Por câmera, por mês. 365 dias de histórico, 3 imagens por acontecimento e vídeo do acontecimento preservado por 30 dias.",
         },
       ],
       // §3.3 — o teste gratuito é uma oferta distinta, não um preço zero dos planos.

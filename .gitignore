@@ -32,3 +32,8 @@ twa/*.keystore.md5
 
 # ffmpeg.wasm ESM copiado automaticamente antes de dev/build
 /public/vendor/ffmpeg/
+
+# artefatos locais de TypeScript/Python
+*.tsbuildinfo
+__pycache__/
+*.py[cod]

@@ -12,7 +12,7 @@ on:
       - "supabase/migrations/*v103.sql"
       - "test/agent-0103-*.test.ts"
       - ".github/workflows/validate-agent-v103-foundation.yml"
-      - "docs/MONITORIA-1.0.3-PLANO-MESTRE.md"
+      - "docs/releases/MONITORIA-1.0.3-CONTRACT.md"
       - "packaging/linux/**"
   pull_request:
     paths:
@@ -22,7 +22,7 @@ on:
       - "supabase/migrations/*v103.sql"
       - "test/agent-0103-*.test.ts"
       - ".github/workflows/validate-agent-v103-foundation.yml"
-      - "docs/MONITORIA-1.0.3-PLANO-MESTRE.md"
+      - "docs/releases/MONITORIA-1.0.3-CONTRACT.md"
       - "packaging/linux/**"
 
 permissions:
