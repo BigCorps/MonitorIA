@@ -14,8 +14,8 @@ const prompt = read("src/vision/prompt.ts");
 const provider = read("src/vision/openai-provider.ts");
 const eventAnalysis = read("src/lib/event-analysis.ts");
 const page = read("app/dashboard/experiments/child-safety/page.tsx");
-const bridge = read("meeting-rtmp-bridge/mediamtx.yml");
-const installer = read("meeting-rtmp-bridge/Install-MeetingRtmpBridge.ps1");
+const bridge = read("test/fixtures/meeting-rtmp-bridge/mediamtx.yml");
+const installer = read("test/fixtures/meeting-rtmp-bridge/Install-MeetingRtmpBridge.ps1");
 
 check("feature flag interno", /PROINF_CHILD_ADULT_CLASSIFICATION/.test(child));
 check("schema child-adult-unknown", /ApparentAgeGroupSchema/.test(analyzed));

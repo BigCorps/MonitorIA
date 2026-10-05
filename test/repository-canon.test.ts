@@ -34,6 +34,36 @@ test("repositório possui uma hierarquia canônica curta", () => {
   }
 });
 
+test("raiz não volta a acumular artefatos de aplicação ou workflows duplicados", () => {
+  const retiredRoot = [
+    "ANALYTICS-GTM-SETUP.md",
+    "APLICAR-MEETING-RTMP-INFANCIA.md",
+    "APLICAR-STORE.md",
+    "CHECKLIST-REENVIO-OPENAI.md",
+    "LEIA-ME - AGENT WINDOWS.md",
+    "OPENAI-ADS-CAMPAIGN-DRAFT.md",
+    "OPENAI-ADS-MANUAL-STEPS.md",
+    "build-agent.yml",
+    "vendor-ffmpeg-windows.yml",
+    "vendor-ffmpeg-windows-v2.yml",
+    "verify/VERIFY_AUTH_METHODS.sql",
+  ];
+
+  for (const path of retiredRoot) {
+    assert.equal(existsSync(path), false, `${path} não deve voltar à raiz`);
+  }
+
+  assert.equal(existsSync(".github/workflows/build-agent.yml"), true);
+  assert.equal(existsSync(".github/workflows/vendor-ffmpeg-windows-v2.yml"), true);
+  assert.equal(existsSync("test/fixtures/meeting-rtmp-bridge/README.md"), true);
+  assert.equal(existsSync("docs/pilots/MEETING-RTMP-INFANCIA.md"), true);
+  assert.equal(existsSync("docs/marketing/ANALYTICS-GTM-SETUP.md"), true);
+  assert.equal(existsSync("docs/integrations/OPENAI-MCP-REVIEW.md"), true);
+
+  const gitignore = readFileSync(".gitignore", "utf8");
+  assert.match(gitignore, /^\*\.tsbuildinfo$/m);
+});
+
 test("fontes atuais não apontam para o antigo plano de produção", () => {
   const landing = readFileSync("src/lib/landing-content.ts", "utf8");
   const structured = readFileSync(

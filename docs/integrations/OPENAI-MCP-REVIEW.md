@@ -1,6 +1,6 @@
 # Checklist de reenvio OpenAI — MonitorIA
 
-- [ ] `python3 VERIFICAR-MCP-OPENAI-REVIEW.py`
+- [ ] `node --import tsx --test test/mcp-openai-review.test.ts test/mcp-public-privacy-review.test.ts test/mcp-diagnostics.test.ts`
 - [ ] `npm run check`
 - [ ] `npm test`
 - [ ] `npm run build`

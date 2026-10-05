@@ -1,3 +1,5 @@
+> **Fixture de homologação:** este bridge é preservado apenas para testes/pilotos da Meeting. Não faz parte do runtime de produção do MonitorIA nem do Agent 1.0.3.
+
 # MonitorIA — piloto Meeting: RTMP sem alterar o Agent + classificação criança/adulto
 
 Base analisada: `BigCorps/MonitorIA` `main`, commit
@@ -36,7 +38,7 @@ para leitores RTSP. A configuração do pacote expõe RTSP apenas no loopback.
 
 ## Arquivos novos do bridge
 
-`meeting-rtmp-bridge/`
+`test/fixtures/meeting-rtmp-bridge/`
 
 - `Install-MeetingRtmpBridge.ps1`
 - `Start-MeetingRtmpBridge.ps1`
