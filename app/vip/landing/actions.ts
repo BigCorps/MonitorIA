@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/src/lib/supabase/admin";
+import { notifyVipLeadRequest } from "@/src/lib/vip-lead-notification";
 import { VIP_PROJECT_KINDS } from "@/src/vip/types";
 
 const schema = z.object({
@@ -73,7 +74,7 @@ export async function requestVipContactAction(formData: FormData) {
 
   const { data: operator, error: operatorError } = await admin
     .from("sales_operators")
-    .select("id")
+    .select("id,name,email")
     .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -108,9 +109,11 @@ export async function requestVipContactAction(formData: FormData) {
     errorRedirect("Não foi possível registrar seu interesse agora. Tente novamente.");
   }
 
+  const assignedOperatorId =
+    existing?.sales_operator_id ?? operator?.id ?? null;
+
   const payload = {
-    sales_operator_id:
-      existing?.sales_operator_id ?? operator?.id ?? null,
+    sales_operator_id: assignedOperatorId,
     lead_name: input.lead_name,
     lead_email: input.lead_email,
     company_name: input.company_name,
@@ -124,6 +127,52 @@ export async function requestVipContactAction(formData: FormData) {
     updated_at: new Date().toISOString(),
   };
 
+  async function notifySavedLead(requestId: string) {
+    let sellerName =
+      assignedOperatorId && String(operator?.id ?? "") === String(assignedOperatorId)
+        ? String(operator?.name ?? "")
+        : "";
+    let sellerEmail =
+      assignedOperatorId && String(operator?.id ?? "") === String(assignedOperatorId)
+        ? String(operator?.email ?? "")
+        : "";
+
+    if (assignedOperatorId && !sellerEmail) {
+      const { data: assignedSeller, error: sellerError } = await admin
+        .from("sales_operators")
+        .select("name,email")
+        .eq("id", String(assignedOperatorId))
+        .maybeSingle();
+
+      if (sellerError) {
+        console.error("vip_lead_seller_lookup:", sellerError.message);
+      } else {
+        sellerName = String(assignedSeller?.name ?? "");
+        sellerEmail = String(assignedSeller?.email ?? "");
+      }
+    }
+
+    const notification = await notifyVipLeadRequest({
+      requestId,
+      leadName: input.lead_name,
+      leadEmail: input.lead_email,
+      companyName: input.company_name,
+      phone: input.phone,
+      projectKind: input.project_kind,
+      expectedCameraCount: input.expected_camera_count,
+      objective: input.objective ?? null,
+      sellerName: sellerName || null,
+      sellerEmail: sellerEmail || null,
+    });
+
+    if (!notification.seller.ok) {
+      console.error("vip_lead_seller_email:", notification.seller.error);
+    }
+    if (!notification.lead.ok) {
+      console.error("vip_lead_confirmation_email:", notification.lead.error);
+    }
+  }
+
   if (existing) {
     const { error } = await admin
       .from("vip_lead_requests")
@@ -135,13 +184,18 @@ export async function requestVipContactAction(formData: FormData) {
       errorRedirect("Não foi possível registrar seu interesse agora. Tente novamente.");
     }
 
+    await notifySavedLead(String(existing.id));
     successRedirect();
   }
 
-  const { error } = await admin.from("vip_lead_requests").insert({
-    ...payload,
-    status: "new",
-  });
+  const { data: inserted, error } = await admin
+    .from("vip_lead_requests")
+    .insert({
+      ...payload,
+      status: "new",
+    })
+    .select("id")
+    .single();
 
   if (error?.code === "23505") {
     // Corrida entre duas submissões do mesmo e-mail: mantém uma só oportunidade.
@@ -159,14 +213,16 @@ export async function requestVipContactAction(formData: FormData) {
         .from("vip_lead_requests")
         .update(payload)
         .eq("id", String(concurrent.id));
+      await notifySavedLead(String(concurrent.id));
       successRedirect();
     }
   }
 
-  if (error) {
-    console.error("vip_landing_lead_insert:", error.message);
+  if (error || !inserted?.id) {
+    console.error("vip_landing_lead_insert:", error?.message ?? "missing_inserted_id");
     errorRedirect("Não foi possível registrar seu interesse agora. Tente novamente.");
   }
 
+  await notifySavedLead(String(inserted.id));
   successRedirect();
 }

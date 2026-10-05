@@ -17,7 +17,8 @@ export default async function Page() {
         { eyebrow: "PLANOS", title: "Planos por câmera", description: "Configuração comercial e desconto progressivo.", href: "/dashboard/plans" },
         { eyebrow: "COBRANÇAS", title: "Cobranças da organização", description: "Faturas, Pix e ciclos de pagamento.", href: "/dashboard/billing" },
         { eyebrow: "CONVERSÃO", title: "Teste grátis", description: "Preparação, execução e conversão do trial self-service.", href: "/dashboard/trial" },
-        { eyebrow: "DEMONSTRAÇÃO", title: "Trial comercial assistido", description: "Links de 60 minutos para até seis câmeras e funil de vendas.", href: "/dashboard/admin/customers/trials" }
+        { eyebrow: "DEMONSTRAÇÃO", title: "Trial comercial assistido", description: "Links de 60 minutos para até seis câmeras e funil de vendas.", href: "/dashboard/admin/customers/trials" },
+        { eyebrow: "VIP", title: "MonitorIA VIP", description: "Leads da landing, Projetos VIP e Nova apresentação assistida.", href: "/comercial/vip" }
       ]}
     />
   );
