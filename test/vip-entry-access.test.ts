@@ -67,7 +67,10 @@ test("login compartilhado respeita next VIP para sessão já autenticada", async
 test("card de cookies usa identidade dourada somente no host VIP", async () => {
   const cookie = await read("src/components/analytics/cookie-consent.tsx");
 
-  assert.match(cookie, /window\.location\.hostname\.toLowerCase\(\) === "vip\.monitoria\.cam"/);
+  assert.match(cookie, /new URL\(window\.location\.href\)/);
+  assert.match(cookie, /current\.hostname\.toLowerCase\(\) === "vip\.monitoria\.cam"/);
+  assert.match(cookie, /current\.pathname\.startsWith\("\/vip\/"\)/);
+  assert.match(cookie, /next\.startsWith\("\/vip\/"\)/);
   assert.match(cookie, /data-experience=\{vip \? "vip" : "standard"\}/);
   assert.match(cookie, /#e2bd59/);
   assert.match(cookie, /rgba\(224,202,143,\.28\)/);

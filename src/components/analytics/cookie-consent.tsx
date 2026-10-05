@@ -17,7 +17,13 @@ export function CookieConsent() {
     const consulta = window.matchMedia("(max-width: 639px)");
     const atualizar = () => setCompacto(consulta.matches);
     atualizar();
-    setVip(window.location.hostname.toLowerCase() === "vip.monitoria.cam");
+    const current = new URL(window.location.href);
+    const next = current.searchParams.get("next") ?? "";
+    setVip(
+      current.hostname.toLowerCase() === "vip.monitoria.cam" ||
+        current.pathname.startsWith("/vip/") ||
+        next.startsWith("/vip/"),
+    );
     consulta.addEventListener("change", atualizar);
     return () => consulta.removeEventListener("change", atualizar);
   }, []);
