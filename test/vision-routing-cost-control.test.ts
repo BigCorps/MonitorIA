@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { resolveVisionRouteExecution } from "../src/vision/plans";
 
-test("todas as rotas generativas normalizam modelos antigos para nano", () => {
+test("padrão permanece em nano e VIP usa Luna mesmo no mesmo plano Intensive", () => {
   const previousBalanced = process.env.VISION_MODEL_BALANCED;
   const previousDetailed = process.env.VISION_MODEL_DETAILED;
 
@@ -24,6 +24,21 @@ test("todas as rotas generativas normalizam modelos antigos para nano", () => {
     assert.equal(strong.model, "gpt-5-nano");
     assert.equal(balanced.verifierModel, "gpt-5-nano");
     assert.equal(strong.verifierModel, "gpt-5-nano");
+
+    const vipBalanced = resolveVisionRouteExecution(
+      "intensive",
+      "balanced",
+      "vip",
+    );
+    const vipStrong = resolveVisionRouteExecution(
+      "intensive",
+      "strong",
+      "vip",
+    );
+    assert.equal(vipBalanced.model, "gpt-6-luna");
+    assert.equal(vipStrong.model, "gpt-6-luna");
+    assert.equal(vipBalanced.verifierModel, "gpt-6-luna");
+    assert.equal(vipStrong.verifierModel, "gpt-6-luna");
   } finally {
     if (previousBalanced === undefined) {
       delete process.env.VISION_MODEL_BALANCED;

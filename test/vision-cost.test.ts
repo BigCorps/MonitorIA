@@ -16,6 +16,20 @@ test("GPT-5 nano usa preço de entrada, cache e saída corretos", () => {
   assert.ok(Math.abs(cost.totalCostUsd - 0.00072) < 0.0000001);
 });
 
+test("GPT-6 Luna usa a tabela de preço própria do piloto VIP", () => {
+  const cost = estimateVisionCostBreakdown("gpt-6-luna", {
+    inputTokens: 6000,
+    cachedInputTokens: 4000,
+    outputTokens: 1500,
+    reasoningTokens: 900,
+    totalTokens: 7500,
+  });
+
+  assert.equal(cost.billableInputTokens, 2000);
+  assert.equal(cost.cachedInputTokens, 4000);
+  assert.ok(Math.abs(cost.totalCostUsd - 0.00099) < 0.0000001);
+});
+
 test("tokens de raciocínio do nano não são cobrados duas vezes", () => {
   const cost = estimateVisionCostBreakdown("gpt-5-nano", {
     inputTokens: 0,

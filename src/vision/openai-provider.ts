@@ -1,4 +1,12 @@
 import OpenAI from "openai";
+import { createAdminClient } from "@/src/lib/supabase/admin";
+import {
+  configuredMonitoriaModel,
+  normalizeMonitoriaModel,
+  resolveOrganizationAiTrack,
+  STANDARD_OPENAI_MODEL,
+  visionReasoningEffortForModel,
+} from "@/src/ai/model-policy";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   AnalyzedEventSchema,
@@ -38,15 +46,6 @@ export interface OpenAIVisionProviderOptions {
   profileMaxOutputTokens?: number;
   store?: boolean;
   client?: OpenAI;
-}
-
-const DEFAULT_NANO_MODEL = "gpt-5-nano";
-
-function nanoModel(value?: string) {
-  const candidate = value?.trim();
-  return candidate && candidate.includes("nano")
-    ? candidate
-    : DEFAULT_NANO_MODEL;
 }
 
 function envBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -103,9 +102,12 @@ export class OpenAIVisionProvider implements VisionProvider {
     this.client = options.client ?? new OpenAI({
       apiKey: options.apiKey ?? process.env.OPENAI_API_KEY,
     });
-    // Qualquer configuração antiga apontando para mini é deliberadamente
-    // normalizada para nano. Pins/versionamentos nano continuam aceitos.
-    this.model = nanoModel(options.model ?? process.env.VISION_MODEL);
+    // O caller pode escolher Luna explicitamente para o track VIP.
+    // Configurações legadas mini continuam caindo no padrão nano.
+    this.model = normalizeMonitoriaModel(
+      options.model ?? process.env.VISION_MODEL,
+      STANDARD_OPENAI_MODEL,
+    );
     this.detail = options.detail ??
       (process.env.VISION_DETAIL as VisionImageDetail | undefined) ?? "low";
     this.profileDetail = options.profileDetail ??
@@ -139,7 +141,7 @@ export class OpenAIVisionProvider implements VisionProvider {
         store: this.store,
         max_output_tokens: maxOutputTokens,
         prompt_cache_key: input.promptCacheKey,
-        reasoning: { effort: "minimal" },
+        reasoning: { effort: visionReasoningEffortForModel(this.model) },
         instructions: buildVisionInstructions(
           input.analysisMode ?? "balanced",
           Boolean(input.verificationCandidate),
@@ -216,7 +218,12 @@ export class OpenAIVisionProvider implements VisionProvider {
   async analyzeCameraProfile(
     input: AnalyzeCameraProfileInput,
   ): Promise<CameraProfileAnalysisResult> {
-    const model = nanoModel(
+    const track = await resolveOrganizationAiTrack(
+      createAdminClient(),
+      input.organizationId,
+    );
+    const model = configuredMonitoriaModel(
+      track,
       process.env.VISION_PROFILE_MODEL ??
         process.env.VISION_MODEL ??
         this.model,
@@ -228,7 +235,7 @@ export class OpenAIVisionProvider implements VisionProvider {
         store: this.store,
         max_output_tokens: maxOutputTokens,
         prompt_cache_key: `monitoria-profile-${input.cameraId}`,
-        reasoning: { effort: "minimal" },
+        reasoning: { effort: visionReasoningEffortForModel(model) },
         instructions: buildCameraProfileInstructions(),
         input: [
           {

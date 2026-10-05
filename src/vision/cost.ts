@@ -24,7 +24,25 @@ function finiteRate(value: string | undefined, fallback: number) {
 }
 
 function ratesForModel(model: string) {
+  const isLuna = model === "gpt-6-luna" || model.startsWith("gpt-6-luna-");
   const isNano = model === "gpt-5-nano" || model.startsWith("gpt-5-nano-");
+
+  if (isLuna) {
+    return {
+      inputUsdPer1M: finiteRate(
+        process.env.VISION_LUNA_INPUT_USD_PER_1M,
+        0.10,
+      ),
+      cachedInputUsdPer1M: finiteRate(
+        process.env.VISION_LUNA_CACHED_INPUT_USD_PER_1M,
+        0.01,
+      ),
+      outputUsdPer1M: finiteRate(
+        process.env.VISION_LUNA_OUTPUT_USD_PER_1M,
+        0.50,
+      ),
+    };
+  }
 
   if (isNano) {
     return {

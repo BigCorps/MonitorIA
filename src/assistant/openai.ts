@@ -1,4 +1,9 @@
 import OpenAI from "openai";
+import { createAdminClient } from "@/src/lib/supabase/admin";
+import {
+  configuredMonitoriaModel,
+  resolveOrganizationAiTrack,
+} from "@/src/ai/model-policy";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { AssistantUsage } from "./contracts";
 import { ZERO_ASSISTANT_USAGE } from "./deterministic";
@@ -14,7 +19,14 @@ import {
 } from "./v2-contracts";
 
 let client: OpenAI | null = null;
-const model = "gpt-5-nano";
+
+async function modelForOrganization(organizationId: string) {
+  const track = await resolveOrganizationAiTrack(
+    createAdminClient(),
+    organizationId,
+  );
+  return configuredMonitoriaModel(track);
+}
 
 function getClient() {
   if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -53,6 +65,7 @@ export async function planAssistantQuery(input: {
   directory: AssistantDirectoryV2;
   history: AssistantHistoryItemV2[];
 }) {
+  const model = await modelForOrganization(input.organizationId);
   const local = planDeterministicallyV2(input);
   if (local.understood) {
     return {
@@ -147,6 +160,7 @@ export async function answerAssistantQuery(input: {
   allowedEvidenceIds: string[];
   history: AssistantHistoryItemV2[];
 }) {
+  const model = await modelForOrganization(input.organizationId);
   return {
     answer: answerDeterministicallyV2(input),
     responseId: null,

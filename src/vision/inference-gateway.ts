@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { createAdminClient } from "@/src/lib/supabase/admin";
+import { resolveOrganizationAiTrack } from "@/src/ai/model-policy";
 import {
   AnalyzedEventSchema,
   type AnalyzedEvent,
@@ -120,9 +122,14 @@ export async function analyzeEventThroughGateway(
   },
 ): Promise<VisionPlanOutcome> {
   const preflight = assessPreflightComplexity(input, planCode);
+  const track = await resolveOrganizationAiTrack(
+    createAdminClient(),
+    input.organizationId,
+  );
   const execution = resolveVisionRouteExecution(
     planCode,
     preflight.selectedRoute,
+    track,
   );
 
   if (execution.route === "deterministic") {

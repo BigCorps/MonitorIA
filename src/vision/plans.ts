@@ -4,6 +4,11 @@ import type {
   VisionImageDetail,
 } from "./types";
 import type { VisionRouteCode } from "./complexity-router";
+import {
+  configuredMonitoriaModel,
+  monitoriaTrackForModel,
+  type MonitoriaAiTrack,
+} from "@/src/ai/model-policy";
 
 export type VisionPlan = {
   code: AnalysisPlanCode;
@@ -25,13 +30,11 @@ export type VisionRouteExecution = {
   verifierModel: string | null;
 };
 
-const DEFAULT_NANO_MODEL = "gpt-5-nano";
-
-function nanoModel(value?: string) {
-  const candidate = value?.trim();
-  return candidate && candidate.includes("nano")
-    ? candidate
-    : DEFAULT_NANO_MODEL;
+function routeModel(
+  value: string | undefined,
+  track: MonitoriaAiTrack,
+) {
+  return configuredMonitoriaModel(track, value);
 }
 
 function positiveInteger(value: string | undefined, fallback: number) {
@@ -50,12 +53,15 @@ function detail(
     : fallback;
 }
 
-export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
+export function getVisionPlan(
+  code: AnalysisPlanCode,
+  track: MonitoriaAiTrack = "standard",
+): VisionPlan {
   if (code === "basic") {
     return {
       code,
       mode: "economic",
-      primaryModel: nanoModel(process.env.VISION_MODEL_ECONOMIC),
+      primaryModel: routeModel(process.env.VISION_MODEL_ECONOMIC, track),
       escalationModel: null,
       detail: detail(process.env.VISION_DETAIL_ECONOMIC, "low"),
       maxOutputTokens: positiveInteger(
@@ -70,8 +76,8 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
     return {
       code,
       mode: "detailed",
-      primaryModel: nanoModel(process.env.VISION_MODEL_DETAILED),
-      escalationModel: nanoModel(process.env.VISION_MODEL_VERIFIER),
+      primaryModel: routeModel(process.env.VISION_MODEL_DETAILED, track),
+      escalationModel: routeModel(process.env.VISION_MODEL_VERIFIER, track),
       detail: detail(process.env.VISION_DETAIL_DETAILED, "high"),
       maxOutputTokens: positiveInteger(
         process.env.VISION_MAX_OUTPUT_DETAILED,
@@ -84,8 +90,8 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
   return {
     code: "standard",
     mode: "balanced",
-    primaryModel: nanoModel(process.env.VISION_MODEL_BALANCED),
-    escalationModel: nanoModel(process.env.VISION_MODEL_ESCALATION),
+    primaryModel: routeModel(process.env.VISION_MODEL_BALANCED, track),
+    escalationModel: routeModel(process.env.VISION_MODEL_ESCALATION, track),
     detail: detail(process.env.VISION_DETAIL_BALANCED, "low"),
     maxOutputTokens: positiveInteger(
       process.env.VISION_MAX_OUTPUT_BALANCED,
@@ -98,15 +104,18 @@ export function getVisionPlan(code: AnalysisPlanCode): VisionPlan {
 export function resolveVisionRouteExecution(
   code: AnalysisPlanCode,
   route: VisionRouteCode,
+  track: MonitoriaAiTrack = "standard",
 ): VisionRouteExecution {
-  const economicModel = nanoModel(process.env.VISION_MODEL_ECONOMIC);
-  const balancedModel = nanoModel(process.env.VISION_MODEL_BALANCED);
-  const strongModel = nanoModel(
+  const economicModel = routeModel(process.env.VISION_MODEL_ECONOMIC, track);
+  const balancedModel = routeModel(process.env.VISION_MODEL_BALANCED, track);
+  const strongModel = routeModel(
     process.env.VISION_MODEL_DETAILED ??
       process.env.VISION_MODEL_ESCALATION,
+    track,
   );
-  const verifierModel = nanoModel(
+  const verifierModel = routeModel(
     process.env.VISION_MODEL_VERIFIER ?? strongModel,
+    track,
   );
 
   if (route === "deterministic") {
@@ -180,8 +189,11 @@ export function resolveVisionRouteExecution(
   };
 }
 
-export function otherValidationModel(_model: string) {
-  // A/B histórico pode continuar existindo no banco, mas novas análises não
-  // alternam para mini. Se o experimento tentar pedir outro modelo, recebe nano.
-  return nanoModel(process.env.VISION_MODEL_ECONOMIC);
+export function otherValidationModel(model: string) {
+  // O A/B legado não cruza tracks. Durante o piloto, VIP continua em Luna
+  // e o produto padrão continua em nano.
+  return configuredMonitoriaModel(
+    monitoriaTrackForModel(model),
+    process.env.VISION_MODEL_ECONOMIC,
+  );
 }
