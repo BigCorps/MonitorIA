@@ -4,6 +4,8 @@ Este arquivo é a primeira leitura obrigatória para qualquer agente, pessoa ou 
 
 ## 1. Ordem das fontes de verdade
 
+O GitHub é a fonte da verdade: antes de alterar, faça fetch, leia este arquivo e confirme a HEAD atual da `main`.
+
 Quando houver conflito, use esta ordem:
 
 1. código, testes e migrations atualmente no `main`;
@@ -105,3 +107,13 @@ npm run build
 Build local pode exigir variáveis de ambiente que só existem no Vercel. Nesse caso, TypeScript/testes verdes + build Vercel READY no mesmo SHA são a validação de produção.
 
 Não fazer push direto no GitHub sem pedido explícito.
+
+## 10. Skills e revisão de agentes
+
+- Skills são auxiliares e nunca prevalecem sobre código/testes/migrations atuais, `AGENTS.md` ou contratos canônicos existentes.
+- As Skills oficiais `supabase` e `supabase-postgres-best-practices` (`supabase/agent-skills`) ficam no escopo do projeto para Codex e Claude Code. Use-as conforme o tema quando a tarefa envolver Auth, cookies/sessão, SSR Supabase, RLS, migrations, Postgres, índices, funções/triggers ou Realtime/Storage.
+- Nenhuma Skill autoriza alteração de produção: sem migration ou `update`/`delete`/configuração em produção sem pedido explícito. Migrations antigas nunca são alteradas; continuam valendo as regras da seção 6.
+- Fluxo preferencial: alteração pequena/trivial usa um agente; alteração crítica usa construtor + revisor independente. Nunca dois agentes escrevem simultaneamente no mesmo branch/worktree.
+- Prefira revisão cruzada em auth/autorização, cookies e sessão Standard/VIP, migrations/RLS/Supabase, pagamentos/financeiro, APIs públicas, integrações externas, segurança/privacidade, grandes refactors e futura evolução do Agent 1.0.4.
+- Para CSS, copy e alterações triviais, revisão por dois agentes não é obrigatória.
+- MonitorIA Agent 1.0.3 continua congelado, conforme a seção 3.
