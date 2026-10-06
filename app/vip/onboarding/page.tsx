@@ -244,7 +244,10 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
     <main className={styles.page}>
       <header className={styles.topbar}>
         <Link href="/vip/onboarding" className={styles.brand}>
-          Monitor<span>IA</span>
+          <img src="/vip-favicon.svg" alt="" width={28} height={28} />
+          <span>
+            Monitor<em>IA</em>
+          </span>
           <b>VIP</b>
         </Link>
         <div className={styles.topMeta}>

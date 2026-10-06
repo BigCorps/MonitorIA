@@ -19,6 +19,69 @@ function booleanClaim(value: unknown) {
   return value === true || value === "true";
 }
 
+function invalidRefreshToken(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const message =
+    typeof candidate.message === "string" ? candidate.message : "";
+
+  return (
+    code === "refresh_token_not_found" ||
+    /invalid refresh token|refresh token not found/i.test(message)
+  );
+}
+
+function authCookieNames(request: NextRequest) {
+  return Array.from(
+    new Set(
+      request.cookies
+        .getAll()
+        .map((cookie) => cookie.name)
+        .filter((name) => /^sb-[A-Za-z0-9._-]+$/.test(name)),
+    ),
+  );
+}
+
+function expireCookieHeader(name: string, domain?: string) {
+  return [
+    `${name}=`,
+    "Path=/",
+    "Max-Age=0",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "SameSite=Lax",
+    "Secure",
+    domain ? `Domain=${domain}` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+function clearLegacyHostOnlyAuthCookies(
+  response: NextResponse,
+  request: NextRequest,
+) {
+  for (const name of authCookieNames(request)) {
+    response.headers.append("Set-Cookie", expireCookieHeader(name));
+  }
+  return response;
+}
+
+function clearInvalidAuthCookies(
+  response: NextResponse,
+  request: NextRequest,
+) {
+  for (const name of authCookieNames(request)) {
+    response.headers.append("Set-Cookie", expireCookieHeader(name));
+    response.headers.append(
+      "Set-Cookie",
+      expireCookieHeader(name, ".monitoria.cam"),
+    );
+  }
+  return response;
+}
+
 function isVipCustomerPath(pathname: string) {
   return (
     pathname.startsWith("/vip/access") ||
@@ -101,6 +164,42 @@ export async function updateSession(request: NextRequest) {
   const isPublicAuth = publicAuthPrefixes.some((prefix) =>
     pathname.startsWith(prefix),
   );
+
+  if (invalidRefreshToken(error)) {
+    if (
+      pathname.startsWith("/auth/confirm") ||
+      pathname.startsWith("/auth/callback")
+    ) {
+      return clearLegacyHostOnlyAuthCookies(
+        NextResponse.next({ request }),
+        request,
+      );
+    }
+
+    if (isProtected) {
+      const loginUrl = request.nextUrl.clone();
+
+      if (request.nextUrl.hostname.toLowerCase() === "vip.monitoria.cam") {
+        loginUrl.protocol = "https:";
+        loginUrl.hostname = "monitoria.cam";
+        loginUrl.port = "";
+      }
+
+      loginUrl.pathname = "/login";
+      loginUrl.search = "";
+      loginUrl.searchParams.set("next", currentPath);
+
+      return clearInvalidAuthCookies(
+        NextResponse.redirect(loginUrl),
+        request,
+      );
+    }
+
+    return clearInvalidAuthCookies(
+      NextResponse.next({ request }),
+      request,
+    );
+  }
   const mfaRequired = booleanClaim(claims?.mfa_required);
   const aal = typeof claims?.aal === "string" ? claims.aal : "aal1";
 

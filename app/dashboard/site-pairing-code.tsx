@@ -118,7 +118,7 @@ export function SitePairingCode() {
               <button
                 type="button"
                 onClick={() => setSelectedSiteId("__new__")}
-                style={{ border: 0, background: "transparent", color: "#218b75", textAlign: "left", padding: 0, fontWeight: 800, fontSize: 10, cursor: "pointer" }}
+                style={{ border: 0, background: "transparent", color: "var(--monitoria-accent-link, #218b75)", textAlign: "left", padding: 0, fontWeight: 800, fontSize: 10, cursor: "pointer" }}
               >
                 + Criar novo Local
               </button>

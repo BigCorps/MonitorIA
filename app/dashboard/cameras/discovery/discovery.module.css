@@ -87,9 +87,9 @@
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #3fd0b3;
+  border-color: var(--monitoria-accent-strong, #3fd0b3);
   background: white;
-  box-shadow: 0 0 0 3px rgba(63, 208, 179, 0.13);
+  box-shadow: 0 0 0 3px var(--monitoria-accent-ring, rgba(63, 208, 179, 0.13));
 }
 
 .field small {
@@ -108,7 +108,7 @@
   border-radius: 9px;
   border: 0;
   color: #061712;
-  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  background: linear-gradient(135deg, var(--monitoria-accent-light, #61e8ce), var(--monitoria-accent-strong, #3fd0b3));
   box-shadow: 0 10px 26px rgba(38, 203, 168, 0.14);
   font-family: inherit;
   font-size: 11px;
@@ -156,7 +156,7 @@
   display: block;
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
+  background: linear-gradient(135deg, var(--monitoria-accent-light, #61e8ce), var(--monitoria-accent-strong, #3fd0b3));
   transition: width 400ms ease;
 }
 
@@ -246,7 +246,7 @@
   height: 15px;
   flex: 0 0 15px;
   border: 2px solid #cce9e1;
-  border-top-color: #2bb99d;
+  border-top-color: var(--monitoria-accent-link, #2bb99d);
   border-radius: 50%;
   animation: discoverySpin 800ms linear infinite;
 }
@@ -258,7 +258,7 @@
 .tip {
   padding: 13px 15px;
   border: 1px solid #e4ebf2;
-  border-left: 3px solid #3fd0b3;
+  border-left: 3px solid var(--monitoria-accent-strong, #3fd0b3);
   border-radius: 10px;
   background: #f7fafc;
 }

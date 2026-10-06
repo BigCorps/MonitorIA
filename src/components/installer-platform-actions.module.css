@@ -17,8 +17,8 @@
   height: 8px;
   flex: 0 0 8px;
   border-radius: 999px;
-  background: #57e6c7;
-  box-shadow: 0 0 0 4px rgba(87, 230, 199, 0.1);
+  background: var(--monitoria-accent, #57e6c7);
+  box-shadow: 0 0 0 4px var(--monitoria-accent-ring, rgba(87, 230, 199, 0.1));
 }
 
 .primary,
@@ -40,9 +40,9 @@
 
 .primary {
   border: 0;
-  color: #061712;
-  background: linear-gradient(135deg, #61e8ce, #3fd0b3);
-  box-shadow: 0 10px 24px rgba(38, 203, 168, 0.13);
+  color: var(--monitoria-primary-text, #061712);
+  background: var(--monitoria-primary-gradient, linear-gradient(135deg, #61e8ce, #3fd0b3));
+  box-shadow: 0 10px 24px var(--monitoria-accent-shadow, rgba(38, 203, 168, 0.13));
 }
 
 .secondary {
@@ -92,8 +92,8 @@
 .recommended {
   padding: 3px 5px;
   border-radius: 999px;
-  color: #16735f;
-  background: #e9faf5;
+  color: var(--monitoria-accent-link, #16735f);
+  background: var(--monitoria-accent-soft, #e9faf5);
   font-size: 7px;
   font-weight: 850;
   letter-spacing: 0.04em;
@@ -157,7 +157,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #238b75;
+  color: var(--monitoria-accent-link, #238b75);
   font: inherit;
   font-size: 9px;
   font-weight: 780;

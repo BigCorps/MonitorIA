@@ -101,7 +101,7 @@
 
 .firstRunBody { width: 100%; padding: 26px 28px 28px; }
 .firstRunHeading { max-width: 800px; }
-.firstRunHeading > span { color: #2bb99d; font-size: 9px; font-weight: 850; letter-spacing: 0.16em; }
+.firstRunHeading > span { color: var(--monitoria-accent-link, #2bb99d); font-size: 9px; font-weight: 850; letter-spacing: 0.16em; }
 .firstRunHeading h2 { margin: 7px 0; color: #17243a; font-size: 24px; letter-spacing: -0.035em; }
 .firstRunHeading p { margin: 0; color: #718197; font-size: 11px; line-height: 1.65; }
 
@@ -200,7 +200,7 @@
   place-items: center;
   border-radius: 8px;
   color: #087f6a;
-  background: #eafaf5;
+  background: var(--monitoria-accent-soft, #eafaf5);
   font-size: 10px;
   font-weight: 850;
 }
@@ -224,32 +224,32 @@
 
 .pairingCodeBox {
   padding: 15px;
-  border: 1px solid #bfe8dd;
+  border: 1px solid var(--monitoria-accent-border, #bfe8dd);
   border-radius: 11px;
-  background: #effbf7;
+  background: var(--monitoria-accent-surface, #effbf7);
   display: grid;
   gap: 7px;
   justify-items: start;
 }
 
-.pairingCodeBox > span { color: #2bb99d; font-size: 8px; font-weight: 850; letter-spacing: 0.16em; }
+.pairingCodeBox > span { color: var(--monitoria-accent-link, #2bb99d); font-size: 8px; font-weight: 850; letter-spacing: 0.16em; }
 .pairingCodeBox > p { margin: 0; color: #5d7f77; font-size: 9px; line-height: 1.5; }
 .pairingCodeRow { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.pairingCodeRow strong { color: #0d4f42; font-size: 26px; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; }
+.pairingCodeRow strong { color: var(--monitoria-accent-link, #0d4f42); font-size: 26px; letter-spacing: 0.14em; font-variant-numeric: tabular-nums; }
 
 .pairingCopy {
   height: 32px;
   padding: 0 12px;
-  border: 1px solid #9fded0;
+  border: 1px solid var(--monitoria-accent-border, #9fded0);
   border-radius: 8px;
   background: #fff;
-  color: #0d6b59;
+  color: var(--monitoria-accent-link, #0d6b59);
   font-family: inherit;
   font-size: 9px;
   font-weight: 800;
   cursor: pointer;
 }
-.pairingCopy:hover { background: #eafaf5; }
+.pairingCopy:hover { background: var(--monitoria-accent-soft, #eafaf5); }
 .pairingForm button { width: 100%; }
 
 .waitingBox {
@@ -269,7 +269,7 @@
   flex: 0 0 16px;
   margin-top: 1px;
   border: 2px solid #d5e3ec;
-  border-top-color: #2bb99d;
+  border-top-color: var(--monitoria-accent-link, #2bb99d);
   border-radius: 50%;
   animation: waitingSpin 850ms linear infinite;
 }
