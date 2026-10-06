@@ -73,10 +73,18 @@ export default async function SalesLeadPage({ params, searchParams }: Props) {
   const unavailable = invite.status !== "active";
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${vip ? styles.vipPage : ""}`}>
       <section className={styles.hero}>
         <Link href="/" className={styles.brand}>
-          Monitor<span>IA</span>.cam
+          <img
+            src={vip ? "/vip-favicon.svg" : "/favicon.svg"}
+            alt=""
+            width={30}
+            height={30}
+          />
+          <span>
+            Monitor<em>IA</em>.cam
+          </span>
           {vip ? <b className={styles.vipMark}>VIP</b> : null}
         </Link>
         <span className={styles.eyebrow}>

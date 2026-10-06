@@ -25,16 +25,16 @@
 .panelHeading span{color:#9a791d;font-size:.67rem;font-weight:950;letter-spacing:.11em}
 .panelHeading h2{margin:4px 0 0;font-size:1.4rem}.panelHeading>strong{color:#647384;font-size:.78rem}
 .leadList{display:grid;gap:12px;margin-top:18px}
-.leadCard{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.85fr) auto;gap:16px;padding:17px;border:1px solid #dde4e9;border-radius:14px;background:#fcfdfe}
+.leadCard{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(420px,.95fr) 170px;gap:18px;padding:17px;border:1px solid #dde4e9;border-radius:14px;background:#fcfdfe;align-items:start}
 .leadMain{min-width:0}.leadTitle{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
 .leadTitle span{display:inline-flex;padding:4px 7px;border-radius:999px;background:#f5edcf;color:#7f6517;font-size:.58rem;font-weight:950}
 .leadTitle h3{margin:5px 0 3px}.leadTitle p{margin:0;color:#748290;font-size:.72rem;overflow-wrap:anywhere}
 .leadTitle>b{white-space:nowrap;color:#243447;font-size:.78rem}
 .leadMeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.leadMeta span{padding:5px 7px;border-radius:7px;background:#eef2f5;color:#6f7d8b;font-size:.62rem}
 .leadMain blockquote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #c4a747;background:#f9f7ee;color:#655f4d;font-size:.72rem;line-height:1.5}
-.convertForm{display:grid;grid-template-columns:1fr 120px;gap:8px;align-content:start}
-.convertForm label span{display:block;margin-bottom:4px;color:#6f7e8d;font-size:.62rem;font-weight:850}
-.convertForm select,.convertForm input{width:100%;height:40px;padding:0 9px;border:1px solid #cbd5dd;border-radius:8px;background:#fff}
+.convertForm{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,145px);gap:8px;align-content:start}
+.convertForm label{min-width:0}.convertForm label span{display:block;margin-bottom:4px;color:#6f7e8d;font-size:.62rem;font-weight:850}
+.convertForm select,.convertForm input{width:100%;min-width:0;max-width:100%;height:40px;box-sizing:border-box;padding:0 9px;border:1px solid #cbd5dd;border-radius:8px;background:#fff;color:#243447;font:inherit;font-size:.73rem;overflow:hidden;text-overflow:ellipsis}
 .convertForm button{grid-column:1/-1;min-height:41px;border:0;border-radius:8px;background:#16130a;color:#e6c966;font-weight:900;cursor:pointer}
 .convertForm small{grid-column:1/-1;color:#7b8894;font-size:.61rem;line-height:1.4}
 .leadActions{display:flex;flex-direction:column;gap:7px;justify-content:center}.leadActions form{display:block}.leadActions button{width:100%;min-height:36px;padding:0 10px;border:1px solid #c7d0d8;border-radius:8px;background:#fff;color:#4b5d6e;font-size:.68rem;font-weight:800;cursor:pointer}.leadActions .archiveButton{border-color:#e0b6bb;color:#9a4853}
@@ -66,7 +66,7 @@
 .paidNotice{margin-top:14px;padding:12px;border-radius:10px;background:#eaf8f2;color:#17664f}
 .securityNote{padding:18px;border:1px solid #d5dde4;border-radius:14px;background:#eef2f5}
 .securityNote p{margin:6px 0 0;color:#677786;line-height:1.5}.securityNote strong{color:#3e4f60}
-@media(max-width:1180px){
+@media(max-width:1320px){
   .leadCard{grid-template-columns:1fr 1fr}.leadActions{grid-column:1/-1;flex-direction:row;justify-content:flex-start}.leadActions button{width:auto}
   .metrics{grid-template-columns:repeat(3,1fr)}
 }

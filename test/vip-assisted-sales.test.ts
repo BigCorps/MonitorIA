@@ -97,3 +97,17 @@ test("Clarity permanece fora das telas privadas do onboarding", async () => {
   assert.doesNotMatch(seller, /ClarityScript/);
   assert.match(seller, /imagens\/keyframes/);
 });
+
+test("convite de Projeto VIP usa identidade preta e dourada sem afetar convite Standard", async () => {
+  const [page, css] = await Promise.all([
+    read("app/lead/[token]/page.tsx"),
+    read("app/lead/[token]/lead.module.css"),
+  ]);
+
+  assert.match(page, /vip \? styles\.vipPage/);
+  assert.match(page, /vip \? "\/vip-favicon\.svg" : "\/favicon\.svg"/);
+  assert.match(css, /\.vipPage \{/);
+  assert.match(css, /#08090b/);
+  assert.match(css, /#e2bd59/);
+  assert.match(css, /font-size: clamp\(2\.15rem, 3\.8vw, 3\.55rem\)/);
+});

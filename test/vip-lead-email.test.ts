@@ -17,6 +17,7 @@ test("landing VIP notifica vendedor e confirma recebimento ao lead", async () =>
   assert.match(notification, /https:\/\/api\.resend\.com\/emails/);
   assert.match(notification, /RESEND_API_KEY/);
   assert.match(notification, /RESEND_FROM/);
+  assert.match(notification, /MonitorIA <\$\{email\}>/);
   assert.match(notification, /Novo interesse/);
   assert.match(notification, /Recebemos seu interesse no MonitorIA VIP/);
   assert.match(notification, /to: sellerEmail/);

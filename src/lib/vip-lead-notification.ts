@@ -27,14 +27,19 @@ function escapeHtml(value: string) {
 
 function sender() {
   const configured = process.env.RESEND_FROM?.trim();
-  if (configured) return configured;
+
+  if (configured) {
+    const bracketEmail = configured.match(/<([^>]+)>$/)?.[1]?.trim();
+    const email = bracketEmail || configured;
+    return `MonitorIA <${email}>`;
+  }
 
   if (process.env.VERCEL_ENV === "production") {
     console.error("MonitorIA VIP: RESEND_FROM não está configurado em produção.");
     return null;
   }
 
-  return "onboarding@resend.dev";
+  return "MonitorIA <onboarding@resend.dev>";
 }
 
 async function sendEmail(input: {
