@@ -136,6 +136,11 @@ export default async function VipClosingPage({ searchParams }: Props) {
         <div>
           <span>{organization.name}</span>
           <strong>{selectedPlan?.displayName ?? "MonitorIA VIP"}</strong>
+          <form action="/auth/signout" method="post">
+            <button className={styles.switchAccount} type="submit">
+              Sair / trocar conta
+            </button>
+          </form>
         </div>
       </header>
 

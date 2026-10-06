@@ -3,6 +3,7 @@ import {
   NextResponse,
   type NextRequest,
 } from "next/server";
+import { appConfig } from "@/src/lib/app-config";
 import { createClient } from "@/src/lib/supabase/server";
 import {
   PASSKEY_LOGIN_HINT_COOKIE,
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.redirect(
     new URL(
       "/login?message=Sess%C3%A3o%20encerrada.",
-      request.url,
+      appConfig.url,
     ),
     { status: 302 },
   );
@@ -50,6 +51,27 @@ export async function POST(request: NextRequest) {
   } else if (passkeyReady === false) {
     response.cookies.delete(
       PASSKEY_LOGIN_HINT_COOKIE,
+    );
+  }
+
+  const secure = new URL(request.url).protocol === "https:";
+
+  for (const cookie of request.cookies.getAll()) {
+    if (!cookie.name.startsWith("sb-")) continue;
+
+    const common = [
+      `${cookie.name}=`,
+      "Path=/",
+      "Max-Age=0",
+      "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "SameSite=Lax",
+      secure ? "Secure" : "",
+    ].filter(Boolean);
+
+    response.headers.append("Set-Cookie", common.join("; "));
+    response.headers.append(
+      "Set-Cookie",
+      [...common, "Domain=.monitoria.cam"].join("; "),
     );
   }
 

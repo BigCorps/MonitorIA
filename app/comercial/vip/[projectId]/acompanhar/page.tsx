@@ -132,7 +132,7 @@ export default async function VipAssistedLivePage({ params }: Props) {
 
   return (
     <main className={styles.page}>
-      <VipLiveRefresh intervalMs={10_000} />
+      <VipLiveRefresh intervalMs={3_000} />
 
       <header className={styles.header}>
         <div>
@@ -144,6 +144,7 @@ export default async function VipAssistedLivePage({ params }: Props) {
           <small>Especialista</small>
           <strong>{access.operator?.name ?? access.user.email}</strong>
           <Link href={`/comercial/vip/${projectId}`}>Abrir resumo comercial →</Link>
+          <small className={styles.sync}>● AO VIVO · Atualização automática · até 3 s</small>
         </aside>
       </header>
 
@@ -205,7 +206,7 @@ export default async function VipAssistedLivePage({ params }: Props) {
               <div>
                 <span>{live.trialStatus === "running" ? "● PILOTO VIP AO VIVO" : "PILOTO VIP"}</span>
                 <h2>{live.trialStatus === "running" ? "O mesmo relógio do cliente" : live.trialStatus.replaceAll("_", " ")}</h2>
-                <p>Atualização automática a cada 10 segundos sem abrir stream nem imagem da câmera.</p>
+                <p>Atualização automática em até 3 segundos, sem abrir stream nem imagem da câmera.</p>
               </div>
               {live.trialStatus === "running" && live.captureEndsAt ? (
                 <TrialCountdown target={live.captureEndsAt} label="Tempo restante" compact />

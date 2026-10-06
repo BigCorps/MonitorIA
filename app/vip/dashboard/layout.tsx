@@ -49,6 +49,11 @@ export default async function VipDashboardLayout({ children }: Readonly<{ childr
           <Link href="/dashboard/cameras">Configurar câmeras</Link>
           <Link href="/dashboard/administration">Equipe</Link>
           <Link href="/dashboard/profile">Conta e segurança</Link>
+          <form action="/auth/signout" method="post">
+            <button className={styles.accountSwitch} type="submit">
+              Sair / trocar conta
+            </button>
+          </form>
         </div>
       </aside>
       <section className={styles.main}>{children}</section>

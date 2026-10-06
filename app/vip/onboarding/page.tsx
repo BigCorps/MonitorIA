@@ -253,6 +253,11 @@ export default async function VipOnboardingPage({ searchParams }: Props) {
         <div className={styles.topMeta}>
           <span>{organization.name}</span>
           <strong>{plan?.displayName ?? "MonitorIA VIP"}</strong>
+          <form action="/auth/signout" method="post">
+            <button className={styles.switchAccount} type="submit">
+              Sair / trocar conta
+            </button>
+          </form>
         </div>
       </header>
 

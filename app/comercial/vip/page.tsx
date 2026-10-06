@@ -551,6 +551,9 @@ export default async function VipCommercialPage({ searchParams }: Props) {
                     </div>
 
                     <div className={styles.projectActions}>
+                      <Link href={`/comercial/vip/${project.id}/acompanhar`}>
+                        Acompanhar ao vivo
+                      </Link>
                       <Link href={`/comercial/vip/${project.id}`}>
                         Abrir projeto
                       </Link>
