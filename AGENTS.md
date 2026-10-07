@@ -88,23 +88,15 @@ DVR e NVR podem aparecer. Mensagem de erro deve explicar o que o cliente pode fa
 
 ## 9. Entrega e validação
 
-Fluxo habitual:
-1. preparar arquivos completos ou pacote para Codespace;
-2. responsável aplica e faz commit/push;
-3. confirmar SHA no GitHub;
-4. confirmar Actions;
-5. confirmar deploy Vercel no mesmo SHA;
-6. verificar erros de runtime.
+Fluxo oficial da BigCorps:
+- GitHub é a fonte da verdade; trabalhar sempre sobre o estado atual do repositório. ZIP não é a entrega padrão.
+- Implementações são executadas pelo Codex Cloud a partir de prompts definidos no chat. Se já houver uma branch da tarefa, continuar nela.
+- Alterações médias/grandes usam branch temporária. Alterações pequenas e seguras só podem ir direto para `main` com autorização explícita. Nunca fazer merge na `main` sem aprovação explícita.
+- Mudanças que exigem validação visual/web, depois de aprovadas, devem ser levadas à branch permanente `staging`, usada para Preview da Vercel. Não usar `staging` desnecessariamente para alterações sem validação visual.
+- GitHub Actions fazem parte da validação; executar somente workflows relevantes. No MonitorIA, não compilar Agent/Windows/Linux/release nativa quando a alteração for somente web, dashboard, CSS, texto, documentação ou configuração de agentes. O Agent 1.0.3 continua congelado.
+- Executar check/test e build somente conforme o escopo da mudança. Build local pode depender de variáveis disponíveis somente na Vercel; nesse caso usar check/test + GitHub Actions/Vercel do mesmo SHA conforme aplicável. Verificar erros de runtime quando aplicável.
 
-Antes de considerar um Gate concluído:
-
-```bash
-npm run check
-npm test
-npm run build
-```
-
-Build local pode exigir variáveis de ambiente que só existem no Vercel. Nesse caso, TypeScript/testes verdes + build Vercel READY no mesmo SHA são a validação de produção.
+Antes de considerar a implementação concluída, informar: branch, commit, arquivos alterados, testes executados, resultado, limitações/riscos e se está pronto para Preview, teste manual ou merge.
 
 Não fazer push direto no GitHub sem pedido explícito.
 
