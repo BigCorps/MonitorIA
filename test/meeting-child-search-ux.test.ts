@@ -31,6 +31,20 @@ test("Pesquisa estruturada usa RPC v3 e limiar conservador", () => {
   assert.match(migration, /private\.is_org_member/);
 });
 
+test("Acontecimentos reutiliza o filtro etário estruturado", () => {
+  const page = read("app/dashboard/events/page.tsx");
+  const timeline = read("src/lib/event-timeline-data.ts");
+  const migration = read(
+    "supabase/migrations/20261009124500_timeline_age_group_filter_v3.sql",
+  );
+
+  assert.match(page, /Provável criança/);
+  assert.match(page, /apparentAgeGroup: ageGroup/);
+  assert.match(timeline, /search_monitoria_timeline_v3/);
+  assert.match(migration, /apparentAgeGroupConfidence/);
+  assert.match(migration, />= 0\.60/);
+});
+
 test("seletor compartilhado permite isolar uma câmera", () => {
   const selector = read("app/dashboard/camera-multi-select.tsx");
   assert.match(selector, /Somente esta/);
