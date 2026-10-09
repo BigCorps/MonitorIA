@@ -4,6 +4,7 @@ import {
 } from "@/src/contracts/camera-profile";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createClient } from "@/src/lib/supabase/server";
+import { publicMonitoringGoals } from "@/src/vision/child-safety";
 
 export type ProfilePoint = {
   x: number;
@@ -283,8 +284,8 @@ export async function getCameraProfileWorkspace(
         environmentDescription: String(
           row.environment_description,
         ),
-        monitoringGoals: stringArray(
-          row.monitoring_goals,
+        monitoringGoals: publicMonitoringGoals(
+          stringArray(row.monitoring_goals),
         ),
         ignoreInstructions: stringArray(
           row.ignore_instructions,
