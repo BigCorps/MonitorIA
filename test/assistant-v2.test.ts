@@ -202,7 +202,7 @@ test("pergunta sobre quantidade de crianças não mistura total não filtrado", 
 
 function emptyExecution(dataState = "READY") {
   return {
-    retrievedData: { operationResults: { age_group: { total: 0, events: [] }, search: { total: 0, events: [] } }, coverage: { dataState } },
+    retrievedData: { operationResults: { op1: { total: 0, events: [] } }, coverage: { dataState } },
     candidateEvidenceIds: [],
     coverage: { dataState },
   };
@@ -214,8 +214,9 @@ test("segunda consulta só é permitida em busca vazia com cobertura", () => {
   assert.equal(shouldRecoverEmptySearch(first, emptyExecution("NO_COVERAGE")), false);
   assert.equal(shouldRecoverEmptySearch(first, emptyExecution("FEATURE_DISABLED")), false);
   const found = emptyExecution();
-  (found.retrievedData.operationResults as any).age_group.total = 1;
+  (found.retrievedData.operationResults as any).op1.total = 1;
   assert.equal(shouldRecoverEmptySearch(first, found), false);
+  assert.equal(shouldRecoverEmptySearch(first, { ...emptyExecution(), retrievedData: { operationResults: {} } }), false);
   assert.equal(shouldRecoverEmptySearch(plan("Quantos clientes vieram ontem?").plan, emptyExecution()), false);
 });
 
@@ -271,9 +272,8 @@ test("não confunde texto de adulto com criança nem relaxa zona", async () => {
 });
 
 test("busca textual genérica recupera evidências sem segundo balão", async () => {
-  const original = plan("Mostre as entregas na Entrada hoje").plan;
-  // Não executa caso o interpretador tenha escolhido operação de resumo em vez de pesquisa.
-  if (original.operations.length !== 1 || original.operations[0].kind !== "search_events") return;
+  const withAge = plan("Quero ver crianças na câmera Entrada").plan;
+  const original = { ...withAge, operations: withAge.operations.map((op) => ({ ...op, apparentAgeGroup: null })) };
   const op = original.operations[0];
   const execution = {
     ...emptyExecution(),

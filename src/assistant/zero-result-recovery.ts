@@ -36,14 +36,16 @@ export function shouldRecoverEmptySearch(plan: AssistantPlanV2, execution: Assis
   const coverage = objectValue(execution.coverage);
   if (coverage.dataState === "NO_COVERAGE" || coverage.dataState === "FEATURE_DISABLED") return false;
   const results = objectValue(objectValue(execution.retrievedData).operationResults);
+  if (!Object.prototype.hasOwnProperty.call(results, op.id)) return false;
   const found = objectValue(results[op.id]);
+  if (!Object.prototype.hasOwnProperty.call(found, "total") && !Object.prototype.hasOwnProperty.call(found, "totalFound")) return false;
   const count = Number(found.total ?? found.totalFound ?? 0);
   return Number.isFinite(count) && count === 0 && (!Array.isArray(found.events) || found.events.length === 0);
 }
 
 export function sanitizeRecoveryTerms(terms: string[]): string[] {
   const unique = new Set<string>();
-  for (const input of terms.slice(0, 3)) {
+  for (const input of terms.slice(0, 8)) {
     const term = input.normalize("NFKC").trim().replace(/\s+/g, " ");
     if (!/^[\p{L}\p{N}\s-]{2,70}$/u.test(term) || term.split(" ").length > 5) continue;
     const key = term.toLocaleLowerCase("pt-BR");
