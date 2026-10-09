@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { addAssistantUsage, answerAssistantQuery, planAssistantQuery } from "@/src/assistant/openai";
+import { addAssistantUsage, answerAssistantQuery, planAssistantQuery, suggestEmptySearchTerms } from "@/src/assistant/openai";
+import { ZERO_ASSISTANT_USAGE } from "@/src/assistant/deterministic";
+import { recoverEmptySearch, shouldRecoverEmptySearch } from "@/src/assistant/zero-result-recovery";
+import { searchEvents } from "@/src/lib/event-search-data";
 import { buildAssistantChart } from "@/src/assistant/chart";
 import { AssistantPlanV2Schema, type AssistantDirectoryV2, type AssistantHistoryItemV2, type AssistantPlanV2 } from "@/src/assistant/v2-contracts";
 import { executeAssistantPlanV2 } from "@/src/assistant/executor-v2";
@@ -371,7 +374,33 @@ export async function POST(request: Request) {
     const compareFromIso = needsComparison ? dateOnlyToIso(compareFromDate, effectiveTimeZone)! : null;
     const compareToIso = needsComparison ? dateOnlyToIso(addDaysToDateOnly(compareToDate, 1), effectiveTimeZone)! : null;
 
-    const executed = await executeAssistantPlanV2({ supabase, organizationId: organization.id, plan, fromIso, toIso, compareFromIso, compareToIso });
+    let executed = await executeAssistantPlanV2({ supabase, organizationId: organization.id, plan, fromIso, toIso, compareFromIso, compareToIso });
+    let recoveryUsage = ZERO_ASSISTANT_USAGE;
+    let recoveryKind: "not_needed" | "none" | "textual" | "lexical" | "unavailable" = "not_needed";
+    if (shouldRecoverEmptySearch(plan, executed)) {
+      if (!process.env.OPENAI_API_KEY?.trim()) {
+        recoveryKind = "unavailable";
+      } else {
+        try {
+          const suggestion = await suggestEmptySearchTerms({
+            organizationId: organization.id, message: body.message, plan, history,
+          });
+          recoveryUsage = suggestion.usage;
+          const recovery = await recoverEmptySearch({
+            plan, execution: executed, terms: suggestion.terms, from: fromIso, to: toIso,
+            search: (scope) => searchEvents(organization.id, {
+              query: scope.query, from: scope.from, to: scope.to,
+              cameraId: scope.cameraId, siteId: scope.siteId, limit: scope.limit, offset: 0,
+            }),
+          });
+          executed = recovery.execution;
+          recoveryKind = recovery.kind;
+        } catch (error) {
+          recoveryKind = "unavailable";
+          console.warn("Pesquisa IA: recuperação textual indisponível", error instanceof Error ? error.name : "unknown");
+        }
+      }
+    }
     const localizedData = localizeAssistantPayload(executed.retrievedData, effectiveTimeZone);
     const answered = await answerAssistantQuery({
       organizationId: organization.id, message: body.message, plan,
@@ -396,7 +425,7 @@ export async function POST(request: Request) {
       chartData = { summary: objectValue(operationResults[summaryOperation.id]).summary };
     }
     const chart = buildAssistantChart({ plan: plan.legacyPlan, retrievedData: chartData, fromDate, toDate });
-    const combinedUsage = addAssistantUsage(planned.usage, answered.usage);
+    const combinedUsage = addAssistantUsage(addAssistantUsage(planned.usage, answered.usage), recoveryUsage);
     const cost = estimateVisionCostBreakdown(answered.model, combinedUsage);
     const storedPlan = {
       ...plan,
@@ -409,6 +438,7 @@ export async function POST(request: Request) {
       plannerResponseId: planned.responseId,
       answerResponseId: answered.responseId,
       dataState: objectValue(executed.coverage).dataState ?? null,
+      recoveryKind,
     };
 
     const { data: assistantMessage, error: assistantError } = await admin.from("assistant_messages").insert({

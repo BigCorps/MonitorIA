@@ -456,6 +456,10 @@ function customOperationAnswer(op: AssistantOperation, payload: Record<string, u
       })
       .join(" ");
 
+    if (payload.recoveryMatchType === "text_only") {
+      return "Não encontrei eventos com classificação visual de " + label +
+        " neste período. Há " + total + " registro(s) com menção textual compatível, sem confirmação de faixa etária. " + details;
+    }
     return `Encontrei ${total} evento${total === 1 ? "" : "s"} com pelo menos uma classificação visual de ${label}. ${details}`.trim();
   }
 
@@ -618,6 +622,9 @@ export function answerDeterministicallyV2(input: {
       parts.push(custom);
       if (op.kind === "cross_camera_sequence") cautions.add("Passagens entre câmeras são hipóteses por tempo e características visíveis; não confirmam identidade, rosto ou placa.");
       if (op.kind === "camera_health_history") cautions.add("Incidentes de saúde descrevem qualidade, conexão ou enquadramento; não determinam causa ou intenção.");
+      if (op.kind === "search_events" && objectValue(payload).recoveryMatchType === "text_only") {
+        cautions.add("Correspondência baseada somente no texto dos registros, não em confirmação visual de faixa etária.");
+      }
       if (op.kind === "search_events" && op.apparentAgeGroup) {
         cautions.add(
           "A faixa etária é uma triagem visual ampla e probabilística. Não determina idade exata, maioridade legal ou identidade; adolescência não é uma classe separada nesta versão.",

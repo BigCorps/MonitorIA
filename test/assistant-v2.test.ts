@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { recoverEmptySearch, sanitizeRecoveryTerms, shouldRecoverEmptySearch } from "../src/assistant/zero-result-recovery";
 import {
   answerDeterministicallyV2,
   planDeterministicallyV2,
@@ -197,4 +198,91 @@ test("pergunta sobre quantidade de crianças não mistura total não filtrado", 
   assert.equal(result.plan.operations.filter((op) => op.kind === "search_events").length, 1);
   assert.equal(result.plan.operations.filter((op) => op.kind === "period_summary").length, 0);
   assert.equal(result.plan.operations[0]?.apparentAgeGroup, "child");
+});
+
+function emptyExecution(dataState = "READY") {
+  return {
+    retrievedData: { operationResults: { op1: { total: 0, events: [] } }, coverage: { dataState } },
+    candidateEvidenceIds: [],
+    coverage: { dataState },
+  };
+}
+
+test("segunda consulta só é permitida em busca vazia com cobertura", () => {
+  const first = plan("Mostre crianças na câmera Entrada").plan;
+  assert.equal(shouldRecoverEmptySearch(first, emptyExecution()), true);
+  assert.equal(shouldRecoverEmptySearch(first, emptyExecution("NO_COVERAGE")), false);
+  assert.equal(shouldRecoverEmptySearch(first, emptyExecution("FEATURE_DISABLED")), false);
+  const found = emptyExecution();
+  (found.retrievedData.operationResults as any).op1.total = 1;
+  assert.equal(shouldRecoverEmptySearch(first, found), false);
+  assert.equal(shouldRecoverEmptySearch(first, { ...emptyExecution(), retrievedData: { operationResults: {} } }), false);
+  assert.equal(shouldRecoverEmptySearch(plan("Quantos clientes vieram ontem?").plan, emptyExecution()), false);
+});
+
+test("termos de busca são curtos, únicos e não incluem diretivas", () => {
+  assert.deepEqual(
+    sanitizeRecoveryTerms([" crianças ", "crianças", "@important", "pessoa", "bebê"]),
+    ["crianças", "bebê"],
+  );
+});
+
+test("segunda consulta preserva câmera e datas na mesma execução", async () => {
+  const original = plan("Quero ver crianças na câmera Entrada nos últimos 7 dias").plan;
+  const seen: unknown[] = [];
+  const eventId = "88888888-8888-4888-8888-888888888888";
+  const result = await recoverEmptySearch({
+    plan: original, execution: emptyExecution(), terms: ["crianças"],
+    from: "2026-09-25T03:00:00Z", to: "2026-10-02T03:00:00Z",
+    search: async (scope) => {
+      seen.push(scope);
+      return { total: 1, rows: [{ id: eventId, headline: "Criança atravessa a entrada", summary: "", tags: [] }] };
+    },
+  });
+  assert.equal(result.kind, "textual");
+  assert.deepEqual(seen, [{
+    query: "crianças", from: "2026-09-25T03:00:00Z", to: "2026-10-02T03:00:00Z",
+    cameraId: "22222222-2222-4222-8222-222222222222", siteId: "11111111-1111-4111-8111-111111111111",
+    limit: original.legacyPlan.evidenceLimit,
+  }]);
+  assert.deepEqual(result.execution.candidateEvidenceIds, [eventId]);
+  const op = original.operations[0];
+  const recovered = (result.execution.retrievedData.operationResults as any)[op.id];
+  assert.equal(recovered.recoveryMatchType, "text_only");
+  const answer = answerDeterministicallyV2({
+    message: "Quero ver crianças", plan: original,
+    retrievedData: result.execution.retrievedData, allowedEvidenceIds: [eventId],
+  });
+  assert.match(answer.answer, /menção textual compatível/);
+  assert.match(answer.answer, /sem confirmação de faixa etária/);
+  assert.doesNotMatch(answer.answer, /com pelo menos uma classificação visual/);
+});
+
+test("não confunde texto de adulto com criança nem relaxa zona", async () => {
+  const original = plan("Quero ver crianças na câmera Entrada").plan;
+  const result = await recoverEmptySearch({
+    plan: original, execution: emptyExecution(), terms: ["crianças"],
+    from: "2026-09-25T03:00:00Z", to: "2026-10-02T03:00:00Z",
+    search: async () => ({ total: 1, rows: [{ id: "88888888-8888-4888-8888-888888888888", headline: "Adulto caminha na entrada", tags: [] }] }),
+  });
+  assert.equal(result.kind, "none");
+  assert.equal(result.execution.candidateEvidenceIds.length, 0);
+  const zoned = plan("Mostre os eventos da Área Restrita hoje").plan;
+  assert.equal(shouldRecoverEmptySearch(zoned, emptyExecution()), false);
+});
+
+test("busca textual genérica recupera evidências sem segundo balão", async () => {
+  const withAge = plan("Quero ver crianças na câmera Entrada").plan;
+  const original = { ...withAge, operations: withAge.operations.map((op) => ({ ...op, apparentAgeGroup: null })) };
+  const op = original.operations[0];
+  const execution = {
+    ...emptyExecution(),
+    retrievedData: { operationResults: { [op.id]: { total: 0, events: [] } }, coverage: { dataState: "READY" } },
+  };
+  const result = await recoverEmptySearch({
+    plan: original, execution, terms: ["encomenda"],
+    from: "2026-10-01T00:00:00Z", to: "2026-10-02T00:00:00Z",
+    search: async () => ({ total: 1, rows: [{ id: "88888888-8888-4888-8888-888888888888", headline: "Pacote recebido" }] }),
+  });
+  assert.equal(result.kind, "lexical");
 });
