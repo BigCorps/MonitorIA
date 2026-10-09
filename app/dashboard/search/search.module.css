@@ -197,7 +197,7 @@
 .filterPanel {
   padding: 11px 17px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
   gap: 8px;
   align-items: end;
   border-bottom: 1px solid #e9eef3;
