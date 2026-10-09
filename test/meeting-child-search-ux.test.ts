@@ -22,7 +22,7 @@ test("Pesquisa IA oferece filtro visual criança/adulto sem alegar menoridade", 
 test("Pesquisa estruturada usa RPC v3 e limiar conservador", () => {
   const executor = read("src/assistant/executor-v2.ts");
   const migration = read(
-    "supabase/migrations/20261009123000_assistant_age_group_search_v3.sql",
+    "supabase/migrations/20261009154351_assistant_age_group_search_v3.sql",
   );
 
   assert.match(executor, /assistant_structured_event_search_v3/);
@@ -35,7 +35,7 @@ test("Acontecimentos reutiliza o filtro etário estruturado", () => {
   const page = read("app/dashboard/events/page.tsx");
   const timeline = read("src/lib/event-timeline-data.ts");
   const migration = read(
-    "supabase/migrations/20261009124500_timeline_age_group_filter_v3.sql",
+    "supabase/migrations/20261009154510_timeline_age_group_filter_v3.sql",
   );
 
   assert.match(page, /Provável criança/);
