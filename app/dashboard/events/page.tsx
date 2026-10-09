@@ -92,6 +92,11 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
   const toDate = customDateRange && requestedTo ? requestedTo : today;
 
   const eventType = scalar(rawParams.type);
+  const requestedAgeGroup = scalar(rawParams.age);
+  const ageGroup =
+    requestedAgeGroup === "child" || requestedAgeGroup === "adult"
+      ? requestedAgeGroup
+      : "";
   const review = scalar(rawParams.review) || "all";
   const page = Math.max(1, Number.parseInt(scalar(rawParams.page) || "1", 10) || 1);
   const limit = 24;
@@ -103,6 +108,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     siteId,
     eventType,
     reviewFilter: review,
+    apparentAgeGroup: ageGroup || null,
     limit,
     offset: (page - 1) * limit,
   });
@@ -115,6 +121,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     ...(siteId ? { site: siteId } : {}),
     ...(cameraIds.length ? { cameras: cameraSelectionCsv(cameraIds) } : {}),
     ...(eventType ? { type: eventType } : {}),
+    ...(ageGroup ? { age: ageGroup } : {}),
     ...(review !== "all" ? { review } : {}),
   };
   const optionalFilterCount = [
@@ -122,6 +129,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     siteId,
     cameraIds.length ? "cameras" : "",
     eventType,
+    ageGroup,
     review !== "all" ? review : "",
   ].filter(Boolean).length;
   const visiblePages = paginationWindow(page, totalPages, 5);
@@ -248,6 +256,14 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
                 </select>
               </label>
               <label>
+                <span>Classificação visual</span>
+                <select name="age" defaultValue={ageGroup}>
+                  <option value="">Todas</option>
+                  <option value="child">Provável criança</option>
+                  <option value="adult">Provável adulto</option>
+                </select>
+              </label>
+              <label>
                 <span>Avaliação</span>
                 <select name="review" defaultValue={review}>
                   <option value="all">Todos, exceto irrelevantes</option>
@@ -275,6 +291,11 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
             review,
           }}
           multiCameraSelection={cameraIds.length > 1}
+          disabledReason={
+            ageGroup
+              ? "A exportação por classificação visual será habilitada depois da validação deste filtro. Remova esse filtro para exportar o período completo."
+              : null
+          }
         />
 
         <div className={styles.resultHeading}>
