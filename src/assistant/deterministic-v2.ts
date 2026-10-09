@@ -89,6 +89,7 @@ function operation(
     visualEntityId: null,
     processId: null,
     eventTypes: [],
+    apparentAgeGroup: null,
     afterConfirmedClosing: null,
     ...patch,
   };
@@ -145,7 +146,19 @@ function explicitHistorical(n: string, currentDate: string, plan: AssistantPlan)
 function uniqueOperations(ops: AssistantOperation[]) {
   const seen = new Set<string>();
   return ops.filter((op) => {
-    const key = [op.kind, op.aggregation, op.metric, op.cameraId, op.siteId, op.zoneId, op.visualEntityId, op.processId, op.fromCameraId, op.toCameraId].join("|");
+    const key = [
+      op.kind,
+      op.aggregation,
+      op.metric,
+      op.cameraId,
+      op.siteId,
+      op.zoneId,
+      op.apparentAgeGroup,
+      op.visualEntityId,
+      op.processId,
+      op.fromCameraId,
+      op.toCameraId,
+    ].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -184,6 +197,21 @@ export function planDeterministicallyV2(input: {
   const zone = bestNamedMatch(n, input.directory.zones);
   const entity = bestNamedMatch(n, input.directory.visualEntities);
   const process = bestNamedMatch(n, input.directory.processes);
+  const apparentAgeGroup: AssistantOperation["apparentAgeGroup"] =
+    /\b(criancas?|crianca|bebes?|bebe|infantil|infancia)\b/.test(n)
+      ? "child"
+      : /\badultos?\b/.test(n)
+        ? "adult"
+        : null;
+  const mentionsAdolescent = /\badolescentes?\b/.test(n);
+  const availablePeriod =
+    /\b(todos os dias existentes|todos os registros existentes|todo o periodo disponivel|periodo completo|desde o primeiro registro)\b/.test(
+      n,
+    );
+
+  if (availablePeriod) {
+    notes.push("period:available");
+  }
 
   if (zone.item) {
     legacy = AssistantPlanSchema.parse({
@@ -266,6 +294,37 @@ export function planDeterministicallyV2(input: {
     ops.push(operation("staff", "staff_activity", aggregationFromText(n), "staff", legacy));
   }
 
+  if (apparentAgeGroup) {
+    legacy = AssistantPlanSchema.parse({
+      ...legacy,
+      intent: "search_events",
+      query: "",
+    });
+    ops.push(
+      operation(
+        "age_group",
+        "search_events",
+        aggregationFromText(n),
+        "events",
+        legacy,
+        {
+          zoneId: zone.item?.id ?? null,
+          subject:
+            apparentAgeGroup === "child"
+              ? "Provável criança"
+              : "Provável adulto",
+          apparentAgeGroup,
+        },
+      ),
+    );
+    notes.push(`apparent_age_group:${apparentAgeGroup}`);
+    if (mentionsAdolescent) {
+      notes.push("adolescent:not_separate_class");
+    }
+  } else if (mentionsAdolescent) {
+    notes.push("adolescent:unsupported_separate_class");
+  }
+
   const explicitCountMetric = n.match(/\bquantos?|quantas?|total\b/) && /\b(clientes?|funcionarios?|funcionários|entregas?|veiculos?|veículos|carros?|motos?|eventos?)\b/.test(n);
   if (explicitCountMetric) {
     ops.push(operation("count_metric", "period_summary", "count", metricFromText(n), legacy));
@@ -344,6 +403,34 @@ function coverageCaution(coverage: Record<string, unknown> | null) {
 }
 
 function customOperationAnswer(op: AssistantOperation, payload: Record<string, unknown>) {
+  if (op.kind === "search_events" && op.apparentAgeGroup) {
+    const total = numberValue(payload.total ?? payload.totalFound);
+    const events = arrayValue(payload.events).map(objectValue);
+    const label =
+      op.apparentAgeGroup === "child"
+        ? "provável criança"
+        : "provável adulto";
+
+    if (!total) {
+      return `Não encontrei eventos com classificação visual de ${label} no período consultado.`;
+    }
+
+    const details = events
+      .slice(0, 4)
+      .map((event) => {
+        const camera = stringValue(event.cameraName) || "Câmera";
+        const headline =
+          stringValue(event.headline) ||
+          stringValue(event.summary) ||
+          "Acontecimento";
+        const at = formatTime(event.startedAt);
+        return `${camera}: ${headline}${at ? `, às ${at}` : ""}.`;
+      })
+      .join(" ");
+
+    return `Encontrei ${total} evento${total === 1 ? "" : "s"} com pelo menos uma classificação visual de ${label}. ${details}`.trim();
+  }
+
   if (op.kind === "camera_health_history") {
     const summary = objectValue(payload.summary);
     const incidents = arrayValue(payload.incidents).map(objectValue);
@@ -483,6 +570,11 @@ export function answerDeterministicallyV2(input: {
       parts.push(custom);
       if (op.kind === "cross_camera_sequence") cautions.add("Passagens entre câmeras são hipóteses por tempo e características visíveis; não confirmam identidade, rosto ou placa.");
       if (op.kind === "camera_health_history") cautions.add("Incidentes de saúde descrevem qualidade, conexão ou enquadramento; não determinam causa ou intenção.");
+      if (op.kind === "search_events" && op.apparentAgeGroup) {
+        cautions.add(
+          "A faixa etária é uma triagem visual ampla e probabilística. Não determina idade exata, maioridade legal ou identidade; adolescência não é uma classe separada nesta versão.",
+        );
+      }
       continue;
     }
 
