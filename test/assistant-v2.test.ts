@@ -144,3 +144,57 @@ test("adolescente isolado recebe limitação explícita sem virar criança", () 
     /não determina idade exata/i,
   );
 });
+
+function planWithChildNamedZone(message: string) {
+  return planDeterministicallyV2({
+    message,
+    currentDate: "2026-10-01",
+    timezone: "America/Sao_Paulo",
+    selectedFrom: null,
+    selectedTo: null,
+    selectedCameraId: null,
+    selectedSiteId: null,
+    directory: {
+      ...directory,
+      zones: [{
+        ...directory.zones[0],
+        id: "77777777-7777-4777-8777-777777777777",
+        name: "Crianças",
+        cameraId: "33333333-3333-4333-8333-333333333333",
+      }],
+    },
+    history: [],
+  });
+}
+
+test("palavra crianças não ativa automaticamente zona com o mesmo nome", () => {
+  const result = planWithChildNamedZone(
+    "Quero ver crianças na câmera Entrada nos últimos 7 dias",
+  );
+  const searches = result.plan.operations.filter((op) => op.kind === "search_events");
+  assert.equal(searches.length, 1, "não adicionar consulta genérica sem filtro infantil");
+  assert.equal(searches[0]?.apparentAgeGroup, "child");
+  assert.equal(searches[0]?.zoneId, null);
+  assert.equal(searches[0]?.cameraId, "22222222-2222-4222-8222-222222222222");
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+});
+
+test("zona chamada Crianças só é aplicada quando explicitamente solicitada", () => {
+  const result = planWithChildNamedZone(
+    "Mostre prováveis crianças na zona Crianças nos últimos 7 dias",
+  );
+  const searches = result.plan.operations.filter((op) => op.kind === "search_events");
+  assert.equal(searches.length, 1);
+  assert.equal(searches[0]?.apparentAgeGroup, "child");
+  assert.equal(searches[0]?.zoneId, "77777777-7777-4777-8777-777777777777");
+  assert.equal(searches[0]?.cameraId, "33333333-3333-4333-8333-333333333333");
+});
+
+test("pergunta sobre quantidade de crianças não mistura total não filtrado", () => {
+  const result = planWithChildNamedZone(
+    "Quantos eventos com crianças na câmera Entrada nos últimos 7 dias?",
+  );
+  assert.equal(result.plan.operations.filter((op) => op.kind === "search_events").length, 1);
+  assert.equal(result.plan.operations.filter((op) => op.kind === "period_summary").length, 0);
+  assert.equal(result.plan.operations[0]?.apparentAgeGroup, "child");
+});

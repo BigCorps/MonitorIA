@@ -60,6 +60,27 @@ function bestNamedMatch<T extends { name: string; aliases?: string[] }>(
   return { item: ambiguous ? null : matches[0].item, ambiguous };
 }
 
+function explicitNamedZoneMatch<T extends { name: string; aliases?: string[] }>(
+  normalized: string,
+  items: T[],
+) {
+  // Age-group words can also be zone names (e.g. "Crianças").
+  // Only restrict an age query to a zone when the user names it as a zone.
+  const query = ` ${normalized} `;
+  const prefixes = ["zona", "area", "regiao", "setor"];
+  const articles = ["", "da ", "de ", "do ", "das ", "dos "];
+  const explicitlyMentioned = items.filter((item) =>
+    names(item).some((name) =>
+      prefixes.some((prefix) =>
+        articles.some((article) =>
+          query.includes(` ${prefix} ${article}${name} `),
+        ),
+      ),
+    ),
+  );
+  return bestNamedMatch(normalized, explicitlyMentioned);
+}
+
 function cameraMentions(normalized: string, directory: AssistantDirectoryV2) {
   return directory.cameras
     .map((camera) => ({ camera, index: normalized.indexOf(normalize(camera.name)) }))
@@ -194,7 +215,6 @@ export function planDeterministicallyV2(input: {
   const notes: string[] = [];
   const ops: AssistantOperation[] = [];
 
-  const zone = bestNamedMatch(n, input.directory.zones);
   const entity = bestNamedMatch(n, input.directory.visualEntities);
   const process = bestNamedMatch(n, input.directory.processes);
   const apparentAgeGroup: AssistantOperation["apparentAgeGroup"] =
@@ -203,6 +223,9 @@ export function planDeterministicallyV2(input: {
       : /\badultos?\b/.test(n)
         ? "adult"
         : null;
+  const zone = apparentAgeGroup
+    ? explicitNamedZoneMatch(n, input.directory.zones)
+    : bestNamedMatch(n, input.directory.zones);
   const mentionsAdolescent = /\badolescentes?\b/.test(n);
   const availablePeriod =
     /\b(todos os dias existentes|todos os registros existentes|todo o periodo disponivel|periodo completo|desde o primeiro registro)\b/.test(
@@ -326,7 +349,7 @@ export function planDeterministicallyV2(input: {
   }
 
   const explicitCountMetric = n.match(/\bquantos?|quantas?|total\b/) && /\b(clientes?|funcionarios?|funcionários|entregas?|veiculos?|veículos|carros?|motos?|eventos?)\b/.test(n);
-  if (explicitCountMetric) {
+  if (explicitCountMetric && !apparentAgeGroup) {
     ops.push(operation("count_metric", "period_summary", "count", metricFromText(n), legacy));
   }
   if (/\bqual\b.*\bcamera\b.*\b(mais|maior)\b.*\b(eventos|movimento|atividade)\b/.test(n)) {
@@ -344,7 +367,7 @@ export function planDeterministicallyV2(input: {
     ops.push(operation("compare", "compare_periods", "compare", metricFromText(n), legacy));
   }
 
-  if (legacy.intent === "search_events" || zone.item) {
+  if (!apparentAgeGroup && (legacy.intent === "search_events" || zone.item)) {
     ops.push(operation("search", "search_events", aggregationFromText(n), metricFromText(n), legacy, {
       zoneId: zone.item?.id ?? null,
       subject: zone.item?.name ?? null,
