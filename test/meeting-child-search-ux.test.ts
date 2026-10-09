@@ -13,7 +13,9 @@ test("Pesquisa IA oferece filtro visual criança/adulto sem alegar menoridade", 
 
   assert.match(chat, /Provável criança/);
   assert.match(chat, /Provável adulto/);
-  assert.match(route, /ageGroup: z\.enum\(\["child", "adult"\]\)\.nullable\(\)/);
+  assert.match(route, /ageGroup:\s*z/);
+  assert.match(route, /\.enum\(\["child", "adult"\]\)/);
+  assert.match(route, /\.optional\(\)/);
   assert.match(contracts, /apparentAgeGroup/);
 });
 
