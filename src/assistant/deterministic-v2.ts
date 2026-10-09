@@ -358,7 +358,12 @@ export function planDeterministicallyV2(input: {
   }
 
   const prior = priorStructuredPlan(input.history);
-  const elliptical = n.length <= 55 && (/^e\b/.test(n) || /^(ontem|anteontem|semana passada|no|na|so|só|apenas)\b/.test(n));
+  const elliptical =
+    n.length <= 55 &&
+    (/^e\b/.test(n) ||
+      /^(ontem|anteontem|semana passada|no|na|so|só|apenas|viu|encontrou|achou|teve|houve)\b/.test(
+        n,
+      ));
   if (elliptical && prior && operations.length === 1 && base.plan.intent === "period_summary") {
     operations = prior.operations.map((op, index) => ({
       ...op,
