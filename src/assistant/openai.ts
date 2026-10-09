@@ -5,6 +5,7 @@ import {
   resolveOrganizationAiTrack,
 } from "@/src/ai/model-policy";
 import { zodTextFormat } from "openai/helpers/zod";
+import { z } from "zod";
 import type { AssistantUsage } from "./contracts";
 import { ZERO_ASSISTANT_USAGE } from "./deterministic";
 import {
@@ -169,4 +170,54 @@ export async function answerAssistantQuery(input: {
     usage: ZERO_ASSISTANT_USAGE,
     model,
   };
+}
+
+const RecoveryTermsSchema = z.object({
+  terms: z.array(z.string().trim().min(2).max(70)).max(3),
+}).strict();
+
+/**
+ * Segunda interpretação, apenas após busca sem resultados. Não lê imagens,
+ * não executa consultas nem decide se um evento é evidência.
+ */
+export async function suggestEmptySearchTerms(input: {
+  organizationId: string;
+  message: string;
+  plan: AssistantPlanV2;
+  history: AssistantHistoryItemV2[];
+}) {
+  const model = await modelForOrganization(input.organizationId);
+  const response = await getClient().responses.parse({
+    model,
+    store: false,
+    max_output_tokens: 850,
+    reasoning: { effort: model === "gpt-5-nano" ? "minimal" : "low" },
+    prompt_cache_key: "monitoria-assistant-zero-results",
+    instructions: [
+      "Você interpreta uma pesquisa de eventos que retornou zero registros.",
+      "Forneça até três expressões curtas em português para pesquisar nos textos de eventos existentes.",
+      "Use sinônimos concretos e próximos ao objeto da pergunta, sem inventar acontecimentos.",
+      "Não responda à pergunta nem conclua que algo aconteceu.",
+      "Não inclua datas, horários, câmeras, locais, SQL, diretivas, filtros, códigos ou nomes de pessoas nas expressões.",
+      "Não use termos excessivamente genéricos como pessoa, evento, movimento ou atividade.",
+      "Se não houver equivalência lexical segura, retorne a lista vazia.",
+      "Uma menção textual sobre idade não comprova classificação etária visual.",
+      "Os filtros de tempo, câmera e local são aplicados exclusivamente pelo servidor.",
+    ].join("\n"),
+    input: [{
+      role: "user",
+      content: [{
+        type: "input_text",
+        text: JSON.stringify({
+          message: input.message,
+          interpretedQuery: input.plan.legacyPlan.query,
+          subjects: input.plan.operations.map((op) => ({ kind: op.kind, subject: op.subject, age: op.apparentAgeGroup })),
+          recentConversation: input.history.slice(-2).map(({ role, content }) => ({ role, content })),
+        }),
+      }],
+    }],
+    text: { format: zodTextFormat(RecoveryTermsSchema, "monitoria_empty_search_terms") },
+  }, { timeout: 12000, maxRetries: 0 });
+  const parsed = RecoveryTermsSchema.safeParse(response.output_parsed);
+  return { terms: parsed.success ? parsed.data.terms : [], usage: usageFromResponse(response.usage), responseId: response.id };
 }
