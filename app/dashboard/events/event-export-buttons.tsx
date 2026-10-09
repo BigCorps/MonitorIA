@@ -17,6 +17,7 @@ type Props = {
   };
   total: number;
   multiCameraSelection?: boolean;
+  disabledReason?: string | null;
 };
 
 function exportUrl(
@@ -36,6 +37,7 @@ export function EventExportButtons({
   filters,
   total,
   multiCameraSelection = false,
+  disabledReason = null,
 }: Props) {
   const disclosureRef = useRef<HTMLDetailsElement>(null);
   const { mode } = useDashboardSourceContext();
@@ -71,6 +73,10 @@ export function EventExportButtons({
   }, []);
 
   async function copy(format: "md" | "json") {
+    if (disabledReason) {
+      setStatus(disabledReason);
+      return;
+    }
     if (multiCameraSelection) {
       setStatus(`Para exportar, use ${allLabel} ou selecione apenas ${singularLabel}.`);
       return;
@@ -96,6 +102,10 @@ export function EventExportButtons({
   }
 
   function download(format: "md" | "json") {
+    if (disabledReason) {
+      setStatus(disabledReason);
+      return;
+    }
     if (multiCameraSelection) {
       setStatus(`Para exportar, use ${allLabel} ou selecione apenas ${singularLabel}.`);
       return;
@@ -112,9 +122,11 @@ export function EventExportButtons({
             {total} acontecimento{total === 1 ? "" : "s"} em Markdown ou JSON
           </strong>
           <small>
-            {multiCameraSelection
-              ? `${pluralLabel.charAt(0).toUpperCase() + pluralLabel.slice(1)} podem ser consultadas em conjunto na tela; para exportar, use ${allLabel} ou selecione apenas ${singularLabel}`
-              : "Toque para ver as opções de copiar e baixar"}
+            {disabledReason
+              ? disabledReason
+              : multiCameraSelection
+                ? `${pluralLabel.charAt(0).toUpperCase() + pluralLabel.slice(1)} podem ser consultadas em conjunto na tela; para exportar, use ${allLabel} ou selecione apenas ${singularLabel}`
+                : "Toque para ver as opções de copiar e baixar"}
           </small>
         </span>
         <span
@@ -146,28 +158,28 @@ export function EventExportButtons({
           <div className={styles.actions}>
             <button
               type="button"
-              disabled={pending || multiCameraSelection}
+              disabled={pending || multiCameraSelection || Boolean(disabledReason)}
               onClick={() => void copy("md")}
             >
               Copiar Markdown
             </button>
             <button
               type="button"
-              disabled={pending || multiCameraSelection}
+              disabled={pending || multiCameraSelection || Boolean(disabledReason)}
               onClick={() => void copy("json")}
             >
               Copiar JSON
             </button>
             <button
               type="button"
-              disabled={multiCameraSelection}
+              disabled={multiCameraSelection || Boolean(disabledReason)}
               onClick={() => download("md")}
             >
               Baixar .md
             </button>
             <button
               type="button"
-              disabled={multiCameraSelection}
+              disabled={multiCameraSelection || Boolean(disabledReason)}
               onClick={() => download("json")}
             >
               Baixar .json
