@@ -63,8 +63,7 @@ export const AssistantOperationSchema = z.object({
   eventTypes: z.array(z.string().trim().min(1).max(80)).max(8),
   apparentAgeGroup: z
     .enum(["child", "adult"])
-    .nullable()
-    .default(null),
+    .nullable(),
   afterConfirmedClosing: z.boolean().nullable(),
 }).strict();
 
