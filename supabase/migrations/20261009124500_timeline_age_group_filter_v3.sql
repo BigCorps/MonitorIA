@@ -162,100 +162,7 @@ as $$
                 when coalesce(
                   person->>'apparentAgeGroupConfidence',
                   ''
-                ) ~ '^[0-9]+([.][0-9]+)?
-    select
-      'analysis'::text as row_kind,
-      aj.id as row_id,
-      aj.id as analysis_job_id,
-      aj.started_at,
-      aj.ended_at,
-      pg_catalog.date_part('epoch', aj.ended_at - aj.started_at)::numeric as duration_seconds,
-      aj.camera_id,
-      c.name as camera_name,
-      c.site_id,
-      c.site_name,
-      case
-        when ei.status = 'failed_terminal' then 'Falha na análise'
-        when aj.status = 'failed'::public.analysis_job_status then 'Análise será retomada'
-        else 'Analisando…'
-      end as headline,
-      'processing'::text as event_type,
-      'processing'::text as original_event_type,
-      case
-        when ei.status = 'failed_terminal' then 'O acontecimento e suas evidências foram preservados, mas a análise exige atenção técnica.'
-        when aj.status = 'failed'::public.analysis_job_status then 'O MonitorIA preservou o acontecimento e vai tentar a análise novamente.'
-        else 'O acontecimento já foi recebido e está sendo analisado.'
-      end as summary,
-      null::numeric as confidence,
-      false as requires_review,
-      'processing'::text as review_status,
-      null::text as human_verdict,
-      null::timestamptz as human_reviewed_at,
-      '{}'::text[] as tags,
-      0::bigint as people_count,
-      0::bigint as vehicle_count,
-      null::uuid as interaction_group_id,
-      false as is_continuation,
-      0::integer as interaction_event_count,
-      0::integer as probable_people_count,
-      0::integer as probable_customer_count,
-      0::integer as probable_staff_count,
-      0::numeric as continuity_confidence,
-      null::uuid as operational_session_id,
-      null::text as session_type,
-      null::text as session_status,
-      null::text as session_chapter_type,
-      null::integer as session_chapter_order,
-      0::integer as session_chapter_count,
-      0::numeric as session_duration_seconds,
-      0::numeric as session_confidence,
-      (
-        select sa.id
-        from public.storage_assets sa
-        where sa.analysis_job_id = aj.id
-          and sa.mime_type = 'image/jpeg'
-          and sa.status = 'ready'::public.asset_status
-          and sa.deleted_at is null
-        order by
-          case sa.frame_label when 'peak' then 0 when 'start' then 1 when 'end' then 2 else 3 end,
-          sa.captured_at
-        limit 1
-      ) as thumbnail_asset_id,
-      coalesce(ei.status, aj.status::text) as processing_status,
-      coalesce(ei.last_error, aj.last_error) as last_error
-    from public.analysis_jobs aj
-    join eligible_cameras c on c.id = aj.camera_id
-    left join public.event_ingestions ei on ei.analysis_job_id = aj.id
-    where aj.organization_id = p_organization_id
-      and aj.status in (
-        'queued'::public.analysis_job_status,
-        'processing'::public.analysis_job_status,
-        'failed'::public.analysis_job_status
-      )
-      and (p_from is null or aj.started_at >= p_from)
-      and (p_to is null or aj.started_at < p_to)
-      and nullif(pg_catalog.btrim(coalesce(p_event_type, '')), '') is null
-      and coalesce(p_review_filter, 'all') = 'all'
-      and p_apparent_age_group is null
-      and not exists (select 1 from public.events e where e.analysis_job_id = aj.id)
-  ), all_rows as (
-    select * from completed
-    union all
-    select * from pending
-  )
-  select all_rows.*, pg_catalog.count(*) over() as total_count
-  from all_rows
-  order by all_rows.started_at desc, all_rows.row_id desc
-  limit greatest(1, least(coalesce(p_limit, 24), 200))
-  offset greatest(0, coalesce(p_offset, 0));
-$$;
-
-revoke all on function public.search_monitoria_timeline_v3(
-  uuid, timestamptz, timestamptz, uuid[], uuid, text, text, text, integer, integer
-) from public, anon;
-grant execute on function public.search_monitoria_timeline_v3(
-  uuid, timestamptz, timestamptz, uuid[], uuid, text, text, text, integer, integer
-) to authenticated, service_role;
+                ) ~ '^[0-9]+([.][0-9]+)?$'
                   then (person->>'apparentAgeGroupConfidence')::numeric
                 else 0
               end >= 0.60
@@ -336,6 +243,7 @@ grant execute on function public.search_monitoria_timeline_v3(
       and (p_to is null or aj.started_at < p_to)
       and nullif(pg_catalog.btrim(coalesce(p_event_type, '')), '') is null
       and coalesce(p_review_filter, 'all') = 'all'
+      and p_apparent_age_group is null
       and not exists (select 1 from public.events e where e.analysis_job_id = aj.id)
   ), all_rows as (
     select * from completed
