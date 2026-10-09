@@ -25,6 +25,7 @@ const RequestSchema = z.object({
   toDate: DateOnlySchema,
   cameraId: z.string().uuid().nullable(),
   siteId: z.string().uuid().nullable(),
+  ageGroup: z.enum(["child", "adult"]).nullable(),
 }).strict();
 
 type EvidenceResponse = {
@@ -54,6 +55,37 @@ function isValidDateOnly(value: string | null): value is string {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 function safeDate(value: string | null, fallback: string) { return isValidDateOnly(value) ? value : fallback; }
+function dateInZone(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+async function earliestAvailableDate(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  organizationId: string;
+  cameraId: string | null;
+  siteId: string | null;
+  timeZone: string;
+}) {
+  let query = input.admin
+    .from("events")
+    .select("started_at")
+    .eq("organization_id", input.organizationId)
+    .is("deleted_at", null)
+    .order("started_at", { ascending: true })
+    .limit(1);
+
+  if (input.cameraId) query = query.eq("camera_id", input.cameraId);
+  if (input.siteId) query = query.eq("site_id", input.siteId);
+
+  const { data, error } = await query;
+  const startedAt = data?.[0]?.started_at;
+  if (error || !startedAt) return null;
+  return dateInZone(String(startedAt), input.timeZone);
+}
 function previousPeriod(fromDate: string, toDate: string) {
   const from = new Date(`${fromDate}T00:00:00Z`);
   const to = new Date(`${toDate}T00:00:00Z`);
@@ -122,6 +154,59 @@ function directoryFromRpc(value: unknown, fallback: AssistantDirectoryV2): Assis
       sessionType: String(x.sessionType ?? ""), aliases: stringArray(x.aliases),
     })),
   };
+}
+
+function applySelectedAgeGroup(
+  plan: AssistantPlanV2,
+  selectedAgeGroup: "child" | "adult" | null,
+): AssistantPlanV2 {
+  if (!selectedAgeGroup) return plan;
+
+  let applied = false;
+  const operations = plan.operations.map((op) => {
+    if (op.kind !== "search_events") return op;
+    applied = true;
+    return {
+      ...op,
+      apparentAgeGroup: selectedAgeGroup,
+      subject:
+        selectedAgeGroup === "child"
+          ? "Provável criança"
+          : "Provável adulto",
+    };
+  });
+
+  if (!applied && operations.length < 6) {
+    operations.push({
+      id: `op${operations.length + 1}`,
+      kind: "search_events",
+      aggregation: "list",
+      metric: "events",
+      subject:
+        selectedAgeGroup === "child"
+          ? "Provável criança"
+          : "Provável adulto",
+      cameraId: plan.legacyPlan.cameraId,
+      siteId: plan.legacyPlan.siteId,
+      fromCameraId: null,
+      toCameraId: null,
+      zoneId: null,
+      visualEntityId: null,
+      processId: null,
+      eventTypes: [],
+      apparentAgeGroup: selectedAgeGroup,
+      afterConfirmedClosing: null,
+    });
+  }
+
+  return AssistantPlanV2Schema.parse({
+    ...plan,
+    operations,
+    plannerNotes: [
+      ...plan.plannerNotes,
+      `ui_age_group:${selectedAgeGroup}`,
+    ].slice(0, 8),
+  });
 }
 
 function sanitizePlan(plan: AssistantPlanV2, directory: AssistantDirectoryV2, selectedCameraId: string | null, selectedSiteId: string | null): AssistantPlanV2 {
@@ -231,10 +316,34 @@ export async function POST(request: Request) {
       organizationId: organization.id, message: body.message, currentDate, timezone: timeZone,
       selectedFrom: body.fromDate, selectedTo: body.toDate, selectedCameraId, selectedSiteId, directory, history,
     });
-    const plan = sanitizePlan(planned.plan, directory, selectedCameraId, selectedSiteId);
+    const sanitizedPlan = sanitizePlan(
+      planned.plan,
+      directory,
+      selectedCameraId,
+      selectedSiteId,
+    );
+    const plan = applySelectedAgeGroup(
+      sanitizedPlan,
+      body.ageGroup,
+    );
     const effectiveTimeZone = siteTimezone(sites, plan.legacyPlan.siteId);
-    const fromDate = safeDate(body.fromDate ?? plan.legacyPlan.fromDate, currentDate);
+    let fromDate = safeDate(body.fromDate ?? plan.legacyPlan.fromDate, currentDate);
     const toDate = safeDate(body.toDate ?? plan.legacyPlan.toDate, currentDate);
+
+    if (
+      !body.fromDate &&
+      plan.plannerNotes.includes("period:available")
+    ) {
+      const earliest = await earliestAvailableDate({
+        admin,
+        organizationId: organization.id,
+        cameraId: plan.legacyPlan.cameraId,
+        siteId: plan.legacyPlan.siteId,
+        timeZone: effectiveTimeZone,
+      });
+      if (earliest) fromDate = earliest;
+    }
+
     const fromIso = dateOnlyToIso(fromDate, effectiveTimeZone)!;
     const toIso = dateOnlyToIso(addDaysToDateOnly(toDate, 1), effectiveTimeZone)!;
 
