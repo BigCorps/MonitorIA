@@ -67,6 +67,10 @@ export function CameraMultiSelect({
     return `${names.length} ${collectionLabel.toLowerCase()}`;
   }, [allLabel, cameras, collectionLabel, selected]);
 
+  function selectOnly(cameraId: string) {
+    setSelected(cameras.length <= 1 ? [] : [cameraId]);
+  }
+
   function toggle(cameraId: string) {
     setSelected((current) => {
       const next = !current.length
@@ -106,24 +110,35 @@ export function CameraMultiSelect({
                 selected.length === 0 || selected.includes(camera.id);
 
               return (
-                <label key={camera.id}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(camera.id)}
-                  />
-                  <span>
-                    {camera.name}
-                    {mode === "hybrid" && camera.sourceKind ? (
-                      <small>
-                        {" · "}
-                        {camera.sourceKind === "local_recording"
-                          ? "Gravações"
-                          : "Câmera conectada"}
-                      </small>
-                    ) : null}
-                  </span>
-                </label>
+                <div className={styles.optionRow} key={camera.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(camera.id)}
+                    />
+                    <span>
+                      {camera.name}
+                      {mode === "hybrid" && camera.sourceKind ? (
+                        <small>
+                          {" · "}
+                          {camera.sourceKind === "local_recording"
+                            ? "Gravações"
+                            : "Câmera conectada"}
+                        </small>
+                      ) : null}
+                    </span>
+                  </label>
+                  {cameras.length > 1 ? (
+                    <button
+                      type="button"
+                      className={styles.onlyButton}
+                      onClick={() => selectOnly(camera.id)}
+                    >
+                      Somente esta
+                    </button>
+                  ) : null}
+                </div>
               );
             })}
           </div>
@@ -133,7 +148,7 @@ export function CameraMultiSelect({
               ? "Selecione um ou mais ambientes. “Todos” mantém a visão consolidada."
               : mode === "hybrid"
                 ? "Selecione uma ou mais fontes. “Todas” reúne câmeras conectadas e gravações."
-                : "Selecione uma ou mais câmeras. “Todas” mantém a visão consolidada."}
+                : "Selecione uma ou mais câmeras. “Todas” mantém a visão consolidada; “Somente esta” isola uma câmera em um clique."}
           </small>
         </div>
       </details>
