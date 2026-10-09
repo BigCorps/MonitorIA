@@ -598,7 +598,10 @@ function lastUserMessage(history: AssistantHistoryItem[]) {
 function isElliptical(normalized: string) {
   return (
     normalized.length <= 55 &&
-    (/^e\b/.test(normalized) || /^(ontem|anteontem|semana passada|no|na|s[oó]|apenas)\b/.test(normalized))
+    (/^e\b/.test(normalized) ||
+      /^(ontem|anteontem|semana passada|no|na|s[oó]|apenas|viu|encontrou|achou|teve|houve)\b/.test(
+        normalized,
+      ))
   );
 }
 
@@ -620,7 +623,7 @@ function resolveLocalRecordingConstraint(plan: AssistantPlan, directory: Assista
 
 function planInternal(input: DeterministicPlanInput, allowHistory: boolean): DeterministicPlanResult {
   const normalized = normalize(input.message);
-  const entity = resolveEntity(
+  let entity = resolveEntity(
     normalized,
     input.directory,
     input.selectedCameraId,
@@ -649,6 +652,19 @@ function planInternal(input: DeterministicPlanInput, allowHistory: boolean): Det
       if (inherited.understood) {
         intent = inherited.plan.intent;
         inheritedConfidence = inherited.confidence;
+        if (
+          !input.selectedCameraId &&
+          !input.selectedSiteId &&
+          !entity.cameraId &&
+          !entity.siteId
+        ) {
+          entity = {
+            cameraId: inherited.plan.cameraId,
+            siteId: inherited.plan.siteId,
+            confidence: inherited.confidence,
+            ambiguous: false,
+          };
+        }
         if (!/(hoje|ontem|anteontem|semana|mes|\d{1,2}\/\d{1,2}|20\d{2}-)/.test(normalized)) {
           period = {
             ...period,
