@@ -637,6 +637,19 @@ function planInternal(input: DeterministicPlanInput, allowHistory: boolean): Det
   if (allowHistory && isElliptical(normalized)) {
     const previous = lastUserMessage(input.history);
     if (previous) {
+      const previousNormalized = normalize(previous);
+      const previousEntity = resolveEntity(
+        previousNormalized,
+        input.directory,
+        null,
+        null,
+      );
+      const previousPeriod = resolvePeriod(
+        previousNormalized,
+        input.currentDate,
+        null,
+        null,
+      );
       const inherited = planInternal(
         {
           ...input,
@@ -649,31 +662,35 @@ function planInternal(input: DeterministicPlanInput, allowHistory: boolean): Det
         },
         false,
       );
+
+      if (
+        !input.selectedCameraId &&
+        !input.selectedSiteId &&
+        !entity.cameraId &&
+        !entity.siteId &&
+        !previousEntity.ambiguous &&
+        (previousEntity.cameraId || previousEntity.siteId)
+      ) {
+        entity = previousEntity;
+      }
+
+      if (
+        !/(hoje|ontem|anteontem|semana|mes|\d{1,2}\/\d{1,2}|20\d{2}-)/.test(
+          normalized,
+        )
+      ) {
+        period = {
+          ...period,
+          fromDate: previousPeriod.fromDate,
+          toDate: previousPeriod.toDate,
+          compareFromDate: previousPeriod.compareFromDate,
+          compareToDate: previousPeriod.compareToDate,
+        };
+      }
+
       if (inherited.understood) {
         intent = inherited.plan.intent;
         inheritedConfidence = inherited.confidence;
-        if (
-          !input.selectedCameraId &&
-          !input.selectedSiteId &&
-          !entity.cameraId &&
-          !entity.siteId
-        ) {
-          entity = {
-            cameraId: inherited.plan.cameraId,
-            siteId: inherited.plan.siteId,
-            confidence: inherited.confidence,
-            ambiguous: false,
-          };
-        }
-        if (!/(hoje|ontem|anteontem|semana|mes|\d{1,2}\/\d{1,2}|20\d{2}-)/.test(normalized)) {
-          period = {
-            ...period,
-            fromDate: inherited.plan.fromDate,
-            toDate: inherited.plan.toDate,
-            compareFromDate: inherited.plan.compareFromDate,
-            compareToDate: inherited.plan.compareToDate,
-          };
-        }
       }
     }
   }
