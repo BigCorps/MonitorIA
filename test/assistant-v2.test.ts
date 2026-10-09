@@ -56,3 +56,25 @@ test("pergunta de prioridade usa resumo de atenção", () => {
   const result = plan("O que merece minha atenção agora?");
   assert.ok(result.plan.operations.some((op) => op.kind === "attention_summary"));
 });
+
+
+test("entende período de 7 dias escrito em linguagem natural", () => {
+  const result = plan("Consegue identificar movimento no período de 7 dias?");
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+  assert.equal(result.plan.legacyPlan.toDate, "2026-10-01");
+});
+
+test("marca pedido de todo período disponível para resolução no backend", () => {
+  const result = plan("Liste os eventos de todos os dias existentes");
+  assert.ok(result.plan.plannerNotes.includes("period:available"));
+});
+
+test("criança vira filtro estruturado de faixa etária", () => {
+  const result = plan("Quero ver crianças na câmera Entrada nos últimos 7 dias");
+  const search = result.plan.operations.find(
+    (op) => op.kind === "search_events" && op.apparentAgeGroup === "child",
+  );
+  assert.equal(search?.cameraId, "22222222-2222-4222-8222-222222222222");
+  assert.equal(search?.apparentAgeGroup, "child");
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+});
