@@ -78,3 +78,30 @@ test("criança vira filtro estruturado de faixa etária", () => {
   assert.equal(search?.apparentAgeGroup, "child");
   assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
 });
+
+
+test("follow-up curto sobre crianças herda câmera e período anteriores", () => {
+  const previousMessage =
+    "Quero ver crianças na câmera Entrada nos últimos 7 dias";
+  const previous = plan(previousMessage);
+
+  const result = plan("Viu crianças?", [
+    { role: "user", content: previousMessage },
+    {
+      role: "assistant",
+      content: "Consulta concluída.",
+      plan: previous.plan,
+    },
+  ]);
+
+  const search = result.plan.operations.find(
+    (op) => op.kind === "search_events" && op.apparentAgeGroup === "child",
+  );
+
+  assert.equal(
+    search?.cameraId,
+    "22222222-2222-4222-8222-222222222222",
+  );
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+  assert.equal(result.plan.legacyPlan.toDate, "2026-10-01");
+});
