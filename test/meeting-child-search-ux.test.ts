@@ -35,6 +35,14 @@ test("seletor compartilhado permite isolar uma câmera", () => {
   assert.match(selector, /selectOnly/);
 });
 
+test("marcador interno de proteção infantil fica oculto e é preservado", () => {
+  const data = read("src/lib/camera-profile-data.ts");
+  const actions = read("app/dashboard/cameras/profile-actions.ts");
+  assert.match(data, /publicMonitoringGoals/);
+  assert.match(actions, /mergeMonitoringGoals/);
+  assert.match(actions, /CHILD_SAFETY_MONITORING_GOAL/);
+});
+
 test("editor avisa antes de reduzir zonas do perfil", () => {
   const editor = read(
     "app/dashboard/cameras/\[cameraId\]/camera-profile-panel.tsx",
