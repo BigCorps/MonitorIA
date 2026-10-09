@@ -15,6 +15,7 @@ export type TimelineSearchInput = {
   siteId?: string | null;
   eventType?: string | null;
   reviewFilter?: string | null;
+  apparentAgeGroup?: "child" | "adult" | null;
   limit?: number;
   offset?: number;
 };
@@ -160,7 +161,7 @@ export async function searchEventTimeline(
   const supabase = await createClient();
   const cameraIds = (input.cameraIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
 
-  const { data, error } = await supabase.rpc("search_monitoria_timeline_v2", {
+  const { data, error } = await supabase.rpc("search_monitoria_timeline_v3", {
     p_organization_id: organizationId,
     p_from: input.from ?? null,
     p_to: input.to ?? null,
@@ -168,12 +169,13 @@ export async function searchEventTimeline(
     p_site_id: input.siteId || null,
     p_event_type: input.eventType || null,
     p_review_filter: input.reviewFilter || "all",
+    p_apparent_age_group: input.apparentAgeGroup ?? null,
     p_limit: Math.max(1, Math.min(input.limit ?? 24, 200)),
     p_offset: Math.max(0, input.offset ?? 0),
   });
 
   if (error) {
-    console.error("Falha na timeline paginada 1.0.2:", error.message);
+    console.error("Falha na timeline paginada v3:", error.message);
     return { rows: [], total: 0 };
   }
 

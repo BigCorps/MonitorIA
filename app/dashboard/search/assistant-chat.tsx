@@ -379,6 +379,7 @@ export function AssistantChat({
   const [message, setMessage] = useState("");
   const [siteId, setSiteId] = useState("");
   const [cameraId, setCameraId] = useState("");
+  const [ageGroup, setAgeGroup] = useState<"" | "child" | "adult">("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -434,6 +435,7 @@ export function AssistantChat({
           toDate: toDate || null,
           cameraId: cameraId || null,
           siteId: siteId || null,
+          ageGroup: ageGroup || null,
         }),
       });
 
@@ -500,7 +502,9 @@ export function AssistantChat({
     router.push("/dashboard/search");
   }
 
-  const hasFilters = Boolean(siteId || cameraId || fromDate || toDate);
+  const hasFilters = Boolean(
+    siteId || cameraId || ageGroup || fromDate || toDate,
+  );
 
   return (
     <section className={styles.workspace}>
@@ -657,6 +661,21 @@ export function AssistantChat({
                 ))}
               </select>
             </label>
+            <label>
+              <span>Classificação visual</span>
+              <select
+                value={ageGroup}
+                onChange={(event) =>
+                  setAgeGroup(
+                    event.target.value as "" | "child" | "adult",
+                  )
+                }
+              >
+                <option value="">Todas</option>
+                <option value="child">Provável criança</option>
+                <option value="adult">Provável adulto</option>
+              </select>
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -664,6 +683,7 @@ export function AssistantChat({
                 setToDate("");
                 setSiteId("");
                 setCameraId("");
+                setAgeGroup("");
               }}
             >
               Limpar

@@ -1292,7 +1292,20 @@ export function CameraProfilePanel({
                 </div>
               </div>
 
-              <form action={saveAction}>
+              <form
+                action={saveAction}
+                onSubmit={(event) => {
+                  const previousCount = profile?.zones.length ?? 0;
+                  if (
+                    previousCount > zones.length &&
+                    !window.confirm(
+                      `Este perfil tinha ${previousCount} zonas e a nova versão terá ${zones.length}. As zonas removidas deixarão de orientar novas análises. Deseja continuar?`,
+                    )
+                  ) {
+                    event.preventDefault();
+                  }
+                }}
+              >
                 <input
                   type="hidden"
                   name="camera_id"
@@ -1324,6 +1337,14 @@ export function CameraProfilePanel({
                     : "Salvar como nova versão"}
                 </button>
               </form>
+
+              {profile && zones.length < profile.zones.length ? (
+                <p className={styles.validationHint}>
+                  Atenção: a nova versão terá {zones.length} zona(s), enquanto
+                  o perfil atual possui {profile.zones.length}. Você será
+                  solicitado a confirmar antes de salvar.
+                </p>
+              ) : null}
 
               {!maySave ? (
                 <p className={styles.validationHint}>

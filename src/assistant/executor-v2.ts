@@ -77,19 +77,29 @@ export async function executeAssistantPlanV2(input: {
         break;
       }
       case "search_events": {
-        if (op.zoneId || op.afterConfirmedClosing !== null || op.eventTypes.length) {
-          operationResults[op.id] = await rpc(supabase, "assistant_structured_event_search_v2", {
-            p_organization_id: organizationId,
-            p_from: fromIso,
-            p_to: toIso,
-            p_camera_id: cameraId,
-            p_site_id: siteId,
-            p_zone_id: op.zoneId,
-            p_event_types: op.eventTypes.length ? op.eventTypes : null,
-            p_after_confirmed_closing: op.afterConfirmedClosing,
-            p_requires_review: null,
-            p_limit: plan.legacyPlan.evidenceLimit,
-          });
+        if (
+          op.zoneId ||
+          op.apparentAgeGroup ||
+          op.afterConfirmedClosing !== null ||
+          op.eventTypes.length
+        ) {
+          operationResults[op.id] = await rpc(
+            supabase,
+            "assistant_structured_event_search_v3",
+            {
+              p_organization_id: organizationId,
+              p_from: fromIso,
+              p_to: toIso,
+              p_camera_id: cameraId,
+              p_site_id: siteId,
+              p_zone_id: op.zoneId,
+              p_event_types: op.eventTypes.length ? op.eventTypes : null,
+              p_after_confirmed_closing: op.afterConfirmedClosing,
+              p_requires_review: null,
+              p_apparent_age_group: op.apparentAgeGroup,
+              p_limit: plan.legacyPlan.evidenceLimit,
+            },
+          );
         } else {
           const result = await searchEvents(organizationId, {
             query: plan.legacyPlan.query || null,

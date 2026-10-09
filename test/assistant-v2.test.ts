@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planDeterministicallyV2 } from "../src/assistant/deterministic-v2";
+import {
+  answerDeterministicallyV2,
+  planDeterministicallyV2,
+} from "../src/assistant/deterministic-v2";
 
 const directory = {
   sites: [{ id: "11111111-1111-4111-8111-111111111111", name: "Loja Centro", timezone: "America/Sao_Paulo" }],
@@ -55,4 +58,89 @@ test("direção entre duas câmeras é preservada", () => {
 test("pergunta de prioridade usa resumo de atenção", () => {
   const result = plan("O que merece minha atenção agora?");
   assert.ok(result.plan.operations.some((op) => op.kind === "attention_summary"));
+});
+
+
+test("entende período de 7 dias escrito em linguagem natural", () => {
+  const result = plan("Consegue identificar movimento no período de 7 dias?");
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+  assert.equal(result.plan.legacyPlan.toDate, "2026-10-01");
+});
+
+test("marca pedido de todo período disponível para resolução no backend", () => {
+  const result = plan("Liste os eventos de todos os dias existentes");
+  assert.ok(result.plan.plannerNotes.includes("period:available"));
+});
+
+test("criança vira filtro estruturado de faixa etária", () => {
+  const result = plan("Quero ver crianças na câmera Entrada nos últimos 7 dias");
+  const search = result.plan.operations.find(
+    (op) => op.kind === "search_events" && op.apparentAgeGroup === "child",
+  );
+  assert.equal(search?.cameraId, "22222222-2222-4222-8222-222222222222");
+  assert.equal(search?.apparentAgeGroup, "child");
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+});
+
+
+test("follow-up curto sobre crianças herda câmera e período anteriores", () => {
+  const previousMessage =
+    "Quero ver crianças na câmera Entrada nos últimos 7 dias";
+  const previous = plan(previousMessage);
+
+  const result = plan("Viu crianças?", [
+    { role: "user", content: previousMessage },
+    {
+      role: "assistant",
+      content: "Consulta concluída.",
+      plan: previous.plan,
+    },
+  ]);
+
+  const search = result.plan.operations.find(
+    (op) => op.kind === "search_events" && op.apparentAgeGroup === "child",
+  );
+
+  assert.equal(
+    search?.cameraId,
+    "22222222-2222-4222-8222-222222222222",
+  );
+  assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
+  assert.equal(result.plan.legacyPlan.toDate, "2026-10-01");
+});
+
+test("adolescente isolado recebe limitação explícita sem virar criança", () => {
+  const message =
+    "Mostre adolescentes na câmera Entrada nos últimos 7 dias";
+  const result = plan(message);
+
+  assert.ok(
+    result.plan.plannerNotes.includes(
+      "adolescent:unsupported_separate_class",
+    ),
+  );
+  assert.ok(
+    !result.plan.operations.some(
+      (op) => op.apparentAgeGroup === "child",
+    ),
+  );
+
+  const answer = answerDeterministicallyV2({
+    message,
+    plan: result.plan,
+    retrievedData: {
+      operationResults: {},
+      coverage: null,
+    },
+    allowedEvidenceIds: [],
+  });
+
+  assert.match(
+    answer.answer,
+    /não possui uma classe visual separada para adolescentes/i,
+  );
+  assert.match(
+    answer.caution ?? "",
+    /não determina idade exata/i,
+  );
 });

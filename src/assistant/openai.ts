@@ -109,6 +109,8 @@ export async function planAssistantQuery(input: {
       "Use visual_state quando a pergunta citar uma visualEntity do diretório.",
       "Use process_summary quando citar um processo operacional do diretório.",
       "Use search_events com zoneId quando uma zona configurada estiver explícita.",
+      "Para perguntas sobre provável criança, infância ou bebê, use search_events com apparentAgeGroup=child. Para provável adulto, use apparentAgeGroup=adult.",
+      "Não existe classe adolescente separada nesta versão; nunca invente idade exata ou maioridade legal.",
       "Use period_summary para COUNT/RANK/PEAK/AVERAGE de métricas do período.",
       "Nunca gere SQL, nomes de tabelas ou código executável.",
       "Nunca planeje reconhecimento facial, identidade civil, emoção, gênero, crime, fraude ou intenção.",

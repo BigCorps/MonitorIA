@@ -97,21 +97,50 @@
   gap: 4px;
 }
 
-.options label {
+.optionRow {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.optionRow:hover {
+  background: #f4f8fa;
+}
+
+.optionRow label {
+  min-width: 0;
   min-height: 34px;
   padding: 0 8px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 8px;
   color: #40576f;
-  background: #fff;
   font-size: 9px;
   cursor: pointer;
 }
 
-.options label:hover {
-  background: #f4f8fa;
+.onlyButton {
+  min-height: 26px;
+  padding: 0 7px;
+  border: 1px solid #dbe4ec;
+  border-radius: 7px;
+  color: #537087;
+  background: #fff;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.onlyButton:hover {
+  color: #08745f;
+  border-color: #9ddfd0;
+  background: #edf9f5;
 }
 
 .options input {

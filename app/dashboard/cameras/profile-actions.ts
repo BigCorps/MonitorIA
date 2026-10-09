@@ -10,6 +10,9 @@ import { getCurrentOrganization } from "@/src/lib/dashboard-data";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 import { createVisionProvider } from "@/src/vision/create-provider";
 import {
+  CHILD_SAFETY_MONITORING_GOAL,
+} from "@/src/vision/child-safety";
+import {
   estimateVisionCostBreakdown,
 } from "@/src/vision/cost";
 import type { CameraProfileActionState } from "./profile-action-state";
@@ -212,6 +215,61 @@ async function authorizeCamera(cameraId: string) {
       timezone: String(site.timezone),
     },
   } as const;
+}
+
+async function internalMonitoringGoals(
+  authorized: Exclude<
+    Awaited<ReturnType<typeof authorizeCamera>>,
+    { error: string }
+  >,
+  cameraId: string,
+  profileId: string | null = null,
+) {
+  let query = authorized.supabase
+    .from("camera_profiles")
+    .select("monitoring_goals")
+    .eq("organization_id", authorized.organization.id)
+    .eq("camera_id", cameraId);
+
+  query =
+    profileId && IdSchema.safeParse(profileId).success
+      ? query.eq("id", profileId)
+      : query
+          .eq("is_active", true)
+          .order("version", { ascending: false })
+          .limit(1);
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error || !data) return [];
+
+  const goals = Array.isArray(data.monitoring_goals)
+    ? data.monitoring_goals.map((goal: unknown) =>
+        String(goal).trim(),
+      )
+    : [];
+
+  return goals.filter(
+    (goal: string) =>
+      goal.toUpperCase() ===
+      CHILD_SAFETY_MONITORING_GOAL,
+  );
+}
+
+function mergeMonitoringGoals(
+  userGoals: string[],
+  internalGoals: string[],
+) {
+  const publicGoals = userGoals.filter(
+    (goal) =>
+      String(goal).trim().toUpperCase() !==
+      CHILD_SAFETY_MONITORING_GOAL,
+  );
+
+  return uniqueStrings(
+    [...publicGoals, ...internalGoals],
+    30,
+  );
 }
 
 async function loadSourceAsset(
@@ -486,12 +544,18 @@ export async function analyzeCameraProfileAction(
         )}`,
       });
 
-    const monitoringGoals = uniqueStrings(
+    const preservedInternalGoals =
+      await internalMonitoringGoals(
+        authorized,
+        cameraId,
+      );
+
+    const monitoringGoals = mergeMonitoringGoals(
       [
         ...authorized.camera.monitoringGoals,
         ...analysis.profile.monitoringGoals,
       ],
-      30,
+      preservedInternalGoals,
     );
 
     const ignoreInstructions = uniqueStrings(
@@ -721,6 +785,12 @@ export async function saveCameraProfileDraftAction(
   }
 
   const input = parsed.data;
+  const preservedInternalGoals =
+    await internalMonitoringGoals(
+      authorized,
+      cameraId,
+      input.basedOnProfileId,
+    );
 
   const created = await createDraft(
     authorized,
@@ -729,9 +799,9 @@ export async function saveCameraProfileDraftAction(
       sourceAssetId,
       environmentDescription:
         input.environmentDescription,
-      monitoringGoals: uniqueStrings(
+      monitoringGoals: mergeMonitoringGoals(
         input.monitoringGoals,
-        30,
+        preservedInternalGoals,
       ),
       ignoreInstructions: uniqueStrings(
         input.ignoreInstructions,

@@ -274,7 +274,23 @@ function resolvePeriod(
     };
   }
 
-  const lastDays = normalized.match(/\bultim(?:os|as)\s+(\d{1,3})\s+dias?\b/);
+  const availablePeriod =
+    /\b(todos os dias existentes|todos os registros existentes|todo o periodo disponivel|periodo completo|desde o primeiro registro)\b/.test(
+      normalized,
+    );
+  if (availablePeriod) {
+    return {
+      fromDate: null,
+      toDate: currentDate,
+      compareFromDate: null,
+      compareToDate: null,
+      confidence: 0.98,
+    };
+  }
+
+  const lastDays = normalized.match(
+    /\b(?:ultim(?:os|as)|periodo de|janela de)\s+(\d{1,3})\s+dias?\b/,
+  );
   if (lastDays) {
     const days = Math.max(1, Math.min(180, Number(lastDays[1])));
     return {
@@ -582,7 +598,10 @@ function lastUserMessage(history: AssistantHistoryItem[]) {
 function isElliptical(normalized: string) {
   return (
     normalized.length <= 55 &&
-    (/^e\b/.test(normalized) || /^(ontem|anteontem|semana passada|no|na|s[oó]|apenas)\b/.test(normalized))
+    (/^e\b/.test(normalized) ||
+      /^(ontem|anteontem|semana passada|no|na|s[oó]|apenas|viu|encontrou|achou|teve|houve)\b/.test(
+        normalized,
+      ))
   );
 }
 
@@ -604,7 +623,7 @@ function resolveLocalRecordingConstraint(plan: AssistantPlan, directory: Assista
 
 function planInternal(input: DeterministicPlanInput, allowHistory: boolean): DeterministicPlanResult {
   const normalized = normalize(input.message);
-  const entity = resolveEntity(
+  let entity = resolveEntity(
     normalized,
     input.directory,
     input.selectedCameraId,
@@ -618,6 +637,19 @@ function planInternal(input: DeterministicPlanInput, allowHistory: boolean): Det
   if (allowHistory && isElliptical(normalized)) {
     const previous = lastUserMessage(input.history);
     if (previous) {
+      const previousNormalized = normalize(previous);
+      const previousEntity = resolveEntity(
+        previousNormalized,
+        input.directory,
+        null,
+        null,
+      );
+      const previousPeriod = resolvePeriod(
+        previousNormalized,
+        input.currentDate,
+        null,
+        null,
+      );
       const inherited = planInternal(
         {
           ...input,
@@ -630,18 +662,35 @@ function planInternal(input: DeterministicPlanInput, allowHistory: boolean): Det
         },
         false,
       );
+
+      if (
+        !input.selectedCameraId &&
+        !input.selectedSiteId &&
+        !entity.cameraId &&
+        !entity.siteId &&
+        !previousEntity.ambiguous &&
+        (previousEntity.cameraId || previousEntity.siteId)
+      ) {
+        entity = previousEntity;
+      }
+
+      if (
+        !/(hoje|ontem|anteontem|semana|mes|\d{1,2}\/\d{1,2}|20\d{2}-)/.test(
+          normalized,
+        )
+      ) {
+        period = {
+          ...period,
+          fromDate: previousPeriod.fromDate,
+          toDate: previousPeriod.toDate,
+          compareFromDate: previousPeriod.compareFromDate,
+          compareToDate: previousPeriod.compareToDate,
+        };
+      }
+
       if (inherited.understood) {
         intent = inherited.plan.intent;
         inheritedConfidence = inherited.confidence;
-        if (!/(hoje|ontem|anteontem|semana|mes|\d{1,2}\/\d{1,2}|20\d{2}-)/.test(normalized)) {
-          period = {
-            ...period,
-            fromDate: inherited.plan.fromDate,
-            toDate: inherited.plan.toDate,
-            compareFromDate: inherited.plan.compareFromDate,
-            compareToDate: inherited.plan.compareToDate,
-          };
-        }
       }
     }
   }
