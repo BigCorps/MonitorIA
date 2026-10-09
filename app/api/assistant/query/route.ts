@@ -293,10 +293,23 @@ export async function POST(request: Request) {
       content: String(row.content).slice(0, 1800),
       plan: (() => {
         const raw = objectValue(row.query_plan);
+        const operations = Array.isArray(raw.operations)
+          ? raw.operations.map((operation) => {
+              const item = objectValue(operation);
+              return {
+                ...item,
+                apparentAgeGroup:
+                  item.apparentAgeGroup === "child" ||
+                  item.apparentAgeGroup === "adult"
+                    ? item.apparentAgeGroup
+                    : null,
+              };
+            })
+          : raw.operations;
         const parsed = AssistantPlanV2Schema.safeParse({
           version: raw.version,
           legacyPlan: raw.legacyPlan,
-          operations: raw.operations,
+          operations,
           plannerNotes: raw.plannerNotes ?? [],
         });
         return parsed.success ? parsed.data : null;
