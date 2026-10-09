@@ -274,7 +274,23 @@ function resolvePeriod(
     };
   }
 
-  const lastDays = normalized.match(/\bultim(?:os|as)\s+(\d{1,3})\s+dias?\b/);
+  const availablePeriod =
+    /\b(todos os dias existentes|todos os registros existentes|todo o periodo disponivel|periodo completo|desde o primeiro registro)\b/.test(
+      normalized,
+    );
+  if (availablePeriod) {
+    return {
+      fromDate: null,
+      toDate: currentDate,
+      compareFromDate: null,
+      compareToDate: null,
+      confidence: 0.98,
+    };
+  }
+
+  const lastDays = normalized.match(
+    /\b(?:ultim(?:os|as)|periodo de|janela de)\s+(\d{1,3})\s+dias?\b/,
+  );
   if (lastDays) {
     const days = Math.max(1, Math.min(180, Number(lastDays[1])));
     return {
