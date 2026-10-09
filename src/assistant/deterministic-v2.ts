@@ -562,6 +562,26 @@ export function answerDeterministicallyV2(input: {
   retrievedData: unknown;
   allowedEvidenceIds: string[];
 }): AssistantAnswer {
+  if (
+    input.plan.plannerNotes.includes(
+      "adolescent:unsupported_separate_class",
+    )
+  ) {
+    return AssistantAnswerSchema.parse({
+      answer:
+        "O MonitorIA não possui uma classe visual separada para adolescentes nesta versão. Posso pesquisar por provável criança ou provável adulto, sempre como triagem visual ampla e probabilística.",
+      caution:
+        "A classificação visual não determina idade exata, maioridade legal ou identidade.",
+      evidenceEventIds: [],
+      periodLabel: null,
+      suggestions: [
+        "Mostre provável criança neste período",
+        "Mostre provável adulto neste período",
+        "Quais câmeras tiveram problemas?",
+      ],
+    });
+  }
+
   const data = objectValue(input.retrievedData);
   const operationResults = objectValue(data.operationResults);
   const parts: string[] = [];

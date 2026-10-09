@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planDeterministicallyV2 } from "../src/assistant/deterministic-v2";
+import {
+  answerDeterministicallyV2,
+  planDeterministicallyV2,
+} from "../src/assistant/deterministic-v2";
 
 const directory = {
   sites: [{ id: "11111111-1111-4111-8111-111111111111", name: "Loja Centro", timezone: "America/Sao_Paulo" }],
@@ -104,4 +107,40 @@ test("follow-up curto sobre crianças herda câmera e período anteriores", () =
   );
   assert.equal(result.plan.legacyPlan.fromDate, "2026-09-25");
   assert.equal(result.plan.legacyPlan.toDate, "2026-10-01");
+});
+
+test("adolescente isolado recebe limitação explícita sem virar criança", () => {
+  const message =
+    "Mostre adolescentes na câmera Entrada nos últimos 7 dias";
+  const result = plan(message);
+
+  assert.ok(
+    result.plan.plannerNotes.includes(
+      "adolescent:unsupported_separate_class",
+    ),
+  );
+  assert.ok(
+    !result.plan.operations.some(
+      (op) => op.apparentAgeGroup === "child",
+    ),
+  );
+
+  const answer = answerDeterministicallyV2({
+    message,
+    plan: result.plan,
+    retrievedData: {
+      operationResults: {},
+      coverage: null,
+    },
+    allowedEvidenceIds: [],
+  });
+
+  assert.match(
+    answer.answer,
+    /não possui uma classe visual separada para adolescentes/i,
+  );
+  assert.match(
+    answer.caution ?? "",
+    /não determina idade exata/i,
+  );
 });
