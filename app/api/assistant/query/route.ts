@@ -25,7 +25,11 @@ const RequestSchema = z.object({
   toDate: DateOnlySchema,
   cameraId: z.string().uuid().nullable(),
   siteId: z.string().uuid().nullable(),
-  ageGroup: z.enum(["child", "adult"]).nullable(),
+  ageGroup: z
+    .enum(["child", "adult"])
+    .nullable()
+    .optional()
+    .default(null),
 }).strict();
 
 type EvidenceResponse = {
