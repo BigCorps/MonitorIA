@@ -50,6 +50,10 @@ Exigir testes de sucesso, erro em modo legado, erro em modo estrito e recuperaç
 - Executar `npm run check`, `npm test` e um único build de Preview após agrupar alterações; não acionar workflows nativos do Agent.
 - Reportar arquivos, SHA, PR, cobertura dos testes, plano de rollback, custos esperados e limitações.
 
+## Entrega dos Gates 2/3 (10/10/2026)
+
+Implementação aditiva nesta mesma branch, com flags OFF e migration **pendente**, sem backfill ou mudança remota. Consulte integralmente [ASSISTANT-HYBRID-SEARCH-V3-VALIDATION.md](ASSISTANT-HYBRID-SEARCH-V3-VALIDATION.md) para contratos implementados, 36 perguntas reproduzíveis, resultados offline, custos, rollback e bloqueios de rollout. Vetores sintéticos não validam a relevância do modelo real; a medição de escala em WASM exige validação nativa antes de ativação. Gate 1 preservado. Nenhum merge/publicação em produção autorizado.
+
 ## Gate 4+ (posterior)
 
 - Replanejar operações individuais com zero resultado em perguntas compostas, sem executar dados desnecessários.

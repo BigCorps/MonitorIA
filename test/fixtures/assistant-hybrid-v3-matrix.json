@@ -1,0 +1,391 @@
+[
+  {
+    "question": "Mostre entregas ontem",
+    "axis": null,
+    "args": {
+      "p_query": "entrega"
+    },
+    "expected": [
+      1
+    ]
+  },
+  {
+    "question": "Recebimentos e remessas na entrada ontem",
+    "axis": 0,
+    "args": {
+      "p_query": "remessa",
+      "p_camera_id": "10000000-0000-4000-8000-000000000910"
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "Quero encomendas no Centro",
+    "axis": 0,
+    "args": {
+      "p_query": "encomenda",
+      "p_site_id": "10000000-0000-4000-8000-000000000920"
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "Pacotes recebidos na zona Entrada",
+    "axis": 0,
+    "args": {
+      "p_query": "pacote",
+      "p_zone_id": "10000000-0000-4000-8000-000000000930"
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "Entrega na câmera Estoque",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega",
+      "p_camera_id": "10000000-0000-4000-8000-000000000911"
+    },
+    "expected": []
+  },
+  {
+    "question": "Encomenda na Filial hoje",
+    "axis": 0,
+    "args": {
+      "p_query": "encomenda",
+      "p_site_id": "10000000-0000-4000-8000-000000000921"
+    },
+    "expected": []
+  },
+  {
+    "question": "Entregas de 8 de outubro na Filial",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega",
+      "p_site_id": "10000000-0000-4000-8000-000000000921",
+      "p_from": "2026-10-08T00:00:00Z",
+      "p_to": "2026-10-09T00:00:00Z"
+    },
+    "expected": [
+      10
+    ]
+  },
+  {
+    "question": "Pacotes ontem entre 10h e 12h",
+    "axis": 0,
+    "args": {
+      "p_query": "pacote @time=10:00-12:00"
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "Pacotes ontem entre 12h e 13h",
+    "axis": 0,
+    "args": {
+      "p_query": "pacote @time=12:00-13:00"
+    },
+    "expected": []
+  },
+  {
+    "question": "Movimento importante na madrugada",
+    "axis": 2,
+    "args": {
+      "p_query": "pessoa @important @time=21:00-02:00"
+    },
+    "expected": [
+      11
+    ]
+  },
+  {
+    "question": "Entregas importantes",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega @important"
+    },
+    "expected": []
+  },
+  {
+    "question": "Objetos removidos depois do fechamento",
+    "axis": 1,
+    "args": {
+      "p_query": "objeto",
+      "p_event_types": [
+        "object_removed"
+      ],
+      "p_after_confirmed_closing": true
+    },
+    "expected": [
+      3
+    ]
+  },
+  {
+    "question": "Objetos removidos antes do fechamento",
+    "axis": 1,
+    "args": {
+      "p_query": "objeto",
+      "p_event_types": [
+        "object_removed"
+      ],
+      "p_after_confirmed_closing": false
+    },
+    "expected": []
+  },
+  {
+    "question": "Crianças registradas visualmente",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "child"
+    },
+    "expected": [
+      3
+    ]
+  },
+  {
+    "question": "Crianças na câmera Entrada",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "child",
+      "p_camera_id": "10000000-0000-4000-8000-000000000910"
+    },
+    "expected": []
+  },
+  {
+    "question": "Crianças na zona Estoque",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "child",
+      "p_zone_id": "10000000-0000-4000-8000-000000000931"
+    },
+    "expected": [
+      3
+    ]
+  },
+  {
+    "question": "Adultos registrados visualmente",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "adult"
+    },
+    "expected": [
+      1,
+      2,
+      4
+    ]
+  },
+  {
+    "question": "Adultos no Estoque",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "adult",
+      "p_camera_id": "10000000-0000-4000-8000-000000000911"
+    },
+    "expected": []
+  },
+  {
+    "question": "Objetos com menção infantil",
+    "axis": null,
+    "args": {
+      "p_query": "infantil"
+    },
+    "expected": [
+      5
+    ]
+  },
+  {
+    "question": "Adolescentes descritos no texto",
+    "axis": null,
+    "args": {
+      "p_query": "adolescente"
+    },
+    "expected": [
+      6
+    ]
+  },
+  {
+    "question": "Objetos na câmera Entrada",
+    "axis": 1,
+    "args": {
+      "p_query": "objeto",
+      "p_camera_id": "10000000-0000-4000-8000-000000000910"
+    },
+    "expected": [
+      5
+    ]
+  },
+  {
+    "question": "Mochila retirada no Estoque",
+    "axis": 1,
+    "args": {
+      "p_query": "mochila",
+      "p_camera_id": "10000000-0000-4000-8000-000000000911"
+    },
+    "expected": [
+      3
+    ]
+  },
+  {
+    "question": "Animal no portão",
+    "axis": 3,
+    "args": {
+      "p_query": "animal"
+    },
+    "expected": [
+      12
+    ]
+  },
+  {
+    "question": "Capacete observado",
+    "axis": null,
+    "args": {
+      "p_query": "capacete"
+    },
+    "expected": []
+  },
+  {
+    "question": "Pessoa com confiança acima de 95%",
+    "axis": 2,
+    "args": {
+      "p_query": "pessoa",
+      "p_min_confidence": 0.95
+    },
+    "expected": []
+  },
+  {
+    "question": "Registros com revisão necessária",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_requires_review": true
+    },
+    "expected": [
+      3,
+      11
+    ]
+  },
+  {
+    "question": "Registros aguardando revisão",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_review_filter": "pending"
+    },
+    "expected": []
+  },
+  {
+    "question": "Registros marcados irrelevantes",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_review_filter": "irrelevant"
+    },
+    "expected": []
+  },
+  {
+    "question": "Entregas com pessoas presentes",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega",
+      "p_has_people": true
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "Entregas com veículos presentes",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega",
+      "p_has_vehicles": true
+    },
+    "expected": []
+  },
+  {
+    "question": "E as encomendas na mesma câmera?",
+    "axis": 0,
+    "args": {
+      "p_query": "encomenda",
+      "p_camera_id": "10000000-0000-4000-8000-000000000910"
+    },
+    "expected": [
+      1,
+      2
+    ]
+  },
+  {
+    "question": "E no mesmo local mas na outra câmera?",
+    "axis": 0,
+    "args": {
+      "p_query": "encomenda",
+      "p_site_id": "10000000-0000-4000-8000-000000000920",
+      "p_camera_id": "10000000-0000-4000-8000-000000000911"
+    },
+    "expected": []
+  },
+  {
+    "question": "Entregas no período sem cobertura",
+    "axis": 0,
+    "args": {
+      "p_query": "entrega",
+      "p_from": "2026-10-11T00:00:00Z",
+      "p_to": "2026-10-12T00:00:00Z"
+    },
+    "expected": []
+  },
+  {
+    "question": "Não mostre entregas, apenas animais",
+    "axis": null,
+    "args": {
+      "p_query": "animal -entrega"
+    },
+    "expected": [
+      12
+    ]
+  },
+  {
+    "question": "Mostre entregas e retirada de objetos",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_event_types": [
+        "delivery",
+        "object_removed"
+      ]
+    },
+    "expected": [
+      1,
+      2,
+      3
+    ]
+  },
+  {
+    "question": "Crianças depois do fechamento e objetos removidos",
+    "axis": null,
+    "args": {
+      "p_query": "",
+      "p_apparent_age_group": "child",
+      "p_after_confirmed_closing": true,
+      "p_event_types": [
+        "object_removed"
+      ]
+    },
+    "expected": [
+      3
+    ]
+  }
+]

@@ -101,14 +101,18 @@ function previousPeriod(fromDate: string, toDate: string) {
   return { compareFrom: addDaysToDateOnly(compareTo, -(days - 1)), compareTo };
 }
 
-async function hydrateEvidence(organizationId: string, eventIds: string[]): Promise<EvidenceResponse[]> {
+async function hydrateEvidence(organizationId: string, eventIds: string[], userClient?: any): Promise<EvidenceResponse[]> {
   const ids = [...new Set(eventIds)].slice(0, 12);
   if (!ids.length) return [];
-  const admin = createAdminClient();
-  const [{ data: events }, { data: assets }] = await Promise.all([
-    admin.from("events").select(`id,started_at,headline,summary,confidence,camera:cameras(name),site:sites(name)`).eq("organization_id", organizationId).in("id", ids).is("deleted_at", null),
-    admin.from("storage_assets").select("id,event_id,captured_at").eq("organization_id", organizationId).in("event_id", ids).eq("status", "ready").is("deleted_at", null).order("captured_at", { ascending: false }),
+  const admin = userClient ?? createAdminClient();
+  const now = new Date().toISOString();
+  const currentEvents = admin.from("events").select(`id,started_at,headline,summary,confidence,camera:cameras(name),site:sites(name)`).eq("organization_id", organizationId).in("id", ids).is("deleted_at", null);
+  const currentAssets = admin.from("storage_assets").select("id,event_id,captured_at").eq("organization_id", organizationId).in("event_id", ids).eq("status", "ready").is("deleted_at", null).order("captured_at", { ascending: false });
+  const [{ data: events, error: eventError }, { data: assets, error: assetError }] = await Promise.all([
+    userClient ? currentEvents.gt("expires_at", now) : currentEvents,
+    userClient ? currentAssets.or(`expires_at.is.null,expires_at.gt.${now}`) : currentAssets,
   ]);
+  if (userClient && (eventError || assetError)) throw new Error("assistant_evidence_unavailable");
   const assetByEvent = new Map<string, string>();
   for (const asset of assets ?? []) {
     const eventId = String((asset as any).event_id);
@@ -402,6 +406,22 @@ export async function POST(request: Request) {
         }
       }
     }
+    const usedHybrid = Array.isArray(objectValue(executed.retrievedData).hybridTelemetry);
+    const hybridEvidence = usedHybrid ? await hydrateEvidence(organization.id, executed.candidateEvidenceIds, supabase) : null;
+    if (hybridEvidence) {
+      const allowed = new Set(hybridEvidence.map((event) => event.id));
+      const original = objectValue(executed.retrievedData);
+      const operations = objectValue(original.operationResults);
+      executed = { ...executed,
+        candidateEvidenceIds: executed.candidateEvidenceIds.filter((id) => allowed.has(id)),
+        retrievedData: { ...original, operationResults: Object.fromEntries(Object.entries(operations).map(([id, value]) => {
+          const payload = objectValue(value);
+          if (payload.totalIsExact !== false || !Array.isArray(payload.events)) return [id, value];
+          const events = payload.events.filter((event) => allowed.has(String(objectValue(event).id)));
+          return [id, { ...payload, events, returnedCount: events.length }];
+        })) },
+      };
+    }
     const localizedData = localizeAssistantPayload(executed.retrievedData, effectiveTimeZone);
     const answered = await answerAssistantQuery({
       organizationId: organization.id, message: body.message, plan,
@@ -428,6 +448,10 @@ export async function POST(request: Request) {
     const chart = buildAssistantChart({ plan: plan.legacyPlan, retrievedData: chartData, fromDate, toDate });
     const combinedUsage = addAssistantUsage(addAssistantUsage(planned.usage, answered.usage), recoveryUsage);
     const cost = estimateVisionCostBreakdown(answered.model, combinedUsage);
+    const hybridMetrics = objectValue(executed.retrievedData).hybridTelemetry;
+    const embeddingCostUsd = Array.isArray(hybridMetrics) ? hybridMetrics.reduce((sum, metric) =>
+      sum + Number(objectValue(metric).embeddingCostUsd ?? 0), 0) : 0;
+    const totalCostUsd = cost.totalCostUsd + embeddingCostUsd;
     const storedPlan = {
       ...plan,
       periodLabel: displayPeriodLabel,
@@ -445,7 +469,7 @@ export async function POST(request: Request) {
     const { data: assistantMessage, error: assistantError } = await admin.from("assistant_messages").insert({
       organization_id: organization.id, thread_id: activeThreadId, role: "assistant", content: answered.answer.answer,
       evidence_event_ids: evidenceIds, query_plan: storedPlan, model: answered.model, usage: combinedUsage,
-      estimated_cost_usd: cost.totalCostUsd, created_by: null,
+      estimated_cost_usd: totalCostUsd, created_by: null,
     }).select("id,created_at").single();
     if (assistantError || !assistantMessage) throw new Error(assistantError?.message ?? "assistant_message_failed");
 
@@ -456,17 +480,19 @@ export async function POST(request: Request) {
         provider: "openai",
         model: answered.model, input_tokens: combinedUsage.inputTokens, cached_input_tokens: combinedUsage.cachedInputTokens,
         output_tokens: combinedUsage.outputTokens, reasoning_tokens: combinedUsage.reasoningTokens,
-        estimated_cost_usd: cost.totalCostUsd, pricing: cost.rates,
+        estimated_cost_usd: totalCostUsd, pricing: cost.rates,
         metadata: {
           purpose: "assistant_query_v2", thread_id: activeThreadId, user_message_id: userMessage.id,
           assistant_message_id: assistantMessage.id, operations: plan.operations.map((op) => op.kind),
           planner_source: planned.source, data_state: objectValue(executed.coverage).dataState ?? null,
           recovery_kind: recoveryKind, cost_breakdown: cost,
+          hybrid_search_v3: hybridMetrics ?? null, embedding_cost_usd: embeddingCostUsd,
         },
       }),
     ]);
 
-    const evidence = await hydrateEvidence(organization.id, evidenceIds);
+    const evidence = hybridEvidence ? hybridEvidence.filter((item) => evidenceIds.includes(item.id))
+      : await hydrateEvidence(organization.id, evidenceIds);
     return NextResponse.json({
       ok: true,
       threadId: activeThreadId,
