@@ -431,6 +431,13 @@ function coverageCaution(coverage: Record<string, unknown> | null) {
 }
 
 function customOperationAnswer(op: AssistantOperation, payload: Record<string, unknown>) {
+  if (op.kind === "search_events" && payload.totalIsExact === false) {
+    const events = arrayValue(payload.events).map(objectValue);
+    if (!events.length) return "Não encontrei registros compatíveis no recorte disponível. Isso não comprova ausência de acontecimentos.";
+    const details = events.slice(0, 4).map((event) =>
+      `${stringValue(event.cameraName) || "Câmera"}: ${stringValue(event.headline) || "Acontecimento"}${formatTime(event.startedAt) ? `, às ${formatTime(event.startedAt)}` : ""}.`).join(" ");
+    return `Selecionei ${events.length} registro(s) compatível(is) para consulta; esta seleção não é uma contagem total. A semelhança de palavras ou significado não confirma uma detecção visual. ${details}`;
+  }
   if (op.kind === "search_events" && op.apparentAgeGroup) {
     const total = numberValue(payload.total ?? payload.totalFound);
     const events = arrayValue(payload.events).map(objectValue);

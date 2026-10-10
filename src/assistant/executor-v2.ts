@@ -1,3 +1,4 @@
+import { createHybridSearchV3, hybridSearchEnabled, hybridOperationEligible } from "./hybrid-search-v3";
 import { searchEvents } from "@/src/lib/event-search-data";
 import type { AssistantExecutionResult, AssistantPlanV2 } from "./v2-contracts";
 
@@ -59,6 +60,9 @@ export async function executeAssistantPlanV2(input: {
   };
 
   const operationResults: Record<string, unknown> = {};
+  const hybridTelemetry: unknown[] = [];
+  const hybrid = hybridSearchEnabled(organizationId) ? createHybridSearchV3(async (args) =>
+    supabase.rpc("assistant_hybrid_event_search_v3", args).abortSignal(AbortSignal.timeout(2000))) : null;
 
   for (const op of plan.operations) {
     const cameraId = op.cameraId ?? plan.legacyPlan.cameraId;
@@ -77,6 +81,17 @@ export async function executeAssistantPlanV2(input: {
         break;
       }
       case "search_events": {
+        const hybridResult = hybrid && hybridOperationEligible(op) &&
+          !plan.plannerNotes.includes("adolescent:unsupported_separate_class") &&
+          !["NO_COVERAGE", "FEATURE_DISABLED"].includes(String(coverage.dataState))
+          ? await hybrid({ organizationId, from: fromIso, to: toIso,
+            query: plan.legacyPlan.query || op.subject || "", cameraId, siteId,
+            operation: op, limit: plan.legacyPlan.evidenceLimit }) : null;
+        if (hybridResult) {
+          operationResults[op.id] = hybridResult.result;
+          hybridTelemetry.push(hybridResult.telemetry);
+          break;
+        }
         if (
           op.zoneId ||
           op.apparentAgeGroup ||
@@ -109,6 +124,7 @@ export async function executeAssistantPlanV2(input: {
             siteId,
             limit: plan.legacyPlan.evidenceLimit,
             offset: 0,
+            throwOnError: true,
           });
           operationResults[op.id] = { total: result.total, events: result.rows };
         }
@@ -224,10 +240,18 @@ export async function executeAssistantPlanV2(input: {
     }
   }
 
-  const retrievedData = { operationResults, coverage };
+  const retrievedData = { operationResults, coverage, ...(hybridTelemetry.length ? { hybridTelemetry } : {}) };
   return {
     retrievedData,
-    candidateEvidenceIds: collectEvidence(retrievedData).slice(0, 12),
+    candidateEvidenceIds: [...new Set([
+      ...collectEvidence(retrievedData),
+      ...Object.values(operationResults).flatMap((value) => {
+        const payload = objectValue(value);
+        const events = payload.totalIsExact === false ? payload.events : null;
+        return Array.isArray(events) ? events.map((event) => objectValue(event).id)
+          .filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)) : [];
+      }),
+    ])].slice(0, 12),
     coverage,
   };
 }

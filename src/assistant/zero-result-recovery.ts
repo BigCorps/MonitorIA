@@ -38,6 +38,7 @@ export function shouldRecoverEmptySearch(plan: AssistantPlanV2, execution: Assis
   const results = objectValue(objectValue(execution.retrievedData).operationResults);
   if (!Object.prototype.hasOwnProperty.call(results, op.id)) return false;
   const found = objectValue(results[op.id]);
+  if (found.totalIsExact === false) return false;
   if (!Object.prototype.hasOwnProperty.call(found, "total") && !Object.prototype.hasOwnProperty.call(found, "totalFound")) return false;
   const count = Number(found.total ?? found.totalFound ?? 0);
   return Number.isFinite(count) && count === 0 && (!Array.isArray(found.events) || found.events.length === 0);
