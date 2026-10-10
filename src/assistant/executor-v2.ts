@@ -109,6 +109,7 @@ export async function executeAssistantPlanV2(input: {
             siteId,
             limit: plan.legacyPlan.evidenceLimit,
             offset: 0,
+            throwOnError: true,
           });
           operationResults[op.id] = { total: result.total, events: result.rows };
         }

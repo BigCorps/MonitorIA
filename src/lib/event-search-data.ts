@@ -1,4 +1,5 @@
 import { createClient } from "@/src/lib/supabase/server";
+import { didEventSearchFail } from "./event-search-failure";
 import type {
   CameraSummary,
   SiteSummary,
@@ -56,6 +57,8 @@ export type EventSearchInput = {
   hasVehicles?: boolean | null;
   limit?: number;
   offset?: number;
+  /** Faz a Pesquisa IA tratar falha real como erro, não como zero eventos. */
+  throwOnError?: boolean;
 };
 
 export type EventSearchResult = {
@@ -318,7 +321,9 @@ export async function searchEvents(
 
   if (error) {
     console.error("Falha na pesquisa de eventos:", error.message);
-    return { rows: [], total: 0 };
+    if (didEventSearchFail(error, input.throwOnError === true)) {
+      return { rows: [], total: 0 };
+    }
   }
 
   const rows = mapSearchRows(data ?? []);

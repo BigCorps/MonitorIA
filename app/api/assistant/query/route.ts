@@ -391,6 +391,7 @@ export async function POST(request: Request) {
             search: (scope) => searchEvents(organization.id, {
               query: scope.query, from: scope.from, to: scope.to,
               cameraId: scope.cameraId, siteId: scope.siteId, limit: scope.limit, offset: 0,
+              throwOnError: true,
             }),
           });
           executed = recovery.execution;
@@ -459,7 +460,8 @@ export async function POST(request: Request) {
         metadata: {
           purpose: "assistant_query_v2", thread_id: activeThreadId, user_message_id: userMessage.id,
           assistant_message_id: assistantMessage.id, operations: plan.operations.map((op) => op.kind),
-          planner_source: planned.source, data_state: objectValue(executed.coverage).dataState ?? null, cost_breakdown: cost,
+          planner_source: planned.source, data_state: objectValue(executed.coverage).dataState ?? null,
+          recovery_kind: recoveryKind, cost_breakdown: cost,
         },
       }),
     ]);
